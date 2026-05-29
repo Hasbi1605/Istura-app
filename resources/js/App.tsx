@@ -76,6 +76,55 @@ import type { ApiFeedback } from "./api/feedback";
 import { submitPublicFeedback } from "./api/feedback";
 import { ApiError, ValidationError } from "./api/client";
 import { getEcho, ADMIN_BOOKINGS_CHANNEL, destroyEcho } from "./realtime/echo";
+import type {
+  ContactIconKey,
+  FooterContact,
+  Screen,
+  AdminTab,
+  VisitStatus,
+  BookingStatus,
+  AdminAction,
+  Slot,
+  VisitDay,
+  AdminSession,
+  Booking,
+  Feedback,
+  BookingForm,
+  PublicDateStatus,
+  FaqItem,
+  WaTemplate,
+  BookingStatusFilter,
+  BookingSort,
+  BookingDateRange,
+  BookingViewMode,
+  BookingDensity,
+} from "./domain/types";
+import {
+  monthNames,
+  fullDayNames,
+  calendarWeekdays,
+  padDatePart,
+  startOfDay,
+  startOfMonth,
+  getMonthLength,
+  addMonths,
+  formatDateKey,
+  parseDateKey,
+  isSameMonth,
+  isWithinRange,
+  isDefaultHoliday,
+  formatMonthTitle,
+  formatLongDate,
+  formatCount,
+  formatCountShort,
+  getPublicDateStatus,
+  getFirstAvailableDate,
+  createCalendarDays,
+  publicSlotStatusToClass,
+  publicSlotStatusLabel,
+  publicStatusMeta,
+  legendStatuses,
+} from "./lib/date";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -98,15 +147,6 @@ const ASSETS = {
   logoGold: "/assets/gedung-agung-gold.png",
   logoWhite: "/assets/gedung-agung-white.png",
   letterExample: "/assets/contoh-kop-surat.png",
-};
-
-type ContactIconKey = "instagram" | "youtube" | "whatsapp" | "email" | "phone";
-
-type FooterContact = {
-  label: string;
-  value: string;
-  href: string;
-  iconKey: ContactIconKey;
 };
 
 const INITIAL_FOOTER_CONTACTS: FooterContact[] = [
@@ -173,94 +213,6 @@ const RATING_LABELS = [
   "Baik",
   "Sangat baik",
 ];
-
-type Screen = "home" | "booking" | "feedback" | "admin";
-type AdminTab =
-  | "dashboard"
-  | "bookings"
-  | "schedule"
-  | "feedback"
-  | "cms-faq"
-  | "cms-letter"
-  | "cms-contacts"
-  | "cms-hero"
-  | "cms-wa"
-  | "users"
-  | "audit";
-type VisitStatus = "Available" | "Held" | "Booked" | "Closed" | "Reschedule Hold";
-type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
-type AdminAction = "accept" | "reject" | "reschedule";
-
-type Slot = {
-  time: string;
-  status: VisitStatus;
-  custom?: boolean;
-};
-
-type VisitDay = {
-  date: string;
-  label: string;
-  short: string;
-  slots: Slot[];
-};
-
-type AdminSession = {
-  email: string;
-  name: string;
-  role: string;
-  loggedAt: string;
-};
-
-type Booking = {
-  code: string;
-  contactName: string;
-  nik: string;
-  nikMasked: string;
-  whatsapp: string;
-  institution: string;
-  groupSize: number;
-  date: string;
-  dateLabel: string;
-  time: string;
-  status: BookingStatus;
-  documentName: string;
-  submittedAt: string;
-  note?: string;
-  feedbackToken: string;
-  completedAt?: string;
-  // Reschedule lifecycle: when admin proposes a new slot we keep the original
-  // date/time as-is and stash the proposed alternative so the WhatsApp reply
-  // from the visitor can be confirmed by the admin in a follow-up step.
-  proposedDate?: string;
-  proposedDateLabel?: string;
-  proposedTime?: string;
-  proposedAt?: string;
-};
-
-type Feedback = {
-  code: string;
-  rating: number;
-  bookingEase: number;
-  service: number;
-  recommend: number;
-  highlights: string[];
-  improvements: string[];
-  comment: string;
-  allowPublish: boolean;
-  submittedAt?: string;
-};
-
-type BookingForm = {
-  contactName: string;
-  nik: string;
-  whatsapp: string;
-  institution: string;
-  groupSize: string;
-  date: string;
-  time: string;
-  documentName: string;
-  agreement: boolean;
-};
 
 const VISIT_TIME_SLOTS = [
   "08.00",
@@ -1267,49 +1219,6 @@ const wizardSteps = [
   },
 ];
 
-type PublicDateStatus = "available" | "processing" | "full" | "closed" | "outside";
-
-const publicStatusMeta: Record<PublicDateStatus, { label: string }> = {
-  available: { label: "Tersedia" },
-  processing: { label: "Sedang Diproses" },
-  full: { label: "Penuh" },
-  closed: { label: "Tutup" },
-  outside: { label: "Tidak tersedia" },
-};
-const legendStatuses: PublicDateStatus[] = ["available", "processing", "full", "closed"];
-
-const calendarWeekdays = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-const monthNames = [
-  "Januari",
-  "Februari",
-  "Maret",
-  "April",
-  "Mei",
-  "Juni",
-  "Juli",
-  "Agustus",
-  "September",
-  "Oktober",
-  "November",
-  "Desember",
-];
-const fullDayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-
-const publicSlotStatusToClass = (status: VisitStatus): PublicDateStatus => {
-  if (status === "Available") return "available";
-  if (status === "Held" || status === "Reschedule Hold") return "processing";
-  if (status === "Booked") return "full";
-  return "closed";
-};
-
-const publicSlotStatusLabel: Record<VisitStatus, string> = {
-  Available: "Tersedia",
-  Held: "Sedang diproses",
-  "Reschedule Hold": "Sedang diproses",
-  Booked: "Sudah terisi",
-  Closed: "Tidak dibuka",
-};
-
 const quickInfoCards: Array<{
   icon: LucideIcon;
   title: string;
@@ -1370,13 +1279,6 @@ const letterChecklist = [
   "Tanda tangan kepala instansi atau penanggung jawab.",
 ];
 
-type FaqItem = {
-  id: string;
-  question: string;
-  answer: string;
-  link?: { label: string; href: string };
-};
-
 const INITIAL_FAQ_ITEMS: FaqItem[] = [
   {
     id: "faq-h5",
@@ -1417,140 +1319,6 @@ const INITIAL_FAQ_ITEMS: FaqItem[] = [
   },
 ];
 
-const padDatePart = (value: number) => String(value).padStart(2, "0");
-
-const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
-const getMonthLength = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-
-const addMonths = (date: Date, amount: number) => {
-  const targetMonth = date.getMonth() + amount;
-  const monthStart = new Date(date.getFullYear(), targetMonth, 1);
-  const day = Math.min(date.getDate(), getMonthLength(monthStart.getFullYear(), monthStart.getMonth()));
-
-  return new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
-};
-
-const formatDateKey = (date: Date) =>
-  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
-
-const parseDateKey = (key: string) => {
-  const [year, month, day] = key.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
-
-const isSameMonth = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
-
-// Locale number formatters used by toolbar chips, KPI cards, and pagination
-// labels. Indonesian uses "." as the thousands separator (e.g. 1.234, 12.345).
-const numberFormatId = new Intl.NumberFormat("id-ID");
-const formatCount = (value: number) => numberFormatId.format(value);
-// Compact formatter for chip badges: keeps the pill from ballooning when the
-// dataset reaches the thousands. KPI/total counts still use formatCount.
-const formatCountShort = (value: number) => {
-  if (value < 1000) return formatCount(value);
-  if (value < 10_000) {
-    const v = value / 1000;
-    // Drop trailing ".0" to keep "1rb" instead of "1.0rb".
-    return `${v.toFixed(v < 10 ? 1 : 0).replace(/\.0$/, "")}rb`;
-  }
-  if (value < 1_000_000) return `${Math.round(value / 1000)}rb`;
-  const v = value / 1_000_000;
-  return `${v.toFixed(v < 10 ? 1 : 0).replace(/\.0$/, "")}jt`;
-};
-
-const isWithinRange = (date: Date, minDate: Date, maxDate: Date) => date >= minDate && date <= maxDate;
-const isDefaultHoliday = (date: Date) => [0, 5, 6].includes(date.getDay());
-
-const getPublicDateStatus = (
-  date: Date,
-  minDate: Date,
-  maxDate: Date,
-  visibleMonth: Date,
-  scheduleByKey?: Map<string, VisitDay>,
-): PublicDateStatus => {
-  if (!isSameMonth(date, visibleMonth) || !isWithinRange(date, minDate, maxDate)) {
-    return "outside";
-  }
-
-  if (scheduleByKey) {
-    const day = scheduleByKey.get(formatDateKey(date));
-    if (!day) return "closed";
-    const hasAvailable = day.slots.some((slot) => slot.status === "Available");
-    const hasPending = day.slots.some(
-      (slot) => slot.status === "Held" || slot.status === "Reschedule Hold",
-    );
-    if (hasAvailable) return "available";
-    if (hasPending) return "processing";
-    const allClosed = day.slots.every((slot) => slot.status === "Closed");
-    if (allClosed) return "closed";
-    return "full";
-  }
-
-  if (isDefaultHoliday(date)) {
-    return "closed";
-  }
-
-  if (date.getDate() % 11 === 0) {
-    return "full";
-  }
-
-  if (date.getDate() % 7 === 0) {
-    return "processing";
-  }
-
-  return "available";
-};
-
-const getFirstAvailableDate = (
-  minDate: Date,
-  maxDate: Date,
-  visibleMonth = minDate,
-  scheduleByKey?: Map<string, VisitDay>,
-) => {
-  const cursor = startOfDay(new Date(Math.max(minDate.getTime(), startOfMonth(visibleMonth).getTime())));
-  const monthEnd = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0);
-  const end = new Date(Math.min(maxDate.getTime(), monthEnd.getTime()));
-
-  while (cursor <= end) {
-    if (
-      getPublicDateStatus(cursor, minDate, maxDate, startOfMonth(cursor), scheduleByKey) ===
-      "available"
-    ) {
-      return new Date(cursor);
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  return minDate;
-};
-
-const createCalendarDays = (
-  visibleMonth: Date,
-  minDate: Date,
-  maxDate: Date,
-  scheduleByKey?: Map<string, VisitDay>,
-) => {
-  const firstDay = startOfMonth(visibleMonth);
-  const gridStart = new Date(firstDay);
-  gridStart.setDate(firstDay.getDate() - firstDay.getDay());
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(gridStart);
-    date.setDate(gridStart.getDate() + index);
-
-    return {
-      date,
-      key: formatDateKey(date),
-      status: getPublicDateStatus(date, minDate, maxDate, visibleMonth, scheduleByKey),
-    };
-  });
-};
-
-const formatMonthTitle = (date: Date) => `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-const formatLongDate = (date: Date) =>
-  `${fullDayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 
 const accordionItems = [
   {
@@ -4546,13 +4314,6 @@ type AdminMenuItem = {
   icon: LucideIcon;
   group?: string;
   status?: "ready" | "soon";
-};
-
-type WaTemplate = {
-  id: BookingStatus;
-  label: string;
-  description: string;
-  template: string;
 };
 
 const INITIAL_WA_TEMPLATES: WaTemplate[] = [
@@ -7555,12 +7316,6 @@ function AdminAuditLog() {
 // admin booking page can scale to hundreds/thousands of rows without complex
 // state coupling.
 // --------------------------------------------------------------------------
-
-type BookingStatusFilter = BookingStatus | null;
-type BookingSort = "smart" | "submitted-desc" | "submitted-asc" | "date-asc" | "date-desc";
-type BookingDateRange = "all" | "today" | "week" | "month" | "custom";
-type BookingViewMode = "split" | "table";
-type BookingDensity = "comfortable" | "compact";
 
 const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
   { value: "Pending", label: "Pending" },
