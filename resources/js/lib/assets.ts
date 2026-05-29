@@ -1,0 +1,21 @@
+// Static asset path map. Mirror dari ASSETS di App.tsx; file ada di public/assets.
+export const ASSETS = {
+  miky: "/assets/miky.png",
+  mikyHero: "/assets/miky-greeting.png",
+  mikyHeroSvg: "/assets/miky-hero.svg",
+  mikyHero3: "/assets/miky-hero-3.svg",
+  mikyStep1: "/assets/miky-step-1.svg",
+  mikyStep2: "/assets/miky-step-2.svg",
+  mikyStep3: "/assets/miky-step-3.svg",
+  mikyStep4: "/assets/miky-step-4.svg",
+  mikyStep5: "/assets/miky-step-5.svg",
+  mikyStep6: "/assets/miky-step-6.svg",
+  mikyStep7: "/assets/miky-step-7.svg",
+  mikyStep8: "/assets/miky-step-8.svg",
+  mikyFeedback: "/assets/miky-feedback.svg",
+  mikyFeedback2: "/assets/miky-feedback-2.svg",
+  mikyFeedback3: "/assets/miky-feedback-3.svg",
+  logoGold: "/assets/gedung-agung-gold.png",
+  logoWhite: "/assets/gedung-agung-white.png",
+  letterExample: "/assets/contoh-kop-surat.png",
+};
