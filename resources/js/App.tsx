@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -58,21 +57,12 @@ import {
   updateAdminContacts,
   updateAdminWaTemplates,
 } from "./api/cms";
-import { login as apiLogin, logout as apiLogout, me as apiMe } from "./api/auth";
-import {
-  fetchAdminBookings,
-  acceptBooking as apiAcceptBooking,
-  rejectBooking as apiRejectBooking,
-  rescheduleBooking as apiRescheduleBooking,
-  completeBooking as apiCompleteBooking,
-  submitPublicBooking,
-} from "./api/bookings";
+import { me as apiMe } from "./api/auth";
+import { fetchAdminBookings } from "./api/bookings";
 import { fetchAdminFeedbacks } from "./api/feedback";
 import type { ApiBooking } from "./api/bookings";
 import type { ApiFeedback } from "./api/feedback";
-import { submitPublicFeedback } from "./api/feedback";
-import { ApiError, ValidationError } from "./api/client";
-import { getEcho, ADMIN_BOOKINGS_CHANNEL, destroyEcho } from "./realtime/echo";
+import { getEcho, ADMIN_BOOKINGS_CHANNEL } from "./realtime/echo";
 import type {
   ContactIconKey,
   FooterContact,
@@ -131,23 +121,11 @@ import { DetailItem } from "./components/ui/DetailItem";
 import { StatusBadge } from "./components/ui/StatusBadge";
 import { Footer } from "./components/layout/Footer";
 import { Navigation } from "./components/layout/Navigation";
-import { AdminScheduleManager } from "./components/admin/ScheduleManager";
-import { AdminScreen } from "./components/admin/BookingScreen";
 import { HomeScreen } from "./components/home/HomeScreen";
 import { BookingWizard } from "./components/booking/BookingWizard";
 import { FeedbackScreen } from "./components/feedback/FeedbackScreen";
-import { AdminDashboard } from "./components/admin/AdminDashboard";
-import { AdminFeedbackList } from "./components/admin/AdminFeedbackList";
-import {
-  AdminFaqManager,
-  AdminContactsManager,
-  AdminWaTemplates,
-  AdminLetterPreview,
-  AdminHeroPreview,
-} from "./components/admin/AdminCmsManagers";
-import { AdminUsersList, AdminAuditLog } from "./components/admin/AdminSystemPages";
-import { AdminShell, AdminLogin } from "./components/admin/AdminShell";
-import { Pagination } from "./components/ui/Pagination";
+import { AdminApp } from "./components/admin/AdminApp";
+import { readAdminSession, readCmsCollection, writeCmsCollection } from "./lib/legacyShims";
 import {
   BOOKING_STATUS_CHIPS,
   isActionNeeded,
@@ -160,11 +138,7 @@ import {
   PAGE_SIZE_FEEDBACK,
   VIRTUALIZE_THRESHOLD,
 } from "./domain/booking";
-import {
-  maskNik,
-  setActiveWaTemplates,
-} from "./lib/whatsapp";
-import { openWhatsApp, createWhatsappMessage } from "./lib/waActions";
+import { setActiveWaTemplates } from "./lib/whatsapp";
 import { ASSETS } from "./lib/assets";
 import {
   useReducedMotion,
@@ -509,88 +483,26 @@ function App() {
   return (
     <main ref={pageRef} className="app-shell overflow-x-hidden w-full max-w-full">
       {screen === "admin" ? (
-        adminSession ? (
-          <AdminShell
-            session={adminSession}
-            tab={adminTab}
-            onTabChange={setAdminTab}
-            onLogout={() => {
-              clearAdminSession();
-              setAdminSession(null);
-              destroyEcho();
-              window.history.replaceState(null, "", "/admin");
-              void apiLogout().catch(() => {});
-            }}
-            onExitToPublic={() => {
-              setScreen("home");
-              window.history.replaceState(null, "", "/");
-            }}
-          >
-            {adminTab === "dashboard" && (
-              <AdminDashboard
-                bookings={bookings}
-                feedbacks={feedbacks}
-                onJumpTab={setAdminTab}
-                adminName={adminSession.name}
-              />
-            )}
-            {adminTab === "bookings" && (
-              <AdminScreen
-                schedules={schedules}
-                bookings={bookings}
-                onBookingsChange={setBookings}
-                onSchedulesChange={setSchedules}
-                focusCode={bookingFocusCode}
-                onFocusCodeConsumed={() => setBookingFocusCode(null)}
-                adminName={adminSession.name}
-              />
-            )}
-            {adminTab === "feedback" && (
-              <AdminFeedbackList
-                bookings={bookings}
-                feedbacks={feedbacks}
-                adminName={adminSession.name}
-              />
-            )}
-            {adminTab === "schedule" && (
-              <AdminScheduleManager
-                schedules={schedules}
-                bookings={bookings}
-                onSchedulesChange={setSchedules}
-                onOpenBooking={(code) => {
-                  setBookingFocusCode(code);
-                  setAdminTab("bookings");
-                }}
-              />
-            )}
-            {adminTab === "cms-faq" && (
-              <AdminFaqManager faqs={faqs} onChange={setFaqs} />
-            )}
-            {adminTab === "cms-contacts" && (
-              <AdminContactsManager contacts={contacts} onChange={setContacts} />
-            )}
-            {adminTab === "cms-letter" && <AdminLetterPreview />}
-            {adminTab === "cms-hero" && <AdminHeroPreview />}
-            {adminTab === "cms-wa" && (
-              <AdminWaTemplates templates={waTemplates} onChange={setWaTemplates} />
-            )}
-            {adminTab === "users" && <AdminUsersList />}
-            {adminTab === "audit" && <AdminAuditLog />}
-          </AdminShell>
-        ) : (
-          <AdminLogin
-            onAuthenticated={(session) => {
-              writeAdminSession(session);
-              setAdminSession(session);
-              setAdminTab("dashboard");
-              window.history.replaceState(null, "", "/admin");
-            }}
-            onCancel={() => {
-              setScreen("home");
-              window.history.replaceState(null, "", "/");
-            }}
-          />
-        )
+        <AdminApp
+          session={adminSession}
+          onSessionChange={setAdminSession}
+          adminTab={adminTab}
+          onAdminTabChange={setAdminTab}
+          schedules={schedules}
+          onSchedulesChange={setSchedules}
+          bookings={bookings}
+          onBookingsChange={setBookings}
+          feedbacks={feedbacks}
+          faqs={faqs}
+          onFaqsChange={setFaqs}
+          contacts={contacts}
+          onContactsChange={setContacts}
+          waTemplates={waTemplates}
+          onWaTemplatesChange={setWaTemplates}
+          bookingFocusCode={bookingFocusCode}
+          onBookingFocusCodeChange={setBookingFocusCode}
+          onExitToPublic={setScreen}
+        />
       ) : (
         <>
           <Navigation screen={screen} onNavigate={goToScreen} />
@@ -647,47 +559,8 @@ function App() {
 
 
 
-// -------------------------------------------------------------------------
-//  Admin shell, login, placeholder
-// -------------------------------------------------------------------------
-
-const ADMIN_SESSION_KEY = "istura-admin-session";
-
-// Auth sekarang dijaga oleh Sanctum cookie session di server. Helper ini
-// tetap dipertahankan agar komponen yang men-cache snapshot AdminSession di
-// memori (untuk render UX cepat) tidak perlu diubah; isinya jadi no-op.
-function readAdminSession(): AdminSession | null {
-  return null;
-}
-
-function writeAdminSession(_session: AdminSession) {
-  /* no-op: session di server */
-}
-
-function clearAdminSession() {
-  /* no-op */
-}
-
-// CMS data sekarang di server. Helper ini sekadar shim sinkron yang
-// mengembalikan fallback (mock seed yang sama dengan seeder Laravel) supaya
-// initial render aman; data asli akan di-replace oleh useEffect fetcher di
-// komponen App.
-function readCmsCollection<T>(_key: string, fallback: T[]): T[] {
-  return fallback;
-}
-
-function writeCmsCollection<T>(_key: string, _value: T[]) {
-  /* no-op: persistence delegated to API hooks */
-}
-
-// Mock credentials replaced by Laravel Sanctum auth (api/auth.ts).
-
-
-
 // Seed the imperative WA template cache so createWhatsappMessage bekerja
 // sebelum useEffect hydration pertama berjalan.
 setActiveWaTemplates(INITIAL_WA_TEMPLATES);
-
-
 
 export default App;
