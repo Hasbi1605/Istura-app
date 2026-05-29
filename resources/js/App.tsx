@@ -129,6 +129,9 @@ import { buildScheduleHorizon, applyBookingsToSchedule, VISIT_TIME_SLOTS } from 
 import { initialBookings } from "./seeds/bookings";
 import { initialFeedbacks } from "./seeds/feedbacks";
 import { ContactIcon } from "./components/icons/SocialIcons";
+import { StatCard } from "./components/ui/StatCard";
+import { DetailItem } from "./components/ui/DetailItem";
+import { StatusBadge } from "./components/ui/StatusBadge";
 import {
   BOOKING_STATUS_CHIPS,
   isActionNeeded,
@@ -8335,37 +8338,6 @@ function AdminActionModal({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-}) {
-  // Format raw numbers with the id-ID locale so KPI cards stay readable when
-  // counts reach the thousands (e.g. "1.234" instead of "1234"). Strings pass
-  // through untouched so callers can still render values like "88%" or "—".
-  const display = typeof value === "number" ? formatCount(value) : value;
-  return (
-    <div className="stat-card">
-      <span>{label}</span>
-      <strong>{display}</strong>
-      {hint && <small className="stat-card-hint">{hint}</small>}
-    </div>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 function DocumentDetailItem({
   label,
   documentName,
@@ -8507,10 +8479,6 @@ function DocumentPreviewModal({
       </div>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: BookingStatus }) {
-  return <span className={`status-badge status-${status.toLowerCase()}`}>{status}</span>;
 }
 
 function Footer({
