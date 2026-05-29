@@ -1,0 +1,36 @@
+[
+  {
+    "id": "faq-h5",
+    "question": "Apakah booking harus dilakukan minimal H-5?",
+    "answer": "Ya. Permohonan sebaiknya dikirim minimal H-5 dari tanggal kunjungan agar admin memiliki waktu untuk pengecekan jadwal dan surat."
+  },
+  {
+    "id": "faq-individu",
+    "question": "Apakah pengunjung individu bisa mendaftar?",
+    "answer": "Alur ini diprioritaskan untuk perwakilan instansi, sekolah, komunitas, atau organisasi yang mengajukan kunjungan rombongan."
+  },
+  {
+    "id": "faq-rombongan",
+    "question": "Berapa jumlah maksimal rombongan?",
+    "answer": "Setiap kloter menampung maksimal 75 orang. Jika rombongan lebih dari 75 orang, tetap kirim booking terlebih dahulu, lalu admin akan menghubungi via WhatsApp untuk membicarakan pembagian kloter."
+  },
+  {
+    "id": "faq-format-surat",
+    "question": "Format surat permohonan seperti apa?",
+    "answer": "Gunakan surat resmi berkop instansi, mencantumkan tanggal kunjungan, waktu, jumlah peserta, data koordinator, dan tanda tangan penanggung jawab.",
+    "link": {
+      "label": "Lihat contoh surat",
+      "href": "#contoh-surat"
+    }
+  },
+  {
+    "id": "faq-biaya",
+    "question": "Apakah ada biaya untuk berkunjung?",
+    "answer": "Tidak ada biaya. Istura merupakan program kunjungan Istana Untuk Rakyat yang dibuka gratis bagi seluruh masyarakat."
+  },
+  {
+    "id": "faq-penuh",
+    "question": "Bagaimana jika jadwal yang diinginkan penuh?",
+    "answer": "Pilih slot lain yang masih tersedia. Jika admin menawarkan reschedule, konfirmasi akan dikirim melalui WhatsApp contact person."
+  }
+]

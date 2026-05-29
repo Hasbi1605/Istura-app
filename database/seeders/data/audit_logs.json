@@ -1,0 +1,22 @@
+[
+  {
+    "actor": "Admin ISTURA",
+    "action": "Menyetujui booking ISTURA-2026-0042",
+    "at": "26 Mei 2026, 09.12 WIB"
+  },
+  {
+    "actor": "Admin ISTURA",
+    "action": "Mengubah jawaban FAQ 'Apakah booking harus dilakukan minimal H-5?'",
+    "at": "25 Mei 2026, 17.04 WIB"
+  },
+  {
+    "actor": "Operator Booking",
+    "action": "Menutup slot 12.00 - 14.00 WIB pada 30 Mei 2026",
+    "at": "25 Mei 2026, 11.20 WIB"
+  },
+  {
+    "actor": "Admin ISTURA",
+    "action": "Menandai ISTURA-2026-0039 sebagai Completed",
+    "at": "22 Mei 2026, 12.10 WIB"
+  }
+]
