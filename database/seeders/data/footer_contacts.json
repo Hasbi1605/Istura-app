@@ -1,0 +1,20 @@
+[
+  {
+    "label": "Instagram",
+    "value": "istanakepresidenanyogyakarta",
+    "href": "https://www.instagram.com/istanakepresidenanyogyakarta/",
+    "iconKey": "instagram"
+  },
+  {
+    "label": "YouTube",
+    "value": "istanakepresidenanyogyakarta",
+    "href": "https://www.youtube.com/@istanakepresidenanyogyakarta",
+    "iconKey": "youtube"
+  },
+  {
+    "label": "WhatsApp",
+    "value": "0811 6030 0040",
+    "href": "https://wa.me/6281160300040",
+    "iconKey": "whatsapp"
+  }
+]

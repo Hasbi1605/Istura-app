@@ -1,0 +1,26 @@
+[
+  {
+    "id": "Accepted",
+    "label": "Booking disetujui",
+    "description": "Dikirim saat admin menyetujui permohonan kunjungan.",
+    "template": "Yth. {nama}, permohonan kunjungan {instansi} dengan kode {kode} disetujui untuk {tanggal} pukul {jam} WIB. Mohon hadir 15 menit lebih awal dengan menunjukkan kode ini di pintu masuk. Terima kasih."
+  },
+  {
+    "id": "Rejected",
+    "label": "Booking ditolak",
+    "description": "Dikirim saat permohonan tidak disetujui.",
+    "template": "Yth. {nama}, mohon maaf permohonan kunjungan {instansi} dengan kode {kode} belum dapat disetujui. Alasan: {catatan}"
+  },
+  {
+    "id": "Reschedule",
+    "label": "Tawaran reschedule",
+    "description": "Dikirim saat admin menawarkan jadwal alternatif.",
+    "template": "Yth. {nama}, permohonan {kode} perlu penyesuaian jadwal. Usulan jadwal: {catatan}. Mohon konfirmasi melalui WhatsApp ini."
+  },
+  {
+    "id": "Completed",
+    "label": "Tandai selesai & permintaan feedback",
+    "description": "Dikirim setelah kunjungan selesai. {link} adalah tautan feedback unik.",
+    "template": "Yth. {nama}, terima kasih telah berkunjung ke Istana Kepresidenan Yogyakarta pada {tanggal}. Setelah melakukan ISTURA, Bapak/Ibu kami mohon untuk mengisi feedback pada link berikut: {link} agar kami dapat memperbaiki pelayanan kami setiap saat. Terima kasih."
+  }
+]
