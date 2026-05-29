@@ -125,6 +125,25 @@ import {
   publicStatusMeta,
   legendStatuses,
 } from "./lib/date";
+import { buildScheduleHorizon, applyBookingsToSchedule, VISIT_TIME_SLOTS } from "./domain/schedule";
+import {
+  BOOKING_STATUS_CHIPS,
+  isActionNeeded,
+  parseSubmittedAt,
+  sortBookings,
+  inDateRange,
+  parseProposedSlot,
+  PAGE_SIZE_BOOKING_SPLIT,
+  PAGE_SIZE_BOOKING_TABLE,
+  PAGE_SIZE_FEEDBACK,
+  VIRTUALIZE_THRESHOLD,
+} from "./domain/booking";
+import {
+  maskNik,
+  normalizeWhatsapp,
+  buildWhatsappMessage,
+  setActiveWaTemplates,
+} from "./lib/whatsapp";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -213,64 +232,6 @@ const RATING_LABELS = [
   "Baik",
   "Sangat baik",
 ];
-
-const VISIT_TIME_SLOTS = [
-  "08.00",
-  "09.00",
-  "10.00",
-  "11.00",
-  "12.00",
-  "13.00",
-  "14.00",
-];
-
-function buildScheduleHorizon(today: Date): VisitDay[] {
-  // Generate every calendar day for the next 2 months. Default operating
-  // days (Senin-Kamis) buka 08.00-14.00 WIB; default libur
-  // (Jumat/Sabtu/Minggu) tetap dibuat tapi semua slotnya Closed sehingga
-  // admin bisa membukanya kapan saja jika perlu.
-  const start = startOfDay(today);
-  const end = addMonths(start, 2);
-  const days: VisitDay[] = [];
-  const cursor = new Date(start);
-
-  while (cursor <= end) {
-    const closedByDefault = isDefaultHoliday(cursor);
-    days.push({
-      date: formatDateKey(cursor),
-      label: formatLongDate(cursor),
-      short: `${cursor.getDate()} ${monthNames[cursor.getMonth()].slice(0, 3)}`,
-      slots: VISIT_TIME_SLOTS.map((time) => ({
-        time,
-        status: (closedByDefault ? "Closed" : "Available") as VisitStatus,
-      })),
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return days;
-}
-
-function applyBookingsToSchedule(schedule: VisitDay[], bookings: Booking[]): VisitDay[] {
-  return schedule.map((day) => {
-    const dayBookings = bookings.filter((booking) => booking.date === day.date);
-    if (dayBookings.length === 0) return day;
-    return {
-      ...day,
-      slots: day.slots.map((slot) => {
-        const booking = dayBookings.find((entry) => entry.time === slot.time);
-        if (!booking) return slot;
-        if (booking.status === "Pending") return { ...slot, status: "Held" as VisitStatus };
-        if (booking.status === "Accepted" || booking.status === "Completed") {
-          return { ...slot, status: "Booked" as VisitStatus };
-        }
-        if (booking.status === "Reschedule") {
-          return { ...slot, status: "Reschedule Hold" as VisitStatus };
-        }
-        return slot;
-      }),
-    };
-  });
-}
 
 const initialBookings: Booking[] = [
   {
@@ -1722,7 +1683,7 @@ function App() {
 
   useEffect(() => {
     writeCmsCollection("istura-wa-templates", waTemplates);
-    activeWaTemplates = waTemplates;
+    setActiveWaTemplates(waTemplates);
     if (!waHydratedRef.current) return;
     if (!adminSession) return;
     void updateAdminWaTemplates(
@@ -4346,6 +4307,10 @@ const INITIAL_WA_TEMPLATES: WaTemplate[] = [
       "Yth. {nama}, terima kasih telah berkunjung ke Istana Kepresidenan Yogyakarta pada {tanggal}. Setelah melakukan ISTURA, Bapak/Ibu kami mohon untuk mengisi feedback pada link berikut: {link} agar kami dapat memperbaiki pelayanan kami setiap saat. Terima kasih.",
   },
 ];
+
+// Seed the imperative WA template cache so createWhatsappMessage bekerja
+// sebelum useEffect hydration pertama berjalan.
+setActiveWaTemplates(INITIAL_WA_TEMPLATES);
 
 const ADMIN_MENU: AdminMenuItem[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, status: "ready" },
@@ -7317,133 +7282,6 @@ function AdminAuditLog() {
 // state coupling.
 // --------------------------------------------------------------------------
 
-const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
-  { value: "Pending", label: "Pending" },
-  { value: "Accepted", label: "Accepted" },
-  { value: "Reschedule", label: "Reschedule" },
-  { value: "Completed", label: "Completed" },
-  { value: "Rejected", label: "Rejected" },
-];
-
-// "Butuh tindakan" surfaces work-in-progress bookings the admin still owns.
-// Kept exported in case the dashboard widgets reuse the helper.
-const isActionNeeded = (status: BookingStatus) =>
-  status === "Pending" || status === "Accepted" || status === "Reschedule";
-void isActionNeeded;
-
-// Parse the human-readable submittedAt ("23 Mei 2026, 14.12 WIB") into a Date
-// for sorting. Returns epoch 0 if it cannot parse so legacy data still sorts
-// deterministically (oldest-last).
-const parseSubmittedAt = (value: string): Date => {
-  if (!value) return new Date(0);
-  const cleaned = value.replace(/\s*WIB\s*$/i, "").trim();
-  const match = cleaned.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:,\s*(\d{1,2})[.:](\d{2}))?/);
-  if (!match) return new Date(0);
-  const [, dayRaw, monthName, yearRaw, hourRaw, minuteRaw] = match;
-  const monthIndex = monthNames.findIndex(
-    (name) => name.toLowerCase() === monthName.toLowerCase(),
-  );
-  if (monthIndex < 0) return new Date(0);
-  return new Date(
-    Number(yearRaw),
-    monthIndex,
-    Number(dayRaw),
-    Number(hourRaw ?? 0),
-    Number(minuteRaw ?? 0),
-  );
-};
-
-// Determines a booking's relative urgency. Lower = surfaced higher in the
-// "smart" sort. Pending first (oldest-pending up top so SLA is visible),
-// followed by accepted (closest visit first), reschedule, completed (newest
-// first), then rejected as the archive.
-const SMART_BUCKET_ORDER: Record<BookingStatus, number> = {
-  Pending: 0,
-  Accepted: 1,
-  Reschedule: 2,
-  Completed: 3,
-  Rejected: 4,
-};
-
-const sortBookings = (list: Booking[], sort: BookingSort): Booking[] => {
-  const items = [...list];
-  if (sort === "smart") {
-    items.sort((a, b) => {
-      const bucketDiff = SMART_BUCKET_ORDER[a.status] - SMART_BUCKET_ORDER[b.status];
-      if (bucketDiff !== 0) return bucketDiff;
-      // Within bucket:
-      // - Pending: oldest submission first (longest waiting at top).
-      // - Accepted/Reschedule: closest visit first.
-      // - Completed/Rejected: newest first (recent archive on top).
-      if (a.status === "Pending") {
-        return parseSubmittedAt(a.submittedAt).getTime() - parseSubmittedAt(b.submittedAt).getTime();
-      }
-      if (a.status === "Accepted" || a.status === "Reschedule") {
-        return a.date.localeCompare(b.date);
-      }
-      if (a.status === "Completed") {
-        return parseSubmittedAt(b.completedAt ?? b.submittedAt).getTime() -
-          parseSubmittedAt(a.completedAt ?? a.submittedAt).getTime();
-      }
-      return parseSubmittedAt(b.submittedAt).getTime() - parseSubmittedAt(a.submittedAt).getTime();
-    });
-    return items;
-  }
-  if (sort === "submitted-desc") {
-    items.sort(
-      (a, b) =>
-        parseSubmittedAt(b.submittedAt).getTime() - parseSubmittedAt(a.submittedAt).getTime(),
-    );
-    return items;
-  }
-  if (sort === "submitted-asc") {
-    items.sort(
-      (a, b) =>
-        parseSubmittedAt(a.submittedAt).getTime() - parseSubmittedAt(b.submittedAt).getTime(),
-    );
-    return items;
-  }
-  if (sort === "date-asc") {
-    items.sort((a, b) => a.date.localeCompare(b.date));
-    return items;
-  }
-  // date-desc
-  items.sort((a, b) => b.date.localeCompare(a.date));
-  return items;
-};
-
-const inDateRange = (
-  booking: Booking,
-  range: BookingDateRange,
-  customFrom: string,
-  customTo: string,
-): boolean => {
-  if (range === "all") return true;
-  const visit = parseDateKey(booking.date);
-  visit.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (range === "today") return visit.getTime() === today.getTime();
-  if (range === "week") {
-    const start = new Date(today);
-    start.setDate(start.getDate() - start.getDay());
-    const end = new Date(start);
-    end.setDate(end.getDate() + 7);
-    return visit >= start && visit < end;
-  }
-  if (range === "month") {
-    const start = new Date(today.getFullYear(), today.getMonth(), 1);
-    const end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    return visit >= start && visit < end;
-  }
-  if (range === "custom") {
-    if (customFrom && parseDateKey(customFrom) > visit) return false;
-    if (customTo && parseDateKey(customTo) < visit) return false;
-    return true;
-  }
-  return true;
-};
-
 // "Virtualization" via window slicing: for very large lists we only render the
 // rows currently inside the scroll viewport plus a small buffer. Pulled in
 // instead of react-window so we keep the dependency footprint flat.
@@ -7495,38 +7333,7 @@ function useVirtualWindow<T>(
 // Pagination sizes are tuned per viewport so the split-pane layout (list + detail)
 // keeps both columns roughly the same height. The dense table view can afford
 // more rows because it scrolls internally.
-const PAGE_SIZE_BOOKING_SPLIT = 10;
-const PAGE_SIZE_BOOKING_TABLE = 20;
-const PAGE_SIZE_FEEDBACK = 8;
-// Switch to virtualized rendering once the visible list grows past this point
-// to keep DOM size under control.
-const VIRTUALIZE_THRESHOLD = 80;
-
-// AdminActionModal stores the proposed reschedule slot as the visible label
-// (e.g. "Senin, 1 Juni 2026, 09.00 WIB"). To persist the lifecycle on the
-// booking we need the schedule's underlying ISO date and time string back.
-function parseProposedSlot(
-  label: string,
-  schedules: VisitDay[],
-): { date: string; dateLabel: string; time: string } | null {
-  // Label format from AdminActionModal: `${day.label}, ${slot.time} WIB`
-  const trimmed = label.replace(/\s*WIB\s*$/i, "").trim();
-  // Walk the day labels and return the first match; falls back to suffix split
-  // when the schedules table doesn't have the label (older snapshot data).
-  for (const day of schedules) {
-    if (trimmed.startsWith(day.label + ",")) {
-      const time = trimmed.slice(day.label.length + 1).trim();
-      return { date: day.date, dateLabel: day.label, time };
-    }
-  }
-  const lastComma = trimmed.lastIndexOf(",");
-  if (lastComma === -1) return null;
-  const dateLabel = trimmed.slice(0, lastComma).trim();
-  const time = trimmed.slice(lastComma + 1).trim();
-  const day = schedules.find((d) => d.label === dateLabel);
-  if (!day) return null;
-  return { date: day.date, dateLabel, time };
-}
+// (moved to domain/booking.ts)
 
 function AdminScreen({
   schedules,
@@ -10004,45 +9811,13 @@ function WhatsAppIcon() {
   );
 }
 
-function maskNik(nik: string) {
-  if (nik.length < 8) return nik;
-  return `${nik.slice(0, 4)}********${nik.slice(-4)}`;
-}
-
-function normalizeWhatsapp(number: string) {
-  if (number.startsWith("08")) return `62${number.slice(1)}`;
-  return number.replace(/[^\d]/g, "");
-}
-
 function openWhatsApp(booking: Booking, message: string) {
   const phone = normalizeWhatsapp(booking.whatsapp);
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
 }
 
-// Module-level cache of the latest WA templates so the imperative
-// `createWhatsappMessage` helper used by AdminScreen does not need to be
-// threaded through every callsite. App.useEffect keeps this in sync.
-let activeWaTemplates: WaTemplate[] = INITIAL_WA_TEMPLATES;
-
-function fillWaTemplate(template: string, vars: Record<string, string>) {
-  return template.replace(/\{(\w+)\}/g, (match, key) =>
-    Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : match,
-  );
-}
-
 function createWhatsappMessage(booking: Booking, status: BookingStatus, note?: string) {
-  const template = activeWaTemplates.find((entry) => entry.id === status);
-  if (!template) return `Informasi booking ${booking.code}`;
-  const link = `${window.location.origin}/feedback/${booking.code}?token=${booking.feedbackToken}`;
-  return fillWaTemplate(template.template, {
-    nama: booking.contactName,
-    instansi: booking.institution,
-    kode: booking.code,
-    tanggal: booking.dateLabel,
-    jam: booking.time,
-    catatan: note ?? "",
-    link,
-  });
+  return buildWhatsappMessage(booking, status, note);
 }
 
 export default App;
