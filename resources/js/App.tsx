@@ -132,6 +132,8 @@ import { ContactIcon } from "./components/icons/SocialIcons";
 import { StatCard } from "./components/ui/StatCard";
 import { DetailItem } from "./components/ui/DetailItem";
 import { StatusBadge } from "./components/ui/StatusBadge";
+import { Footer } from "./components/layout/Footer";
+import { Navigation } from "./components/layout/Navigation";
 import {
   BookingExportModal,
   FeedbackExportModal,
@@ -1120,128 +1122,6 @@ function App() {
         </>
       )}
     </main>
-  );
-}
-
-function Navigation({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
-  type NavItem =
-    | { label: string; type: "screen"; screen: Screen }
-    | { label: string; type: "anchor"; anchor: string };
-  const items: NavItem[] = [
-    { label: "Beranda", type: "screen", screen: "home" },
-    { label: "Cek Jadwal", type: "anchor", anchor: "panduan" },
-    { label: "Contoh Surat", type: "anchor", anchor: "contoh-surat" },
-    { label: "FAQ", type: "anchor", anchor: "faq" },
-  ];
-  const menuId = "mobile-navigation-menu";
-
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [screen]);
-
-  useEffect(() => {
-    if (screen !== "home") {
-      setActiveAnchor(null);
-    }
-  }, [screen]);
-
-  const scrollToAnchor = (anchor: string) => {
-    requestAnimationFrame(() => {
-      const target = document.getElementById(anchor);
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    });
-  };
-
-  const handleNavigate = (nextScreen: Screen) => {
-    setIsMenuOpen(false);
-    setActiveAnchor(null);
-    onNavigate(nextScreen);
-  };
-
-  const handleAnchor = (anchor: string) => {
-    setIsMenuOpen(false);
-    setActiveAnchor(anchor);
-    if (screen !== "home") {
-      onNavigate("home");
-      window.setTimeout(() => scrollToAnchor(anchor), 320);
-    } else {
-      scrollToAnchor(anchor);
-    }
-  };
-
-  const isItemActive = (item: NavItem) => {
-    if (item.type === "screen") {
-      if (item.screen === "home") {
-        return screen === "home" && activeAnchor === null;
-      }
-      return screen === item.screen;
-    }
-    return screen === "home" && activeAnchor === item.anchor;
-  };
-
-  return (
-    <header className="nav-wrap">
-      <nav className="nav-shell" aria-label="Navigasi utama">
-        <button className="brand-lockup" type="button" onClick={() => handleNavigate("home")}>
-          <img src={ASSETS.logoWhite} alt="Logo Gedung Agung" />
-          <span>ISTURA</span>
-        </button>
-        <div className="nav-links">
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              className={isItemActive(item) ? "is-active" : ""}
-              onClick={() =>
-                item.type === "screen" ? handleNavigate(item.screen) : handleAnchor(item.anchor)
-              }
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <button className="nav-cta" type="button" onClick={() => handleNavigate("booking")}>
-          Mulai Booking
-        </button>
-        <button
-          className="nav-menu-toggle"
-          type="button"
-          aria-label={isMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
-          aria-controls={menuId}
-          aria-expanded={isMenuOpen}
-          onClick={() => setIsMenuOpen((current) => !current)}
-        >
-          {isMenuOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
-        </button>
-        <div className={`nav-mobile-menu${isMenuOpen ? " is-open" : ""}`} id={menuId}>
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              className={isItemActive(item) ? "is-active" : ""}
-              onClick={() =>
-                item.type === "screen" ? handleNavigate(item.screen) : handleAnchor(item.anchor)
-              }
-            >
-              <span>{item.label}</span>
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          ))}
-          <button
-            type="button"
-            className="nav-mobile-cta"
-            onClick={() => handleNavigate("booking")}
-          >
-            <span>Mulai Booking</span>
-            <ArrowRight size={16} aria-hidden="true" />
-          </button>
-        </div>
-      </nav>
-    </header>
   );
 }
 
@@ -7560,90 +7440,6 @@ function DocumentPreviewModal({
         </div>
       </div>
     </div>
-  );
-}
-
-function Footer({
-  contacts,
-  onNavigate,
-}: {
-  contacts: FooterContact[];
-  onNavigate: (screen: Screen) => void;
-}) {
-  return (
-    <footer className="site-footer">
-      <div className="footer-grid">
-        <div className="footer-col footer-col-brand">
-          <span className="footer-eyebrow">Tentang</span>
-          <div className="footer-brand-stack">
-            <img className="footer-logo" src={ASSETS.logoWhite} alt="Gedung Agung" />
-            <p className="footer-hours-line">
-              <Clock3 size={14} aria-hidden="true" />
-              <span>
-                <strong>Senin - Jumat</strong>
-                <em>08.00 - 14.00 WIB</em>
-              </span>
-            </p>
-          </div>
-        </div>
-
-        <div className="footer-col footer-col-contact">
-          <span className="footer-eyebrow">Kontak</span>
-          <div className="footer-socials" aria-label="Kontak ISTURA">
-            {contacts.map((contact) => (
-              <a
-                className="footer-social-link"
-                href={contact.href}
-                key={contact.label}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`${contact.label}: ${contact.value}`}
-              >
-                <ContactIcon iconKey={contact.iconKey} />
-                <span className="footer-social-copy">
-                  <strong>{contact.label}</strong>
-                  <span>{contact.value}</span>
-                </span>
-              </a>
-            ))}
-          </div>
-        </div>
-
-        <div className="footer-col footer-col-location">
-          <span className="footer-eyebrow">Lokasi</span>
-          <a
-            className="footer-map"
-            href="https://maps.app.goo.gl/iuAhnPB1SkJLMaX9A"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Buka lokasi Gedung Agung di Google Maps"
-          >
-            <iframe
-              title="Lokasi Gedung Agung"
-              src="https://www.google.com/maps?q=Gedung+Agung+Yogyakarta&output=embed"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              tabIndex={-1}
-            />
-            <span className="footer-map-overlay">Lihat di Google Maps</span>
-          </a>
-          <p className="footer-address">
-            <MapPin size={14} aria-hidden="true" />
-            <span>
-              Jl. Jend. Ahmad Yani, Ngupasan, Kec. Gondomanan, Kota Yogyakarta,
-              Daerah Istimewa Yogyakarta 55122
-            </span>
-          </p>
-        </div>
-      </div>
-
-      <p className="footer-credit">
-        &copy; 2026 Istana Kepresidenan Yogyakarta / Gedung Agung. Seluruh hak cipta dilindungi.
-        <button type="button" className="footer-admin-link" onClick={() => onNavigate("admin")}>
-          Admin
-        </button>
-      </p>
-    </footer>
   );
 }
 
