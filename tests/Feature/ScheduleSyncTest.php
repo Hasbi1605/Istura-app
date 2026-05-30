@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\ScheduleUpdated;
 use App\Models\Booking;
 use App\Models\Feedback;
 use App\Models\ScheduleOverride;
@@ -10,6 +11,7 @@ use App\Services\ScheduleService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -554,6 +556,40 @@ class ScheduleSyncTest extends TestCase
             'status' => 'Closed',
         ])->assertStatus(422)
             ->assertJsonValidationErrors('to');
+    }
+
+    public function test_admin_schedule_mutations_broadcast_schedule_updates(): void
+    {
+        $this->actingAsAdmin();
+        Event::fake([ScheduleUpdated::class]);
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Closed',
+        ])->assertOk();
+
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) =>
+            $event->from === '2026-06-01' && $event->to === '2026-06-01'
+        );
+
+        $this->postJson('/api/admin/schedule/range', [
+            'from' => '2026-06-01',
+            'to' => '2026-06-04',
+            'weekdays' => [1, 2, 3, 4],
+            'status' => 'Closed',
+        ])->assertOk();
+
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) =>
+            $event->from === '2026-06-01' && $event->to === '2026-06-04'
+        );
+
+        $this->deleteJson('/api/admin/schedule/slot', [
+            'date' => '2026-06-01',
+            'time' => '08.00',
+        ])->assertOk();
+
+        Event::assertDispatchedTimes(ScheduleUpdated::class, 3);
     }
 
     public function test_public_feedback_stays_single_per_booking(): void
