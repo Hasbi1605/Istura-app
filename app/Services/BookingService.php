@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Events\BookingCreated;
 use App\Events\BookingStatusChanged;
-use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\User;
@@ -13,6 +12,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -39,9 +39,10 @@ class BookingService
                 $segments = $this->buildSlotSegments($date, $data['time'], (int) $data['groupSize'], true);
 
                 $code = $this->codes->next();
+                $storedName = $code.'-'.Str::uuid().'.'.strtolower($document->getClientOriginalExtension());
                 $documentPath = $document->storeAs(
                     'booking-letters',
-                    $code.'-'.$document->getClientOriginalName(),
+                    $storedName,
                     'local',
                 );
 
@@ -331,14 +332,8 @@ class BookingService
 
     private function logAudit(?User $actor, string $description, Booking $booking): void
     {
-        AuditLog::create([
-            'actor_id' => $actor?->id,
-            'actor_name' => $actor?->name ?? 'Sistem',
-            'action' => $description,
-            'target_type' => Booking::class,
-            'target_id' => $booking->code,
-            'payload' => ['status' => $booking->status],
-            'created_at' => now(),
+        AuditLogger::record($actor, $description, Booking::class, $booking->code, [
+            'status' => $booking->status,
         ]);
     }
 }

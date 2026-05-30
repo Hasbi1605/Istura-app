@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -40,6 +41,11 @@ class UserController extends Controller
         $user->email_verified_at = ($data['status'] ?? 'Aktif') === 'Aktif' ? now() : null;
         $user->save();
 
+        AuditLogger::record($request->user(), "Membuat pengguna admin {$user->email}", User::class, $user->id, [
+            'role' => $user->role,
+            'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
+        ]);
+
         return response()->json(['data' => (new UserResource($user))->resolve()], 201);
     }
 
@@ -72,6 +78,13 @@ class UserController extends Controller
         }
         $user->save();
 
+        AuditLogger::record($request->user(), "Memperbarui pengguna admin {$user->email}", User::class, $user->id, [
+            'fields' => array_values(array_diff(array_keys($data), ['password'])),
+            'password_changed' => ! empty($data['password']),
+            'role' => $user->role,
+            'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
+        ]);
+
         return response()->json(['data' => (new UserResource($user->fresh()))->resolve()]);
     }
 
@@ -85,7 +98,11 @@ class UserController extends Controller
             ]);
         }
 
+        $targetEmail = $user->email;
+        $targetId = $user->id;
         $user->delete();
+
+        AuditLogger::record($request->user(), "Menghapus pengguna admin {$targetEmail}", User::class, $targetId);
 
         return response()->json(['ok' => true]);
     }

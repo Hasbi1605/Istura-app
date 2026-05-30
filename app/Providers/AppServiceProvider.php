@@ -22,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (! $this->app->environment(['local', 'testing']) && config('app.debug')) {
+            throw new \RuntimeException('APP_DEBUG must be false outside local environments.');
+        }
+
         RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(10)->by(
             'auth-login:'.$request->ip(),
         ));

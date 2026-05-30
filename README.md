@@ -32,7 +32,8 @@ npm install
 # 2. Environment
 cp .env.example .env
 php artisan key:generate
-# Edit .env: set DB_PORT (3306/3307), DB_PASSWORD, DB_SOCKET bila perlu
+# Edit .env: set DB_PORT (3306/3307), DB_PASSWORD, DB_SOCKET bila perlu.
+# Untuk membuat akun admin seed lokal, isi SEED_ADMIN_PASSWORD dengan password kuat sementara.
 
 # 3. Database
 mysql -uroot -p -e "CREATE DATABASE istura CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -59,13 +60,9 @@ Akses aplikasi di **http://localhost:8000**.
 
 ## Akun admin (seed)
 
-| Email | Password | Peran |
-|---|---|---|
-| `admin@istura.id` | `istura2026` | Super Admin |
-| `operator@istura.id` | `istura2026` | Admin |
-| `editor@istura.id` | `istura2026` | Viewer |
-
-> Ganti password untuk produksi.
+Seeder hanya membuat akun admin bila `SEED_ADMIN_PASSWORD` diisi. Email dan peran demo
+ada di `database/seeders/data/admin_users.json`; password tidak disimpan di repo.
+Setelah bootstrap production, rotate password admin pertama lalu kosongkan env seed.
 
 ## Build produksi
 

@@ -65,6 +65,7 @@ export function Footer({
               src={content.mapEmbedUrl}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
+              sandbox="allow-scripts allow-same-origin allow-popups"
               tabIndex={-1}
             />
             <span className="footer-map-overlay">Lihat di Google Maps</span>
