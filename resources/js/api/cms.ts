@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { SiteContent } from "../domain/types";
 
 export type ApiFaq = {
   id: string;
@@ -46,4 +47,46 @@ export const updateAdminWaTemplates = (items: ApiWaTemplate[]) =>
   api<{ data: ApiWaTemplate[] }>("/api/admin/cms/wa-templates", {
     method: "PUT",
     body: { items },
+  }).then((r) => r.data);
+
+export type ApiHero = {
+  headline: string;
+  subheadline: string;
+  primaryCta: string;
+  secondaryCta: string;
+  story: string;
+};
+
+export type ApiLetter = {
+  image: string;
+  checklist: string[];
+};
+
+export const fetchPublicHero = () => api<{ data: ApiHero }>("/api/public/hero").then((r) => r.data);
+export const fetchPublicLetter = () =>
+  api<{ data: ApiLetter }>("/api/public/letter").then((r) => r.data);
+export const fetchPublicSiteContent = () =>
+  api<{ data: SiteContent }>("/api/public/site-content").then((r) => r.data);
+
+export const fetchAdminHero = () => api<{ data: ApiHero }>("/api/admin/cms/hero").then((r) => r.data);
+export const updateAdminHero = (hero: ApiHero) =>
+  api<{ data: ApiHero }>("/api/admin/cms/hero", { method: "PUT", body: hero }).then((r) => r.data);
+
+export const fetchAdminLetter = () =>
+  api<{ data: ApiLetter }>("/api/admin/cms/letter").then((r) => r.data);
+export const updateAdminLetter = (checklist: string[], image?: File | null) => {
+  const formData = new FormData();
+  checklist.forEach((item) => formData.append("checklist[]", item));
+  if (image) formData.append("image", image);
+  return api<{ data: ApiLetter }>("/api/admin/cms/letter", { method: "POST", formData }).then(
+    (r) => r.data,
+  );
+};
+
+export const fetchAdminSiteContent = () =>
+  api<{ data: SiteContent }>("/api/admin/cms/site-content").then((r) => r.data);
+export const updateAdminSiteContent = (content: SiteContent) =>
+  api<{ data: SiteContent }>("/api/admin/cms/site-content", {
+    method: "PUT",
+    body: content,
   }).then((r) => r.data);

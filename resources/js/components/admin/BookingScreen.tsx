@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import type {
   Booking,
+  BookingSegment,
   VisitDay,
-  VisitStatus,
   BookingStatus,
   BookingStatusFilter,
   BookingSort,
@@ -33,39 +33,53 @@ import {
   sortBookings,
   inDateRange,
   parseProposedSlot,
+  bookingKloterSummary,
+  bookingScheduleSummary,
+  bookingSegments,
+  bookingTimeSummary,
+  canFitConsecutiveSlots,
+  bookingLeadTimeLabel,
+  isShortNoticeBooking,
   BOOKING_STATUS_CHIPS,
   PAGE_SIZE_BOOKING_SPLIT,
   PAGE_SIZE_BOOKING_TABLE,
+  requiredSlotCount,
+  segmentListLabel,
   VIRTUALIZE_THRESHOLD,
 } from "../../domain/booking";
 import { formatCount, formatCountShort, parseDateKey } from "../../lib/date";
-import { ASSETS } from "../../lib/assets";
 import { openWhatsApp, createWhatsappMessage } from "../../lib/waActions";
 import { useMediaQuery, useVirtualWindow } from "../../hooks";
 import {
-  acceptBooking as apiAcceptBooking,
+	acceptBooking as apiAcceptBooking,
   rejectBooking as apiRejectBooking,
   rescheduleBooking as apiRescheduleBooking,
   completeBooking as apiCompleteBooking,
 } from "../../api/bookings";
+import { fetchAdminSchedule } from "../../api/schedule";
+import { apiBookingToLocal, apiVisitDayToLocal } from "../../api/adapters";
+import { ApiError } from "../../api/client";
 import { StatCard } from "../ui/StatCard";
 import { DetailItem } from "../ui/DetailItem";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Pagination } from "../ui/Pagination";
+import { ButtonSpinner, InlineSpinner, StatCardSkeleton, TableSkeleton } from "../ui/LoadingStates";
 import { BookingExportModal, MonthlyReportModal } from "./ExportModals";
 
 export function AdminScreen({
-  schedules,
-  bookings,
-  onBookingsChange,
+	schedules,
+	bookings,
+	loading = false,
+	onBookingsChange,
   onSchedulesChange,
   focusCode,
   onFocusCodeConsumed,
   adminName,
 }: {
-  schedules: VisitDay[];
-  bookings: Booking[];
-  onBookingsChange: (bookings: Booking[]) => void;
+	schedules: VisitDay[];
+	bookings: Booking[];
+	loading?: boolean;
+	onBookingsChange: (bookings: Booking[]) => void;
   onSchedulesChange: (schedules: VisitDay[]) => void;
   focusCode?: string | null;
   onFocusCodeConsumed?: () => void;
@@ -86,17 +100,17 @@ export function AdminScreen({
   const [showSlideOver, setShowSlideOver] = useState(false);
   const [showFilterPopover, setShowFilterPopover] = useState(false);
   const [modal, setModal] = useState<{ action: AdminAction; booking: Booking } | null>(null);
-  const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
+	const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
+	const [pendingAction, setPendingAction] = useState<{ code: string; label: string } | null>(null);
+	const [actionError, setActionError] = useState("");
   // Mobile breakpoint: split-pane tidak punya cukup ruang untuk dua kolom,
   // jadi kita reuse pola SlideOver (yang sudah dipakai di mode "table" desktop)
   // sebagai panel detail. List tetap full-width.
   const isCompactScreen = useMediaQuery("(max-width: 980px)");
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // In production this would resolve to the user-uploaded file. The demo
-  // reuses the shared kop-surat asset for every booking so admins can still
-  // exercise the preview/download UI end-to-end.
-  const documentUrlFor = (_booking: Booking) => ASSETS.letterExample;
+  const documentUrlFor = (booking: Booking, inline = false) =>
+    `/api/admin/bookings/${encodeURIComponent(booking.code)}/document${inline ? "?disposition=inline" : ""}`;
 
   const handleDownloadDocument = (booking: Booking) => {
     const url = documentUrlFor(booking);
@@ -185,179 +199,142 @@ export function AdminScreen({
     (booking) => parseDateKey(booking.date) >= startOfWeek,
   ).length;
 
-  const updateBooking = (
-    booking: Booking,
-    patch: Partial<Booking>,
-  ) => {
+  const replaceBooking = (booking: Booking) => {
     onBookingsChange(
-      bookings.map((item) =>
-        item.code === booking.code ? { ...item, ...patch } : item,
-      ),
+      bookings.map((item) => (item.code === booking.code ? booking : item)),
     );
   };
 
-  const updateBookingStatus = (booking: Booking, status: BookingStatus, note?: string) => {
-    updateBooking(booking, {
-      status,
-      note,
-      completedAt:
-        status === "Completed"
-          ? new Date().toLocaleString("id-ID", {
-              day: "2-digit",
-              month: "long",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            }) + " WIB"
-          : booking.completedAt,
-    });
-    // Persist to API. Optimistic local update sudah dilakukan di atas; jika
-    // API gagal, realtime broadcast atau refetch berikutnya akan rekonsiliasi.
-    const apiCall =
-      status === "Accepted"
-        ? apiAcceptBooking(booking.code, note)
-        : status === "Rejected"
-          ? apiRejectBooking(booking.code, note)
-          : status === "Completed"
-            ? apiCompleteBooking(booking.code)
-            : null;
-    if (apiCall) void apiCall.catch(() => {});
-  };
+	const refreshSchedulesFromApi = () =>
+		fetchAdminSchedule().then((days) => onSchedulesChange(days.map(apiVisitDayToLocal)));
 
-  const handleMarkCompleted = (booking: Booking) => {
-    updateBookingStatus(booking, "Completed");
-    openWhatsApp(booking, createWhatsappMessage(booking, "Completed"));
-  };
+	const pendingLabelFor = (booking: Booking) =>
+		pendingAction?.code === booking.code ? pendingAction.label : null;
 
-  const updateSlotStatus = (booking: Booking, status: VisitStatus) => {
-    onSchedulesChange(
-      schedules.map((day) =>
-        day.date === booking.date
-          ? {
-              ...day,
-              slots: day.slots.map((slot) => (slot.time === booking.time ? { ...slot, status } : slot)),
-            }
-          : day,
-      ),
-    );
-  };
+	const messageForActionError = (err: unknown) =>
+		err instanceof ApiError
+			? err.message
+			: err instanceof Error
+				? err.message
+				: "Gagal menyimpan perubahan booking. Coba lagi.";
 
-  // Reschedule lifecycle helpers ---------------------------------------------
+	const runBookingAction = async (
+		booking: Booking,
+		label: string,
+		task: () => Promise<void>,
+	) => {
+		if (pendingAction) return;
+		setPendingAction({ code: booking.code, label });
+		setActionError("");
+		try {
+			await task();
+		} catch (err) {
+			setActionError(messageForActionError(err));
+		} finally {
+			setPendingAction((current) => (current?.code === booking.code ? null : current));
+		}
+	};
 
-  const setSlotStatusAt = (date: string, time: string, status: VisitStatus) => {
-    onSchedulesChange(
-      schedules.map((day) =>
-        day.date === date
-          ? {
-              ...day,
-              slots: day.slots.map((slot) =>
-                slot.time === time ? { ...slot, status } : slot,
-              ),
-            }
-          : day,
-      ),
-    );
-  };
+	const syncBookingFromApi = async (updated: Awaited<ReturnType<typeof apiAcceptBooking>>) => {
+		const localBooking = apiBookingToLocal(updated);
+		replaceBooking(localBooking);
+		try {
+			await refreshSchedulesFromApi();
+		} catch {
+			setActionError("Booking tersimpan, tetapi jadwal terbaru gagal dimuat ulang. Muat ulang halaman jika status slot belum berubah.");
+		}
+		return localBooking;
+	};
 
-  const formatNow = () =>
-    new Date().toLocaleString("id-ID", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }) + " WIB";
+	const updateBookingStatus = async (booking: Booking, status: BookingStatus, note?: string) => {
+		const updated =
+			status === "Accepted"
+				? await apiAcceptBooking(booking.code, note)
+				: status === "Rejected"
+					? await apiRejectBooking(booking.code, note)
+					: status === "Completed"
+						? await apiCompleteBooking(booking.code)
+						: null;
+
+		if (!updated) {
+			throw new Error(`Aksi status ${status} tidak didukung dari layar admin.`);
+		}
+
+		return syncBookingFromApi(updated);
+	};
+
+	const handleMarkCompleted = (booking: Booking) => {
+		void runBookingAction(booking, "Menandai selesai...", async () => {
+			const updated = await updateBookingStatus(booking, "Completed");
+			openWhatsApp(updated, createWhatsappMessage(updated, "Completed"));
+		});
+	};
 
   // Admin proposes a new slot. Original slot is held (Reschedule Hold) so it
   // is not handed to another visitor while we wait for the user reply on
   // WhatsApp. Proposed slot is *not* held yet because the user has not agreed.
-  const handleProposeReschedule = (
-    booking: Booking,
+	const handleProposeReschedule = async (
+		booking: Booking,
     proposedDate: string,
-    proposedDateLabel: string,
-    proposedTime: string,
-    note: string,
-  ) => {
-    updateBooking(booking, {
-      status: "Reschedule",
-      note,
-      proposedDate,
-      proposedDateLabel,
-      proposedTime,
-      proposedAt: formatNow(),
-    });
-    void apiRescheduleBooking(booking.code, { proposedDate, proposedTime, note }).catch(() => {});
-    setSlotStatusAt(booking.date, booking.time, "Reschedule Hold");
-    const proposalText = `${proposedDateLabel}, ${proposedTime} WIB`;
-    openWhatsApp(
-      booking,
-      createWhatsappMessage(booking, "Reschedule", note ? `${proposalText} - ${note}` : proposalText),
-    );
-  };
+		proposedTime: string,
+		note: string,
+	) => {
+		const updated = await apiRescheduleBooking(booking.code, { proposedDate, proposedTime, note });
+		const localBooking = await syncBookingFromApi(updated);
+		openWhatsApp(
+			localBooking,
+			createWhatsappMessage(localBooking, "Reschedule", note),
+		);
+	};
 
   // User accepted via WhatsApp. Move booking to its proposed slot, free the
   // old hold, and lock the new slot as Booked. WhatsApp re-opens with the
   // standard "Accepted" template so the user receives a final confirmation.
-  const handleConfirmReschedule = (booking: Booking) => {
-    if (!booking.proposedDate || !booking.proposedTime) return;
-    setSlotStatusAt(booking.date, booking.time, "Available");
-    setSlotStatusAt(booking.proposedDate, booking.proposedTime, "Booked");
-    const promoted: Booking = {
-      ...booking,
-      status: "Accepted",
-      date: booking.proposedDate,
-      dateLabel: booking.proposedDateLabel ?? booking.proposedDate,
-      time: booking.proposedTime,
-      proposedDate: undefined,
-      proposedDateLabel: undefined,
-      proposedTime: undefined,
-      proposedAt: undefined,
-    };
-    onBookingsChange(
-      bookings.map((item) => (item.code === booking.code ? promoted : item)),
-    );
-    void apiAcceptBooking(booking.code).catch(() => {});
-    openWhatsApp(promoted, createWhatsappMessage(promoted, "Accepted"));
-  };
+	const handleConfirmReschedule = (booking: Booking) => {
+		if (!booking.proposedDate || !booking.proposedTime) return;
+		void runBookingAction(booking, "Mengonfirmasi jadwal...", async () => {
+			const updated = await updateBookingStatus(booking, "Accepted");
+			openWhatsApp(updated, createWhatsappMessage(updated, "Accepted"));
+		});
+	};
 
   // User declined the proposed slot. Mark booking as rejected and free the
   // original slot so it can be picked up by someone else.
-  const handleCancelReschedule = (booking: Booking) => {
-    updateBooking(booking, {
-      status: "Rejected",
-      note: booking.note ?? "User menolak usulan reschedule",
-      proposedDate: undefined,
-      proposedDateLabel: undefined,
-      proposedTime: undefined,
-      proposedAt: undefined,
-    });
-    setSlotStatusAt(booking.date, booking.time, "Available");
-    openWhatsApp(
-      booking,
-      createWhatsappMessage(booking, "Rejected", "Reschedule tidak dapat diakomodasi."),
-    );
-  };
+	const handleCancelReschedule = (booking: Booking) => {
+		void runBookingAction(booking, "Membatalkan reschedule...", async () => {
+			const note = booking.note ?? "User menolak usulan reschedule";
+			const updated = await updateBookingStatus(booking, "Rejected", note);
+			openWhatsApp(updated, createWhatsappMessage(updated, "Rejected", "Reschedule tidak dapat diakomodasi."));
+		});
+	};
 
-  const handleAction = (action: AdminAction, booking: Booking, note: string, proposed?: string) => {
-    if (action === "accept") {
-      updateBookingStatus(booking, "Accepted", note);
-      updateSlotStatus(booking, "Booked");
-      openWhatsApp(booking, createWhatsappMessage(booking, "Accepted"));
-    }
-    if (action === "reject") {
-      updateBookingStatus(booking, "Rejected", note);
-      updateSlotStatus(booking, "Available");
-      openWhatsApp(booking, createWhatsappMessage(booking, "Rejected", note));
-    }
-    if (action === "reschedule" && proposed) {
-      // proposed is "Senin, 1 Juni 2026, 09.00 WIB" - parse back to date/time
-      const parsed = parseProposedSlot(proposed, schedules);
-      if (parsed) {
-        handleProposeReschedule(booking, parsed.date, parsed.dateLabel, parsed.time, note);
-      }
-    }
-    setModal(null);
-  };
+	const handleAction = (action: AdminAction, booking: Booking, note: string, proposed?: string) => {
+		const labelMap: Record<AdminAction, string> = {
+			accept: "Menyetujui booking...",
+			reject: "Menolak booking...",
+			reschedule: "Menyimpan reschedule...",
+		};
+		void runBookingAction(booking, labelMap[action], async () => {
+			if (action === "accept") {
+				const updated = await updateBookingStatus(booking, "Accepted", note);
+				openWhatsApp(updated, createWhatsappMessage(updated, "Accepted"));
+				setModal(null);
+			}
+			if (action === "reject") {
+				const updated = await updateBookingStatus(booking, "Rejected", note);
+				openWhatsApp(updated, createWhatsappMessage(updated, "Rejected", note));
+				setModal(null);
+			}
+			if (action === "reschedule") {
+			if (!proposed) throw new Error("Pilih jadwal alternatif yang tersedia.");
+			// proposed is "Senin, 1 Juni 2026, 09.00 WIB" - parse back to date/time
+			const parsed = parseProposedSlot(proposed, schedules);
+			if (!parsed) throw new Error("Pilih jadwal alternatif yang tersedia.");
+			await handleProposeReschedule(booking, parsed.date, parsed.time, note);
+			setModal(null);
+			}
+		});
+	};
 
   const handleRowClick = (code: string) => {
     setSelectedCode(code);
@@ -389,11 +366,12 @@ export function AdminScreen({
 
   return (
     <div className="admin-cms-page admin-bookings-page">
-      <div className="admin-heading">
-        <div>
-          <h1>Booking Permohonan</h1>
-          <p>Tinjau permohonan masuk, kirim konfirmasi WhatsApp, dan tandai kunjungan selesai.</p>
-        </div>
+		<div className="admin-heading">
+			<div>
+				<h1>Booking Permohonan</h1>
+				<p>Tinjau permohonan masuk, kirim konfirmasi WhatsApp, dan tandai kunjungan selesai.</p>
+				{loading && <InlineSpinner label="Memuat booking terbaru" />}
+			</div>
         <div className="admin-heading-actions">
           <div className="search-box">
             <Search size={18} aria-hidden="true" />
@@ -415,12 +393,20 @@ export function AdminScreen({
         </div>
       </div>
 
-      <div className="admin-stats">
-        <StatCard label="Pending" value={counts.byStatus.Pending} />
-        <StatCard label="Accepted" value={counts.byStatus.Accepted} />
-        <StatCard label="Completed minggu ini" value={completedThisWeek} />
-        <StatCard label="Total minggu ini" value={totalThisWeek} />
-      </div>
+		<div className="admin-stats" aria-busy={loading}>
+			{loading && bookings.length === 0 ? (
+				<StatCardSkeleton />
+			) : (
+				<>
+					<StatCard label="Pending" value={counts.byStatus.Pending} />
+					<StatCard label="Accepted" value={counts.byStatus.Accepted} />
+					<StatCard label="Completed minggu ini" value={completedThisWeek} />
+					<StatCard label="Total minggu ini" value={totalThisWeek} />
+				</>
+			)}
+		</div>
+
+		{actionError && <strong className="form-message form-message--error">{actionError}</strong>}
 
       <div className="booking-toolbar" role="region" aria-label="Filter dan tampilan booking">
         <div className="booking-chip-group" role="tablist" aria-label="Filter status">
@@ -532,7 +518,9 @@ export function AdminScreen({
         <div className={`admin-workspace booking-density-${density}`}>
           <div className="booking-split-list">
             <div className="booking-table">
-              {pagedBookings.length === 0 ? (
+				{loading && bookings.length === 0 ? (
+					<TableSkeleton rows={8} />
+				) : pagedBookings.length === 0 ? (
                 <p className="admin-card-empty">
                   {filtersActive
                     ? "Tidak ada booking yang cocok dengan filter."
@@ -570,8 +558,9 @@ export function AdminScreen({
 
           <div className="booking-split-detail">
             {selectedBooking ? (
-              <BookingDetailPanel
-                booking={selectedBooking}
+				<BookingDetailPanel
+					booking={selectedBooking}
+					pendingLabel={pendingLabelFor(selectedBooking)}
                 onAccept={() => setModal({ action: "accept", booking: selectedBooking })}
                 onReject={() => setModal({ action: "reject", booking: selectedBooking })}
                 onReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
@@ -590,20 +579,24 @@ export function AdminScreen({
           </div>
         </div>
       ) : (
-        <BookingTable
-          bookings={pagedBookings}
-          density={density}
-          rowHeight={rowHeight}
-          useVirtual={useVirtual}
-          selectedCode={selectedBooking?.code ?? null}
-          onSelect={handleRowClick}
-          emptyLabel={
-            filtersActive
-              ? "Tidak ada booking yang cocok dengan filter."
-              : "Belum ada booking masuk."
-          }
-        />
-      )}
+		loading && bookings.length === 0 ? (
+			<TableSkeleton rows={8} />
+		) : (
+			<BookingTable
+				bookings={pagedBookings}
+				density={density}
+				rowHeight={rowHeight}
+				useVirtual={useVirtual}
+				selectedCode={selectedBooking?.code ?? null}
+				onSelect={handleRowClick}
+				emptyLabel={
+					filtersActive
+						? "Tidak ada booking yang cocok dengan filter."
+						: "Belum ada booking masuk."
+				}
+			/>
+		)
+		)}
 
       {viewMode === "table" && !useVirtual && totalPages > 1 && (
         <Pagination
@@ -614,8 +607,9 @@ export function AdminScreen({
       )}
 
       {((viewMode === "table" || isCompactScreen) && showSlideOver && selectedBooking) && (
-        <BookingSlideOver
-          booking={selectedBooking}
+		<BookingSlideOver
+			booking={selectedBooking}
+			pendingLabel={pendingLabelFor(selectedBooking)}
           onClose={() => setShowSlideOver(false)}
           onAccept={() => setModal({ action: "accept", booking: selectedBooking })}
           onReject={() => setModal({ action: "reject", booking: selectedBooking })}
@@ -630,10 +624,12 @@ export function AdminScreen({
       )}
 
       {modal && (
-        <AdminActionModal
-          modal={modal}
-          schedules={schedules}
-          onClose={() => setModal(null)}
+		<AdminActionModal
+			modal={modal}
+			schedules={schedules}
+			pendingLabel={pendingLabelFor(modal.booking)}
+			error={actionError}
+			onClose={() => setModal(null)}
           onConfirm={handleAction}
         />
       )}
@@ -641,7 +637,7 @@ export function AdminScreen({
       {previewBooking && (
         <DocumentPreviewModal
           documentName={previewBooking.documentName}
-          documentUrl={documentUrlFor(previewBooking)}
+          documentUrl={documentUrlFor(previewBooking, true)}
           onClose={() => setPreviewBooking(null)}
           onDownload={() => handleDownloadDocument(previewBooking)}
         />
@@ -825,16 +821,19 @@ export function BookingTableRow({
       onClick={() => onSelect(booking.code)}
       style={fixedHeight ? { height: fixedHeight } : undefined}
     >
-      <span className="booking-grid-cell booking-grid-code">{booking.code}</span>
-      <span className="booking-grid-cell">{booking.institution}</span>
-      <span className="booking-grid-cell">{booking.contactName}</span>
-      <span className="booking-grid-cell">
-        {booking.dateLabel}
-        <small>{booking.time} WIB</small>
+      <span className="booking-grid-cell booking-grid-code" data-label="Kode">
+        {booking.code}
+        <ShortNoticeBadge booking={booking} />
       </span>
-      <span className="booking-grid-cell">{booking.groupSize} orang</span>
-      <span className="booking-grid-cell booking-grid-meta">{booking.submittedAt}</span>
-      <span className="booking-grid-cell">
+      <span className="booking-grid-cell" data-label="Instansi">{booking.institution}</span>
+      <span className="booking-grid-cell" data-label="Contact person">{booking.contactName}</span>
+      <span className="booking-grid-cell" data-label="Jadwal">
+        {booking.dateLabel}
+        <small>{bookingTimeSummary(booking)}</small>
+      </span>
+      <span className="booking-grid-cell" data-label="Rombongan">{bookingKloterSummary(booking)}</span>
+      <span className="booking-grid-cell booking-grid-meta" data-label="Submitted">{booking.submittedAt}</span>
+      <span className="booking-grid-cell" data-label="Status">
         <StatusBadge status={booking.status} />
       </span>
     </button>
@@ -843,6 +842,7 @@ export function BookingTableRow({
 
 export function BookingDetailPanel({
   booking,
+  pendingLabel,
   onAccept,
   onReject,
   onReschedule,
@@ -854,6 +854,7 @@ export function BookingDetailPanel({
   onDownloadDocument,
 }: {
   booking: Booking;
+  pendingLabel?: string | null;
   onAccept: () => void;
   onReject: () => void;
   onReschedule: () => void;
@@ -870,6 +871,7 @@ export function BookingDetailPanel({
         <span>
           <strong>{booking.code}</strong>
           <small>Diajukan {booking.submittedAt}</small>
+          <ShortNoticeBadge booking={booking} />
         </span>
         <StatusBadge status={booking.status} />
       </div>
@@ -881,20 +883,25 @@ export function BookingDetailPanel({
         <DetailItem label="NIK" value={booking.nik} />
         <DetailItem label="WhatsApp" value={booking.whatsapp} />
         <DetailItem label="Instansi" value={booking.institution} />
-        <DetailItem label="Rombongan" value={`${booking.groupSize} orang`} />
+        <DetailItem label="Rombongan" value={bookingKloterSummary(booking)} />
         <DetailItem
           label="Jadwal"
-          value={`${booking.dateLabel}, ${booking.time} WIB`}
+          value={bookingScheduleSummary(booking)}
         />
+        {bookingSegments(booking).length > 1 && (
+          <KloterDetailList segments={bookingSegments(booking)} />
+        )}
         <DocumentDetailItem
           label="Surat"
           documentName={booking.documentName}
+          hasDocument={booking.hasDocument ?? true}
           onPreview={() => onPreviewDocument(booking)}
           onDownload={() => onDownloadDocument(booking)}
         />
       </div>
       <BookingActions
         booking={booking}
+        pendingLabel={pendingLabel}
         onAccept={onAccept}
         onReject={onReject}
         onReschedule={onReschedule}
@@ -920,7 +927,7 @@ export function RescheduleProposalBanner({ booking }: { booking: Booking }) {
         <div className="reschedule-banner-slot">
           <span>Jadwal awal</span>
           <strong>{booking.dateLabel}</strong>
-          <small>{booking.time} WIB</small>
+          <small>{bookingTimeSummary(booking)}</small>
         </div>
         <div className="reschedule-banner-arrow" aria-hidden="true">
           <ArrowRight size={14} />
@@ -928,7 +935,11 @@ export function RescheduleProposalBanner({ booking }: { booking: Booking }) {
         <div className="reschedule-banner-slot">
           <span>Usulan baru</span>
           <strong>{booking.proposedDateLabel ?? booking.proposedDate}</strong>
-          <small>{booking.proposedTime} WIB</small>
+          <small>
+            {booking.proposedSegments?.length
+              ? segmentListLabel(booking.proposedSegments)
+              : `${booking.proposedTime} WIB`}
+          </small>
         </div>
       </div>
       {booking.proposedAt && (
@@ -941,6 +952,7 @@ export function RescheduleProposalBanner({ booking }: { booking: Booking }) {
 
 export function BookingActions({
   booking,
+  pendingLabel,
   onAccept,
   onReject,
   onReschedule,
@@ -950,6 +962,7 @@ export function BookingActions({
   onResendReschedule,
 }: {
   booking: Booking;
+  pendingLabel?: string | null;
   onAccept: () => void;
   onReject: () => void;
   onReschedule: () => void;
@@ -958,17 +971,19 @@ export function BookingActions({
   onCancelReschedule?: () => void;
   onResendReschedule?: () => void;
 }) {
+  const busy = Boolean(pendingLabel);
   return (
     <div className="admin-actions">
+      {busy && <InlineSpinner label={pendingLabel ?? "Menyimpan perubahan"} />}
       {booking.status === "Pending" && (
         <>
-          <button className="button button-accept" type="button" onClick={onAccept}>
+          <button className="button button-accept" type="button" onClick={onAccept} disabled={busy}>
             Accept
           </button>
-          <button className="button button-danger" type="button" onClick={onReject}>
+          <button className="button button-danger" type="button" onClick={onReject} disabled={busy}>
             Reject
           </button>
-          <button className="button button-outline" type="button" onClick={onReschedule}>
+          <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
             Reschedule
           </button>
         </>
@@ -979,12 +994,13 @@ export function BookingActions({
             className="button button-primary"
             type="button"
             onClick={onMarkCompleted}
+            disabled={busy}
             title="Tandai kunjungan selesai dan kirim link feedback via WhatsApp"
           >
             <BadgeCheck size={16} aria-hidden="true" />
             Tandai Selesai
           </button>
-          <button className="button button-outline" type="button" onClick={onReschedule}>
+          <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
             Reschedule
           </button>
         </>
@@ -995,6 +1011,7 @@ export function BookingActions({
             className="button button-accept"
             type="button"
             onClick={onConfirmReschedule}
+            disabled={busy}
             title="User setuju jadwal baru, kunci slot dan kirim WhatsApp konfirmasi"
           >
             User setuju, konfirmasi
@@ -1003,6 +1020,7 @@ export function BookingActions({
             className="button button-outline"
             type="button"
             onClick={onResendReschedule}
+            disabled={busy}
             title="Tawarkan jadwal alternatif lain"
           >
             Tawarkan jadwal lain
@@ -1011,6 +1029,7 @@ export function BookingActions({
             className="button button-danger"
             type="button"
             onClick={onCancelReschedule}
+            disabled={busy}
             title="User menolak, batalkan permohonan"
           >
             User menolak, batalkan
@@ -1185,6 +1204,7 @@ export function BookingFilterPopover({
 
 export function BookingSlideOver({
   booking,
+  pendingLabel,
   onClose,
   onAccept,
   onReject,
@@ -1197,6 +1217,7 @@ export function BookingSlideOver({
   onDownloadDocument,
 }: {
   booking: Booking;
+  pendingLabel?: string | null;
   onClose: () => void;
   onAccept: () => void;
   onReject: () => void;
@@ -1231,6 +1252,7 @@ export function BookingSlideOver({
           <span>
             <strong>{booking.code}</strong>
             <small>Diajukan {booking.submittedAt}</small>
+            <ShortNoticeBadge booking={booking} />
           </span>
           <button type="button" className="booking-slideover-close" onClick={onClose} aria-label="Tutup">
             <X size={18} aria-hidden="true" />
@@ -1247,17 +1269,22 @@ export function BookingSlideOver({
           <DetailItem label="NIK" value={booking.nik} />
           <DetailItem label="WhatsApp" value={booking.whatsapp} />
           <DetailItem label="Instansi" value={booking.institution} />
-          <DetailItem label="Rombongan" value={`${booking.groupSize} orang`} />
-          <DetailItem label="Jadwal" value={`${booking.dateLabel}, ${booking.time} WIB`} />
+          <DetailItem label="Rombongan" value={bookingKloterSummary(booking)} />
+          <DetailItem label="Jadwal" value={bookingScheduleSummary(booking)} />
+          {bookingSegments(booking).length > 1 && (
+            <KloterDetailList segments={bookingSegments(booking)} />
+          )}
           <DocumentDetailItem
             label="Surat"
             documentName={booking.documentName}
+            hasDocument={booking.hasDocument ?? true}
             onPreview={() => onPreviewDocument(booking)}
             onDownload={() => onDownloadDocument(booking)}
           />
         </div>
         <BookingActions
           booking={booking}
+          pendingLabel={pendingLabel}
           onAccept={onAccept}
           onReject={onReject}
           onReschedule={onReschedule}
@@ -1274,18 +1301,23 @@ export function BookingSlideOver({
 export function AdminActionModal({
   modal,
   schedules,
+  pendingLabel,
+  error,
   onClose,
   onConfirm,
 }: {
   modal: { action: AdminAction; booking: Booking };
   schedules: VisitDay[];
+  pendingLabel?: string | null;
+  error?: string;
   onClose: () => void;
   onConfirm: (action: AdminAction, booking: Booking, note: string, proposed?: string) => void;
 }) {
   const [note, setNote] = useState("");
+  const requiredSlots = requiredSlotCount(modal.booking.groupSize);
   const availableSlots = schedules.flatMap((day) =>
     day.slots
-      .filter((slot) => slot.status === "Available")
+      .filter((slot) => canFitConsecutiveSlots(day, slot.time, requiredSlots))
       .map((slot) => `${day.label}, ${slot.time} WIB`),
   );
   const [proposed, setProposed] = useState(availableSlots[0] ?? "");
@@ -1299,14 +1331,20 @@ export function AdminActionModal({
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal-card" role="dialog" aria-modal="true" aria-label={titleMap[modal.action]}>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="Tutup modal">
+        <button
+          className="modal-close"
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup modal"
+          disabled={Boolean(pendingLabel)}
+        >
           <X size={18} aria-hidden="true" />
         </button>
         <h2>{titleMap[modal.action]}</h2>
         <p>{modal.booking.code} - {modal.booking.institution}</p>
         {modal.action === "reschedule" && (
           <label className="form-field">
-            <span>Jadwal alternatif</span>
+            <span>Jadwal alternatif{requiredSlots > 1 ? ` (${requiredSlots} kloter berurutan)` : ""}</span>
             <select value={proposed} onChange={(event) => setProposed(event.target.value)}>
               {availableSlots.map((slot) => (
                 <option key={slot} value={slot}>
@@ -1314,25 +1352,50 @@ export function AdminActionModal({
                 </option>
               ))}
             </select>
+            {availableSlots.length === 0 && <small>Tidak ada rangkaian slot yang cukup untuk jumlah rombongan ini.</small>}
           </label>
         )}
         <label className="form-field">
           <span>{needsNote ? "Alasan" : "Catatan admin opsional"}</span>
           <textarea value={note} onChange={(event) => setNote(event.target.value)} />
         </label>
+        {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions">
-          <button className="button button-ghost" type="button" onClick={onClose}>
+          <button className="button button-ghost" type="button" onClick={onClose} disabled={Boolean(pendingLabel)}>
             Batal
           </button>
           <button
             className="button button-primary"
             type="button"
-            disabled={needsNote && !note.trim()}
+            disabled={Boolean(pendingLabel) || (needsNote && !note.trim()) || (modal.action === "reschedule" && !proposed)}
             onClick={() => onConfirm(modal.action, modal.booking, note, proposed)}
           >
-            Konfirmasi & Buka WhatsApp
+            {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Konfirmasi & Buka WhatsApp"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ShortNoticeBadge({ booking }: { booking: Booking }) {
+  if (!isShortNoticeBooking(booking)) return null;
+
+  return <span className="booking-short-notice">{bookingLeadTimeLabel(booking)}</span>;
+}
+
+function KloterDetailList({ segments }: { segments: BookingSegment[] }) {
+  return (
+    <div className="detail-item detail-item--kloter-list">
+      <span>Pembagian kloter</span>
+      <div className="kloter-detail-list" aria-label="Pembagian kloter">
+        {segments.map((segment) => (
+          <div className="kloter-detail-row" key={segment.order}>
+            <strong>Kloter {segment.order}</strong>
+            <span>{segment.time} WIB</span>
+            <span>{segment.groupSize} orang</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1341,11 +1404,13 @@ export function AdminActionModal({
 export function DocumentDetailItem({
   label,
   documentName,
+  hasDocument,
   onPreview,
   onDownload,
 }: {
   label: string;
   documentName: string;
+  hasDocument: boolean;
   onPreview: () => void;
   onDownload: () => void;
 }) {
@@ -1363,15 +1428,17 @@ export function DocumentDetailItem({
           type="button"
           className="document-detail-link"
           onClick={onPreview}
+          disabled={!hasDocument}
           aria-label={`Pratinjau ${documentName}`}
         >
           <Icon size={16} aria-hidden="true" />
-          <strong>{documentName}</strong>
+          <strong>{hasDocument ? documentName : `${documentName} (tidak tersedia)`}</strong>
         </button>
         <button
           type="button"
           className="document-detail-download"
           onClick={onDownload}
+          disabled={!hasDocument}
           aria-label={`Unduh ${documentName}`}
           title="Unduh surat"
         >
@@ -1393,6 +1460,9 @@ export function DocumentPreviewModal({
   onClose: () => void;
   onDownload: () => void;
 }) {
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewError, setPreviewError] = useState(false);
+
   // Esc to dismiss, mirroring the slideover keyboard behaviour so admins can
   // breeze through pending bookings without leaving the keyboard.
   useEffect(() => {
@@ -1403,12 +1473,16 @@ export function DocumentPreviewModal({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  // Render mode is decided from the actual asset URL extension, not the
-  // displayed file name: in the demo every booking previews the shared
-  // contoh-kop-surat.png even when documentName ends in .pdf.
-  const urlExt = documentUrl.split(".").pop()?.toLowerCase() ?? "";
+  // Render mode follows the uploaded file name because the document endpoint
+  // is a private API URL without a stable file extension.
+  const urlExt = documentName.split(".").pop()?.toLowerCase() ?? "";
   const isPdf = urlExt === "pdf";
   const isImage = urlExt === "jpg" || urlExt === "jpeg" || urlExt === "png";
+
+  useEffect(() => {
+    setPreviewLoading(isPdf || isImage);
+    setPreviewError(false);
+  }, [documentUrl, isImage, isPdf]);
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -1434,12 +1508,25 @@ export function DocumentPreviewModal({
             <p>{documentName}</p>
           </div>
         </header>
-        <div className="document-preview-body">
+        <div className="document-preview-body" aria-busy={previewLoading}>
+          {previewLoading && !previewError && (
+            <div className="document-preview-loading">
+              <InlineSpinner label="Memuat pratinjau surat" />
+            </div>
+          )}
+          {previewError && (
+            <div className="document-preview-fallback" role="status">
+              <FileText size={32} aria-hidden="true" />
+              <p>Pratinjau gagal dimuat.</p>
+              <p>Silakan buka di tab baru atau unduh file.</p>
+            </div>
+          )}
           {isPdf && (
             <iframe
               title={`Pratinjau ${documentName}`}
               src={documentUrl}
               className="document-preview-frame"
+              onLoad={() => setPreviewLoading(false)}
             />
           )}
           {isImage && (
@@ -1447,6 +1534,11 @@ export function DocumentPreviewModal({
               src={documentUrl}
               alt={`Pratinjau ${documentName}`}
               className="document-preview-image"
+              onLoad={() => setPreviewLoading(false)}
+              onError={() => {
+                setPreviewLoading(false);
+                setPreviewError(true);
+              }}
             />
           )}
           {!isPdf && !isImage && (

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ASSETS } from "./lib/assets";
-import type { AdminTab, FaqItem, FooterContact, WaTemplate } from "./domain/types";
+import type { AdminTab, FaqItem, FooterContact, LandingIconKey, SiteContent, WaTemplate } from "./domain/types";
 
 export const INITIAL_FOOTER_CONTACTS: FooterContact[] = [
   {
@@ -89,7 +89,7 @@ export const wizardSteps = [
   },
   {
     title: "Data Instansi",
-    helper: "Tuliskan nama instansi dan jumlah rombongan yang akan hadir.",
+    helper: "Tuliskan nama instansi dan estimasi jumlah rombongan yang akan hadir.",
     miky: "Nama instansi membantu admin memverifikasi permohonan kunjunganmu.",
     icon: ClipboardCheck,
     image: ASSETS.mikyStep3,
@@ -103,7 +103,7 @@ export const wizardSteps = [
   },
   {
     title: "Upload Surat",
-    helper: "Format yang didukung: PDF, JPG, JPEG, atau PNG dengan ukuran maksimal 10 MB.",
+    helper: "Format yang didukung: PDF, JPG, JPEG, atau PNG dengan ukuran maksimal 5 MB.",
     miky: "Unggah surat permohonan resmi dari instansi agar admin bisa melakukan pengecekan.",
     icon: UploadCloud,
     image: ASSETS.mikyStep5,
@@ -141,13 +141,13 @@ export const quickInfoCards: Array<{
     icon: Clock3,
     title: "Jam Kunjungan",
     body: "Kunjungan dibuka pada hari kerja sesuai jadwal layanan ISTURA.",
-    points: ["Senin - Jumat", "08.00 - 14.00 WIB"],
+    points: ["Senin - Kamis", "08.00 - 14.00 WIB"],
   },
   {
     icon: FileCheck2,
     title: "Syarat Kunjungan",
     body: "Siapkan dokumen dan data utama sebelum mengisi form booking.",
-    points: ["Surat permohonan resmi", "Data contact person", "Booking minimal H-5"],
+    points: ["Surat permohonan resmi", "Data contact person", "Jadwal masih tersedia"],
   },
   {
     icon: MessageCircle,
@@ -208,7 +208,7 @@ export const INITIAL_FAQ_ITEMS: FaqItem[] = [
     id: "faq-rombongan",
     question: "Berapa jumlah maksimal rombongan?",
     answer:
-      "Setiap kloter menampung maksimal 75 orang. Jika rombongan lebih dari 75 orang, tetap kirim booking terlebih dahulu, lalu admin akan menghubungi via WhatsApp untuk membicarakan pembagian kloter.",
+      "Kapasitas ideal per kloter adalah 75 orang. Jika rombongan lebih besar, sistem akan membantu pembagian kloter saat booking dan contact person tetap bisa berdiskusi dengan admin melalui WhatsApp.",
   },
   {
     id: "faq-format-surat",
@@ -254,6 +254,127 @@ export const accordionItems = [
   },
 ];
 
+export const LANDING_ICON_OPTIONS: Array<{ key: LandingIconKey; label: string }> = [
+  { key: "clock", label: "Jam" },
+  { key: "file-check", label: "Dokumen" },
+  { key: "message-circle", label: "Pesan" },
+  { key: "calendar", label: "Kalender" },
+  { key: "pen", label: "Isi data" },
+  { key: "upload", label: "Upload" },
+  { key: "map-pin", label: "Lokasi" },
+  { key: "image", label: "Gambar" },
+];
+
+export const DEFAULT_SITE_CONTENT: SiteContent = {
+  nav: {
+    logoSrc: ASSETS.logoWhite,
+    logoAlt: "Logo Gedung Agung",
+    brandText: "ISTURA",
+    ctaLabel: "Mulai Booking",
+    items: [
+      { label: "Beranda", target: "home" },
+      { label: "Cek Jadwal", target: "#panduan" },
+      { label: "Contoh Surat", target: "#contoh-surat" },
+      { label: "FAQ", target: "#faq" },
+    ],
+  },
+  quickInfo: {
+    title: "Sebelum booking, siapkan tiga hal utama.",
+    description:
+      "Ringkasan ini membantu pengunjung tahu jadwal, syarat, dan kanal konfirmasi tanpa harus membaca formulir panjang.",
+    cards: [
+      {
+        iconKey: "clock",
+        title: "Jam Kunjungan",
+        body: "Kunjungan dibuka pada hari kerja sesuai jadwal layanan ISTURA.",
+        points: ["Senin - Kamis", "08.00 - 14.00 WIB"],
+      },
+      {
+        iconKey: "file-check",
+        title: "Syarat Kunjungan",
+        body: "Siapkan dokumen dan data utama sebelum mengisi form booking.",
+        points: ["Surat permohonan resmi", "Data contact person", "Jadwal masih tersedia"],
+      },
+      {
+        iconKey: "message-circle",
+        title: "Konfirmasi WhatsApp",
+        body: "Admin akan menghubungi contact person setelah data permohonan masuk.",
+        points: ["Maksimal 1x24 jam", "Gunakan nomor WhatsApp aktif"],
+      },
+    ],
+  },
+  schedule: {
+    title: "Jadwal Kunjungan ISTURA",
+    description:
+      "Cek slot tersedia sebelum booking. Kalender dibuka dua bulan ke depan; ikuti hari yang ditandai sebagai tersedia.",
+  },
+  video: {
+    title: "Virtual Tour - Istana Kepresidenan Yogyakarta",
+    url: "https://www.youtube.com/embed/YhE3H8mCFV4?start=4&rel=0&modestbranding=1",
+  },
+  bookingSteps: {
+    title: "Booking dalam 4 langkah.",
+    story: storyWords.join(" "),
+    cards: [
+      {
+        iconKey: "calendar",
+        title: "Pilih jadwal",
+        body: "Cek kalender dua bulan ke depan, lalu pilih tanggal dan jam yang masih tersedia.",
+      },
+      {
+        iconKey: "pen",
+        title: "Isi data",
+        body: "Masukkan nama contact person, NIK, WhatsApp aktif, asal instansi, dan jumlah rombongan.",
+      },
+      {
+        iconKey: "upload",
+        title: "Unggah surat",
+        body: "Lampirkan surat permohonan resmi dari instansi agar admin dapat melakukan verifikasi.",
+      },
+      {
+        iconKey: "message-circle",
+        title: "Tunggu WhatsApp",
+        body: "Admin mengirim keputusan, penolakan, atau opsi reschedule melalui WhatsApp.",
+      },
+    ],
+  },
+  activities: {
+    title: "Hal apa saja yang akan kamu lakukan di Istana.",
+    description: "Empat momen kunjungan diringkas menjadi panel visual yang mudah dipindai.",
+    items: accordionItems,
+  },
+  letterSection: {
+    title: "Contoh surat permohonan ISTURA.",
+    description: "Gunakan contoh ini sebagai acuan format surat resmi sebelum mengunggah dokumen booking.",
+    formatKicker: "Format dokumen",
+    formatTitle: "Yang perlu dicantumkan di surat.",
+    uploadNote: "Upload mendukung PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.",
+    buttonLabel: "Mulai Booking",
+  },
+  faq: {
+    title: "Pertanyaan yang paling sering muncul.",
+    description: "Jawaban ringkas untuk hal yang biasanya ditanyakan sebelum pengunjung mengirim permohonan.",
+  },
+  cta: {
+    title: "Siap mengajukan kunjungan ISTURA?",
+    body: "Mulai dari jadwal yang tersedia, unggah surat permohonan, lalu tunggu konfirmasi admin maksimal 1x24 jam melalui WhatsApp.",
+    buttonLabel: "Mulai Booking Sekarang",
+    backgroundImage: "/assets/hero-istana.jpeg",
+  },
+  footer: {
+    logoSrc: ASSETS.logoWhite,
+    logoAlt: "Gedung Agung",
+    scheduleLabel: "Jadwal buka",
+    scheduleDays: "Senin - Kamis",
+    scheduleHours: "08.00 - 14.00 WIB",
+    mapUrl: "https://maps.app.goo.gl/iuAhnPB1SkJLMaX9A",
+    mapEmbedUrl: "https://www.google.com/maps?q=Gedung+Agung+Yogyakarta&output=embed",
+    address:
+      "Jl. Jend. Ahmad Yani, Ngupasan, Kec. Gondomanan, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55122",
+    copyright: "\u00a9 2026 Istana Kepresidenan Yogyakarta / Gedung Agung. Seluruh hak cipta dilindungi.",
+  },
+};
+
 export const HERO_MESSAGES: Array<{ text: string; image: string }> = [
   { text: "Halo! Aku MIKY. Aku bantu pandu booking kunjunganmu.", image: ASSETS.mikyHero },
   { text: "Mau cek slot dulu? Klik Cek Jadwal ya.", image: ASSETS.mikyStep4 },
@@ -271,29 +392,100 @@ export const INITIAL_WA_TEMPLATES: WaTemplate[] = [
     id: "Accepted",
     label: "Booking disetujui",
     description: "Dikirim saat admin menyetujui permohonan kunjungan.",
-    template:
-      "Yth. {nama}, permohonan kunjungan {instansi} dengan kode {kode} disetujui untuk {tanggal} pukul {jam} WIB. Mohon hadir 15 menit lebih awal dengan menunjukkan kode ini di pintu masuk. Terima kasih.",
+    template: [
+      "Halo Sobat ISTURA \u{1F44B}",
+      "",
+      "\u2705 *Booking Disetujui*",
+      "",
+      "Yth. *{nama}*,",
+      "permohonan kunjungan dari *{instansi}* telah disetujui.",
+      "",
+      "Kode booking:",
+      "*{kode}*",
+      "",
+      "Tanggal kunjungan:",
+      "*{tanggal}*",
+      "",
+      "Jumlah rombongan:",
+      "*{rombongan}*",
+      "",
+      "Jadwal kunjungan:",
+      "{jam}",
+      "",
+      "Mohon hadir *15 menit lebih awal* dan tunjukkan kode booking saat tiba di pintu masuk.",
+      "",
+      "Salam hangat,",
+      "Admin ISTURA",
+    ].join("\n"),
   },
   {
     id: "Rejected",
     label: "Booking ditolak",
     description: "Dikirim saat permohonan tidak disetujui.",
-    template:
-      "Yth. {nama}, mohon maaf permohonan kunjungan {instansi} dengan kode {kode} belum dapat disetujui. Alasan: {catatan}",
+    template: [
+      "Halo Sobat ISTURA \u{1F44B}",
+      "",
+      "\u274C *Booking Belum Dapat Disetujui*",
+      "",
+      "Yth. *{nama}*,",
+      "mohon maaf, permohonan kunjungan dari *{instansi}* dengan kode *{kode}* belum dapat disetujui.",
+      "",
+      "Alasan/catatan:",
+      "*{catatan}*",
+      "",
+      "Silakan hubungi admin melalui WhatsApp ini bila perlu informasi lanjutan.",
+      "",
+      "Salam hangat,",
+      "Admin ISTURA",
+    ].join("\n"),
   },
   {
     id: "Reschedule",
     label: "Tawaran reschedule",
     description: "Dikirim saat admin menawarkan jadwal alternatif.",
-    template:
-      "Yth. {nama}, permohonan {kode} perlu penyesuaian jadwal. Usulan jadwal: {catatan}. Mohon konfirmasi melalui WhatsApp ini.",
+    template: [
+      "Halo Sobat ISTURA \u{1F44B}",
+      "",
+      "\u{1F501} *Usulan Reschedule Kunjungan*",
+      "",
+      "Yth. *{nama}*,",
+      "permohonan kunjungan dari *{instansi}* dengan kode *{kode}* perlu penyesuaian jadwal.",
+      "",
+      "Jumlah rombongan:",
+      "*{rombongan}*",
+      "",
+      "Jadwal usulan:",
+      "{jam}",
+      "",
+      "Catatan admin:",
+      "*{catatan}*",
+      "",
+      "Mohon konfirmasi melalui WhatsApp ini apakah jadwal tersebut dapat diikuti.",
+      "",
+      "Salam hangat,",
+      "Admin ISTURA",
+    ].join("\n"),
   },
   {
     id: "Completed",
     label: "Tandai selesai & permintaan feedback",
     description: "Dikirim setelah kunjungan selesai. {link} adalah tautan feedback unik.",
-    template:
-      "Yth. {nama}, terima kasih telah berkunjung ke Istana Kepresidenan Yogyakarta pada {tanggal}. Setelah melakukan ISTURA, Bapak/Ibu kami mohon untuk mengisi feedback pada link berikut: {link} agar kami dapat memperbaiki pelayanan kami setiap saat. Terima kasih.",
+    template: [
+      "Halo Sobat ISTURA \u{1F44B}",
+      "",
+      "\u2B50 *Form Feedback Kunjungan*",
+      "",
+      "Yth. *{nama}*,",
+      "terima kasih telah berkunjung ke Istana Kepresidenan Yogyakarta pada *{tanggal}*.",
+      "",
+      "Kami mohon bantuan Bapak/Ibu untuk mengisi feedback melalui tautan berikut:",
+      "*{link}*",
+      "",
+      "Masukan Bapak/Ibu membantu kami meningkatkan pelayanan ISTURA.",
+      "",
+      "Salam hangat,",
+      "Admin ISTURA",
+    ].join("\n"),
   },
 ];
 
@@ -314,6 +506,7 @@ export const ADMIN_MENU: AdminMenuItem[] = [
   { key: "cms-letter", label: "Contoh Surat", icon: FileCheck2, group: "Konten Web", status: "ready" },
   { key: "cms-contacts", label: "Kontak Footer", icon: Phone, group: "Konten Web", status: "ready" },
   { key: "cms-hero", label: "Hero & Cerita", icon: ImageIcon, group: "Konten Web", status: "ready" },
+  { key: "cms-landing", label: "Landing Page", icon: LayoutDashboard, group: "Konten Web", status: "ready" },
   { key: "cms-wa", label: "Template Pesan WA", icon: MessageCircle, group: "Konten Web", status: "ready" },
   { key: "users", label: "Pengguna Admin", icon: UserCog, group: "Sistem", status: "ready" },
   { key: "audit", label: "Riwayat Aktivitas", icon: ListChecks, group: "Sistem", status: "ready" },

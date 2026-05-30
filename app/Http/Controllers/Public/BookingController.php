@@ -20,7 +20,7 @@ class BookingController extends Controller
         );
 
         return response()->json([
-            'data' => (new BookingResource($booking))->resolve(),
+            'data' => (new BookingResource($booking->loadMissing('slots')))->resolve(),
         ], 201);
     }
 }

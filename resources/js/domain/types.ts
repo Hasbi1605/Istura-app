@@ -22,6 +22,7 @@ export type AdminTab =
   | "cms-letter"
   | "cms-contacts"
   | "cms-hero"
+  | "cms-landing"
   | "cms-wa"
   | "users"
   | "audit";
@@ -58,12 +59,17 @@ export type Booking = {
   whatsapp: string;
   institution: string;
   groupSize: number;
+  kloterCount?: number;
+  segments?: BookingSegment[];
   date: string;
   dateLabel: string;
   time: string;
   status: BookingStatus;
   documentName: string;
+  hasDocument?: boolean;
   submittedAt: string;
+  leadTimeDays?: number | null;
+  isShortNotice?: boolean;
   note?: string;
   feedbackToken: string;
   completedAt?: string;
@@ -73,7 +79,16 @@ export type Booking = {
   proposedDate?: string;
   proposedDateLabel?: string;
   proposedTime?: string;
+  proposedSegments?: BookingSegment[];
   proposedAt?: string;
+};
+
+export type BookingSegment = {
+  order: number;
+  date: string;
+  dateLabel: string;
+  time: string;
+  groupSize: number;
 };
 
 export type Feedback = {
@@ -117,9 +132,117 @@ export type WaTemplate = {
   template: string;
 };
 
+export type LandingIconKey =
+  | "clock"
+  | "file-check"
+  | "message-circle"
+  | "calendar"
+  | "pen"
+  | "upload"
+  | "map-pin"
+  | "image";
+
+export type LandingNavItem = {
+  label: string;
+  target: string;
+};
+
+export type LandingInfoCard = {
+  iconKey: LandingIconKey;
+  title: string;
+  body: string;
+  points: string[];
+};
+
+export type LandingStepCard = {
+  iconKey: LandingIconKey;
+  title: string;
+  body: string;
+};
+
+export type LandingActivity = {
+  title: string;
+  body: string;
+  image: string;
+};
+
+export type SiteContent = {
+  nav: {
+    logoSrc: string;
+    logoAlt: string;
+    brandText: string;
+    ctaLabel: string;
+    items: LandingNavItem[];
+  };
+  quickInfo: {
+    title: string;
+    description: string;
+    cards: LandingInfoCard[];
+  };
+  schedule: {
+    title: string;
+    description: string;
+  };
+  video: {
+    title: string;
+    url: string;
+  };
+  bookingSteps: {
+    title: string;
+    story: string;
+    cards: LandingStepCard[];
+  };
+  activities: {
+    title: string;
+    description: string;
+    items: LandingActivity[];
+  };
+  letterSection: {
+    title: string;
+    description: string;
+    formatKicker: string;
+    formatTitle: string;
+    uploadNote: string;
+    buttonLabel: string;
+  };
+  faq: {
+    title: string;
+    description: string;
+  };
+  cta: {
+    title: string;
+    body: string;
+    buttonLabel: string;
+    backgroundImage: string;
+  };
+  footer: {
+    logoSrc: string;
+    logoAlt: string;
+    scheduleLabel: string;
+    scheduleDays: string;
+    scheduleHours: string;
+    mapUrl: string;
+    mapEmbedUrl: string;
+    address: string;
+    copyright: string;
+  };
+};
+
 // Booking list helpers (admin booking page)
 export type BookingStatusFilter = BookingStatus | null;
 export type BookingSort = "smart" | "submitted-desc" | "submitted-asc" | "date-asc" | "date-desc";
 export type BookingDateRange = "all" | "today" | "week" | "month" | "custom";
 export type BookingViewMode = "split" | "table";
 export type BookingDensity = "comfortable" | "compact";
+
+export type DataLoadingState = {
+  public: boolean;
+  admin: boolean;
+  schedule: boolean;
+  bookings: boolean;
+  feedbacks: boolean;
+};
+
+export type CmsSyncKey = "faqs" | "contacts" | "waTemplates";
+export type CmsSyncStatus = "idle" | "saving" | "saved" | "error";
+export type CmsSyncState = Record<CmsSyncKey, CmsSyncStatus>;

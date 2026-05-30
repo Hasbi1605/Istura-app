@@ -1,7 +1,15 @@
 import { api } from "./client";
 
-// Mirror structural dari type Booking di App.tsx supaya bisa dipakai sebagai
-// drop-in replacement untuk mock data.
+export type ApiBookingSegment = {
+  order: number;
+  date: string;
+  dateLabel: string;
+  time: string;
+  groupSize: number;
+};
+
+// Mirror structural dari type Booking di App.tsx supaya data API bisa dipakai
+// langsung oleh komponen admin dan public flow.
 export type ApiBooking = {
   code: string;
   contactName: string;
@@ -10,18 +18,24 @@ export type ApiBooking = {
   whatsapp: string;
   institution: string;
   groupSize: number;
+  kloterCount?: number;
+  segments?: ApiBookingSegment[];
   date: string;
   dateLabel: string;
   time: string;
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
   documentName: string;
+  hasDocument?: boolean;
   submittedAt: string;
+  leadTimeDays?: number | null;
+  isShortNotice?: boolean;
   note?: string | null;
   feedbackToken: string;
   completedAt?: string | null;
   proposedDate?: string | null;
   proposedDateLabel?: string | null;
   proposedTime?: string | null;
+  proposedSegments?: ApiBookingSegment[] | null;
   proposedAt?: string | null;
 };
 
@@ -39,6 +53,9 @@ export const fetchAdminBookings = (params?: {
   const qs = search.toString();
   return api<{ data: ApiBooking[] }>(`/api/admin/bookings${qs ? `?${qs}` : ""}`).then((r) => r.data);
 };
+
+export const fetchAdminBooking = (code: string): Promise<ApiBooking> =>
+  api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}`).then((r) => r.data);
 
 export const acceptBooking = (code: string, note?: string) =>
   api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/accept`, {

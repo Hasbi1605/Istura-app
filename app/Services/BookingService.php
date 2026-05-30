@@ -6,10 +6,15 @@ use App\Events\BookingCreated;
 use App\Events\BookingStatusChanged;
 use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\BookingSlot;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * Centralizes booking lifecycle: create from public form, status transitions,
@@ -17,6 +22,8 @@ use Illuminate\Support\Facades\DB;
  */
 class BookingService
 {
+    public const SLOT_CAPACITY = 80;
+
     public function __construct(
         private readonly BookingCodeGenerator $codes,
         private readonly ScheduleService $schedule,
@@ -24,39 +31,55 @@ class BookingService
 
     public function createFromPublic(array $data, UploadedFile $document): Booking
     {
-        $date = Carbon::createFromFormat('Y-m-d', $data['date']);
+        $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'Asia/Jakarta')->startOfDay();
+        $documentPath = null;
 
-        return DB::transaction(function () use ($data, $document, $date) {
-            $code = $this->codes->next();
-            $documentPath = $document->storeAs(
-                'booking-letters',
-                $code.'-'.$document->getClientOriginalName(),
-                'local',
-            );
+        try {
+            return DB::transaction(function () use ($data, $document, $date, &$documentPath) {
+                $segments = $this->buildSlotSegments($date, $data['time'], (int) $data['groupSize'], true);
 
-            $booking = new Booking;
-            $booking->code = $code;
-            $booking->contact_name = $data['contactName'];
-            $booking->nik = $data['nik']; // accessor encrypts + masks
-            $booking->whatsapp = $data['whatsapp'];
-            $booking->institution = $data['institution'];
-            $booking->group_size = (int) $data['groupSize'];
-            $booking->date = $date;
-            $booking->date_label = $this->schedule->formatLongDate($date);
-            $booking->time = $data['time'];
-            $booking->status = 'Pending';
-            $booking->document_path = $documentPath;
-            $booking->document_original_name = $document->getClientOriginalName();
-            $booking->feedback_token = $this->codes->token();
-            $booking->submitted_at = now();
-            $booking->save();
+                $code = $this->codes->next();
+                $documentPath = $document->storeAs(
+                    'booking-letters',
+                    $code.'-'.$document->getClientOriginalName(),
+                    'local',
+                );
 
-            $this->logAudit(null, "Booking baru {$booking->code} dari {$booking->institution}", $booking);
+                $booking = new Booking;
+                $booking->code = $code;
+                $booking->contact_name = $data['contactName'];
+                $booking->nik = $data['nik']; // accessor encrypts + masks
+                $booking->whatsapp = $data['whatsapp'];
+                $booking->institution = $data['institution'];
+                $booking->group_size = (int) $data['groupSize'];
+                $booking->date = $date;
+                $booking->date_label = $this->schedule->formatLongDate($date);
+                $booking->time = $segments[0]['time'];
+                $booking->status = 'Pending';
+                $booking->document_path = $documentPath;
+                $booking->document_original_name = $document->getClientOriginalName();
+                $booking->feedback_token = $this->codes->token();
+                $booking->submitted_at = now();
+                $booking->save();
+                $this->persistBookingSlots($booking, $segments, true);
 
-            BookingCreated::dispatch($booking->fresh());
+                $this->logAudit(null, "Booking baru {$booking->code} dari {$booking->institution}", $booking);
 
-            return $booking->fresh();
-        });
+                BookingCreated::dispatch($booking->fresh()->load('slots'));
+
+                return $booking->fresh()->load('slots');
+            });
+        } catch (Throwable $exception) {
+            if ($documentPath) {
+                Storage::disk('local')->delete($documentPath);
+            }
+
+            if ($exception instanceof QueryException && $this->isUniqueSlotConflict($exception)) {
+                $this->throwUnavailableSlot();
+            }
+
+            throw $exception;
+        }
     }
 
     public function accept(Booking $booking, ?User $actor, ?string $note = null): Booking
@@ -71,8 +94,6 @@ class BookingService
 
     public function complete(Booking $booking, ?User $actor): Booking
     {
-        $booking->completed_at = now();
-
         return $this->transitionTo($booking, 'Completed', $actor, 'complete');
     }
 
@@ -85,7 +106,14 @@ class BookingService
     ): Booking {
         $booking->proposed_date = $proposedDate;
         $booking->proposed_time = $proposedTime;
-        $booking->proposed_date_label = $this->schedule->formatLongDate(Carbon::createFromFormat('Y-m-d', $proposedDate));
+        $booking->proposed_date_label = $this->schedule->formatLongDate(Carbon::createFromFormat('Y-m-d', $proposedDate, 'Asia/Jakarta')->startOfDay());
+        $booking->proposed_segments = $this->buildSlotSegments(
+            Carbon::createFromFormat('Y-m-d', $proposedDate, 'Asia/Jakarta')->startOfDay(),
+            $proposedTime,
+            $booking->group_size,
+            false,
+            $booking->id,
+        );
         $booking->proposed_at = now();
 
         return $this->transitionTo($booking, 'Reschedule', $actor, 'reschedule', $note);
@@ -98,27 +126,207 @@ class BookingService
         string $action,
         ?string $note = null,
     ): Booking {
-        return DB::transaction(function () use ($booking, $newStatus, $actor, $action, $note) {
-            $previous = $booking->status;
-            $booking->status = $newStatus;
-            if ($note !== null) {
-                $booking->note = $note;
+        try {
+            return DB::transaction(function () use ($booking, $newStatus, $actor, $action, $note) {
+                $previous = $booking->status;
+                $this->assertValidTransition($previous, $newStatus);
+                $replacementSegments = null;
+
+                if ($newStatus === 'Accepted' && $booking->status === 'Reschedule' && $booking->proposed_date && $booking->proposed_time) {
+                    $proposedDate = Carbon::parse($booking->proposed_date, 'Asia/Jakarta')->startOfDay();
+                    $replacementSegments = $this->buildSlotSegments($proposedDate, $booking->proposed_time, $booking->group_size, true, $booking->id);
+
+                    $booking->date = $proposedDate;
+                    $booking->date_label = $this->schedule->formatLongDate($proposedDate);
+                    $booking->time = $replacementSegments[0]['time'];
+                    $booking->proposed_date = null;
+                    $booking->proposed_time = null;
+                    $booking->proposed_date_label = null;
+                    $booking->proposed_segments = null;
+                    $booking->proposed_at = null;
+                }
+
+                if ($newStatus === 'Reschedule' && $booking->proposed_date && $booking->proposed_time) {
+                    $proposedDate = Carbon::parse($booking->proposed_date, 'Asia/Jakarta')->startOfDay();
+                    $booking->proposed_segments = $this->buildSlotSegments($proposedDate, $booking->proposed_time, $booking->group_size, true, $booking->id);
+                }
+
+                if ($newStatus === 'Rejected') {
+                    $booking->proposed_date = null;
+                    $booking->proposed_time = null;
+                    $booking->proposed_date_label = null;
+                    $booking->proposed_segments = null;
+                    $booking->proposed_at = null;
+                }
+
+                if ($newStatus === 'Completed') {
+                    $booking->completed_at = now();
+                }
+
+                $booking->status = $newStatus;
+                if ($note !== null) {
+                    $booking->note = $note;
+                }
+                $booking->save();
+                if ($replacementSegments !== null) {
+                    $this->persistBookingSlots($booking, $replacementSegments, $booking->isActiveForSchedule());
+                } else {
+                    $this->syncBookingSlotKeys($booking);
+                }
+
+                $verb = match ($action) {
+                    'accept' => 'Menyetujui',
+                    'reject' => 'Menolak',
+                    'complete' => 'Menandai selesai',
+                    'reschedule' => 'Menjadwalkan ulang',
+                    default => 'Mengubah',
+                };
+                $this->logAudit($actor, "{$verb} booking {$booking->code}", $booking);
+
+                BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, $action);
+
+                return $booking->fresh()->load('slots');
+            });
+        } catch (QueryException $exception) {
+            if ($this->isUniqueSlotConflict($exception)) {
+                $this->throwUnavailableSlot();
             }
-            $booking->save();
 
-            $verb = match ($action) {
-                'accept' => 'Menyetujui',
-                'reject' => 'Menolak',
-                'complete' => 'Menandai selesai',
-                'reschedule' => 'Menjadwalkan ulang',
-                default => 'Mengubah',
-            };
-            $this->logAudit($actor, "{$verb} booking {$booking->code}", $booking);
+            throw $exception;
+        }
+    }
 
-            BookingStatusChanged::dispatch($booking->fresh(), $previous, $action);
+    private function assertValidTransition(string $currentStatus, string $newStatus): void
+    {
+        $allowed = match ($currentStatus) {
+            'Pending' => ['Accepted', 'Rejected', 'Reschedule'],
+            'Accepted' => ['Completed', 'Reschedule'],
+            'Reschedule' => ['Accepted', 'Rejected', 'Reschedule'],
+            default => [],
+        };
 
-            return $booking->fresh();
+        if (! in_array($newStatus, $allowed, true)) {
+            throw ValidationException::withMessages([
+                'status' => ["Status {$currentStatus} tidak dapat diubah menjadi {$newStatus}."],
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, array{slot_order:int,date:string,date_label:string,time:string,group_size:int}>
+     */
+    private function buildSlotSegments(
+        Carbon $date,
+        string $startTime,
+        int $groupSize,
+        bool $lockBookings = false,
+        ?int $ignoreBookingId = null,
+    ): array {
+        $segmentSizes = $this->splitGroupSizes($groupSize);
+        $requiredSlots = count($segmentSizes);
+        $times = $this->schedule->orderedTimesForDate($date);
+        $startIndex = array_search($startTime, $times, true);
+
+        if ($startIndex === false) {
+            $this->throwUnavailableConsecutiveSlots($requiredSlots);
+        }
+
+        $selectedTimes = array_slice($times, $startIndex, $requiredSlots);
+        if (count($selectedTimes) < $requiredSlots) {
+            $this->throwUnavailableConsecutiveSlots($requiredSlots);
+        }
+
+        $segments = [];
+        foreach ($selectedTimes as $index => $time) {
+            $this->assertSlotAvailable($date, $time, $lockBookings, $ignoreBookingId);
+
+            $segments[] = [
+                'slot_order' => $index + 1,
+                'date' => $date->toDateString(),
+                'date_label' => $this->schedule->formatLongDate($date),
+                'time' => $time,
+                'group_size' => $segmentSizes[$index],
+            ];
+        }
+
+        return $segments;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function splitGroupSizes(int $groupSize): array
+    {
+        if ($groupSize < 1) {
+            return [0];
+        }
+
+        $requiredSlots = max(1, (int) ceil($groupSize / self::SLOT_CAPACITY));
+        $baseSize = intdiv($groupSize, $requiredSlots);
+        $remainder = $groupSize % $requiredSlots;
+
+        return array_map(
+            fn (int $index): int => $baseSize + ($index < $remainder ? 1 : 0),
+            range(0, $requiredSlots - 1),
+        );
+    }
+
+    /**
+     * @param  array<int, array{slot_order:int,date:string,date_label:string,time:string,group_size:int}>  $segments
+     */
+    private function persistBookingSlots(Booking $booking, array $segments, bool $active): void
+    {
+        $booking->slots()->delete();
+
+        foreach ($segments as $segment) {
+            $booking->slots()->create([
+                'slot_order' => $segment['slot_order'],
+                'date' => $segment['date'],
+                'date_label' => $segment['date_label'],
+                'time' => $segment['time'],
+                'group_size' => $segment['group_size'],
+                'active_slot_key' => $active ? BookingSlot::slotKey($segment['date'], $segment['time']) : null,
+            ]);
+        }
+    }
+
+    private function syncBookingSlotKeys(Booking $booking): void
+    {
+        $active = $booking->isActiveForSchedule();
+        $booking->slots()->get()->each(function (BookingSlot $slot) use ($active) {
+            $slot->active_slot_key = $active ? BookingSlot::slotKey($slot->date, $slot->time) : null;
+            $slot->save();
         });
+    }
+
+    private function assertSlotAvailable(Carbon $date, string $time, bool $lockBookings = false, ?int $ignoreBookingId = null): void
+    {
+        if ($this->schedule->slotStatusFor($date, $time, $lockBookings, $ignoreBookingId) !== 'Available') {
+            $this->throwUnavailableSlot();
+        }
+    }
+
+    private function throwUnavailableSlot(): never
+    {
+        throw ValidationException::withMessages([
+            'time' => ['Jadwal yang dipilih sudah tidak tersedia. Silakan pilih slot lain.'],
+        ]);
+    }
+
+    private function throwUnavailableConsecutiveSlots(int $requiredSlots): never
+    {
+        throw ValidationException::withMessages([
+            'time' => ["Rombongan ini membutuhkan {$requiredSlots} slot berurutan. Pilih jam mulai lain yang masih tersedia."],
+        ]);
+    }
+
+    private function isUniqueSlotConflict(QueryException $exception): bool
+    {
+        $code = (string) $exception->getCode();
+        $message = $exception->getMessage();
+
+        return in_array($code, ['23000', '23505'], true)
+            && str_contains($message, 'active_slot_key');
     }
 
     private function logAudit(?User $actor, string $description, Booking $booking): void

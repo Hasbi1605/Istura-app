@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
+  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
+  FileCheck2,
+  Image as ImageIcon,
+  MapPin,
+  MessageCircle,
+  PenLine,
   UploadCloud,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { FaqItem, FooterContact, Screen, VisitDay } from "../../domain/types";
+import type { FaqItem, FooterContact, LandingIconKey, Screen, SiteContent, VisitDay } from "../../domain/types";
+import type { ApiHero, ApiLetter } from "../../api/cms";
 import {
   addMonths,
   calendarWeekdays,
@@ -16,8 +23,9 @@ import {
   formatDateKey,
   formatLongDate,
   formatMonthTitle,
-  getFirstAvailableDate,
   getPublicDateStatus,
+  isSameMonth,
+  isWithinRange,
   legendStatuses,
   parseDateKey,
   publicSlotStatusLabel,
@@ -28,27 +36,104 @@ import {
 } from "../../lib/date";
 import { ASSETS } from "../../lib/assets";
 import {
-  accordionItems,
-  bookingProcessCards,
   HERO_MESSAGES,
   HERO_MESSAGES_MOBILE,
-  letterChecklist,
-  quickInfoCards,
-  storyWords,
 } from "../../constants";
 import { useMediaQuery, useReducedMotion, useTypewriter } from "../../hooks";
 import { Footer } from "../layout/Footer";
+import { InlineSpinner, SectionSkeleton } from "../ui/LoadingStates";
+
+const hasAvailableSlot = (day: VisitDay) => day.slots.some((slot) => slot.status === "Available");
+
+const landingIconMap: Record<LandingIconKey, LucideIcon> = {
+  clock: Clock3,
+  "file-check": FileCheck2,
+  "message-circle": MessageCircle,
+  calendar: CalendarDays,
+  pen: PenLine,
+  upload: UploadCloud,
+  "map-pin": MapPin,
+  image: ImageIcon,
+};
+
+const videoEmbedUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) {
+      const id = parsed.pathname.replace(/^\//, "");
+      return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`;
+    }
+    if (parsed.hostname.includes("youtube.com") && !parsed.pathname.startsWith("/embed/")) {
+      const id = parsed.searchParams.get("v");
+      const start = parsed.searchParams.get("t") ?? parsed.searchParams.get("start");
+      const startQuery = start ? `&start=${start.replace(/s$/, "")}` : "";
+      if (id) return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1${startQuery}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+};
+
+const isInsideScheduleWindow = (dateKey: string, minDate: Date, maxDate: Date) => {
+  const date = parseDateKey(dateKey);
+
+  return isWithinRange(date, minDate, maxDate);
+};
+
+const firstAvailableDateKey = (
+  schedules: VisitDay[],
+  minDate: Date,
+  maxDate: Date,
+  visibleMonth?: Date,
+) =>
+  schedules.find((day) => {
+    const date = parseDateKey(day.date);
+
+    return (
+      hasAvailableSlot(day) &&
+      isWithinRange(date, minDate, maxDate) &&
+      (!visibleMonth || isSameMonth(date, visibleMonth))
+    );
+  })?.date;
+
+const firstScheduleDateKey = (
+  schedules: VisitDay[],
+  minDate: Date,
+  maxDate: Date,
+  visibleMonth: Date,
+) =>
+  schedules.find((day) => {
+    const date = parseDateKey(day.date);
+
+    return isWithinRange(date, minDate, maxDate) && isSameMonth(date, visibleMonth);
+  })?.date;
+
+const fallbackDateKeyForMonth = (month: Date, minDate: Date, maxDate: Date) => {
+  const monthStart = startOfMonth(month);
+  const date = new Date(Math.max(minDate.getTime(), monthStart.getTime()));
+
+  return formatDateKey(new Date(Math.min(date.getTime(), maxDate.getTime())));
+};
 
 export function HomeScreen({
   contacts,
   faqs,
   schedules,
-  onNavigate,
+  hero,
+	letter,
+	siteContent,
+	loading = false,
+	onNavigate,
 }: {
   contacts: FooterContact[];
   faqs: FaqItem[];
   schedules: VisitDay[];
-  onNavigate: (screen: Screen) => void;
+  hero: ApiHero;
+	letter: ApiLetter;
+	siteContent: SiteContent;
+	loading?: boolean;
+	onNavigate: (screen: Screen) => void;
 }) {
   const [today] = useState(() => startOfDay(new Date()));
   const maxScheduleDate = addMonths(today, 2);
@@ -59,9 +144,12 @@ export function HomeScreen({
     () => new Map(schedules.map((day) => [day.date, day] as const)),
     [schedules],
   );
-  const [selectedDateKey, setSelectedDateKey] = useState(() =>
-    formatDateKey(getFirstAvailableDate(today, maxScheduleDate, today, scheduleByKey)),
+  const scheduleSignature = useMemo(
+    () => schedules.map((day) => `${day.date}:${day.slots.map((slot) => slot.status).join(".")}`).join("|"),
+    [schedules],
   );
+  const lastScheduleSyncRef = useRef("");
+  const [selectedDateKey, setSelectedDateKey] = useState(() => formatDateKey(today));
   const calendarDays = createCalendarDays(visibleMonth, today, maxScheduleDate, scheduleByKey);
   const selectedDate = parseDateKey(selectedDateKey);
   const selectedStatus = getPublicDateStatus(
@@ -76,6 +164,24 @@ export function HomeScreen({
   const canGoPrev = visibleMonth > minMonth;
   const canGoNext = visibleMonth < maxMonth;
 
+  useEffect(() => {
+    if (schedules.length === 0 || lastScheduleSyncRef.current === scheduleSignature) return;
+    lastScheduleSyncRef.current = scheduleSignature;
+
+    const selectedIsAvailable = Boolean(selectedDay && hasAvailableSlot(selectedDay));
+    if (selectedIsAvailable && isInsideScheduleWindow(selectedDateKey, today, maxScheduleDate)) {
+      return;
+    }
+
+    const nextDateKey =
+      firstAvailableDateKey(schedules, today, maxScheduleDate) ??
+      firstScheduleDateKey(schedules, today, maxScheduleDate, visibleMonth) ??
+      formatDateKey(today);
+
+    setSelectedDateKey(nextDateKey);
+    setVisibleMonth(startOfMonth(parseDateKey(nextDateKey)));
+  }, [maxScheduleDate, scheduleSignature, schedules, selectedDateKey, selectedDay, today, visibleMonth]);
+
   const handleMonthChange = (amount: number) => {
     const nextMonth = startOfMonth(addMonths(visibleMonth, amount));
     if (nextMonth < minMonth || nextMonth > maxMonth) {
@@ -84,7 +190,9 @@ export function HomeScreen({
 
     setVisibleMonth(nextMonth);
     setSelectedDateKey(
-      formatDateKey(getFirstAvailableDate(today, maxScheduleDate, nextMonth, scheduleByKey)),
+      firstAvailableDateKey(schedules, today, maxScheduleDate, nextMonth) ??
+        firstScheduleDateKey(schedules, today, maxScheduleDate, nextMonth) ??
+        fallbackDateKeyForMonth(nextMonth, today, maxScheduleDate),
     );
   };
 
@@ -98,15 +206,15 @@ export function HomeScreen({
             <img className="hero-logo" src={ASSETS.logoGold} alt="Gedung Agung Yogyakarta" />
             <span className="hero-logo-shine" aria-hidden="true" />
           </span>
-          <h1>ISTURA - Istana Untuk Rakyat</h1>
-          <p>Booking Kunjungan Istana Kepresidenan Yogyakarta</p>
+          <h1>{hero.headline}</h1>
+          <p>{hero.subheadline}</p>
           <div className="hero-actions" aria-label="Aksi utama">
             <button className="button button-primary" type="button" onClick={() => onNavigate("booking")}>
-              Mulai Booking
+              {hero.primaryCta}
               <ArrowRight size={18} aria-hidden="true" />
             </button>
             <a className="button button-secondary" href="#panduan">
-              Cek Jadwal
+              {hero.secondaryCta}
             </a>
           </div>
         </div>
@@ -115,14 +223,25 @@ export function HomeScreen({
         </div>
       </section>
 
-      <section className="chapter interest schedule-showcase" id="panduan">
-        <div className="schedule-title">
-          <h2>Jadwal Kunjungan ISTURA</h2>
-          <p>Cek slot tersedia sebelum booking. Kalender dibuka dua bulan ke depan; ikuti hari yang ditandai sebagai tersedia.</p>
-        </div>
+		<section className="chapter interest schedule-showcase" id="panduan">
+			<div className="schedule-title">
+				<h2>{siteContent.schedule.title}</h2>
+				<p>{siteContent.schedule.description}</p>
+				{loading && <InlineSpinner label="Memuat jadwal terbaru" />}
+			</div>
 
-        <div className="availability-layout">
-          <section className="calendar-card" aria-label="Kalender ketersediaan jadwal">
+			{loading && schedules.length === 0 ? (
+				<div className="availability-layout availability-layout--loading" aria-busy="true">
+					<section className="calendar-card" aria-label="Memuat kalender ketersediaan jadwal">
+						<SectionSkeleton rows={8} />
+					</section>
+					<section className="time-card" aria-label="Memuat pilihan jam kunjungan">
+						<SectionSkeleton rows={5} />
+					</section>
+				</div>
+			) : (
+			<div className="availability-layout">
+				<section className="calendar-card" aria-label="Kalender ketersediaan jadwal">
             <div className="calendar-toolbar">
               <button
                 type="button"
@@ -195,10 +314,11 @@ export function HomeScreen({
                 </p>
               )}
             </div>
-          </section>
-        </div>
+				</section>
+			</div>
+			)}
 
-        <div className="availability-legend" aria-label="Keterangan status jadwal">
+			<div className="availability-legend" aria-label="Keterangan status jadwal">
           <strong>Keterangan:</strong>
           {legendStatuses.map((status) => (
             <span key={status}>
@@ -211,21 +331,21 @@ export function HomeScreen({
 
       <section className="chapter quick-info-section" aria-labelledby="quick-info-title">
         <div className="section-heading compact quick-info-heading">
-          <h2 id="quick-info-title">Sebelum booking, siapkan tiga hal utama.</h2>
-          <p>Ringkasan ini membantu pengunjung tahu jadwal, syarat, dan kanal konfirmasi tanpa harus membaca formulir panjang.</p>
+          <h2 id="quick-info-title">{siteContent.quickInfo.title}</h2>
+          <p>{siteContent.quickInfo.description}</p>
         </div>
         <div className="quick-info-grid">
-          {quickInfoCards.map((card) => (
+          {siteContent.quickInfo.cards.map((card) => (
             <InfoCard key={card.title} {...card} />
           ))}
         </div>
       </section>
 
-      <section className="chapter video-chapter" aria-label="Virtual Tour Istana Kepresidenan Yogyakarta">
+      <section className="chapter video-chapter" aria-label={siteContent.video.title}>
         <div className="video-shell scale-fade">
           <iframe
-            src="https://www.youtube.com/embed/YhE3H8mCFV4?start=4&rel=0&modestbranding=1"
-            title="Virtual Tour - Istana Kepresidenan Yogyakarta"
+            src={videoEmbedUrl(siteContent.video.url)}
+            title={siteContent.video.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             loading="lazy"
@@ -237,9 +357,9 @@ export function HomeScreen({
       <section className="chapter scroll-story desire">
         <div className="desire-grid">
           <div className="desire-pin">
-            <h2>Booking dalam 4 langkah.</h2>
+            <h2>{siteContent.bookingSteps.title}</h2>
             <p className="scrub-copy">
-              {storyWords.map((word, index) => (
+              {siteContent.bookingSteps.story.split(" ").map((word, index) => (
                 <span className="reveal-word" key={`${word}-${index}`}>
                   {word}
                 </span>
@@ -247,51 +367,55 @@ export function HomeScreen({
             </p>
           </div>
           <div className="desire-stack">
-            {bookingProcessCards.map((card) => (
+            {siteContent.bookingSteps.cards.map((card) => (
               <ProcessCard key={card.title} {...card} />
             ))}
           </div>
         </div>
       </section>
 
-      <LetterExampleSection onNavigate={onNavigate} />
+      <LetterExampleSection content={siteContent.letterSection} letter={letter} onNavigate={onNavigate} />
 
       <section className="chapter">
-        <HorizontalAccordion />
+        <HorizontalAccordion content={siteContent.activities} />
       </section>
 
-      <FaqSection items={faqs} />
+      <FaqSection content={siteContent.faq} items={faqs} />
 
-      <section className="action-panel">
+      <section
+        className="action-panel"
+        style={{
+          backgroundImage: `linear-gradient(135deg, rgba(16, 24, 47, 0.95), rgba(16, 24, 47, 0.7)), url("${siteContent.cta.backgroundImage}")`,
+        }}
+      >
         <div>
-          <h2>Siap mengajukan kunjungan ISTURA?</h2>
-          <p>
-            Mulai dari jadwal yang tersedia, unggah surat permohonan, lalu tunggu konfirmasi admin
-            maksimal 1x24 jam melalui WhatsApp.
-          </p>
+          <h2>{siteContent.cta.title}</h2>
+          <p>{siteContent.cta.body}</p>
         </div>
         <button className="button button-primary" type="button" onClick={() => onNavigate("booking")}>
-          Mulai Booking Sekarang
+          {siteContent.cta.buttonLabel}
           <ArrowRight size={18} aria-hidden="true" />
         </button>
       </section>
 
-      <Footer contacts={contacts} onNavigate={onNavigate} />
+      <Footer contacts={contacts} content={siteContent.footer} onNavigate={onNavigate} />
     </>
   );
 }
 
 function InfoCard({
-  icon: Icon,
+  iconKey,
   title,
   body,
   points,
 }: {
-  icon: LucideIcon;
+  iconKey: LandingIconKey;
   title: string;
   body: string;
   points: string[];
 }) {
+  const Icon = landingIconMap[iconKey] ?? Clock3;
+
   return (
     <article className="quick-info-card scale-fade">
       <span className="quick-info-icon">
@@ -312,14 +436,16 @@ function InfoCard({
 }
 
 function ProcessCard({
-  icon: Icon,
+  iconKey,
   title,
   body,
 }: {
-  icon: LucideIcon;
+  iconKey: LandingIconKey;
   title: string;
   body: string;
 }) {
+  const Icon = landingIconMap[iconKey] ?? Clock3;
+
   return (
     <article className="process-card process-card-scrub group">
       <span>
@@ -331,17 +457,17 @@ function ProcessCard({
   );
 }
 
-function HorizontalAccordion() {
+function HorizontalAccordion({ content }: { content: SiteContent["activities"] }) {
   const [active, setActive] = useState(0);
 
   return (
     <div className="accordion-block">
       <div className="section-heading compact">
-        <h2>Hal apa saja yang akan kamu lakukan di Istana.</h2>
-        <p>Empat momen kunjungan diringkas menjadi panel visual yang mudah dipindai.</p>
+        <h2>{content.title}</h2>
+        <p>{content.description}</p>
       </div>
       <div className="horizontal-accordion">
-        {accordionItems.map((item, index) => (
+        {content.items.map((item, index) => (
           <button
             key={item.title}
             className={`accordion-panel group ${active === index ? "is-open" : ""}`}
@@ -361,30 +487,38 @@ function HorizontalAccordion() {
   );
 }
 
-function LetterExampleSection({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
+function LetterExampleSection({
+  content,
+  letter,
+  onNavigate,
+}: {
+  content: SiteContent["letterSection"];
+  letter: ApiLetter;
+  onNavigate: (screen: Screen) => void;
+}) {
   return (
     <section className="chapter letter-chapter" id="contoh-surat" aria-labelledby="letter-title">
       <div className="section-heading compact letter-heading">
         <div>
-          <h2 id="letter-title">Contoh surat permohonan ISTURA.</h2>
+          <h2 id="letter-title">{content.title}</h2>
         </div>
-        <p>Gunakan contoh ini sebagai acuan format surat resmi sebelum mengunggah dokumen booking.</p>
+        <p>{content.description}</p>
       </div>
 
       <div className="letter-layout scale-fade">
         <article className="letter-preview" aria-label="Preview contoh surat permohonan kunjungan">
           <img
             className="letter-example-image"
-            src={ASSETS.letterExample}
+            src={letter.image || ASSETS.letterExample}
             alt="Contoh kop surat permohonan kunjungan ISTURA"
           />
         </article>
 
         <aside className="letter-notes">
-          <span className="section-kicker">Format dokumen</span>
-          <h3>Yang perlu dicantumkan di surat.</h3>
+          <span className="section-kicker">{content.formatKicker}</span>
+          <h3>{content.formatTitle}</h3>
           <ul>
-            {letterChecklist.map((item) => (
+            {letter.checklist.map((item) => (
               <li key={item}>
                 <Check size={18} aria-hidden="true" />
                 <span>{item}</span>
@@ -393,10 +527,10 @@ function LetterExampleSection({ onNavigate }: { onNavigate: (screen: Screen) => 
           </ul>
           <div className="upload-note">
             <UploadCloud size={22} aria-hidden="true" />
-            <span>Upload mendukung PDF, JPG, JPEG, atau PNG. Maksimal 10 MB.</span>
+            <span>{content.uploadNote}</span>
           </div>
           <button className="button button-primary" type="button" onClick={() => onNavigate("booking")}>
-            Mulai Booking
+            {content.buttonLabel}
             <ArrowRight size={18} aria-hidden="true" />
           </button>
         </aside>
@@ -405,13 +539,13 @@ function LetterExampleSection({ onNavigate }: { onNavigate: (screen: Screen) => 
   );
 }
 
-function FaqSection({ items }: { items: FaqItem[] }) {
+function FaqSection({ content, items }: { content: SiteContent["faq"]; items: FaqItem[] }) {
   return (
     <section className="chapter faq-section" id="faq" aria-labelledby="faq-title">
       <div className="faq-layout">
         <div className="faq-heading">
-          <h2 id="faq-title">Pertanyaan yang paling sering muncul.</h2>
-          <p>Jawaban ringkas untuk hal yang biasanya ditanyakan sebelum pengunjung mengirim permohonan.</p>
+          <h2 id="faq-title">{content.title}</h2>
+          <p>{content.description}</p>
         </div>
         <div className="faq-list">
           {items.map((item) => (

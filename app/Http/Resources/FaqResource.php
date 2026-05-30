@@ -14,6 +14,10 @@ class FaqResource extends JsonResource
             'question' => $this->question,
             'answer' => $this->answer,
             'category' => $this->category,
+            'link' => $this->link_label && $this->link_href ? [
+                'label' => $this->link_label,
+                'href' => $this->link_href,
+            ] : null,
         ];
     }
 }

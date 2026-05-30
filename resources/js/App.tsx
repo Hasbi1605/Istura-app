@@ -29,13 +29,21 @@ function App() {
     setContacts,
     waTemplates,
     setWaTemplates,
+    hero,
+    setHero,
+    letter,
+    setLetter,
+    siteContent,
+    setSiteContent,
     adminSession,
     setAdminSession,
     adminTab,
     setAdminTab,
-    bookingFocusCode,
-    setBookingFocusCode,
-  } = data;
+		bookingFocusCode,
+		setBookingFocusCode,
+		loading,
+		cmsSync,
+	} = data;
 
   useNavEntranceAnimation(pageRef);
   useHomeHeroAnimation(pageRef, screen);
@@ -72,29 +80,48 @@ function App() {
           onContactsChange={setContacts}
           waTemplates={waTemplates}
           onWaTemplatesChange={setWaTemplates}
-          bookingFocusCode={bookingFocusCode}
-          onBookingFocusCodeChange={setBookingFocusCode}
-          onExitToPublic={setScreen}
-        />
+          onHeroChange={setHero}
+          onLetterChange={setLetter}
+          siteContent={siteContent}
+          onSiteContentChange={setSiteContent}
+				bookingFocusCode={bookingFocusCode}
+				onBookingFocusCodeChange={setBookingFocusCode}
+				loading={loading}
+				cmsSync={cmsSync}
+				onExitToPublic={setScreen}
+			/>
       ) : (
         <>
-          <Navigation screen={screen} onNavigate={goToScreen} />
+          <Navigation screen={screen} content={siteContent.nav} onNavigate={goToScreen} />
 
           {screen === "home" && (
             <HomeScreen
               contacts={contacts}
               faqs={faqs}
-              schedules={schedules}
-              onNavigate={goToScreen}
-            />
+					schedules={schedules}
+					hero={hero}
+					letter={letter}
+					siteContent={siteContent}
+					loading={loading.public || loading.schedule}
+					onNavigate={goToScreen}
+				/>
           )}
           {screen === "booking" && (
             <BookingWizard
               schedules={schedules}
               bookings={bookings}
-              onScheduleLock={setSchedules}
-              onBookingCreate={(booking) => {
-                setBookings((current) => [booking, ...current]);
+					contacts={contacts}
+					onScheduleLock={setSchedules}
+					scheduleLoading={loading.schedule}
+					onBookingCreate={(booking) => {
+                setBookings((current) => {
+                  const existingIndex = current.findIndex((item) => item.code === booking.code);
+                  if (existingIndex < 0) return [booking, ...current];
+
+                  const next = current.slice();
+                  next[existingIndex] = booking;
+                  return next;
+                });
                 setSubmittedCode(booking.code);
               }}
               onShowExampleLetter={() => goToHomeSection("contoh-surat")}
@@ -107,8 +134,9 @@ function App() {
               bookings={bookings}
               submittedCode={submittedCode}
               feedbacks={feedbacks}
-              access={feedbackAccess}
-              onFeedbackCreate={(feedback) => setFeedbacks((current) => [feedback, ...current])}
+					access={feedbackAccess}
+					loading={loading.feedbacks}
+					onFeedbackCreate={(feedback) => setFeedbacks((current) => [feedback, ...current])}
             />
           )}
         </>

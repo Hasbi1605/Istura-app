@@ -22,10 +22,23 @@ class AuthController extends Controller
             ]);
         }
 
-        $request->session()->regenerate();
+        $user = $request->user();
+        if (! $user->email_verified_at) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => ['Akun ini sedang nonaktif. Hubungi Super Admin.'],
+            ]);
+        }
+
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
+        $user->forceFill(['last_login_at' => now()])->save();
 
         return response()->json([
-            'user' => new UserResource($request->user()),
+            'user' => new UserResource($user),
         ]);
     }
 

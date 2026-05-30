@@ -34,6 +34,27 @@ export type ApiDashboard = {
 export const fetchAdminUsers = () =>
   api<{ data: ApiAdminUser[] }>("/api/admin/users").then((r) => r.data);
 
+export type AdminUserInput = {
+  name: string;
+  email: string;
+  password?: string;
+  role: "super_admin" | "admin" | "viewer";
+  status?: "Aktif" | "Nonaktif";
+};
+
+export const createAdminUser = (input: AdminUserInput) =>
+  api<{ data: ApiAdminUser }>("/api/admin/users", { method: "POST", body: input }).then(
+    (r) => r.data,
+  );
+
+export const updateAdminUser = (id: number, input: Partial<AdminUserInput>) =>
+  api<{ data: ApiAdminUser }>(`/api/admin/users/${id}`, { method: "PUT", body: input }).then(
+    (r) => r.data,
+  );
+
+export const deleteAdminUser = (id: number) =>
+  api<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" });
+
 export const fetchAdminAuditLogs = () =>
   api<{ data: ApiAuditLog[] }>("/api/admin/audit-logs").then((r) => r.data);
 

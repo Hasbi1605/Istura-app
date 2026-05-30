@@ -31,7 +31,7 @@ class DashboardController extends Controller
                 'avgRating' => round((float) Feedback::avg('rating'), 2),
             ],
             'todayBookings' => BookingResource::collection(
-                Booking::whereDate('date', $now)->orderBy('time')->get()
+                Booking::with('slots')->whereDate('date', $now)->orderBy('time')->get()
             )->resolve(),
             'recentFeedbacks' => FeedbackResource::collection(
                 Feedback::orderByDesc('submitted_at')->limit(5)->get()

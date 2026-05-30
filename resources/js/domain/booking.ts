@@ -1,6 +1,9 @@
 // Pure booking domain logic: sorting, filtering, date parsing. No React.
 import { monthNames, parseDateKey } from "../lib/date";
-import type { Booking, BookingDateRange, BookingSort, BookingStatus, VisitDay } from "./types";
+import type { Booking, BookingDateRange, BookingSegment, BookingSort, BookingStatus, VisitDay } from "./types";
+
+export const SLOT_CAPACITY = 80;
+export const MAX_BOOKING_GROUP_SIZE = 560;
 
 export const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
   { value: "Pending", label: "Pending" },
@@ -13,6 +16,97 @@ export const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
 // "Butuh tindakan" surfaces work-in-progress bookings the admin still owns.
 export const isActionNeeded = (status: BookingStatus) =>
   status === "Pending" || status === "Accepted" || status === "Reschedule";
+
+export const requiredSlotCount = (groupSize: number): number =>
+  Math.max(1, Math.ceil(Math.max(0, Number.isFinite(groupSize) ? groupSize : 0) / SLOT_CAPACITY));
+
+export const splitGroupSizes = (groupSize: number): number[] => {
+  const normalizedSize = Math.max(0, Number.isFinite(groupSize) ? groupSize : 0);
+  if (normalizedSize < 1) return [0];
+  const slotCount = requiredSlotCount(normalizedSize);
+  const baseSize = Math.floor(normalizedSize / slotCount);
+  const remainder = normalizedSize % slotCount;
+  return Array.from({ length: slotCount }, (_, index) => baseSize + (index < remainder ? 1 : 0));
+};
+
+export const canFitConsecutiveSlots = (
+  day: VisitDay | undefined,
+  startTime: string,
+  slotCount: number,
+): boolean => {
+  if (!day || !startTime) return false;
+  const startIndex = day.slots.findIndex((slot) => slot.time === startTime);
+  if (startIndex < 0) return false;
+  const candidates = day.slots.slice(startIndex, startIndex + slotCount);
+  return candidates.length === slotCount && candidates.every((slot) => slot.status === "Available");
+};
+
+export const hasConsecutiveAvailableSlots = (day: VisitDay | undefined, slotCount: number): boolean =>
+  Boolean(day?.slots.some((slot) => canFitConsecutiveSlots(day, slot.time, slotCount)));
+
+export const previewSegmentsForSelection = (
+  day: VisitDay | undefined,
+  startTime: string,
+  groupSize: number,
+): BookingSegment[] => {
+  if (!day || !startTime || groupSize < 1) return [];
+  const sizes = splitGroupSizes(groupSize);
+  const startIndex = day.slots.findIndex((slot) => slot.time === startTime);
+  if (startIndex < 0) return [];
+  const slots = day.slots.slice(startIndex, startIndex + sizes.length);
+  if (slots.length !== sizes.length) return [];
+  return slots.map((slot, index) => ({
+    order: index + 1,
+    date: day.date,
+    dateLabel: day.label,
+    time: slot.time,
+    groupSize: sizes[index],
+  }));
+};
+
+export const bookingSegments = (booking: Booking): BookingSegment[] =>
+  booking.segments?.length
+    ? booking.segments
+    : [
+        {
+          order: 1,
+          date: booking.date,
+          dateLabel: booking.dateLabel,
+          time: booking.time,
+          groupSize: booking.groupSize,
+        },
+      ];
+
+export const segmentListLabel = (segments: BookingSegment[]): string =>
+  segments
+    .map((segment) => `Kloter ${segment.order}: ${segment.time} WIB (${segment.groupSize} orang)`)
+    .join("; ");
+
+export const bookingKloterSummary = (booking: Booking): string => {
+  const segments = bookingSegments(booking);
+  return segments.length > 1
+    ? `${booking.groupSize} orang (${segments.length} kloter)`
+    : `${booking.groupSize} orang`;
+};
+
+export const bookingTimeSummary = (booking: Booking): string => {
+  const segments = bookingSegments(booking);
+  if (segments.length <= 1) return `${booking.time} WIB`;
+  return `${segments[0].time}-${segments[segments.length - 1].time} WIB (${segments.length} kloter)`;
+};
+
+export const bookingScheduleSummary = (booking: Booking): string =>
+  `${booking.dateLabel}, ${bookingTimeSummary(booking)}`;
+
+export const isShortNoticeBooking = (booking: Booking): boolean =>
+  booking.isShortNotice === true ||
+  (typeof booking.leadTimeDays === "number" && booking.leadTimeDays >= 0 && booking.leadTimeDays < 5);
+
+export const bookingLeadTimeLabel = (booking: Booking): string => {
+  if (typeof booking.leadTimeDays !== "number") return "Pengajuan mendadak";
+  const leadTime = booking.leadTimeDays === 0 ? "H-0" : `H-${booking.leadTimeDays}`;
+  return `${leadTime} mendadak`;
+};
 
 // Parse the human-readable submittedAt ("23 Mei 2026, 14.12 WIB") into a Date
 // for sorting. Returns epoch 0 if it cannot parse so legacy data still sorts

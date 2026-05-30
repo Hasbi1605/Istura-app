@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Crypt;
 
 class Booking extends Model
 {
     public const STATUSES = ['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed'];
+
+    public const ACTIVE_STATUSES = ['Pending', 'Accepted', 'Reschedule', 'Completed'];
 
     protected $guarded = [];
 
@@ -18,13 +22,28 @@ class Booking extends Model
         'submitted_at' => 'datetime',
         'completed_at' => 'datetime',
         'proposed_date' => 'date',
+        'proposed_segments' => 'array',
         'proposed_at' => 'datetime',
         'group_size' => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Booking $booking) {
+            $booking->active_slot_key = $booking->isActiveForSchedule()
+                ? $booking->slotKey($booking->date, $booking->time)
+                : null;
+        });
+    }
+
     public function feedback(): HasOne
     {
         return $this->hasOne(Feedback::class);
+    }
+
+    public function slots(): HasMany
+    {
+        return $this->hasMany(BookingSlot::class)->orderBy('slot_order');
     }
 
     /**
@@ -46,5 +65,21 @@ class Booking extends Model
         return $query
             ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('date', '<=', $to));
+    }
+
+    public function isActiveForSchedule(): bool
+    {
+        return in_array($this->status, self::ACTIVE_STATUSES, true);
+    }
+
+    private function slotKey(DateTimeInterface|string|null $date, ?string $time): ?string
+    {
+        if (! $date || ! $time) {
+            return null;
+        }
+
+        $dateKey = $date instanceof DateTimeInterface ? $date->format('Y-m-d') : $date;
+
+        return $dateKey.'|'.$time;
     }
 }

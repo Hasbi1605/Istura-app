@@ -14,6 +14,7 @@ import { ADMIN_MENU } from "../../constants";
 import type { AdminMenuItem } from "../../constants";
 import { login as apiLogin } from "../../api/auth";
 import { ApiError, ValidationError } from "../../api/client";
+import { ButtonSpinner } from "../ui/LoadingStates";
 
 export function AdminShell({
   session,
@@ -146,7 +147,7 @@ export function AdminLogin({
   onAuthenticated: (session: AdminSession) => void;
   onCancel: () => void;
 }) {
-  const [email, setEmail] = useState("admin@istura.id");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -206,7 +207,7 @@ export function AdminLogin({
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="admin@istura.id"
+                placeholder="Masukkan email admin"
                 required
               />
             </span>
@@ -236,23 +237,15 @@ export function AdminLogin({
 
           {error && <strong className="form-message form-message--error">{error}</strong>}
 
-          <button
-            type="submit"
-            className="button button-primary admin-login-submit"
-            disabled={loading}
-          >
-            {loading ? "Memeriksa..." : "Masuk"}
-            {!loading && <ArrowRight size={18} aria-hidden="true" />}
-          </button>
+			<button
+				type="submit"
+				className="button button-primary admin-login-submit"
+				disabled={loading}
+			>
+				{loading ? <ButtonSpinner label="Memeriksa..." /> : "Masuk"}
+				{!loading && <ArrowRight size={18} aria-hidden="true" />}
+			</button>
         </form>
-
-        <aside className="admin-login-hint" aria-label="Akun demo">
-          <strong>Akun demo</strong>
-          <p>
-            Email <code>admin@istura.id</code> · Password <code>istura2026</code>. Placeholder ini
-            akan diganti saat backend autentikasi terhubung.
-          </p>
-        </aside>
       </div>
     </div>
   );

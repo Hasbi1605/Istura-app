@@ -11,6 +11,7 @@ use App\Services\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BookingController extends Controller
@@ -20,6 +21,7 @@ class BookingController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Booking::query()
+            ->with('slots')
             ->when($request->string('status')->trim()->value(), fn ($q, $status) => $q->where('status', $status))
             ->when($request->string('search')->trim()->value(), function ($q, $term) {
                 $q->where(function ($w) use ($term) {
@@ -38,14 +40,14 @@ class BookingController extends Controller
 
     public function show(string $code): JsonResponse
     {
-        $booking = Booking::where('code', $code)->firstOrFail();
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
 
         return response()->json(['data' => (new BookingResource($booking))->resolve()]);
     }
 
     public function accept(UpdateBookingStatusRequest $request, string $code): JsonResponse
     {
-        $booking = Booking::where('code', $code)->firstOrFail();
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         $updated = $this->bookings->accept($booking, $request->user(), $request->input('note'));
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
@@ -53,7 +55,7 @@ class BookingController extends Controller
 
     public function reject(UpdateBookingStatusRequest $request, string $code): JsonResponse
     {
-        $booking = Booking::where('code', $code)->firstOrFail();
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         $updated = $this->bookings->reject($booking, $request->user(), $request->input('note'));
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
@@ -61,7 +63,7 @@ class BookingController extends Controller
 
     public function reschedule(RescheduleBookingRequest $request, string $code): JsonResponse
     {
-        $booking = Booking::where('code', $code)->firstOrFail();
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         $payload = $request->validated();
 
         $updated = $this->bookings->reschedule(
@@ -77,16 +79,24 @@ class BookingController extends Controller
 
     public function complete(UpdateBookingStatusRequest $request, string $code): JsonResponse
     {
-        $booking = Booking::where('code', $code)->firstOrFail();
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         $updated = $this->bookings->complete($booking, $request->user());
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }
 
-    public function document(string $code): StreamedResponse
+    public function document(Request $request, string $code): StreamedResponse|BinaryFileResponse
     {
         $booking = Booking::where('code', $code)->firstOrFail();
         abort_unless($booking->document_path, 404);
+        abort_unless(Storage::disk('local')->exists($booking->document_path), 404);
+
+        if ($request->string('disposition')->value() === 'inline') {
+            return response()->file(
+                Storage::disk('local')->path($booking->document_path),
+                ['Content-Type' => Storage::disk('local')->mimeType($booking->document_path) ?? 'application/octet-stream'],
+            );
+        }
 
         return Storage::disk('local')->download(
             $booking->document_path,

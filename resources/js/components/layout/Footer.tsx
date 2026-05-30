@@ -1,13 +1,15 @@
 import { Clock3, MapPin } from "lucide-react";
-import type { FooterContact, Screen } from "../../domain/types";
+import type { FooterContact, Screen, SiteContent } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
 import { ContactIcon } from "../icons/SocialIcons";
 
 export function Footer({
   contacts,
+  content,
   onNavigate,
 }: {
   contacts: FooterContact[];
+  content: SiteContent["footer"];
   onNavigate: (screen: Screen) => void;
 }) {
   return (
@@ -16,12 +18,12 @@ export function Footer({
         <div className="footer-col footer-col-brand">
           <span className="footer-eyebrow">Tentang</span>
           <div className="footer-brand-stack">
-            <img className="footer-logo" src={ASSETS.logoWhite} alt="Gedung Agung" />
-            <p className="footer-hours-line">
+            <img className="footer-logo" src={content.logoSrc || ASSETS.logoWhite} alt={content.logoAlt || "Gedung Agung"} />
+            <p className="footer-hours-line" aria-label={content.scheduleLabel}>
               <Clock3 size={14} aria-hidden="true" />
               <span>
-                <strong>Senin - Jumat</strong>
-                <em>08.00 - 14.00 WIB</em>
+                <strong>{content.scheduleDays}</strong>
+                <em>{content.scheduleHours}</em>
               </span>
             </p>
           </div>
@@ -53,14 +55,14 @@ export function Footer({
           <span className="footer-eyebrow">Lokasi</span>
           <a
             className="footer-map"
-            href="https://maps.app.goo.gl/iuAhnPB1SkJLMaX9A"
+            href={content.mapUrl}
             target="_blank"
             rel="noreferrer"
             aria-label="Buka lokasi Gedung Agung di Google Maps"
           >
             <iframe
               title="Lokasi Gedung Agung"
-              src="https://www.google.com/maps?q=Gedung+Agung+Yogyakarta&output=embed"
+              src={content.mapEmbedUrl}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               tabIndex={-1}
@@ -69,16 +71,13 @@ export function Footer({
           </a>
           <p className="footer-address">
             <MapPin size={14} aria-hidden="true" />
-            <span>
-              Jl. Jend. Ahmad Yani, Ngupasan, Kec. Gondomanan, Kota Yogyakarta,
-              Daerah Istimewa Yogyakarta 55122
-            </span>
+            <span>{content.address}</span>
           </p>
         </div>
       </div>
 
       <p className="footer-credit">
-        &copy; 2026 Istana Kepresidenan Yogyakarta / Gedung Agung. Seluruh hak cipta dilindungi.
+        {content.copyright}
         <button type="button" className="footer-admin-link" onClick={() => onNavigate("admin")}>
           Admin
         </button>

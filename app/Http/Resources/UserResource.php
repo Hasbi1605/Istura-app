@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\User;
+use App\Services\IndonesianDate;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,7 +22,7 @@ class UserResource extends JsonResource
                 default => 'Viewer',
             },
             'status' => $this->email_verified_at ? 'Aktif' : 'Nonaktif',
-            'lastLogin' => $this->last_login_at ?? null,
+            'lastLogin' => $this->last_login_at ? IndonesianDate::submittedAt($this->last_login_at) : null,
         ];
     }
 }

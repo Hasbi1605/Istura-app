@@ -1,44 +1,67 @@
 import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
-  AdminSession,
-  AdminTab,
-  Booking,
-  BookingStatus,
-  Feedback,
-  FaqItem,
+	AdminSession,
+	AdminTab,
+	Booking,
+	BookingStatus,
+	CmsSyncState,
+	CmsSyncStatus,
+	DataLoadingState,
+	Feedback,
+	FaqItem,
   FooterContact,
   Screen,
+  SiteContent,
   VisitDay,
   WaTemplate,
 } from "../domain/types";
-import { applyBookingsToSchedule, buildScheduleHorizon } from "../domain/schedule";
-import { initialBookings } from "../seeds/bookings";
-import { initialFeedbacks } from "../seeds/feedbacks";
-import { INITIAL_FAQ_ITEMS, INITIAL_FOOTER_CONTACTS, INITIAL_WA_TEMPLATES } from "../constants";
+import { DEFAULT_SITE_CONTENT, INITIAL_FAQ_ITEMS, INITIAL_FOOTER_CONTACTS, INITIAL_WA_TEMPLATES, letterChecklist, storyWords } from "../constants";
 import { readAdminSession, readCmsCollection, writeCmsCollection } from "../lib/legacyShims";
+import { ASSETS } from "../lib/assets";
 import { setActiveWaTemplates } from "../lib/whatsapp";
 import { me as apiMe } from "../api/auth";
-import { fetchAdminBookings } from "../api/bookings";
+import { fetchAdminBooking, fetchAdminBookings } from "../api/bookings";
 import { fetchAdminFeedbacks } from "../api/feedback";
+import { fetchAdminSchedule, fetchPublicSchedule } from "../api/schedule";
 import type { ApiBooking } from "../api/bookings";
 import type { ApiFeedback } from "../api/feedback";
 import {
   fetchPublicContacts,
   fetchPublicFaqs,
+  fetchPublicHero,
+  fetchPublicLetter,
+  fetchPublicSiteContent,
   fetchPublicWaTemplates,
   updateAdminContacts,
   updateAdminFaqs,
   updateAdminWaTemplates,
+  type ApiHero,
+  type ApiLetter,
 } from "../api/cms";
 import { ADMIN_BOOKINGS_CHANNEL, getEcho } from "../realtime/echo";
-import { apiBookingToLocal, apiFeedbackToLocal } from "../api/adapters";
+import { apiBookingToLocal, apiFeedbackToLocal, apiVisitDayToLocal } from "../api/adapters";
 
 export type FeedbackAccess = { code: string; token: string } | null;
+
+const DEFAULT_HERO: ApiHero = {
+  headline: "ISTURA - Istana Untuk Rakyat",
+  subheadline: "Booking Kunjungan Istana Kepresidenan Yogyakarta",
+  primaryCta: "Mulai Booking",
+  secondaryCta: "Cek Jadwal",
+  story: storyWords.join(" "),
+};
+
+const DEFAULT_LETTER: ApiLetter = {
+  image: ASSETS.letterExample,
+  checklist: letterChecklist,
+};
 
 // Seed the imperative WA template cache so createWhatsappMessage bekerja
 // sebelum useEffect hydration pertama berjalan.
 setActiveWaTemplates(INITIAL_WA_TEMPLATES);
+
+const ALLOW_DEMO_FALLBACK = import.meta.env.DEV || import.meta.env.VITE_ALLOW_DEMO_FALLBACK === "true";
 
 export interface IsturaData {
   screen: Screen;
@@ -58,36 +81,73 @@ export interface IsturaData {
   setContacts: Dispatch<SetStateAction<FooterContact[]>>;
   waTemplates: WaTemplate[];
   setWaTemplates: Dispatch<SetStateAction<WaTemplate[]>>;
+  hero: ApiHero;
+  setHero: Dispatch<SetStateAction<ApiHero>>;
+  letter: ApiLetter;
+  setLetter: Dispatch<SetStateAction<ApiLetter>>;
+  siteContent: SiteContent;
+  setSiteContent: Dispatch<SetStateAction<SiteContent>>;
   adminSession: AdminSession | null;
   setAdminSession: Dispatch<SetStateAction<AdminSession | null>>;
   adminTab: AdminTab;
   setAdminTab: Dispatch<SetStateAction<AdminTab>>;
-  bookingFocusCode: string | null;
-  setBookingFocusCode: Dispatch<SetStateAction<string | null>>;
+	bookingFocusCode: string | null;
+	setBookingFocusCode: Dispatch<SetStateAction<string | null>>;
+	loading: DataLoadingState;
+	cmsSync: CmsSyncState;
 }
+
+const initialLoading: DataLoadingState = {
+  public: true,
+  admin: false,
+  schedule: true,
+  bookings: false,
+  feedbacks: false,
+};
+
+const initialCmsSync: CmsSyncState = {
+  faqs: "idle",
+  contacts: "idle",
+  waTemplates: "idle",
+};
+
+const markCmsSync = (
+  setCmsSync: Dispatch<SetStateAction<CmsSyncState>>,
+  key: keyof CmsSyncState,
+  status: CmsSyncStatus,
+) => {
+  setCmsSync((current) => ({ ...current, [key]: status }));
+};
 
 // Semua state global + efek (persistensi CMS, hydration API publik & admin,
 // realtime, dan routing awal dari URL) dikemas di sini supaya App.tsx tetap
 // jadi shell tipis. Perilaku tidak berubah dari versi inline sebelumnya.
 export function useIsturaData(): IsturaData {
   const [screen, setScreen] = useState<Screen>("home");
-  const [schedules, setSchedules] = useState<VisitDay[]>(() =>
-    applyBookingsToSchedule(buildScheduleHorizon(new Date()), initialBookings),
-  );
-  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>(initialFeedbacks);
-  const [submittedCode, setSubmittedCode] = useState("");
-  const [feedbackAccess, setFeedbackAccess] = useState<FeedbackAccess>(null);
+  const [schedules, setSchedules] = useState<VisitDay[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+	const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+	const [submittedCode, setSubmittedCode] = useState("");
+	const [feedbackAccess, setFeedbackAccess] = useState<FeedbackAccess>(null);
+	const [loading, setLoading] = useState<DataLoadingState>(initialLoading);
+	const [cmsSync, setCmsSync] = useState<CmsSyncState>(initialCmsSync);
 
   // CMS-managed content. Persisted to localStorage so admin edits survive
   // refresh while we wait for a real backend.
-  const [faqs, setFaqs] = useState<FaqItem[]>(() => readCmsCollection("istura-faqs", INITIAL_FAQ_ITEMS));
+  const [faqs, setFaqs] = useState<FaqItem[]>(() =>
+    readCmsCollection("istura-faqs", ALLOW_DEMO_FALLBACK ? INITIAL_FAQ_ITEMS : []),
+  );
   const [contacts, setContacts] = useState<FooterContact[]>(() =>
-    readCmsCollection("istura-contacts", INITIAL_FOOTER_CONTACTS),
+    readCmsCollection("istura-contacts", ALLOW_DEMO_FALLBACK ? INITIAL_FOOTER_CONTACTS : []),
   );
   const [waTemplates, setWaTemplates] = useState<WaTemplate[]>(() =>
-    readCmsCollection("istura-wa-templates", INITIAL_WA_TEMPLATES),
+    readCmsCollection("istura-wa-templates", ALLOW_DEMO_FALLBACK ? INITIAL_WA_TEMPLATES : []),
   );
+
+  // Hero & letter CMS content (read-only on public side, edited via admin).
+  const [hero, setHero] = useState<ApiHero>(DEFAULT_HERO);
+  const [letter, setLetter] = useState<ApiLetter>(DEFAULT_LETTER);
+  const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
 
   // Refs untuk membedakan "data baru dari API" (jangan push balik ke API)
   // vs "user mengubah dari UI" (push ke API). Diset true di useEffect
@@ -105,25 +165,29 @@ export function useIsturaData(): IsturaData {
   const [bookingFocusCode, setBookingFocusCode] = useState<string | null>(null);
 
   useEffect(() => {
-    writeCmsCollection("istura-faqs", faqs);
-    if (!faqsHydratedRef.current) return;
-    if (!adminSession) return;
-    void updateAdminFaqs(
-      faqs.map((f) => ({
+		writeCmsCollection("istura-faqs", faqs);
+		if (!faqsHydratedRef.current) return;
+		if (!adminSession) return;
+		markCmsSync(setCmsSync, "faqs", "saving");
+		void updateAdminFaqs(
+			faqs.map((f) => ({
         id: f.id,
         question: f.question,
         answer: f.answer,
         category: null,
         ...(f.link ? { link: f.link } : {}),
       })),
-    ).catch(() => {});
-  }, [faqs, adminSession]);
+		)
+			.then(() => markCmsSync(setCmsSync, "faqs", "saved"))
+			.catch(() => markCmsSync(setCmsSync, "faqs", "error"));
+	}, [faqs, adminSession]);
 
   useEffect(() => {
-    writeCmsCollection("istura-contacts", contacts);
-    if (!contactsHydratedRef.current) return;
-    if (!adminSession) return;
-    void updateAdminContacts(
+		writeCmsCollection("istura-contacts", contacts);
+		if (!contactsHydratedRef.current) return;
+		if (!adminSession) return;
+		markCmsSync(setCmsSync, "contacts", "saving");
+		void updateAdminContacts(
       contacts.map((c) => ({
         id: (c as unknown as { id?: string }).id ?? c.iconKey,
         label: c.label,
@@ -131,31 +195,43 @@ export function useIsturaData(): IsturaData {
         href: c.href,
         iconKey: c.iconKey,
       })),
-    ).catch(() => {});
-  }, [contacts, adminSession]);
+		)
+			.then(() => markCmsSync(setCmsSync, "contacts", "saved"))
+			.catch(() => markCmsSync(setCmsSync, "contacts", "error"));
+	}, [contacts, adminSession]);
 
   useEffect(() => {
     writeCmsCollection("istura-wa-templates", waTemplates);
-    setActiveWaTemplates(waTemplates);
-    if (!waHydratedRef.current) return;
-    if (!adminSession) return;
-    void updateAdminWaTemplates(
+		setActiveWaTemplates(waTemplates);
+		if (!waHydratedRef.current) return;
+		if (!adminSession) return;
+		markCmsSync(setCmsSync, "waTemplates", "saving");
+		void updateAdminWaTemplates(
       waTemplates.map((t) => ({
         id: t.id as "Accepted" | "Rejected" | "Reschedule" | "Completed",
         label: t.label,
         description: t.description,
         template: t.template,
       })),
-    ).catch(() => {});
-  }, [waTemplates, adminSession]);
+		)
+			.then(() => markCmsSync(setCmsSync, "waTemplates", "saved"))
+			.catch(() => markCmsSync(setCmsSync, "waTemplates", "error"));
+	}, [waTemplates, adminSession]);
 
   // ---- API hydration ----------------------------------------------------
-  // Bootstrap data dari Laravel API saat komponen mount. State default tetap
-  // berisi seed/mock supaya render pertama tidak kosong; data API akan
-  // me-replace ketika fetch selesai.
-  useEffect(() => {
-    let cancelled = false;
-    apiMe()
+  // Bootstrap data dari Laravel API saat komponen mount. Data demo hanya
+  // dipakai saat dev/env mengizinkan; produksi harus mengikuti API.
+	useEffect(() => {
+		let cancelled = false;
+		let pendingPublicRequests = 7;
+		setLoading((current) => ({ ...current, public: true, schedule: true }));
+		const finishPublicRequest = () => {
+			pendingPublicRequests -= 1;
+			if (!cancelled && pendingPublicRequests <= 0) {
+				setLoading((current) => ({ ...current, public: false }));
+			}
+		};
+		apiMe()
       .then((user) => {
         if (cancelled) return;
         if (user) {
@@ -171,7 +247,19 @@ export function useIsturaData(): IsturaData {
         /* not authenticated, leave adminSession null */
       });
 
-    fetchPublicFaqs()
+		fetchPublicSchedule()
+			.then((days) => {
+				if (!cancelled) setSchedules(days.map(apiVisitDayToLocal));
+			})
+			.catch(() => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK) setSchedules([]);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading((current) => ({ ...current, schedule: false }));
+				finishPublicRequest();
+			});
+
+		fetchPublicFaqs()
       .then((items) => {
         if (cancelled) return;
         if (items.length > 0) {
@@ -183,6 +271,8 @@ export function useIsturaData(): IsturaData {
               ...(it.link ? { link: it.link } : {}),
             })) as FaqItem[],
           );
+        } else if (!ALLOW_DEMO_FALLBACK) {
+          setFaqs([]);
         }
         // Use rAF to set hydrated flag AFTER the state update has flushed,
         // so the persistence effect can detect "hydrated" reliably.
@@ -190,11 +280,13 @@ export function useIsturaData(): IsturaData {
           faqsHydratedRef.current = true;
         });
       })
-      .catch(() => {
-        faqsHydratedRef.current = true;
-      });
+			.catch(() => {
+				if (!ALLOW_DEMO_FALLBACK) setFaqs([]);
+				faqsHydratedRef.current = true;
+			})
+			.finally(finishPublicRequest);
 
-    fetchPublicContacts()
+		fetchPublicContacts()
       .then((items) => {
         if (cancelled) return;
         if (items.length > 0) {
@@ -206,16 +298,20 @@ export function useIsturaData(): IsturaData {
               iconKey: it.iconKey,
             })),
           );
+        } else if (!ALLOW_DEMO_FALLBACK) {
+          setContacts([]);
         }
         requestAnimationFrame(() => {
           contactsHydratedRef.current = true;
         });
       })
-      .catch(() => {
-        contactsHydratedRef.current = true;
-      });
+			.catch(() => {
+				if (!ALLOW_DEMO_FALLBACK) setContacts([]);
+				contactsHydratedRef.current = true;
+			})
+			.finally(finishPublicRequest);
 
-    fetchPublicWaTemplates()
+		fetchPublicWaTemplates()
       .then((items) => {
         if (cancelled) return;
         if (items.length > 0) {
@@ -227,14 +323,39 @@ export function useIsturaData(): IsturaData {
               template: it.template,
             })),
           );
+        } else if (!ALLOW_DEMO_FALLBACK) {
+          setWaTemplates([]);
         }
         requestAnimationFrame(() => {
           waHydratedRef.current = true;
         });
       })
-      .catch(() => {
-        waHydratedRef.current = true;
-      });
+			.catch(() => {
+				if (!ALLOW_DEMO_FALLBACK) setWaTemplates([]);
+				waHydratedRef.current = true;
+			})
+			.finally(finishPublicRequest);
+
+		fetchPublicHero()
+			.then((data) => {
+				if (!cancelled && data) setHero(data);
+			})
+			.catch(() => {})
+			.finally(finishPublicRequest);
+
+		fetchPublicLetter()
+			.then((data) => {
+				if (!cancelled && data) setLetter(data);
+			})
+			.catch(() => {})
+			.finally(finishPublicRequest);
+
+		fetchPublicSiteContent()
+			.then((data) => {
+				if (!cancelled && data) setSiteContent(data);
+			})
+			.catch(() => {})
+			.finally(finishPublicRequest);
 
     return () => {
       cancelled = true;
@@ -242,21 +363,66 @@ export function useIsturaData(): IsturaData {
   }, []);
 
   // Admin-only data: bookings + feedbacks. Hydrate ketika sesi admin aktif.
-  useEffect(() => {
-    if (!adminSession) return;
-    let cancelled = false;
-    fetchAdminBookings()
+	useEffect(() => {
+		if (!adminSession) {
+			setLoading((current) => ({
+				...current,
+				admin: false,
+				bookings: false,
+				feedbacks: false,
+			}));
+			return;
+		}
+		let cancelled = false;
+		let pendingAdminRequests = 3;
+		setLoading((current) => ({
+			...current,
+			admin: true,
+			bookings: true,
+			feedbacks: true,
+			schedule: true,
+		}));
+		const finishAdminRequest = () => {
+			pendingAdminRequests -= 1;
+			if (!cancelled && pendingAdminRequests <= 0) {
+				setLoading((current) => ({ ...current, admin: false }));
+			}
+		};
+		fetchAdminBookings()
       .then((items) => {
         if (cancelled) return;
         setBookings(items.map(apiBookingToLocal));
       })
-      .catch(() => {});
-    fetchAdminFeedbacks()
+			.catch(() => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK) setBookings([]);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading((current) => ({ ...current, bookings: false }));
+				finishAdminRequest();
+			});
+		fetchAdminFeedbacks()
       .then((items) => {
         if (cancelled) return;
         setFeedbacks(items.map(apiFeedbackToLocal));
       })
-      .catch(() => {});
+			.catch(() => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK) setFeedbacks([]);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading((current) => ({ ...current, feedbacks: false }));
+				finishAdminRequest();
+			});
+		fetchAdminSchedule()
+      .then((days) => {
+        if (!cancelled) setSchedules(days.map(apiVisitDayToLocal));
+      })
+			.catch(() => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK) setSchedules([]);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading((current) => ({ ...current, schedule: false }));
+				finishAdminRequest();
+			});
     return () => {
       cancelled = true;
     };
@@ -267,30 +433,42 @@ export function useIsturaData(): IsturaData {
     if (!adminSession) return;
     const echo = getEcho();
     if (!echo) return;
+    let active = true;
     const channel = echo.private(ADMIN_BOOKINGS_CHANNEL);
-    const onCreated = (payload: { booking: ApiBooking }) => {
+    const refreshSchedule = () => {
+      fetchAdminSchedule()
+        .then((days) => {
+          if (active) setSchedules(days.map(apiVisitDayToLocal));
+        })
+        .catch(() => {});
+    };
+    const upsertBooking = (booking: Booking) => {
       setBookings((prev) => {
-        const next = apiBookingToLocal(payload.booking);
-        const idx = prev.findIndex((b) => b.code === next.code);
+        const idx = prev.findIndex((b) => b.code === booking.code);
         if (idx >= 0) {
           const copy = prev.slice();
-          copy[idx] = next;
+          copy[idx] = booking;
           return copy;
         }
-        return [next, ...prev];
+        return [booking, ...prev];
       });
     };
+    const hydrateAdminBooking = (payload: { booking: ApiBooking }) => {
+      const fallback = apiBookingToLocal(payload.booking);
+      upsertBooking(fallback);
+      fetchAdminBooking(fallback.code)
+        .then((booking) => {
+          if (active) upsertBooking(apiBookingToLocal(booking));
+        })
+        .catch(() => {});
+    };
+    const onCreated = (payload: { booking: ApiBooking }) => {
+      hydrateAdminBooking(payload);
+      refreshSchedule();
+    };
     const onChanged = (payload: { booking: ApiBooking }) => {
-      setBookings((prev) => {
-        const next = apiBookingToLocal(payload.booking);
-        const idx = prev.findIndex((b) => b.code === next.code);
-        if (idx >= 0) {
-          const copy = prev.slice();
-          copy[idx] = next;
-          return copy;
-        }
-        return prev;
-      });
+      hydrateAdminBooking(payload);
+      refreshSchedule();
     };
     const onFeedback = (payload: { feedback: ApiFeedback }) => {
       setFeedbacks((prev) => {
@@ -303,6 +481,7 @@ export function useIsturaData(): IsturaData {
     channel.listen(".booking.status-changed", onChanged);
     channel.listen(".feedback.submitted", onFeedback);
     return () => {
+      active = false;
       try {
         channel.stopListening(".booking.created");
         channel.stopListening(".booking.status-changed");
@@ -347,11 +526,19 @@ export function useIsturaData(): IsturaData {
     setContacts,
     waTemplates,
     setWaTemplates,
+    hero,
+    setHero,
+    letter,
+    setLetter,
+    siteContent,
+    setSiteContent,
     adminSession,
     setAdminSession,
     adminTab,
     setAdminTab,
-    bookingFocusCode,
-    setBookingFocusCode,
-  };
+		bookingFocusCode,
+		setBookingFocusCode,
+		loading,
+		cmsSync,
+	};
 }
