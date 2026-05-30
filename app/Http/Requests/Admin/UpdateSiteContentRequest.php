@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\SafePublicUrl;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,13 +19,13 @@ class UpdateSiteContentRequest extends FormRequest
 
         return [
             'nav' => ['required', 'array'],
-            'nav.logoSrc' => ['nullable', 'string', 'max:500'],
+            'nav.logoSrc' => ['nullable', 'string', 'max:500', SafePublicUrl::image()],
             'nav.logoAlt' => ['nullable', 'string', 'max:120'],
             'nav.brandText' => ['required', 'string', 'max:40'],
             'nav.ctaLabel' => ['required', 'string', 'max:48'],
             'nav.items' => ['required', 'array', 'min:1', 'max:8'],
             'nav.items.*.label' => ['required', 'string', 'max:48'],
-            'nav.items.*.target' => ['required', 'string', 'max:120'],
+            'nav.items.*.target' => ['required', 'string', 'max:120', SafePublicUrl::navTarget()],
 
             'quickInfo' => ['required', 'array'],
             'quickInfo.title' => ['required', 'string', 'max:160'],
@@ -42,7 +43,7 @@ class UpdateSiteContentRequest extends FormRequest
 
             'video' => ['required', 'array'],
             'video.title' => ['required', 'string', 'max:160'],
-            'video.url' => ['required', 'string', 'max:500'],
+            'video.url' => ['required', 'string', 'max:500', SafePublicUrl::youtube()],
 
             'bookingSteps' => ['required', 'array'],
             'bookingSteps.title' => ['required', 'string', 'max:120'],
@@ -58,7 +59,7 @@ class UpdateSiteContentRequest extends FormRequest
             'activities.items' => ['required', 'array', 'min:1', 'max:8'],
             'activities.items.*.title' => ['required', 'string', 'max:100'],
             'activities.items.*.body' => ['required', 'string', 'max:255'],
-            'activities.items.*.image' => ['required', 'string', 'max:500'],
+            'activities.items.*.image' => ['required', 'string', 'max:500', SafePublicUrl::image()],
 
             'letterSection' => ['required', 'array'],
             'letterSection.title' => ['required', 'string', 'max:160'],
@@ -76,16 +77,16 @@ class UpdateSiteContentRequest extends FormRequest
             'cta.title' => ['required', 'string', 'max:160'],
             'cta.body' => ['required', 'string', 'max:255'],
             'cta.buttonLabel' => ['required', 'string', 'max:60'],
-            'cta.backgroundImage' => ['nullable', 'string', 'max:500'],
+            'cta.backgroundImage' => ['nullable', 'string', 'max:500', SafePublicUrl::image()],
 
             'footer' => ['required', 'array'],
-            'footer.logoSrc' => ['nullable', 'string', 'max:500'],
+            'footer.logoSrc' => ['nullable', 'string', 'max:500', SafePublicUrl::image()],
             'footer.logoAlt' => ['nullable', 'string', 'max:120'],
             'footer.scheduleLabel' => ['required', 'string', 'max:80'],
             'footer.scheduleDays' => ['required', 'string', 'max:80'],
             'footer.scheduleHours' => ['required', 'string', 'max:80'],
-            'footer.mapUrl' => ['required', 'string', 'max:500'],
-            'footer.mapEmbedUrl' => ['required', 'string', 'max:500'],
+            'footer.mapUrl' => ['required', 'string', 'max:500', SafePublicUrl::mapLink()],
+            'footer.mapEmbedUrl' => ['required', 'string', 'max:500', SafePublicUrl::mapEmbed()],
             'footer.address' => ['required', 'string', 'max:500'],
             'footer.copyright' => ['required', 'string', 'max:255'],
         ];

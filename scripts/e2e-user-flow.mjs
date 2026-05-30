@@ -3,11 +3,17 @@ import fs from "node:fs";
 import path from "node:path";
 
 const BASE_URL = process.env.E2E_BASE_URL ?? process.env.QA_BASE ?? "http://127.0.0.1:8010";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD;
+const TEMP_USER_PASSWORD = "E2E-temp-user-password-123!";
 if (process.env.E2E_CONFIRM_ISOLATED_DB !== "1") {
   console.error(
     "Refusing to run mutating E2E scenarios without E2E_CONFIRM_ISOLATED_DB=1. " +
       "Start a disposable test database/server first, then rerun with that env flag.",
   );
+  process.exit(1);
+}
+if (!ADMIN_PASSWORD) {
+  console.error("Set E2E_ADMIN_PASSWORD or SEED_ADMIN_PASSWORD before running mutating E2E scenarios.");
   process.exit(1);
 }
 
@@ -232,10 +238,10 @@ async function runApiMatrix() {
       body: { email: "admin@istura.id", password: "wrong-password" },
     });
     expect(invalid.status === 422, "invalid login returns 422");
-    const user = await admin.login("admin@istura.id", "istura2026");
+    const user = await admin.login("admin@istura.id", ADMIN_PASSWORD);
     expect(user.role === "super_admin", "super admin role returned");
-    await operator.login("operator@istura.id", "istura2026");
-    await viewer.login("editor@istura.id", "istura2026");
+    await operator.login("operator@istura.id", ADMIN_PASSWORD);
+    await viewer.login("editor@istura.id", ADMIN_PASSWORD);
     const me = await admin.json("/api/auth/me");
     expect(me.user.email === "admin@istura.id", "auth/me returns current user");
   });
@@ -440,7 +446,7 @@ async function runApiMatrix() {
       viewer.request("/api/admin/schedule/slot", { method: "POST", body: { date: slotA.date, time: slotA.time, status: "Closed" } }),
       viewer.request("/api/admin/cms/faqs", { method: "PUT", body: { items: [] } }),
       viewer.request("/api/admin/bookings/ISTURA-404/accept", { method: "POST", body: {} }),
-      operator.request("/api/admin/users", { method: "POST", body: { name: "Blocked", email: "blocked@example.test", password: "password123", role: "viewer" } }),
+      operator.request("/api/admin/users", { method: "POST", body: { name: "Blocked", email: "blocked@example.test", password: TEMP_USER_PASSWORD, role: "viewer" } }),
     ];
     const statuses = await Promise.all(forbiddenCases).then((items) => items.map((item) => item.status));
     expect(statuses.every((status) => status === 403), `forbidden role statuses are all 403: ${statuses.join(",")}`);
@@ -450,7 +456,7 @@ async function runApiMatrix() {
     const email = `e2e-user-${Date.now()}@example.test`;
     const created = await admin.json("/api/admin/users", {
       method: "POST",
-      body: { name: "E2E User", email, password: "password123", role: "viewer", status: "Aktif" },
+      body: { name: "E2E User", email, password: TEMP_USER_PASSWORD, role: "viewer", status: "Aktif" },
     }, 201);
     expect(created.data.email === email, "super admin creates user");
     const updated = await admin.json(`/api/admin/users/${created.data.id}`, {
@@ -508,7 +514,7 @@ async function runApiMatrix() {
 async function runBrowserFlows() {
   const publicApi = new ApiClient("browser-setup-public");
   const adminApi = new ApiClient("browser-setup-admin");
-  await adminApi.login("admin@istura.id", "istura2026");
+  await adminApi.login("admin@istura.id", ADMIN_PASSWORD);
   const schedule = await publicApi.json("/api/public/schedule");
   const skip = new Set();
   firstAvailable(schedule.data, skip);
@@ -561,7 +567,7 @@ async function runBrowserFlows() {
     const page = await context.newPage();
     await page.goto("/admin", { waitUntil: "networkidle" });
     await page.getByLabel(/Email/i).fill("admin@istura.id");
-    await page.locator('input[type="password"]').fill("istura2026");
+    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /^Masuk$/i }).click();
     await expectLocator(page.getByText(/Dashboard/i).first(), "admin dashboard visible");
     await page.getByRole("button", { name: "Booking", exact: true }).click();

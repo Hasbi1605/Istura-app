@@ -10,25 +10,16 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $credentials = json_decode(file_get_contents(database_path('seeders/data/admin_credentials.json')), true);
         $directory = json_decode(file_get_contents(database_path('seeders/data/admin_users.json')), true);
+        $seedPassword = env('SEED_ADMIN_PASSWORD');
 
-        // Primary admin lifted from MOCK_ADMIN_CREDENTIALS in App.tsx.
-        foreach ($credentials as $entry) {
-            User::updateOrCreate(
-                ['email' => $entry['email']],
-                [
-                    'name' => $entry['name'],
-                    'password' => Hash::make($entry['password']),
-                    'role' => $this->mapRole($entry['role']),
-                    'email_verified_at' => now(),
-                ],
-            );
+        if (! $seedPassword) {
+            $this->command?->warn('SEED_ADMIN_PASSWORD kosong; seed user admin dilewati.');
+
+            return;
         }
 
-        // Secondary admins from MOCK_ADMIN_USERS — mirror the directory shown in
-        // the legacy admin/users page. Use a default password so testing is easy.
-        $defaultPassword = Hash::make('istura2026');
+        $defaultPassword = Hash::make($seedPassword);
         foreach ($directory as $user) {
             User::updateOrCreate(
                 ['email' => $user['email']],

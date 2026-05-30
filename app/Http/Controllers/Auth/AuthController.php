@@ -14,9 +14,9 @@ class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->validated();
+        $credentials = $request->safe()->only(['email', 'password']);
 
-        if (! Auth::attempt($credentials, true)) {
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
             ]);

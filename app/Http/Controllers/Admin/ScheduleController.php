@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\StoreScheduleSlotRequest;
 use App\Http\Requests\ScheduleRangeRequest;
 use App\Http\Resources\VisitDayResource;
 use App\Models\ScheduleOverride;
+use App\Services\AuditLogger;
 use App\Services\ScheduleService;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
@@ -43,6 +44,12 @@ class ScheduleController extends Controller
 
         ScheduleUpdated::dispatch($data['date'], $data['date']);
 
+        AuditLogger::record($request->user(), "Mengubah slot jadwal {$data['date']} {$data['time']}", ScheduleOverride::class, $override->id, [
+            'date' => $data['date'],
+            'time' => $data['time'],
+            'status' => $data['status'],
+        ]);
+
         return response()->json(['data' => $override]);
     }
 
@@ -50,11 +57,17 @@ class ScheduleController extends Controller
     {
         $data = $request->validated();
 
-        ScheduleOverride::whereDate('date', $data['date'])
+        $deleted = ScheduleOverride::whereDate('date', $data['date'])
             ->where('time', $data['time'])
             ->delete();
 
         ScheduleUpdated::dispatch($data['date'], $data['date']);
+
+        AuditLogger::record($request->user(), "Menghapus override slot {$data['date']} {$data['time']}", ScheduleOverride::class, null, [
+            'date' => $data['date'],
+            'time' => $data['time'],
+            'deleted' => $deleted,
+        ]);
 
         return response()->json(['ok' => true]);
     }
@@ -83,6 +96,14 @@ class ScheduleController extends Controller
         });
 
         ScheduleUpdated::dispatch($data['from'], $data['to']);
+
+        AuditLogger::record($request->user(), "Mengubah rentang jadwal {$data['from']} sampai {$data['to']}", ScheduleOverride::class, null, [
+            'from' => $data['from'],
+            'to' => $data['to'],
+            'time' => $data['time'] ?? null,
+            'status' => $data['status'],
+            'weekdays' => $weekdays,
+        ]);
 
         return response()->json(['ok' => true]);
     }

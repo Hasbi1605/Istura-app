@@ -8,6 +8,7 @@ use App\Models\Feedback;
 use App\Models\ScheduleOverride;
 use App\Models\User;
 use App\Services\ScheduleService;
+use App\Support\SiteContentDefaults;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -156,6 +157,13 @@ class ScheduleSyncTest extends TestCase
             ->assertOk()
             ->json('data');
         $this->assertNull($this->findSlot($afterDelete, $date, '15.30'));
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'Mengubah slot jadwal 2026-06-01 15.30',
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'Menghapus override slot 2026-06-01 15.30',
+        ]);
     }
 
     public function test_faq_link_persists_through_admin_and_public_cms(): void
@@ -189,6 +197,75 @@ class ScheduleSyncTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.link.label', 'Lihat contoh surat')
             ->assertJsonPath('data.0.link.href', '#contoh-surat');
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'Memperbarui FAQ publik',
+        ]);
+    }
+
+    public function test_admin_cms_rejects_unsafe_public_urls(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->putJson('/api/admin/cms/faqs', [
+            'items' => [
+                [
+                    'id' => 'unsafe',
+                    'question' => 'Link?',
+                    'answer' => 'Tidak aman.',
+                    'link' => [
+                        'label' => 'Klik',
+                        'href' => 'javascript:alert(1)',
+                    ],
+                ],
+            ],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('items.0.link.href');
+
+        $siteContent = SiteContentDefaults::siteContent();
+        $siteContent['video']['url'] = 'https://evil.example/embed/video';
+
+        $this->putJson('/api/admin/cms/site-content', $siteContent)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('video.url');
+    }
+
+    public function test_viewer_cannot_read_sensitive_admin_endpoints(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('booking-letters/real-surat.pdf', '%PDF-1.4 real file');
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-VIEWER',
+            'document_path' => 'booking-letters/real-surat.pdf',
+            'document_original_name' => 'real-surat.pdf',
+        ]);
+
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_VIEWER]));
+
+        $this->getJson('/api/admin/dashboard')->assertForbidden();
+        $this->getJson('/api/admin/bookings')->assertForbidden();
+        $this->get("/api/admin/bookings/{$booking->code}/document")->assertForbidden();
+        $this->getJson('/api/admin/feedback')->assertForbidden();
+        $this->getJson('/api/admin/users')->assertForbidden();
+        $this->getJson('/api/admin/audit-logs')->assertForbidden();
+    }
+
+    public function test_super_admin_user_management_writes_audit_log(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]));
+
+        $created = $this->postJson('/api/admin/users', [
+            'name' => 'Audit User',
+            'email' => 'audit-user@example.test',
+            'password' => 'audit-user-password-123!',
+            'role' => User::ROLE_VIEWER,
+            'status' => 'Aktif',
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'Membuat pengguna admin audit-user@example.test',
+            'target_id' => (string) $created->json('data.id'),
+        ]);
     }
 
     public function test_admin_document_endpoint_serves_uploaded_file_and_404s_when_missing(): void
@@ -330,14 +407,14 @@ class ScheduleSyncTest extends TestCase
     {
         User::factory()->create([
             'email' => 'inactive@istura.id',
-            'password' => Hash::make('istura2026'),
+            'password' => Hash::make('inactive-test-password-123!'),
             'role' => User::ROLE_ADMIN,
             'email_verified_at' => null,
         ]);
 
         $this->postJson('/api/auth/login', [
             'email' => 'inactive@istura.id',
-            'password' => 'istura2026',
+            'password' => 'inactive-test-password-123!',
         ])->assertStatus(422)
             ->assertJsonValidationErrors('email');
     }
@@ -569,8 +646,7 @@ class ScheduleSyncTest extends TestCase
             'status' => 'Closed',
         ])->assertOk();
 
-        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) =>
-            $event->from === '2026-06-01' && $event->to === '2026-06-01'
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) => $event->from === '2026-06-01' && $event->to === '2026-06-01'
         );
 
         $this->postJson('/api/admin/schedule/range', [
@@ -580,8 +656,7 @@ class ScheduleSyncTest extends TestCase
             'status' => 'Closed',
         ])->assertOk();
 
-        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) =>
-            $event->from === '2026-06-01' && $event->to === '2026-06-04'
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) => $event->from === '2026-06-01' && $event->to === '2026-06-04'
         );
 
         $this->deleteJson('/api/admin/schedule/slot', [

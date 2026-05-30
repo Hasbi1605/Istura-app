@@ -16,6 +16,7 @@ use App\Models\Faq;
 use App\Models\FooterContact;
 use App\Models\SiteSetting;
 use App\Models\WaTemplate;
+use App\Services\AuditLogger;
 use App\Support\SiteContentDefaults;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,10 @@ class CmsController extends Controller
             }
         });
 
+        AuditLogger::record($request->user(), 'Memperbarui FAQ publik', Faq::class, null, [
+            'count' => count($items),
+        ]);
+
         return $this->faqs();
     }
 
@@ -80,6 +85,10 @@ class CmsController extends Controller
             }
         });
 
+        AuditLogger::record($request->user(), 'Memperbarui kontak footer publik', FooterContact::class, null, [
+            'count' => count($items),
+        ]);
+
         return $this->contacts();
     }
 
@@ -106,6 +115,10 @@ class CmsController extends Controller
                 );
             }
         });
+
+        AuditLogger::record($request->user(), 'Memperbarui template WhatsApp', WaTemplate::class, null, [
+            'statuses' => collect($items)->pluck('id')->values()->all(),
+        ]);
 
         return $this->waTemplates();
     }
@@ -139,6 +152,8 @@ class CmsController extends Controller
     {
         SiteSetting::write('hero', $request->validated());
 
+        AuditLogger::record($request->user(), 'Memperbarui konten hero', SiteSetting::class, 'hero');
+
         return $this->hero();
     }
 
@@ -162,6 +177,11 @@ class CmsController extends Controller
 
         SiteSetting::write('letter', $value);
 
+        AuditLogger::record($request->user(), 'Memperbarui konten contoh surat', SiteSetting::class, 'letter', [
+            'checklist_count' => count($value['checklist']),
+            'image_updated' => $request->hasFile('image'),
+        ]);
+
         return $this->letter();
     }
 
@@ -175,6 +195,8 @@ class CmsController extends Controller
     public function updateSiteContent(UpdateSiteContentRequest $request): JsonResponse
     {
         SiteSetting::write('site_content', $request->validated());
+
+        AuditLogger::record($request->user(), 'Memperbarui konten landing page', SiteSetting::class, 'site_content');
 
         return $this->siteContent();
     }

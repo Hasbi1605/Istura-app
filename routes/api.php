@@ -48,7 +48,7 @@ Route::prefix('auth')->group(function () {
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
-Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
     Route::get('dashboard', DashboardController::class);
 
     Route::get('bookings', [AdminBookingController::class, 'index']);
@@ -81,9 +81,11 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('cms/site-content', [CmsController::class, 'siteContent']);
     Route::put('cms/site-content', [CmsController::class, 'updateSiteContent']);
 
-    Route::get('users', [UserController::class, 'index']);
-    Route::post('users', [UserController::class, 'store']);
-    Route::put('users/{user}', [UserController::class, 'update']);
-    Route::delete('users/{user}', [UserController::class, 'destroy']);
+    Route::middleware('super-admin')->group(function () {
+        Route::get('users', [UserController::class, 'index']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::put('users/{user}', [UserController::class, 'update']);
+        Route::delete('users/{user}', [UserController::class, 'destroy']);
+    });
     Route::get('audit-logs', [AuditLogController::class, 'index']);
 });
