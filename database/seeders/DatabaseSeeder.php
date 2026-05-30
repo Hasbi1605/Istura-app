@@ -8,12 +8,17 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([
-            UserSeeder::class,
+        $seeders = [
             FaqSeeder::class,
             FooterContactSeeder::class,
             WaTemplateSeeder::class,
             SiteSettingSeeder::class,
-        ]);
+        ];
+
+        if (! app()->environment('production')) {
+            array_unshift($seeders, UserSeeder::class);
+        }
+
+        $this->call($seeders);
     }
 }
