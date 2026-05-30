@@ -90,6 +90,8 @@ jobs:
 
           trap 'php artisan up || true' EXIT
 
+          export COMPOSER_ALLOW_SUPERUSER=1
+
           composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
           npm ci
           npm run build
@@ -105,14 +107,8 @@ jobs:
           if command -v systemctl >/dev/null 2>&1; then
             if command -v sudo >/dev/null 2>&1; then
               sudo -n systemctl try-reload-or-restart php8.4-fpm || true
-              sudo -n systemctl try-reload-or-restart php8.3-fpm || true
-              sudo -n systemctl try-restart laravel-queue || true
-              sudo -n systemctl try-restart laravel-reverb || true
             else
               systemctl try-reload-or-restart php8.4-fpm || true
-              systemctl try-reload-or-restart php8.3-fpm || true
-              systemctl try-restart laravel-queue || true
-              systemctl try-restart laravel-reverb || true
             fi
           fi
 
