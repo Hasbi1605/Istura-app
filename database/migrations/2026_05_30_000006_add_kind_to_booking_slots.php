@@ -8,8 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasColumn('booking_slots', 'kind')) {
+            Schema::table('booking_slots', function (Blueprint $table) {
+                $table->string('kind', 16)->default('active')->after('booking_id');
+            });
+        }
+
         Schema::table('booking_slots', function (Blueprint $table) {
-            $table->string('kind', 16)->default('active')->after('booking_id');
+            $table->index('booking_id', 'booking_slots_booking_id_plain_index');
             $table->dropUnique('booking_slots_booking_id_slot_order_unique');
             $table->unique(['booking_id', 'kind', 'slot_order']);
         });
@@ -19,6 +25,7 @@ return new class extends Migration
     {
         Schema::table('booking_slots', function (Blueprint $table) {
             $table->dropUnique('booking_slots_booking_id_kind_slot_order_unique');
+            $table->dropIndex('booking_slots_booking_id_plain_index');
             $table->unique(['booking_id', 'slot_order']);
             $table->dropColumn('kind');
         });
