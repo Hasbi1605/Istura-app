@@ -13,6 +13,7 @@ use App\Models\ScheduleOverride;
 use App\Services\AuditLogger;
 use App\Services\ScheduleService;
 use Carbon\CarbonPeriod;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -135,9 +136,24 @@ class ScheduleController extends Controller
             return $override;
         }
 
-        return ScheduleOverride::create(array_merge([
-            'date' => $date,
-            'time' => $time,
-        ], $values));
+        try {
+            return ScheduleOverride::create(array_merge([
+                'date' => $date,
+                'time' => $time,
+            ], $values));
+        } catch (QueryException $exception) {
+            $override = ScheduleOverride::whereDate('date', $date)
+                ->where('time', $time)
+                ->first();
+
+            if (! $override) {
+                throw $exception;
+            }
+
+            $override->fill($values);
+            $override->save();
+
+            return $override;
+        }
     }
 }

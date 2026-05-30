@@ -249,7 +249,7 @@ export function AdminDashboard({
 				<StatCardSkeleton />
 			) : (
 				<>
-					<StatCard label="Pending" value={pendingCount} />
+					<StatCard label="Menunggu" value={pendingCount} />
 					<StatCard label="Hari ini" value={todayVisits.length} />
 					<StatCard label="Minggu ini" value={visitsThisWeek} />
 					<StatCard label="Rating Rata-rata" value={averageRating} />
@@ -279,7 +279,7 @@ export function AdminDashboard({
             className="admin-dashboard-alert-cta"
             onClick={() => onJumpTab("bookings")}
           >
-            Tinjau pending
+            Tinjau permohonan
             <ArrowRight size={14} aria-hidden="true" />
           </button>
         </section>

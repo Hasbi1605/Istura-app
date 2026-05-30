@@ -2,10 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\ScheduleOverride;
 use App\Rules\VisitTime;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreScheduleSlotRequest extends FormRequest
 {
@@ -19,8 +20,24 @@ class StoreScheduleSlotRequest extends FormRequest
         return [
             'date' => ['required', 'date_format:Y-m-d'],
             'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
-            'status' => ['required', Rule::in(ScheduleOverride::STATUSES)],
+            'status' => ['required', Rule::in(['Available', 'Closed'])],
             'note' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                $date = Carbon::createFromFormat('Y-m-d', $this->input('date'), 'Asia/Jakarta')->startOfDay();
+                if ($date->lt(Carbon::today('Asia/Jakarta'))) {
+                    $validator->errors()->add('date', 'Tanggal jadwal tidak boleh sudah lewat.');
+                }
+            },
         ];
     }
 }

@@ -38,7 +38,7 @@ export type ReportBooking = {
   dateLabel: string;
   time: string;
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
-  submittedAt: string;
+  submittedAt: string | null;
   completedAt?: string;
   note?: string;
 };
@@ -119,7 +119,7 @@ const resolvePeriod = (
 
 // Date used for filtering booking/feedback into the period. Mirrors the
 // rationale from the Excel exports (use submittedAt; fallback when absent).
-const bookingFilterDate = (b: ReportBooking): Date => parseSubmittedAt(b.submittedAt);
+const bookingFilterDate = (b: ReportBooking): Date => parseSubmittedAt(b.submittedAt ?? "");
 
 const feedbackFilterDate = (f: ReportFeedback): Date => {
   if (f.submittedAt) {

@@ -106,6 +106,12 @@ export function AdminScheduleManager({
   // ini. Diperbarui per menit.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
+    if (!firstActive) return;
+    if (!selectedDate || !scheduleByDate.has(selectedDate)) {
+      setSelectedDate(firstActive);
+    }
+  }, [firstActive, scheduleByDate, selectedDate]);
+  useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
   }, []);
@@ -165,7 +171,7 @@ export function AdminScheduleManager({
 		persist()
 			.then(() => refreshFromApi())
 			.catch(() => {
-				onSchedulesChange(snapshot);
+				void refreshFromApi().catch(() => onSchedulesChange(snapshot));
 				setCustomError("Gagal menyimpan jadwal. Coba lagi.");
 			})
 			.finally(() => setSavingLabel(null));
@@ -197,6 +203,29 @@ export function AdminScheduleManager({
       `Slot ${time} diperbarui`,
       next,
       () => upsertScheduleSlot(dayDate, time, nextStatus),
+    );
+  };
+
+  const forceSetSlotStatus = (dayDate: string, time: string, status: VisitStatus) => {
+    const next = schedules.map((day) =>
+        day.date === dayDate
+          ? {
+              ...day,
+              slots: day.slots.map((slot) =>
+                slot.time === time
+                  ? {
+                      ...slot,
+                      status,
+                    }
+                  : slot,
+              ),
+            }
+          : day,
+      );
+    applyPersistedChange(
+      `Override slot ${time}`,
+      next,
+      () => upsertScheduleSlot(dayDate, time, status),
     );
   };
 
@@ -713,6 +742,14 @@ export function AdminScheduleManager({
                             <SlotBookingPopover
                               booking={booking}
                               onClose={() => setSlotInfoTime(null)}
+                              onForceOpen={() => {
+                                forceSetSlotStatus(selectedDay.date, slot.time, "Available");
+                                setSlotInfoTime(null);
+                              }}
+                              onForceClose={() => {
+                                forceSetSlotStatus(selectedDay.date, slot.time, "Closed");
+                                setSlotInfoTime(null);
+                              }}
                               onOpen={() => {
                                 onOpenBooking(booking.code);
                                 setSlotInfoTime(null);
@@ -825,10 +862,14 @@ export function AdminScheduleManager({
 export function SlotBookingPopover({
   booking,
   onClose,
+  onForceOpen,
+  onForceClose,
   onOpen,
 }: {
   booking: Booking;
   onClose: () => void;
+  onForceOpen: () => void;
+  onForceClose: () => void;
   onOpen: () => void;
 }) {
   // Tutup popover saat klik di luar atau Esc.
@@ -880,6 +921,12 @@ export function SlotBookingPopover({
       <div className="admin-schedule-slot-popover-actions">
         <button type="button" className="admin-pill-button" onClick={onClose}>
           Tutup
+        </button>
+        <button type="button" className="admin-pill-button" onClick={onForceOpen}>
+          Paksa buka
+        </button>
+        <button type="button" className="admin-pill-button admin-pill-button--danger" onClick={onForceClose}>
+          Paksa tutup
         </button>
         <button
           type="button"

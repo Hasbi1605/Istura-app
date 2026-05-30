@@ -31,8 +31,16 @@ let csrfPrimed = false;
 
 async function ensureCsrf(): Promise<void> {
   if (csrfPrimed) return;
-  await fetch(`${BASE_URL}/sanctum/csrf-cookie`, { credentials: "include" });
+  const response = await fetch(`${BASE_URL}/sanctum/csrf-cookie`, { credentials: "include" });
+  if (!response.ok) {
+    throw new ApiError(response.status, "Gagal menyiapkan sesi keamanan.", null);
+  }
   csrfPrimed = true;
+}
+
+async function refreshCsrf(): Promise<void> {
+  csrfPrimed = false;
+  await ensureCsrf();
 }
 
 function readXsrfToken(): string | null {
@@ -48,6 +56,10 @@ type RequestOptions = {
 };
 
 export async function api<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+  return apiRequest<T>(path, options, true);
+}
+
+async function apiRequest<T = unknown>(path: string, options: RequestOptions, retryOnCsrf: boolean): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -82,6 +94,10 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
   const json = text ? safeParse(text) : null;
 
   if (!response.ok) {
+    if (response.status === 419 && method !== "GET" && retryOnCsrf) {
+      await refreshCsrf();
+      return apiRequest<T>(path, options, false);
+    }
     if (response.status === 422 && json && typeof json === "object") {
       throw new ValidationError(
         (json as { message?: string }).message ?? "Validasi gagal",

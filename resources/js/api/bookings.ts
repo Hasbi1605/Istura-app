@@ -26,7 +26,7 @@ export type ApiBooking = {
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
   documentName: string;
   hasDocument?: boolean;
-  submittedAt: string;
+  submittedAt: string | null;
   leadTimeDays?: number | null;
   isShortNotice?: boolean;
   note?: string | null;
@@ -78,9 +78,24 @@ export const rescheduleBooking = (
     body: payload,
   }).then((r) => r.data);
 
+export const cancelRescheduleBooking = (code: string, note?: string) =>
+  api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/reschedule/cancel`, {
+    method: "POST",
+    body: { note },
+  }).then((r) => r.data);
+
 export const completeBooking = (code: string) =>
   api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/complete`, {
     method: "POST",
+  }).then((r) => r.data);
+
+export const updateBookingSegments = (
+  code: string,
+  payload: { segments: Array<{ date: string; time: string; groupSize: number }>; note?: string },
+) =>
+  api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/segments`, {
+    method: "POST",
+    body: payload,
   }).then((r) => r.data);
 
 export const submitPublicBooking = (form: FormData) =>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RescheduleBookingRequest;
+use App\Http\Requests\Admin\UpdateBookingSegmentsRequest;
 use App\Http\Requests\Admin\UpdateBookingStatusRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
@@ -77,10 +78,31 @@ class BookingController extends Controller
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }
 
+    public function cancelReschedule(UpdateBookingStatusRequest $request, string $code): JsonResponse
+    {
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
+        $updated = $this->bookings->cancelReschedule($booking, $request->user(), $request->input('note'));
+
+        return response()->json(['data' => (new BookingResource($updated))->resolve()]);
+    }
+
     public function complete(UpdateBookingStatusRequest $request, string $code): JsonResponse
     {
         $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         $updated = $this->bookings->complete($booking, $request->user());
+
+        return response()->json(['data' => (new BookingResource($updated))->resolve()]);
+    }
+
+    public function segments(UpdateBookingSegmentsRequest $request, string $code): JsonResponse
+    {
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
+        $updated = $this->bookings->overrideSegments(
+            $booking,
+            $request->user(),
+            $request->validated('segments'),
+            $request->input('note'),
+        );
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }

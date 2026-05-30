@@ -208,7 +208,7 @@ export const INITIAL_FAQ_ITEMS: FaqItem[] = [
     id: "faq-rombongan",
     question: "Berapa jumlah maksimal rombongan?",
     answer:
-      "Kapasitas ideal per kloter adalah 75 orang. Jika rombongan lebih besar, sistem akan membantu pembagian kloter saat booking dan contact person tetap bisa berdiskusi dengan admin melalui WhatsApp.",
+      "Kapasitas per kloter adalah 80 orang. Jika rombongan lebih besar, sistem akan membantu pembagian kloter saat booking dan contact person tetap bisa berdiskusi dengan admin melalui WhatsApp.",
   },
   {
     id: "faq-format-surat",

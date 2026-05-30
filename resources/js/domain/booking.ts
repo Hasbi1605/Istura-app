@@ -6,12 +6,20 @@ export const SLOT_CAPACITY = 80;
 export const MAX_BOOKING_GROUP_SIZE = 560;
 
 export const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
-  { value: "Pending", label: "Pending" },
-  { value: "Accepted", label: "Accepted" },
-  { value: "Reschedule", label: "Reschedule" },
-  { value: "Completed", label: "Completed" },
-  { value: "Rejected", label: "Rejected" },
+  { value: "Pending", label: "Menunggu" },
+  { value: "Accepted", label: "Disetujui" },
+  { value: "Reschedule", label: "Penjadwalan ulang" },
+  { value: "Completed", label: "Selesai" },
+  { value: "Rejected", label: "Ditolak" },
 ];
+
+export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
+  Pending: "Menunggu",
+  Accepted: "Disetujui",
+  Rejected: "Ditolak",
+  Reschedule: "Penjadwalan ulang",
+  Completed: "Selesai",
+};
 
 // "Butuh tindakan" surfaces work-in-progress bookings the admin still owns.
 export const isActionNeeded = (status: BookingStatus) =>
@@ -111,7 +119,7 @@ export const bookingLeadTimeLabel = (booking: Booking): string => {
 // Parse the human-readable submittedAt ("23 Mei 2026, 14.12 WIB") into a Date
 // for sorting. Returns epoch 0 if it cannot parse so legacy data still sorts
 // deterministically (oldest-last).
-export const parseSubmittedAt = (value: string): Date => {
+export const parseSubmittedAt = (value: string | null): Date => {
   if (!value) return new Date(0);
   const cleaned = value.replace(/\s*WIB\s*$/i, "").trim();
   const match = cleaned.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:,\s*(\d{1,2})[.:](\d{2}))?/);

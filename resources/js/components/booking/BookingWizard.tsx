@@ -88,6 +88,7 @@ function apiBookingToLocal(b: ApiBooking): Booking {
 }
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const GROUP_SIZE_INPUT_MAX_LENGTH = String(MAX_BOOKING_GROUP_SIZE).length;
 
 function getWhatsappContact(contacts: FooterContact[]) {
   return (
@@ -313,9 +314,12 @@ export function BookingWizard({
         if (err instanceof ValidationError) {
           const fieldErrors: Record<string, string> = {};
           for (const [key, msgs] of Object.entries(err.errors)) {
-            fieldErrors[key] = msgs[0] ?? "Validasi gagal.";
+            const fieldKey = key === "document" ? "documentName" : key;
+            fieldErrors[fieldKey] = msgs[0] ?? "Validasi gagal.";
           }
           setErrors(fieldErrors);
+          const targetStep = validationErrorStep(fieldErrors);
+          if (targetStep !== null) setStep(targetStep);
         } else {
           setErrors({ submit: "Tidak dapat mengirim permohonan. Coba lagi." });
         }
@@ -430,13 +434,14 @@ export function BookingWizard({
                   <FormField
                     label="Jumlah Rombongan"
                     inputMode="numeric"
+                    maxLength={GROUP_SIZE_INPUT_MAX_LENGTH}
                     value={form.groupSize}
                     error={errors.groupSize}
-                    helper="Isi estimasi total peserta yang akan hadir."
-                    onChange={(value) => setField("groupSize", value.replace(/\D/g, ""))}
+                    helper={`Isi estimasi total peserta. Maksimal ${MAX_BOOKING_GROUP_SIZE} orang per hari.`}
+                    onChange={(value) => setField("groupSize", normalizeGroupSizeInput(value))}
                   />
                 </div>
-                {groupSizeNumber > SLOT_CAPACITY && (
+                {groupSizeNumber > SLOT_CAPACITY && groupSizeNumber <= MAX_BOOKING_GROUP_SIZE && (
                   <KloterBreakdown
                     total={groupSizeNumber}
                     breakdown={groupBreakdown}
@@ -492,6 +497,7 @@ export function BookingWizard({
                   </span>
                 </label>
                 {errors.agreement && <small className="field-error">{errors.agreement}</small>}
+                {errors.submit && <small className="field-error">{errors.submit}</small>}
               </div>
             )}
 
@@ -564,6 +570,7 @@ function FormField({
   error,
   helper,
   inputMode,
+  maxLength,
   onChange,
 }: {
   label: string;
@@ -571,6 +578,7 @@ function FormField({
   error?: string;
   helper?: string;
   inputMode?: "text" | "numeric" | "tel";
+  maxLength?: number;
   onChange: (value: string) => void;
 }) {
   return (
@@ -579,6 +587,7 @@ function FormField({
       <input
         value={value}
         inputMode={inputMode}
+        maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
       />
@@ -586,6 +595,19 @@ function FormField({
       {error && <small className="field-error">{error}</small>}
     </label>
   );
+}
+
+function normalizeGroupSizeInput(value: string): string {
+  return value.replace(/\D/g, "").slice(0, GROUP_SIZE_INPUT_MAX_LENGTH);
+}
+
+function validationErrorStep(errors: Record<string, string>): number | null {
+  if (["contactName", "nik", "whatsapp"].some((key) => errors[key])) return 1;
+  if (["institution", "groupSize"].some((key) => errors[key])) return 2;
+  if (["date", "time"].some((key) => errors[key])) return 3;
+  if (errors.documentName) return 4;
+  if (errors.agreement) return 6;
+  return null;
 }
 
 function KloterBreakdown({

@@ -41,6 +41,7 @@ import {
   bookingLeadTimeLabel,
   isShortNoticeBooking,
   BOOKING_STATUS_CHIPS,
+  BOOKING_STATUS_LABELS,
   PAGE_SIZE_BOOKING_SPLIT,
   PAGE_SIZE_BOOKING_TABLE,
   requiredSlotCount,
@@ -54,7 +55,9 @@ import {
 	acceptBooking as apiAcceptBooking,
   rejectBooking as apiRejectBooking,
   rescheduleBooking as apiRescheduleBooking,
+  cancelRescheduleBooking as apiCancelRescheduleBooking,
   completeBooking as apiCompleteBooking,
+  updateBookingSegments as apiUpdateBookingSegments,
 } from "../../api/bookings";
 import { fetchAdminSchedule } from "../../api/schedule";
 import { apiBookingToLocal, apiVisitDayToLocal } from "../../api/adapters";
@@ -100,6 +103,7 @@ export function AdminScreen({
   const [showSlideOver, setShowSlideOver] = useState(false);
   const [showFilterPopover, setShowFilterPopover] = useState(false);
   const [modal, setModal] = useState<{ action: AdminAction; booking: Booking } | null>(null);
+	const [segmentModal, setSegmentModal] = useState<{ booking: Booking } | null>(null);
 	const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
 	const [pendingAction, setPendingAction] = useState<{ code: string; label: string } | null>(null);
 	const [actionError, setActionError] = useState("");
@@ -112,8 +116,19 @@ export function AdminScreen({
   const documentUrlFor = (booking: Booking, inline = false) =>
     `/api/admin/bookings/${encodeURIComponent(booking.code)}/document${inline ? "?disposition=inline" : ""}`;
 
-  const handleDownloadDocument = (booking: Booking) => {
-    const url = documentUrlFor(booking);
+  const handleDownloadDocument = async (booking: Booking) => {
+    setActionError("");
+    const response = await fetch(documentUrlFor(booking), {
+      credentials: "include",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    });
+    if (!response.ok) {
+      setActionError(response.status === 403 ? "Sesi admin tidak valid atau tidak berwenang." : `Gagal mengunduh dokumen (${response.status}).`);
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = booking.documentName;
@@ -121,6 +136,7 @@ export function AdminScreen({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Saat ada permintaan fokus dari modul lain (misal dari Jadwal Kunjungan),
@@ -257,7 +273,7 @@ export function AdminScreen({
 						: null;
 
 		if (!updated) {
-			throw new Error(`Aksi status ${status} tidak didukung dari layar admin.`);
+			throw new Error(`Aksi status ${BOOKING_STATUS_LABELS[status]} tidak didukung dari layar admin.`);
 		}
 
 		return syncBookingFromApi(updated);
@@ -299,12 +315,21 @@ export function AdminScreen({
 	};
 
   // User declined the proposed slot. Mark booking as rejected and free the
-  // original slot so it can be picked up by someone else.
+  // proposed hold while keeping the original accepted schedule.
 	const handleCancelReschedule = (booking: Booking) => {
 		void runBookingAction(booking, "Membatalkan reschedule...", async () => {
-			const note = booking.note ?? "User menolak usulan reschedule";
+			const note = booking.note ?? "User menolak usulan reschedule, jadwal awal tetap berlaku.";
+			const updated = await apiCancelRescheduleBooking(booking.code, note);
+			const localBooking = await syncBookingFromApi(updated);
+			openWhatsApp(localBooking, createWhatsappMessage(localBooking, "Accepted", note));
+		});
+	};
+
+	const handleRejectRescheduledBooking = (booking: Booking) => {
+		void runBookingAction(booking, "Membatalkan booking...", async () => {
+			const note = "Jadwal yang diminta belum dapat diakomodasi. Silakan melakukan booking ulang untuk periode berikutnya.";
 			const updated = await updateBookingStatus(booking, "Rejected", note);
-			openWhatsApp(updated, createWhatsappMessage(updated, "Rejected", "Reschedule tidak dapat diakomodasi."));
+			openWhatsApp(updated, createWhatsappMessage(updated, "Rejected", note));
 		});
 	};
 
@@ -333,6 +358,21 @@ export function AdminScreen({
 			await handleProposeReschedule(booking, parsed.date, parsed.time, note);
 			setModal(null);
 			}
+		});
+	};
+
+	const handleUpdateSegments = (booking: Booking, segments: BookingSegment[], note: string) => {
+		void runBookingAction(booking, "Menyimpan kloter manual...", async () => {
+			const updated = await apiUpdateBookingSegments(booking.code, {
+				segments: segments.map((segment) => ({
+					date: segment.date,
+					time: segment.time,
+					groupSize: segment.groupSize,
+				})),
+				note: note.trim() || undefined,
+			});
+			await syncBookingFromApi(updated);
+			setSegmentModal(null);
 		});
 	};
 
@@ -385,10 +425,10 @@ export function AdminScreen({
             type="button"
             className="booking-export-button"
             onClick={() => setShowExportModal(true)}
-            title="Export laporan booking ke Excel"
+            title="Ekspor laporan booking ke Excel"
           >
             <FileSpreadsheet size={14} aria-hidden="true" />
-            Export
+            Ekspor
           </button>
         </div>
       </div>
@@ -398,9 +438,9 @@ export function AdminScreen({
 				<StatCardSkeleton />
 			) : (
 				<>
-					<StatCard label="Pending" value={counts.byStatus.Pending} />
-					<StatCard label="Accepted" value={counts.byStatus.Accepted} />
-					<StatCard label="Completed minggu ini" value={completedThisWeek} />
+					<StatCard label="Menunggu" value={counts.byStatus.Pending} />
+					<StatCard label="Disetujui" value={counts.byStatus.Accepted} />
+					<StatCard label="Selesai minggu ini" value={completedThisWeek} />
 					<StatCard label="Total minggu ini" value={totalThisWeek} />
 				</>
 			)}
@@ -564,9 +604,11 @@ export function AdminScreen({
                 onAccept={() => setModal({ action: "accept", booking: selectedBooking })}
                 onReject={() => setModal({ action: "reject", booking: selectedBooking })}
                 onReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
+                onEditSegments={() => setSegmentModal({ booking: selectedBooking })}
                 onMarkCompleted={() => handleMarkCompleted(selectedBooking)}
                 onConfirmReschedule={() => handleConfirmReschedule(selectedBooking)}
                 onCancelReschedule={() => handleCancelReschedule(selectedBooking)}
+                onRejectRescheduledBooking={() => handleRejectRescheduledBooking(selectedBooking)}
                 onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
                 onPreviewDocument={(booking) => setPreviewBooking(booking)}
                 onDownloadDocument={handleDownloadDocument}
@@ -614,9 +656,11 @@ export function AdminScreen({
           onAccept={() => setModal({ action: "accept", booking: selectedBooking })}
           onReject={() => setModal({ action: "reject", booking: selectedBooking })}
           onReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
+          onEditSegments={() => setSegmentModal({ booking: selectedBooking })}
           onMarkCompleted={() => handleMarkCompleted(selectedBooking)}
           onConfirmReschedule={() => handleConfirmReschedule(selectedBooking)}
           onCancelReschedule={() => handleCancelReschedule(selectedBooking)}
+          onRejectRescheduledBooking={() => handleRejectRescheduledBooking(selectedBooking)}
           onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
           onPreviewDocument={(booking) => setPreviewBooking(booking)}
           onDownloadDocument={handleDownloadDocument}
@@ -632,6 +676,16 @@ export function AdminScreen({
 			onClose={() => setModal(null)}
           onConfirm={handleAction}
         />
+      )}
+
+      {segmentModal && (
+		<SegmentOverrideModal
+			booking={segmentModal.booking}
+			pendingLabel={pendingLabelFor(segmentModal.booking)}
+			error={actionError}
+			onClose={() => setSegmentModal(null)}
+			onConfirm={handleUpdateSegments}
+		/>
       )}
 
       {previewBooking && (
@@ -744,10 +798,10 @@ export function BookingTable({
       <div className="booking-grid-head" role="row">
         <span>Kode</span>
         <span>Instansi</span>
-        <span>Contact person</span>
+        <span>Narahubung</span>
         <span>Jadwal</span>
         <span>Rombongan</span>
-        <span>Submitted</span>
+        <span>Diajukan</span>
         <span>Status</span>
       </div>
       {useVirtual ? (
@@ -826,13 +880,13 @@ export function BookingTableRow({
         <ShortNoticeBadge booking={booking} />
       </span>
       <span className="booking-grid-cell" data-label="Instansi">{booking.institution}</span>
-      <span className="booking-grid-cell" data-label="Contact person">{booking.contactName}</span>
+      <span className="booking-grid-cell" data-label="Narahubung">{booking.contactName}</span>
       <span className="booking-grid-cell" data-label="Jadwal">
         {booking.dateLabel}
         <small>{bookingTimeSummary(booking)}</small>
       </span>
       <span className="booking-grid-cell" data-label="Rombongan">{bookingKloterSummary(booking)}</span>
-      <span className="booking-grid-cell booking-grid-meta" data-label="Submitted">{booking.submittedAt}</span>
+      <span className="booking-grid-cell booking-grid-meta" data-label="Diajukan">{booking.submittedAt}</span>
       <span className="booking-grid-cell" data-label="Status">
         <StatusBadge status={booking.status} />
       </span>
@@ -846,9 +900,11 @@ export function BookingDetailPanel({
   onAccept,
   onReject,
   onReschedule,
+  onEditSegments,
   onMarkCompleted,
   onConfirmReschedule,
   onCancelReschedule,
+  onRejectRescheduledBooking,
   onResendReschedule,
   onPreviewDocument,
   onDownloadDocument,
@@ -858,9 +914,11 @@ export function BookingDetailPanel({
   onAccept: () => void;
   onReject: () => void;
   onReschedule: () => void;
+  onEditSegments: () => void;
   onMarkCompleted: () => void;
   onConfirmReschedule?: () => void;
   onCancelReschedule?: () => void;
+  onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
@@ -879,7 +937,7 @@ export function BookingDetailPanel({
         <RescheduleProposalBanner booking={booking} />
       )}
       <div className="detail-grid">
-        <DetailItem label="Contact person" value={booking.contactName} />
+        <DetailItem label="Narahubung" value={booking.contactName} />
         <DetailItem label="NIK" value={booking.nik} />
         <DetailItem label="WhatsApp" value={booking.whatsapp} />
         <DetailItem label="Instansi" value={booking.institution} />
@@ -905,9 +963,11 @@ export function BookingDetailPanel({
         onAccept={onAccept}
         onReject={onReject}
         onReschedule={onReschedule}
+        onEditSegments={onEditSegments}
         onMarkCompleted={onMarkCompleted}
         onConfirmReschedule={onConfirmReschedule}
         onCancelReschedule={onCancelReschedule}
+        onRejectRescheduledBooking={onRejectRescheduledBooking}
         onResendReschedule={onResendReschedule}
       />
     </div>
@@ -956,9 +1016,11 @@ export function BookingActions({
   onAccept,
   onReject,
   onReschedule,
+  onEditSegments,
   onMarkCompleted,
   onConfirmReschedule,
   onCancelReschedule,
+  onRejectRescheduledBooking,
   onResendReschedule,
 }: {
   booking: Booking;
@@ -966,9 +1028,11 @@ export function BookingActions({
   onAccept: () => void;
   onReject: () => void;
   onReschedule: () => void;
+  onEditSegments: () => void;
   onMarkCompleted: () => void;
   onConfirmReschedule?: () => void;
   onCancelReschedule?: () => void;
+  onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
 }) {
   const busy = Boolean(pendingLabel);
@@ -978,13 +1042,16 @@ export function BookingActions({
       {booking.status === "Pending" && (
         <>
           <button className="button button-accept" type="button" onClick={onAccept} disabled={busy}>
-            Accept
+            Setujui
           </button>
           <button className="button button-danger" type="button" onClick={onReject} disabled={busy}>
-            Reject
+            Tolak
           </button>
           <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
-            Reschedule
+            Jadwalkan ulang
+          </button>
+          <button className="button button-outline" type="button" onClick={onEditSegments} disabled={busy}>
+            Atur kloter
           </button>
         </>
       )}
@@ -1001,7 +1068,10 @@ export function BookingActions({
             Tandai Selesai
           </button>
           <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
-            Reschedule
+            Jadwalkan ulang
+          </button>
+          <button className="button button-outline" type="button" onClick={onEditSegments} disabled={busy}>
+            Atur kloter
           </button>
         </>
       )}
@@ -1030,14 +1100,23 @@ export function BookingActions({
             type="button"
             onClick={onCancelReschedule}
             disabled={busy}
-            title="User menolak, batalkan permohonan"
+            title="User menolak usulan, jadwal awal tetap berlaku"
           >
-            User menolak, batalkan
+            User menolak usulan
+          </button>
+          <button
+            className="button button-danger"
+            type="button"
+            onClick={onRejectRescheduledBooking}
+            disabled={busy}
+            title="Batalkan booking dan minta user booking ulang"
+          >
+            Batalkan booking
           </button>
         </>
       )}
       {(booking.status === "Rejected" || booking.status === "Completed") && (
-        <span className="admin-actions-locked">Status: {booking.status}</span>
+        <span className="admin-actions-locked">Status: {BOOKING_STATUS_LABELS[booking.status]}</span>
       )}
     </div>
   );
@@ -1209,9 +1288,11 @@ export function BookingSlideOver({
   onAccept,
   onReject,
   onReschedule,
+  onEditSegments,
   onMarkCompleted,
   onConfirmReschedule,
   onCancelReschedule,
+  onRejectRescheduledBooking,
   onResendReschedule,
   onPreviewDocument,
   onDownloadDocument,
@@ -1222,9 +1303,11 @@ export function BookingSlideOver({
   onAccept: () => void;
   onReject: () => void;
   onReschedule: () => void;
+  onEditSegments: () => void;
   onMarkCompleted: () => void;
   onConfirmReschedule?: () => void;
   onCancelReschedule?: () => void;
+  onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
@@ -1265,7 +1348,7 @@ export function BookingSlideOver({
           <RescheduleProposalBanner booking={booking} />
         )}
         <div className="detail-grid">
-          <DetailItem label="Contact person" value={booking.contactName} />
+          <DetailItem label="Narahubung" value={booking.contactName} />
           <DetailItem label="NIK" value={booking.nik} />
           <DetailItem label="WhatsApp" value={booking.whatsapp} />
           <DetailItem label="Instansi" value={booking.institution} />
@@ -1288,9 +1371,11 @@ export function BookingSlideOver({
           onAccept={onAccept}
           onReject={onReject}
           onReschedule={onReschedule}
+          onEditSegments={onEditSegments}
           onMarkCompleted={onMarkCompleted}
           onConfirmReschedule={onConfirmReschedule}
           onCancelReschedule={onCancelReschedule}
+          onRejectRescheduledBooking={onRejectRescheduledBooking}
           onResendReschedule={onResendReschedule}
         />
       </aside>
@@ -1327,9 +1412,9 @@ export function AdminActionModal({
   });
   const [proposed, setProposed] = useState(availableSlots[0] ?? "");
   const titleMap = {
-    accept: "Setujui Booking",
-    reject: "Tolak Booking",
-    reschedule: "Tawarkan Reschedule",
+    accept: "Setujui booking",
+    reject: "Tolak booking",
+    reschedule: "Tawarkan jadwal lain",
   };
   const needsNote = modal.action !== "accept";
 
@@ -1376,6 +1461,133 @@ export function AdminActionModal({
             onClick={() => onConfirm(modal.action, modal.booking, note, proposed)}
           >
             {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Konfirmasi & Buka WhatsApp"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SegmentOverrideModal({
+  booking,
+  pendingLabel,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  booking: Booking;
+  pendingLabel?: string | null;
+  error?: string;
+  onClose: () => void;
+  onConfirm: (booking: Booking, segments: BookingSegment[], note: string) => void;
+}) {
+  const [rows, setRows] = useState(() =>
+    bookingSegments(booking).map((segment) => ({
+      date: segment.date,
+      time: segment.time,
+      groupSize: String(segment.groupSize),
+    })),
+  );
+  const [note, setNote] = useState("Penggabungan kloter manual oleh admin.");
+  const total = rows.reduce((sum, row) => sum + Number(row.groupSize || 0), 0);
+  const busy = Boolean(pendingLabel);
+  const invalid =
+    rows.length < 1 ||
+    rows.some((row) => !row.date || !/^\d{2}\.\d{2}$/.test(row.time) || Number(row.groupSize) < 1) ||
+    total !== booking.groupSize;
+
+  const updateRow = (index: number, patch: Partial<(typeof rows)[number]>) => {
+    setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+  };
+
+  const submit = () => {
+    if (invalid || busy) return;
+    onConfirm(
+      booking,
+      rows.map((row, index) => ({
+        order: index + 1,
+        date: row.date,
+        dateLabel: row.date,
+        time: row.time,
+        groupSize: Number(row.groupSize),
+      })),
+      note,
+    );
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="modal-card" role="dialog" aria-modal="true" aria-label="Atur kloter manual">
+        <button
+          className="modal-close"
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup modal"
+          disabled={busy}
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
+        <h2>Atur kloter manual</h2>
+        <p>
+          {booking.code} - total <strong>{booking.groupSize}</strong> peserta. Total kloter harus tetap sama.
+        </p>
+        <div className="kloter-detail-list" aria-label="Editor pembagian kloter">
+          {rows.map((row, index) => (
+            <div className="kloter-detail-row" key={index}>
+              <strong>Kloter {index + 1}</strong>
+              <input
+                type="date"
+                value={row.date}
+                onChange={(event) => updateRow(index, { date: event.target.value })}
+              />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={row.time}
+                placeholder="08.00"
+                onChange={(event) => updateRow(index, { time: event.target.value })}
+              />
+              <input
+                type="number"
+                min={1}
+                value={row.groupSize}
+                onChange={(event) => updateRow(index, { groupSize: event.target.value })}
+              />
+              {rows.length > 1 && (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
+                  disabled={busy}
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="button button-outline"
+          onClick={() => setRows((current) => [...current, { date: booking.date, time: booking.time, groupSize: "1" }])}
+          disabled={busy || rows.length >= 7}
+        >
+          Tambah kloter
+        </button>
+        <p className={total === booking.groupSize ? "form-message" : "form-message form-message--error"}>
+          Total saat ini: {total} / {booking.groupSize} peserta.
+        </p>
+        <label className="form-field">
+          <span>Catatan admin</span>
+          <textarea value={note} onChange={(event) => setNote(event.target.value)} />
+        </label>
+        {error && <strong className="form-message form-message--error">{error}</strong>}
+        <div className="modal-actions">
+          <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>
+            Batal
+          </button>
+          <button className="button button-primary" type="button" disabled={invalid || busy} onClick={submit}>
+            {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Simpan kloter manual"}
           </button>
         </div>
       </div>

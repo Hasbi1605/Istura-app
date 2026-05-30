@@ -57,6 +57,18 @@ const firstValidationMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const emptyDraft = {
+  step: 0,
+  rating: 0,
+  bookingEase: 0,
+  service: 0,
+  recommend: null as number | null,
+  highlights: [] as string[],
+  improvements: [] as string[],
+  comment: "",
+  allowPublish: false,
+};
+
 export function FeedbackScreen({
   bookings,
   submittedCode,
@@ -165,11 +177,24 @@ export function FeedbackScreen({
 
   // Restore draft from localStorage
   useEffect(() => {
+    setStep(emptyDraft.step);
+    setRating(emptyDraft.rating);
+    setBookingEase(emptyDraft.bookingEase);
+    setService(emptyDraft.service);
+    setRecommend(emptyDraft.recommend);
+    setHighlights(emptyDraft.highlights);
+    setImprovements(emptyDraft.improvements);
+    setComment(emptyDraft.comment);
+    setAllowPublish(emptyDraft.allowPublish);
+    setError("");
+    setSubmitted(false);
+
     if (!storageKey) return;
     try {
       const raw = window.localStorage.getItem(storageKey);
       if (!raw) return;
       const draft = JSON.parse(raw) as Partial<Feedback>;
+      if (typeof (draft as Partial<typeof emptyDraft>).step === "number") setStep((draft as Partial<typeof emptyDraft>).step ?? 0);
       if (typeof draft.rating === "number") setRating(draft.rating);
       if (typeof draft.bookingEase === "number") setBookingEase(draft.bookingEase);
       if (typeof draft.service === "number") setService(draft.service);
@@ -187,6 +212,7 @@ export function FeedbackScreen({
   useEffect(() => {
     if (!storageKey || submitted) return;
     const draft = {
+      step,
       rating,
       bookingEase,
       service,
@@ -203,6 +229,7 @@ export function FeedbackScreen({
     }
   }, [
     storageKey,
+    step,
     rating,
     bookingEase,
     service,

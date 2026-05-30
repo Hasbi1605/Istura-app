@@ -67,7 +67,7 @@ export type Booking = {
   status: BookingStatus;
   documentName: string;
   hasDocument?: boolean;
-  submittedAt: string;
+  submittedAt: string | null;
   leadTimeDays?: number | null;
   isShortNotice?: boolean;
   note?: string;

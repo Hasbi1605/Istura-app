@@ -119,7 +119,7 @@ export function BookingExportModal({
       onClose();
     } catch (err) {
       console.error("[BookingExportModal] export failed", err);
-      setError("Export gagal. Coba sebentar lagi atau periksa koneksi.");
+      setError("Ekspor gagal. Coba sebentar lagi atau periksa koneksi.");
       setBusy(false);
     }
   };
@@ -128,16 +128,16 @@ export function BookingExportModal({
     {
       value: "all",
       label: "Semua",
-      hint: "Berisi booking Completed dan Rejected.",
+      hint: "Berisi booking selesai dan ditolak.",
     },
     {
       value: "completed",
-      label: "Completed only",
+      label: "Selesai saja",
       hint: "Hanya kunjungan yang sudah benar-benar terjadi.",
     },
     {
       value: "rejected",
-      label: "Rejected only",
+      label: "Ditolak saja",
       hint: "Hanya permohonan yang ditolak.",
     },
   ];
@@ -146,7 +146,7 @@ export function BookingExportModal({
     { value: "week", label: "Minggu ini" },
     { value: "month", label: "Bulan ini" },
     { value: "year", label: "Tahun ini" },
-    { value: "custom", label: "Custom" },
+    { value: "custom", label: "Kustom" },
   ];
 
   return (
@@ -163,7 +163,7 @@ export function BookingExportModal({
         onClick={(event) => event.stopPropagation()}
       >
         <header className="admin-modal-head">
-          <h2 id="booking-export-title">Export laporan booking</h2>
+          <h2 id="booking-export-title">Ekspor laporan booking</h2>
           <button
             type="button"
             className="admin-modal-close"
@@ -416,7 +416,7 @@ export function FeedbackExportModal({
       onClose();
     } catch (err) {
       console.error("[FeedbackExportModal] export failed", err);
-      setError("Export gagal. Coba sebentar lagi atau periksa koneksi.");
+      setError("Ekspor gagal. Coba sebentar lagi atau periksa koneksi.");
       setBusy(false);
     }
   };
@@ -439,7 +439,7 @@ export function FeedbackExportModal({
     { value: "week", label: "Minggu ini" },
     { value: "month", label: "Bulan ini" },
     { value: "year", label: "Tahun ini" },
-    { value: "custom", label: "Custom" },
+    { value: "custom", label: "Kustom" },
   ];
 
   return (
@@ -456,7 +456,7 @@ export function FeedbackExportModal({
         onClick={(event) => event.stopPropagation()}
       >
         <header className="admin-modal-head">
-          <h2 id="feedback-export-title">Export laporan feedback</h2>
+          <h2 id="feedback-export-title">Ekspor laporan feedback</h2>
           <button
             type="button"
             className="admin-modal-close"

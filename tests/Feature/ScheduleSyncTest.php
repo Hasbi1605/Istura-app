@@ -63,6 +63,112 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Booked', $this->slotFromResponse($response->json('data'), $date, '09.00')['status']);
     }
 
+    public function test_admin_available_override_allows_manual_overbooking_active_slot(): void
+    {
+        Storage::fake('local');
+        $date = '2026-06-04';
+        $this->actingAsAdmin();
+
+        $this->createBooking([
+            'date' => $date,
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => $date,
+            'time' => '08.00',
+            'status' => 'Available',
+            'note' => 'Admin membuka slot untuk penggabungan kloter manual.',
+        ])->assertOk();
+
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '08.00')['status']);
+
+        $response = $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => $date,
+            'time' => '08.00',
+            'contactName' => 'Tamu Override',
+        ]), ['Accept' => 'application/json']);
+
+        $response->assertCreated();
+        $this->assertDatabaseCount('bookings', 2);
+    }
+
+    public function test_completed_booking_releases_schedule_slot(): void
+    {
+        $date = '2026-05-28';
+        $booking = $this->createBooking([
+            'date' => $date,
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->actingAsAdmin();
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'Completed');
+
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '08.00')['status']);
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'status' => 'Completed',
+            'active_slot_key' => null,
+        ]);
+    }
+
+    public function test_admin_cannot_complete_future_booking(): void
+    {
+        $booking = $this->createBooking([
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->actingAsAdmin();
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'status' => 'Accepted',
+            'completed_at' => null,
+        ]);
+    }
+
+    public function test_admin_schedule_override_rejects_system_statuses_and_past_dates(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Booked',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('status');
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => '2026-05-29',
+            'time' => '08.00',
+            'status' => 'Available',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('date');
+
+        $this->postJson('/api/admin/schedule/range', [
+            'from' => '2026-05-29',
+            'to' => '2026-06-01',
+            'status' => 'Closed',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('from');
+    }
+
     public function test_public_booking_rejects_closed_slot(): void
     {
         Storage::fake('local');
@@ -391,6 +497,159 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_reschedule_proposal_reserves_new_slot_until_user_decides(): void
+    {
+        Storage::fake('local');
+        $this->actingAsAdmin();
+        $date = '2026-06-01';
+        $booking = $this->createBooking([
+            'date' => $date,
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => $date,
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jam 10.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule')
+            ->assertJsonPath('data.proposedSegments.0.time', '10.00');
+
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Reschedule Hold', $this->slotFromResponse($schedule, $date, '09.00')['status']);
+        $this->assertSame('Reschedule Hold', $this->slotFromResponse($schedule, $date, '10.00')['status']);
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => $date,
+            'time' => '10.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('time');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule/cancel", [
+            'note' => 'User menolak usulan.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Accepted')
+            ->assertJsonPath('data.proposedDate', null);
+
+        $afterCancel = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Booked', $this->slotFromResponse($afterCancel, $date, '09.00')['status']);
+        $this->assertSame('Available', $this->slotFromResponse($afterCancel, $date, '10.00')['status']);
+    }
+
+    public function test_cancel_reschedule_restores_pending_when_original_booking_was_pending(): void
+    {
+        Storage::fake('local');
+        $this->actingAsAdmin();
+        $date = '2026-06-01';
+        $booking = $this->createBooking([
+            'date' => $date,
+            'time' => '09.00',
+            'status' => 'Pending',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => $date,
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jam 10.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule');
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'reschedule_previous_status' => 'Pending',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule/cancel", [
+            'note' => 'User menolak usulan.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Pending')
+            ->assertJsonPath('data.proposedDate', null);
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'status' => 'Pending',
+            'reschedule_previous_status' => null,
+        ]);
+
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Held', $this->slotFromResponse($schedule, $date, '09.00')['status']);
+        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '10.00')['status']);
+    }
+
+    public function test_accepting_reschedule_moves_to_reserved_proposed_slot(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-01';
+        $booking = $this->createBooking([
+            'date' => $date,
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => $date,
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jam 10.',
+        ])->assertOk();
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/accept")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'Accepted')
+            ->assertJsonPath('data.time', '10.00')
+            ->assertJsonPath('data.segments.0.time', '10.00');
+
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '09.00')['status']);
+        $this->assertSame('Booked', $this->slotFromResponse($schedule, $date, '10.00')['status']);
+        $this->assertDatabaseMissing('booking_slots', [
+            'booking_id' => $booking->id,
+            'kind' => 'proposed',
+        ]);
+    }
+
+    public function test_rejecting_reschedule_cancels_booking_and_releases_old_and_proposed_slots(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-01';
+        $booking = $this->createBooking([
+            'date' => $date,
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => $date,
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jam 10.',
+        ])->assertOk();
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reject", [
+            'note' => 'Jadwal tidak dapat diakomodasi.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Rejected')
+            ->assertJsonPath('data.proposedDate', null);
+
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '09.00')['status']);
+        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '10.00')['status']);
+        $this->assertDatabaseMissing('booking_slots', [
+            'booking_id' => $booking->id,
+            'kind' => 'proposed',
+        ]);
+    }
+
     public function test_viewer_cannot_mutate_schedule_or_cms(): void
     {
         ScheduleOverride::create([
@@ -556,6 +815,58 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Held', $this->slotFromResponse($schedule, '2026-06-04', '11.00')['status']);
         $this->assertSame('Held', $this->slotFromResponse($schedule, '2026-06-04', '12.00')['status']);
         $this->assertSame('Available', $this->slotFromResponse($schedule, '2026-06-04', '13.00')['status']);
+    }
+
+    public function test_admin_can_merge_large_group_kloters_manually(): void
+    {
+        Storage::fake('local');
+
+        $response = $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-04',
+            'time' => '08.00',
+            'groupSize' => 200,
+        ]), ['Accept' => 'application/json']);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.kloterCount', 3);
+
+        $code = $response->json('data.code');
+        $this->actingAsAdmin();
+
+        $this->postJson("/api/admin/bookings/{$code}/segments", [
+            'segments' => [
+                ['date' => '2026-06-04', 'time' => '08.00', 'groupSize' => 100],
+                ['date' => '2026-06-04', 'time' => '09.00', 'groupSize' => 100],
+            ],
+            'note' => 'User meminta penggabungan dari 3 kloter menjadi 2 kloter.',
+        ])->assertOk()
+            ->assertJsonPath('data.kloterCount', 2)
+            ->assertJsonPath('data.segments.0.groupSize', 100)
+            ->assertJsonPath('data.segments.1.groupSize', 100)
+            ->assertJsonPath('data.note', 'User meminta penggabungan dari 3 kloter menjadi 2 kloter.');
+
+        $booking = Booking::where('code', $code)->firstOrFail();
+        $this->assertDatabaseCount('booking_slots', 2);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 1,
+            'time' => '08.00',
+            'group_size' => 100,
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 2,
+            'time' => '09.00',
+            'group_size' => 100,
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$code}/segments", [
+            'segments' => [
+                ['date' => '2026-06-04', 'time' => '08.00', 'groupSize' => 80],
+                ['date' => '2026-06-04', 'time' => '09.00', 'groupSize' => 80],
+            ],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('segments');
     }
 
     public function test_public_booking_at_slot_capacity_stays_single_normal_booking(): void
