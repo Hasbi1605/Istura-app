@@ -39,7 +39,7 @@ import {
   type ApiHero,
   type ApiLetter,
 } from "../api/cms";
-import { ADMIN_BOOKINGS_CHANNEL, getEcho } from "../realtime/echo";
+import { ADMIN_BOOKINGS_CHANNEL, PUBLIC_SCHEDULE_CHANNEL, getEcho } from "../realtime/echo";
 import { apiBookingToLocal, apiFeedbackToLocal, apiVisitDayToLocal } from "../api/adapters";
 
 export type FeedbackAccess = { code: string; token: string } | null;
@@ -425,6 +425,36 @@ export function useIsturaData(): IsturaData {
 			});
     return () => {
       cancelled = true;
+    };
+  }, [adminSession]);
+
+  // Realtime: jadwal publik ikut berubah saat admin membuka/menutup slot.
+  useEffect(() => {
+    const echo = getEcho();
+    if (!echo) return;
+    let active = true;
+    const channel = echo.channel(PUBLIC_SCHEDULE_CHANNEL);
+    const refreshSchedule = () => {
+      setLoading((current) => ({ ...current, schedule: true }));
+      const fetcher = adminSession ? fetchAdminSchedule : fetchPublicSchedule;
+      fetcher()
+        .then((days) => {
+          if (active) setSchedules(days.map(apiVisitDayToLocal));
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) setLoading((current) => ({ ...current, schedule: false }));
+        });
+    };
+    channel.listen(".schedule.updated", refreshSchedule);
+    return () => {
+      active = false;
+      try {
+        channel.stopListening(".schedule.updated");
+        echo.leave(PUBLIC_SCHEDULE_CHANNEL);
+      } catch {
+        /* ignore */
+      }
     };
   }, [adminSession]);
 

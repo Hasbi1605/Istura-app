@@ -1,5 +1,5 @@
 // Singleton Echo instance untuk subscription realtime.
-// Hanya dimuat saat user admin login (lazy instantiate via getEcho()).
+// Dimuat lazy saat halaman butuh channel public/admin.
 
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
@@ -41,3 +41,4 @@ export function destroyEcho(): void {
 }
 
 export const ADMIN_BOOKINGS_CHANNEL = "admin.bookings";
+export const PUBLIC_SCHEDULE_CHANNEL = "public.schedule";

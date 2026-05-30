@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DestroyScheduleSlotRequest;
 use App\Http\Requests\Admin\StoreScheduleRangeRequest;
@@ -40,6 +41,8 @@ class ScheduleController extends Controller
             ['status' => $data['status'], 'custom' => true, 'note' => $data['note'] ?? null],
         );
 
+        ScheduleUpdated::dispatch($data['date'], $data['date']);
+
         return response()->json(['data' => $override]);
     }
 
@@ -50,6 +53,8 @@ class ScheduleController extends Controller
         ScheduleOverride::whereDate('date', $data['date'])
             ->where('time', $data['time'])
             ->delete();
+
+        ScheduleUpdated::dispatch($data['date'], $data['date']);
 
         return response()->json(['ok' => true]);
     }
@@ -76,6 +81,8 @@ class ScheduleController extends Controller
                 }
             }
         });
+
+        ScheduleUpdated::dispatch($data['from'], $data['to']);
 
         return response()->json(['ok' => true]);
     }
