@@ -23,8 +23,8 @@ class AuthController extends Controller
         }
 
         $user = $request->user();
-        if (! $user->email_verified_at) {
-            Auth::guard('web')->logout();
+        if (! $user->isActive()) {
+            $this->logoutCurrentSession($request);
 
             throw ValidationException::withMessages([
                 'email' => ['Akun ini sedang nonaktif. Hubungi Super Admin.'],
@@ -55,8 +55,24 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        if ($user && ! $user->isActive()) {
+            $this->logoutCurrentSession($request);
+
+            return response()->json(['user' => null]);
+        }
+
         return response()->json([
             'user' => $user ? new UserResource($user) : null,
         ]);
+    }
+
+    private function logoutCurrentSession(Request $request): void
+    {
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
     }
 }

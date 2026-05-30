@@ -61,6 +61,8 @@ class UserController extends Controller
             'status' => ['sometimes', Rule::in(['Aktif', 'Nonaktif'])],
         ]);
 
+        $this->assertUserUpdateKeepsSuperAdminAccess($request->user(), $user, $data);
+
         if (array_key_exists('name', $data)) {
             $user->name = $data['name'];
         }
@@ -98,6 +100,8 @@ class UserController extends Controller
             ]);
         }
 
+        $this->assertCanRemoveUser($user);
+
         $targetEmail = $user->email;
         $targetId = $user->id;
         $user->delete();
@@ -110,5 +114,53 @@ class UserController extends Controller
     private function authorizeSuperAdmin(Request $request): void
     {
         abort_unless($request->user()?->isSuperAdmin(), 403, 'Hanya Super Admin yang dapat mengelola pengguna.');
+    }
+
+    private function assertUserUpdateKeepsSuperAdminAccess(User $actor, User $target, array $data): void
+    {
+        if ($actor->id === $target->id) {
+            if (($data['role'] ?? $target->role) !== User::ROLE_SUPER_ADMIN) {
+                throw ValidationException::withMessages([
+                    'user' => ['Tidak dapat menurunkan peran akun yang sedang login.'],
+                ]);
+            }
+
+            if (($data['status'] ?? 'Aktif') === 'Nonaktif') {
+                throw ValidationException::withMessages([
+                    'user' => ['Tidak dapat menonaktifkan akun yang sedang login.'],
+                ]);
+            }
+        }
+
+        $nextRole = $data['role'] ?? $target->role;
+        $nextActive = array_key_exists('status', $data)
+            ? $data['status'] === 'Aktif'
+            : $target->isActive();
+
+        if ($target->isActiveSuperAdmin() && ($nextRole !== User::ROLE_SUPER_ADMIN || ! $nextActive)) {
+            $this->assertAnotherActiveSuperAdminExists($target);
+        }
+    }
+
+    private function assertCanRemoveUser(User $target): void
+    {
+        if ($target->isActiveSuperAdmin()) {
+            $this->assertAnotherActiveSuperAdminExists($target);
+        }
+    }
+
+    private function assertAnotherActiveSuperAdminExists(User $target): void
+    {
+        $anotherActiveSuperAdminExists = User::query()
+            ->where('role', User::ROLE_SUPER_ADMIN)
+            ->whereNotNull('email_verified_at')
+            ->whereKeyNot($target->id)
+            ->exists();
+
+        if (! $anotherActiveSuperAdminExists) {
+            throw ValidationException::withMessages([
+                'user' => ['Minimal harus ada satu Super Admin aktif.'],
+            ]);
+        }
     }
 }

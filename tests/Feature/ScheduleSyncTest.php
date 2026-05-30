@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Feedback;
 use App\Models\ScheduleOverride;
 use App\Models\User;
+use App\Services\BookingService;
 use App\Services\ScheduleService;
 use App\Support\SiteContentDefaults;
 use Carbon\Carbon;
@@ -15,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -268,6 +270,28 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_super_admin_cannot_disable_or_demote_self(): void
+    {
+        $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]);
+        Sanctum::actingAs($superAdmin);
+
+        $this->putJson("/api/admin/users/{$superAdmin->id}", [
+            'role' => User::ROLE_ADMIN,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('user');
+
+        $this->putJson("/api/admin/users/{$superAdmin->id}", [
+            'status' => 'Nonaktif',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('user');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $superAdmin->id,
+            'role' => User::ROLE_SUPER_ADMIN,
+        ]);
+        $this->assertNotNull($superAdmin->fresh()->email_verified_at);
+    }
+
     public function test_admin_document_endpoint_serves_uploaded_file_and_404s_when_missing(): void
     {
         Storage::fake('local');
@@ -419,6 +443,16 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('email');
     }
 
+    public function test_inactive_existing_admin_session_cannot_access_admin_api(): void
+    {
+        Sanctum::actingAs(User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'email_verified_at' => null,
+        ]));
+
+        $this->getJson('/api/admin/bookings')->assertForbidden();
+    }
+
     public function test_public_booking_allows_h1_to_h4_and_rejects_same_day(): void
     {
         Storage::fake('local');
@@ -470,6 +504,13 @@ class ScheduleSyncTest extends TestCase
         ]), ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('document');
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-04',
+            'whatsapp' => 'nomor-rusak',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('whatsapp');
     }
 
     public function test_public_booking_splits_large_group_into_consecutive_kloters(): void
@@ -619,6 +660,26 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('status');
     }
 
+    public function test_booking_transition_reloads_current_status_inside_transaction(): void
+    {
+        $admin = $this->actingAsAdmin();
+
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-STALE',
+            'status' => 'Pending',
+        ]);
+        $staleBooking = Booking::whereKey($booking->id)->firstOrFail();
+
+        Booking::whereKey($booking->id)->update(['status' => 'Accepted']);
+
+        try {
+            app(BookingService::class)->accept($staleBooking, $admin);
+            $this->fail('Stale booking transition should have failed.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('status', $exception->errors());
+        }
+    }
+
     public function test_schedule_ranges_are_bounded(): void
     {
         $this->getJson('/api/public/schedule?from=2026-06-01&to=2027-06-01')
@@ -633,6 +694,27 @@ class ScheduleSyncTest extends TestCase
             'status' => 'Closed',
         ])->assertStatus(422)
             ->assertJsonValidationErrors('to');
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => '2026-06-01',
+            'time' => '99.99',
+            'status' => 'Available',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('time');
+
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-RANGE',
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-09-01',
+            'proposedTime' => '09.00',
+            'note' => 'Di luar horizon.',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('proposedDate');
     }
 
     public function test_admin_schedule_mutations_broadcast_schedule_updates(): void

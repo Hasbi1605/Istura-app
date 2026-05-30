@@ -21,7 +21,9 @@ class User extends Authenticatable
      * Role accessors mirror the legacy admin shapes from the React app.
      */
     public const ROLE_SUPER_ADMIN = 'super_admin';
+
     public const ROLE_ADMIN = 'admin';
+
     public const ROLE_VIEWER = 'viewer';
 
     /**
@@ -40,11 +42,21 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->role === self::ROLE_SUPER_ADMIN;
+        return $this->isActive() && $this->role === self::ROLE_SUPER_ADMIN;
     }
 
     public function isAdmin(): bool
     {
-        return in_array($this->role, [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN], true);
+        return $this->isActive() && in_array($this->role, [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN], true);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->email_verified_at !== null;
+    }
+
+    public function isActiveSuperAdmin(): bool
+    {
+        return $this->isActive() && $this->role === self::ROLE_SUPER_ADMIN;
     }
 }
