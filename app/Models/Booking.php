@@ -13,7 +13,7 @@ class Booking extends Model
 {
     public const STATUSES = ['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed'];
 
-    public const ACTIVE_STATUSES = ['Pending', 'Accepted', 'Reschedule', 'Completed'];
+    public const ACTIVE_STATUSES = ['Pending', 'Accepted', 'Reschedule'];
 
     protected $guarded = [];
 

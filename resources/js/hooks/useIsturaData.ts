@@ -155,6 +155,9 @@ export function useIsturaData(): IsturaData {
   const faqsHydratedRef = useRef(false);
   const contactsHydratedRef = useRef(false);
   const waHydratedRef = useRef(false);
+  const faqsBaselineRef = useRef<string | null>(null);
+  const contactsBaselineRef = useRef<string | null>(null);
+  const waBaselineRef = useRef<string | null>(null);
 
   // Admin auth + UI state. Sesi dijaga oleh Sanctum cookie di server; state
   // ini hanya snapshot di memori untuk render cepat.
@@ -168,6 +171,8 @@ export function useIsturaData(): IsturaData {
 		writeCmsCollection("istura-faqs", faqs);
 		if (!faqsHydratedRef.current) return;
 		if (!adminSession) return;
+		const serialized = JSON.stringify(faqs);
+		if (faqsBaselineRef.current === serialized) return;
 		markCmsSync(setCmsSync, "faqs", "saving");
 		void updateAdminFaqs(
 			faqs.map((f) => ({
@@ -178,7 +183,10 @@ export function useIsturaData(): IsturaData {
         ...(f.link ? { link: f.link } : {}),
       })),
 		)
-			.then(() => markCmsSync(setCmsSync, "faqs", "saved"))
+			.then(() => {
+          faqsBaselineRef.current = serialized;
+          markCmsSync(setCmsSync, "faqs", "saved");
+        })
 			.catch(() => markCmsSync(setCmsSync, "faqs", "error"));
 	}, [faqs, adminSession]);
 
@@ -186,6 +194,8 @@ export function useIsturaData(): IsturaData {
 		writeCmsCollection("istura-contacts", contacts);
 		if (!contactsHydratedRef.current) return;
 		if (!adminSession) return;
+		const serialized = JSON.stringify(contacts);
+		if (contactsBaselineRef.current === serialized) return;
 		markCmsSync(setCmsSync, "contacts", "saving");
 		void updateAdminContacts(
       contacts.map((c) => ({
@@ -196,7 +206,10 @@ export function useIsturaData(): IsturaData {
         iconKey: c.iconKey,
       })),
 		)
-			.then(() => markCmsSync(setCmsSync, "contacts", "saved"))
+			.then(() => {
+          contactsBaselineRef.current = serialized;
+          markCmsSync(setCmsSync, "contacts", "saved");
+        })
 			.catch(() => markCmsSync(setCmsSync, "contacts", "error"));
 	}, [contacts, adminSession]);
 
@@ -205,6 +218,8 @@ export function useIsturaData(): IsturaData {
 		setActiveWaTemplates(waTemplates);
 		if (!waHydratedRef.current) return;
 		if (!adminSession) return;
+		const serialized = JSON.stringify(waTemplates);
+		if (waBaselineRef.current === serialized) return;
 		markCmsSync(setCmsSync, "waTemplates", "saving");
 		void updateAdminWaTemplates(
       waTemplates.map((t) => ({
@@ -214,7 +229,10 @@ export function useIsturaData(): IsturaData {
         template: t.template,
       })),
 		)
-			.then(() => markCmsSync(setCmsSync, "waTemplates", "saved"))
+			.then(() => {
+          waBaselineRef.current = serialized;
+          markCmsSync(setCmsSync, "waTemplates", "saved");
+        })
 			.catch(() => markCmsSync(setCmsSync, "waTemplates", "error"));
 	}, [waTemplates, adminSession]);
 
@@ -263,16 +281,19 @@ export function useIsturaData(): IsturaData {
       .then((items) => {
         if (cancelled) return;
         if (items.length > 0) {
-          setFaqs(
-            items.map((it) => ({
+          const nextFaqs = items.map((it) => ({
               id: it.id,
               question: it.question,
               answer: it.answer,
               ...(it.link ? { link: it.link } : {}),
-            })) as FaqItem[],
-          );
+            })) as FaqItem[];
+          faqsBaselineRef.current = JSON.stringify(nextFaqs);
+          setFaqs(nextFaqs);
         } else if (!ALLOW_DEMO_FALLBACK) {
+          faqsBaselineRef.current = JSON.stringify([]);
           setFaqs([]);
+        } else {
+          faqsBaselineRef.current = JSON.stringify(faqs);
         }
         // Use rAF to set hydrated flag AFTER the state update has flushed,
         // so the persistence effect can detect "hydrated" reliably.
@@ -282,6 +303,7 @@ export function useIsturaData(): IsturaData {
       })
 			.catch(() => {
 				if (!ALLOW_DEMO_FALLBACK) setFaqs([]);
+				faqsBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? faqs : []);
 				faqsHydratedRef.current = true;
 			})
 			.finally(finishPublicRequest);
@@ -290,16 +312,19 @@ export function useIsturaData(): IsturaData {
       .then((items) => {
         if (cancelled) return;
         if (items.length > 0) {
-          setContacts(
-            items.map((it) => ({
+          const nextContacts = items.map((it) => ({
               label: it.label,
               value: it.value,
               href: it.href ?? "",
               iconKey: it.iconKey,
-            })),
-          );
+            }));
+          contactsBaselineRef.current = JSON.stringify(nextContacts);
+          setContacts(nextContacts);
         } else if (!ALLOW_DEMO_FALLBACK) {
+          contactsBaselineRef.current = JSON.stringify([]);
           setContacts([]);
+        } else {
+          contactsBaselineRef.current = JSON.stringify(contacts);
         }
         requestAnimationFrame(() => {
           contactsHydratedRef.current = true;
@@ -307,6 +332,7 @@ export function useIsturaData(): IsturaData {
       })
 			.catch(() => {
 				if (!ALLOW_DEMO_FALLBACK) setContacts([]);
+				contactsBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? contacts : []);
 				contactsHydratedRef.current = true;
 			})
 			.finally(finishPublicRequest);
@@ -315,16 +341,19 @@ export function useIsturaData(): IsturaData {
       .then((items) => {
         if (cancelled) return;
         if (items.length > 0) {
-          setWaTemplates(
-            items.map((it) => ({
+          const nextWaTemplates = items.map((it) => ({
               id: it.id as BookingStatus,
               label: it.label,
               description: it.description,
               template: it.template,
-            })),
-          );
+            }));
+          waBaselineRef.current = JSON.stringify(nextWaTemplates);
+          setWaTemplates(nextWaTemplates);
         } else if (!ALLOW_DEMO_FALLBACK) {
+          waBaselineRef.current = JSON.stringify([]);
           setWaTemplates([]);
+        } else {
+          waBaselineRef.current = JSON.stringify(waTemplates);
         }
         requestAnimationFrame(() => {
           waHydratedRef.current = true;
@@ -332,6 +361,7 @@ export function useIsturaData(): IsturaData {
       })
 			.catch(() => {
 				if (!ALLOW_DEMO_FALLBACK) setWaTemplates([]);
+				waBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? waTemplates : []);
 				waHydratedRef.current = true;
 			})
 			.finally(finishPublicRequest);

@@ -48,7 +48,9 @@ class BookingResource extends JsonResource
 
     private function segments(): array
     {
-        $slots = $this->relationLoaded('slots') ? $this->slots : $this->slots()->get();
+        $slots = ($this->relationLoaded('slots') ? $this->slots : $this->slots()->get())
+            ->where('kind', 'active')
+            ->values();
         if ($slots->isEmpty()) {
             return [[
                 'order' => 1,

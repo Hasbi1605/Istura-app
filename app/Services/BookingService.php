@@ -120,6 +120,97 @@ class BookingService
         return $this->transitionTo($booking, 'Reschedule', $actor, 'reschedule', $note);
     }
 
+    public function cancelReschedule(Booking $booking, ?User $actor, ?string $note = null): Booking
+    {
+        return DB::transaction(function () use ($booking, $actor, $note) {
+            $booking = Booking::with('slots')
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($booking->status !== 'Reschedule') {
+                throw ValidationException::withMessages([
+                    'status' => ["Status {$booking->status} tidak dapat membatalkan usulan reschedule."],
+                ]);
+            }
+
+            $booking->status = $booking->reschedule_previous_status ?: 'Accepted';
+            $booking->proposed_date = null;
+            $booking->proposed_time = null;
+            $booking->proposed_date_label = null;
+            $booking->proposed_segments = null;
+            $booking->proposed_at = null;
+            $booking->reschedule_previous_status = null;
+            if ($note !== null) {
+                $booking->note = $note;
+            }
+            $booking->save();
+            $booking->slots()->where('kind', BookingSlot::KIND_PROPOSED)->delete();
+            $this->syncBookingSlotKeys($booking);
+
+            $this->logAudit($actor, "Membatalkan usulan reschedule booking {$booking->code}", $booking);
+            BookingStatusChanged::dispatch($booking->fresh()->load('slots'), 'Reschedule', 'reschedule-cancel');
+
+            return $booking->fresh()->load('slots');
+        });
+    }
+
+    /**
+     * Manual admin override for urgent operational cases, e.g. merging machine
+     * generated kloters from 3 slots into 2 larger slots after user contact.
+     *
+     * @param  array<int, array{date:string,time:string,groupSize:int}>  $segments
+     */
+    public function overrideSegments(Booking $booking, ?User $actor, array $segments, ?string $note = null): Booking
+    {
+        return DB::transaction(function () use ($booking, $actor, $segments, $note) {
+            $booking = Booking::with('slots')
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! in_array($booking->status, ['Pending', 'Accepted', 'Reschedule'], true)) {
+                throw ValidationException::withMessages([
+                    'status' => ["Status {$booking->status} tidak dapat diubah pembagian kloternya."],
+                ]);
+            }
+
+            $total = collect($segments)->sum(fn (array $segment) => (int) $segment['groupSize']);
+            if ($total !== (int) $booking->group_size) {
+                throw ValidationException::withMessages([
+                    'segments' => ["Total peserta kloter ({$total}) harus sama dengan jumlah rombongan ({$booking->group_size})."],
+                ]);
+            }
+
+            $normalized = collect($segments)->values()->map(function (array $segment, int $index) {
+                $date = Carbon::createFromFormat('Y-m-d', $segment['date'], 'Asia/Jakarta')->startOfDay();
+
+                return [
+                    'slot_order' => $index + 1,
+                    'date' => $date->toDateString(),
+                    'date_label' => $this->schedule->formatLongDate($date),
+                    'time' => $segment['time'],
+                    'group_size' => (int) $segment['groupSize'],
+                ];
+            })->all();
+
+            $first = $normalized[0];
+            $booking->date = Carbon::createFromFormat('Y-m-d', $first['date'], 'Asia/Jakarta')->startOfDay();
+            $booking->date_label = $first['date_label'];
+            $booking->time = $first['time'];
+            if ($note !== null) {
+                $booking->note = $note;
+            }
+            $booking->save();
+
+            $this->persistBookingSlots($booking, $normalized, $booking->isActiveForSchedule());
+            $this->logAudit($actor, "Mengubah pembagian kloter booking {$booking->code}", $booking);
+            BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments');
+
+            return $booking->fresh()->load('slots');
+        });
+    }
+
     private function transitionTo(
         Booking $booking,
         string $newStatus,
@@ -137,6 +228,7 @@ class BookingService
                         'proposed_date_label' => $booking->proposed_date_label,
                         'proposed_segments' => $booking->proposed_segments,
                         'proposed_at' => $booking->proposed_at,
+                        'reschedule_previous_status' => $booking->status,
                     ];
                 }
 
@@ -151,6 +243,7 @@ class BookingService
                     $booking->proposed_date_label = $preparedProposal['proposed_date_label'];
                     $booking->proposed_segments = $preparedProposal['proposed_segments'];
                     $booking->proposed_at = $preparedProposal['proposed_at'];
+                    $booking->reschedule_previous_status = $booking->reschedule_previous_status ?: $preparedProposal['reschedule_previous_status'];
                 }
 
                 $previous = $booking->status;
@@ -158,17 +251,21 @@ class BookingService
                 $replacementSegments = null;
 
                 if ($newStatus === 'Accepted' && $booking->status === 'Reschedule' && $booking->proposed_date && $booking->proposed_time) {
-                    $proposedDate = Carbon::parse($booking->proposed_date, 'Asia/Jakarta')->startOfDay();
-                    $replacementSegments = $this->buildSlotSegments($proposedDate, $booking->proposed_time, $booking->group_size, true, $booking->id);
+                    $replacementSegments = $this->proposedSlotsAsSegments($booking);
+                    if ($replacementSegments === []) {
+                        $proposedDate = Carbon::parse($booking->proposed_date, 'Asia/Jakarta')->startOfDay();
+                        $replacementSegments = $this->buildSlotSegments($proposedDate, $booking->proposed_time, $booking->group_size, true, $booking->id);
+                    }
 
-                    $booking->date = $proposedDate;
-                    $booking->date_label = $this->schedule->formatLongDate($proposedDate);
+                    $booking->date = Carbon::createFromFormat('Y-m-d', $replacementSegments[0]['date'], 'Asia/Jakarta')->startOfDay();
+                    $booking->date_label = $replacementSegments[0]['date_label'];
                     $booking->time = $replacementSegments[0]['time'];
                     $booking->proposed_date = null;
                     $booking->proposed_time = null;
                     $booking->proposed_date_label = null;
                     $booking->proposed_segments = null;
                     $booking->proposed_at = null;
+                    $booking->reschedule_previous_status = null;
                 }
 
                 if ($newStatus === 'Reschedule' && $booking->proposed_date && $booking->proposed_time) {
@@ -182,9 +279,16 @@ class BookingService
                     $booking->proposed_date_label = null;
                     $booking->proposed_segments = null;
                     $booking->proposed_at = null;
+                    $booking->reschedule_previous_status = null;
+                    $booking->slots()->where('kind', BookingSlot::KIND_PROPOSED)->delete();
                 }
 
                 if ($newStatus === 'Completed') {
+                    if ($booking->date && $booking->date->gt(Carbon::today('Asia/Jakarta'))) {
+                        throw ValidationException::withMessages([
+                            'status' => ['Booking belum dapat ditandai selesai sebelum tanggal kunjungan.'],
+                        ]);
+                    }
                     $booking->completed_at = now();
                 }
 
@@ -196,6 +300,9 @@ class BookingService
                 if ($replacementSegments !== null) {
                     $this->persistBookingSlots($booking, $replacementSegments, $booking->isActiveForSchedule());
                 } else {
+                    if ($newStatus === 'Reschedule' && $booking->proposed_segments) {
+                        $this->persistProposedBookingSlots($booking, $booking->proposed_segments);
+                    }
                     $this->syncBookingSlotKeys($booking);
                 }
 
@@ -301,10 +408,12 @@ class BookingService
      */
     private function persistBookingSlots(Booking $booking, array $segments, bool $active): void
     {
-        $booking->slots()->delete();
+        $booking->slots()->where('kind', BookingSlot::KIND_ACTIVE)->delete();
+        $booking->slots()->where('kind', BookingSlot::KIND_PROPOSED)->delete();
 
         foreach ($segments as $segment) {
             $booking->slots()->create([
+                'kind' => BookingSlot::KIND_ACTIVE,
                 'slot_order' => $segment['slot_order'],
                 'date' => $segment['date'],
                 'date_label' => $segment['date_label'],
@@ -315,11 +424,46 @@ class BookingService
         }
     }
 
+    private function persistProposedBookingSlots(Booking $booking, array $segments): void
+    {
+        $booking->slots()->where('kind', BookingSlot::KIND_PROPOSED)->delete();
+
+        foreach ($segments as $segment) {
+            $booking->slots()->create([
+                'kind' => BookingSlot::KIND_PROPOSED,
+                'slot_order' => $segment['slot_order'] ?? $segment['order'],
+                'date' => $segment['date'],
+                'date_label' => $segment['date_label'] ?? $segment['dateLabel'],
+                'time' => $segment['time'],
+                'group_size' => $segment['group_size'] ?? $segment['groupSize'],
+                'active_slot_key' => BookingSlot::slotKey($segment['date'], $segment['time']),
+            ]);
+        }
+    }
+
+    private function proposedSlotsAsSegments(Booking $booking): array
+    {
+        return $booking->slots()
+            ->where('kind', BookingSlot::KIND_PROPOSED)
+            ->orderBy('slot_order')
+            ->get()
+            ->map(fn (BookingSlot $slot) => [
+                'slot_order' => $slot->slot_order,
+                'date' => $slot->date->toDateString(),
+                'date_label' => $slot->date_label,
+                'time' => $slot->time,
+                'group_size' => $slot->group_size,
+            ])
+            ->all();
+    }
+
     private function syncBookingSlotKeys(Booking $booking): void
     {
         $active = $booking->isActiveForSchedule();
         $booking->slots()->get()->each(function (BookingSlot $slot) use ($active) {
-            $slot->active_slot_key = $active ? BookingSlot::slotKey($slot->date, $slot->time) : null;
+            $slot->active_slot_key = ($active || $slot->kind === BookingSlot::KIND_PROPOSED)
+                ? BookingSlot::slotKey($slot->date, $slot->time)
+                : null;
             $slot->save();
         });
     }

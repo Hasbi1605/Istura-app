@@ -30,7 +30,7 @@ Route::prefix('public')->group(function () {
         Route::post('bookings', [PublicBookingController::class, 'store']);
     });
 
-    Route::get('feedback/{code}', [PublicFeedbackController::class, 'show']);
+    Route::get('feedback/{code}', [PublicFeedbackController::class, 'show'])->middleware('throttle:public-feedback');
     Route::post('feedback/{code}', [PublicFeedbackController::class, 'store'])->middleware('throttle:public-feedback');
 });
 
@@ -56,6 +56,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('bookings/{code}/accept', [AdminBookingController::class, 'accept']);
     Route::post('bookings/{code}/reject', [AdminBookingController::class, 'reject']);
     Route::post('bookings/{code}/reschedule', [AdminBookingController::class, 'reschedule']);
+    Route::post('bookings/{code}/reschedule/cancel', [AdminBookingController::class, 'cancelReschedule']);
+    Route::post('bookings/{code}/segments', [AdminBookingController::class, 'segments']);
     Route::post('bookings/{code}/complete', [AdminBookingController::class, 'complete']);
     Route::get('bookings/{code}/document', [AdminBookingController::class, 'document']);
 

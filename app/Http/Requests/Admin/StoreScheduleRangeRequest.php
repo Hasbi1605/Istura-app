@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\ScheduleOverride;
 use App\Rules\VisitTime;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
@@ -26,7 +25,7 @@ class StoreScheduleRangeRequest extends FormRequest
             'weekdays' => ['nullable', 'array'],
             'weekdays.*' => ['integer', 'min:0', 'max:6'],
             'time' => ['nullable', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
-            'status' => ['required', Rule::in(ScheduleOverride::STATUSES)],
+            'status' => ['required', Rule::in(['Available', 'Closed'])],
             'note' => ['nullable', 'string', 'max:255'],
         ];
     }
@@ -44,6 +43,10 @@ class StoreScheduleRangeRequest extends FormRequest
 
                 if ($from->diffInDays($to) > self::MAX_RANGE_DAYS) {
                     $validator->errors()->add('to', 'Rentang jadwal maksimal 93 hari.');
+                }
+
+                if ($from->lt(Carbon::today('Asia/Jakarta'))) {
+                    $validator->errors()->add('from', 'Tanggal awal jadwal tidak boleh sudah lewat.');
                 }
             },
         ];

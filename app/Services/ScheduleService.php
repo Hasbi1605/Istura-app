@@ -118,6 +118,13 @@ class ScheduleService
             : Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
         $dateKey = $date->toDateString();
 
+        $override = ScheduleOverride::whereDate('date', $dateKey)
+            ->where('time', $time)
+            ->first();
+        if ($override) {
+            return $override->status;
+        }
+
         $slotQuery = BookingSlot::with('booking')
             ->where('active_slot_key', BookingSlot::slotKey($dateKey, $time))
             ->when($ignoreBookingId, fn ($query) => $query->where('booking_id', '!=', $ignoreBookingId));
@@ -128,7 +135,7 @@ class ScheduleService
 
         $bookingSlot = $slotQuery->first();
         if ($bookingSlot?->booking) {
-            return $this->statusFromBooking($bookingSlot->booking);
+            return $this->statusFromBookingSlot($bookingSlot);
         }
 
         $bookingQuery = Booking::whereDate('date', $dateKey)
@@ -143,13 +150,6 @@ class ScheduleService
         $booking = $bookingQuery->first();
         if ($booking) {
             return $this->statusFromBooking($booking);
-        }
-
-        $override = ScheduleOverride::whereDate('date', $dateKey)
-            ->where('time', $time)
-            ->first();
-        if ($override) {
-            return $override->status;
         }
 
         if (! in_array($time, self::TIME_SLOTS, true)) {
@@ -167,11 +167,16 @@ class ScheduleService
         Collection $bookings,
         Collection $bookingSlots,
     ): string {
+        $override = $overrides->get($dateKey)?->firstWhere('time', $time);
+        if ($override) {
+            return $override->status;
+        }
+
         $bookingSlot = $bookingSlots->get($dateKey)?->first(
             fn ($entry) => $entry->time === $time && $entry->booking?->isActiveForSchedule(),
         );
         if ($bookingSlot?->booking) {
-            return $this->statusFromBooking($bookingSlot->booking);
+            return $this->statusFromBookingSlot($bookingSlot);
         }
 
         $booking = $bookings->get($dateKey)?->first(
@@ -179,11 +184,6 @@ class ScheduleService
         );
         if ($booking) {
             return $this->statusFromBooking($booking);
-        }
-
-        $override = $overrides->get($dateKey)?->firstWhere('time', $time);
-        if ($override) {
-            return $override->status;
         }
 
         if (! in_array($time, self::TIME_SLOTS, true)) {
@@ -197,9 +197,18 @@ class ScheduleService
     {
         return match ($booking->status) {
             'Pending' => 'Held',
-            'Accepted', 'Completed' => 'Booked',
+            'Accepted' => 'Booked',
             'Reschedule' => 'Reschedule Hold',
             default => 'Available',
         };
+    }
+
+    private function statusFromBookingSlot(BookingSlot $slot): string
+    {
+        if ($slot->kind === BookingSlot::KIND_PROPOSED) {
+            return 'Reschedule Hold';
+        }
+
+        return $this->statusFromBooking($slot->booking);
     }
 }

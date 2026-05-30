@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BookingSlot extends Model
 {
+    public const KIND_ACTIVE = 'active';
+
+    public const KIND_PROPOSED = 'proposed';
+
     protected $guarded = [];
 
     protected $casts = [

@@ -2952,15 +2952,20 @@ a {
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  min-height: 44px;
+  padding: 4px 0;
   color: var(--navy);
+  cursor: pointer;
   font-weight: 800;
 }
 
 .agreement-box input {
-  width: 20px;
-  height: 20px;
-  margin-top: 2px;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-top: 0;
   accent-color: var(--gold);
+  cursor: pointer;
 }
 
 .success-box svg {
@@ -7953,9 +7958,18 @@ a {
   }
 
   .miky-wave-lines {
-    top: 14%;
-    right: 2%;
-    transform: scale(0.7);
+    top: 2%;
+    right: -13%;
+    opacity: 0.78;
+    transform: scale(0.54) rotate(-4deg);
+  }
+
+  .miky-wave-lines--guide {
+    top: 7%;
+    right: 4%;
+    opacity: 0.64;
+    animation: none;
+    transform: scale(0.56) rotate(-8deg);
   }
 
   .miky-speech {
@@ -8128,8 +8142,15 @@ a {
   }
 
   .wizard-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
     flex-direction: column;
     align-items: stretch;
+    margin: 24px -22px -22px;
+    padding: 16px 22px calc(16px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(255, 250, 240, 0.88), var(--paper));
+    border-top: 1px solid rgba(16, 24, 47, 0.08);
   }
 
   .site-footer {

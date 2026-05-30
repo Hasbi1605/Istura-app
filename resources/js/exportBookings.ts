@@ -40,7 +40,7 @@ export type BookingExportInput = {
   time: string;        // HH.MM
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
   documentName: string;
-  submittedAt: string; // "23 Mei 2026, 14.12 WIB"
+  submittedAt: string | null; // "23 Mei 2026, 14.12 WIB"
   note?: string;
   completedAt?: string;
 };
@@ -77,7 +77,7 @@ const isWithin = (booking: BookingExportInput, from: Date, to: Date): boolean =>
   // - Konsisten dengan urutan sortir laporan (newest submitted first).
   // - Natural untuk laporan: "permohonan yang masuk bulan Mei".
   // - Untuk Rejected, tanggal kunjungan tidak relevan karena tidak terjadi.
-  return isWithinRangeByDate(parseSubmittedAt(booking.submittedAt), from, to);
+  return isWithinRangeByDate(parseSubmittedAt(booking.submittedAt ?? ""), from, to);
 };
 
 // ---------- filename + path helpers ----------
@@ -305,8 +305,8 @@ export const exportBookingsToZip = async (
   // 3. Sort by tanggal pengajuan, terbaru → terlama --------------------
   filtered.sort(
     (a, b) =>
-      parseSubmittedAt(b.submittedAt).getTime() -
-      parseSubmittedAt(a.submittedAt).getTime(),
+      parseSubmittedAt(b.submittedAt ?? "").getTime() -
+      parseSubmittedAt(a.submittedAt ?? "").getTime(),
   );
 
   // 4. Build workbook --------------------------------------------------
