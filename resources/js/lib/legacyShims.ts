@@ -18,9 +18,8 @@ export function clearAdminSession() {
   /* no-op */
 }
 
-// CMS data sekarang di server. Helper ini mengembalikan fallback (mock seed
-// yang sama dengan seeder Laravel) supaya initial render aman; data asli
-// di-replace oleh useEffect fetcher.
+// CMS data sekarang di server. Helper ini mengembalikan fallback statis supaya
+// initial render aman; data asli di-replace oleh useEffect fetcher.
 export function readCmsCollection<T>(_key: string, fallback: T[]): T[] {
   return fallback;
 }

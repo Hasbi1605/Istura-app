@@ -14,25 +14,66 @@ import type { LucideIcon } from "lucide-react";
 import type { Booking, Feedback } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
 import { FEEDBACK_HIGHLIGHTS, FEEDBACK_IMPROVEMENTS, RATING_LABELS } from "../../constants";
-import { submitPublicFeedback } from "../../api/feedback";
+import { fetchPublicFeedback, submitPublicFeedback } from "../../api/feedback";
+import { ValidationError } from "../../api/client";
 import { useReducedMotion } from "../../hooks";
 import { MikyGuide } from "../MikyGuide";
+import { ButtonSpinner, InlineSpinner } from "../ui/LoadingStates";
+
+type FeedbackBookingContext = Pick<
+  Booking,
+  "code" | "institution" | "dateLabel" | "status" | "feedbackToken"
+>;
+
+const apiFeedbackToLocal = (feedback: {
+  code: string;
+  rating: number;
+  bookingEase: number;
+  service: number;
+  recommend: number;
+  highlights?: string[];
+  improvements?: string[];
+  comment: string | null;
+  allowPublish: boolean;
+  submittedAt: string | null;
+}): Feedback => ({
+  code: feedback.code,
+  rating: feedback.rating,
+  bookingEase: feedback.bookingEase,
+  service: feedback.service,
+  recommend: feedback.recommend,
+  highlights: feedback.highlights ?? [],
+  improvements: feedback.improvements ?? [],
+  comment: feedback.comment ?? "",
+  allowPublish: feedback.allowPublish,
+  submittedAt: feedback.submittedAt ?? undefined,
+});
+
+const firstValidationMessage = (error: unknown, fallback: string) => {
+  if (error instanceof ValidationError) {
+    return Object.values(error.errors).flat()[0] ?? error.message ?? fallback;
+  }
+
+  return fallback;
+};
 
 export function FeedbackScreen({
   bookings,
   submittedCode,
-  feedbacks,
-  access,
-  onFeedbackCreate,
+	feedbacks,
+	access,
+	loading = false,
+	onFeedbackCreate,
 }: {
   bookings: Booking[];
   submittedCode: string;
-  feedbacks: Feedback[];
-  access: { code: string; token: string } | null;
-  onFeedbackCreate: (feedback: Feedback) => void;
+	feedbacks: Feedback[];
+	access: { code: string; token: string } | null;
+	loading?: boolean;
+	onFeedbackCreate: (feedback: Feedback) => void;
 }) {
   // Resolve booking from URL access (preferred) or fallback (e.g. dev/admin testing)
-  const accessBooking = access
+  const localAccessBooking = access
     ? bookings.find(
         (booking) => booking.code === access.code && booking.feedbackToken === access.token,
       )
@@ -43,6 +84,11 @@ export function FeedbackScreen({
     bookings.find((booking) => booking.status === "Completed") ??
     bookings[0];
 
+  const [remoteBooking, setRemoteBooking] = useState<FeedbackBookingContext | null>(null);
+  const [remoteFeedback, setRemoteFeedback] = useState<Feedback | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessError, setAccessError] = useState("");
+  const accessBooking = localAccessBooking ?? remoteBooking ?? undefined;
   const booking = accessBooking ?? (access ? undefined : fallbackBooking);
   const code = booking?.code ?? "";
   const storageKey = booking ? `istura-feedback-draft-${booking.code}` : null;
@@ -58,9 +104,55 @@ export function FeedbackScreen({
   const [allowPublish, setAllowPublish] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const existing = feedbacks.some((feedback) => feedback.code === code);
+  const existing = [remoteFeedback, ...feedbacks].some((feedback) => feedback?.code === code);
   const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (!access) {
+      setRemoteBooking(null);
+      setRemoteFeedback(null);
+      setAccessError("");
+      setAccessLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRemoteBooking(null);
+    setRemoteFeedback(null);
+    setAccessError("");
+    setAccessLoading(true);
+
+    fetchPublicFeedback(access.code, access.token)
+      .then((response) => {
+        if (cancelled) return;
+        setRemoteBooking({
+          code: response.booking.code,
+          institution: response.booking.institution,
+          dateLabel: response.booking.dateLabel,
+          status: response.booking.status,
+          feedbackToken: access.token,
+        });
+        setRemoteFeedback(response.data ? apiFeedbackToLocal(response.data) : null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setAccessError(
+          firstValidationMessage(
+            err,
+            "Periksa kembali tautan dari WhatsApp resmi ISTURA. Pastikan kode booking dan token tidak terpotong.",
+          ),
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setAccessLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [access]);
 
   // Restore draft from localStorage
   useEffect(() => {
@@ -192,8 +284,9 @@ export function FeedbackScreen({
     setStep((current) => Math.max(current - 1, 0));
   };
 
-  const submitFeedback = () => {
+  const submitFeedback = async () => {
     if (!booking) return;
+    if (submitting) return;
     if (!stepReady[0]) {
       setError("Mohon berikan rating untuk ketiga aspek di langkah 1.");
       setStep(0);
@@ -220,45 +313,65 @@ export function FeedbackScreen({
       comment: comment.trim(),
       allowPublish,
     };
-    submitPublicFeedback(code, payload).catch(() => {});
 
-    onFeedbackCreate({
-      code,
-      rating,
-      bookingEase,
-      service,
-      recommend: recommend ?? 0,
-      highlights,
-      improvements,
-      comment: comment.trim(),
-      allowPublish,
-      submittedAt: new Date().toLocaleString("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }) + " WIB",
-    });
-    setError("");
-    setSubmitted(true);
-    if (storageKey) {
-      try {
-        window.localStorage.removeItem(storageKey);
-      } catch {
-        /* ignore */
+    setSubmitting(true);
+    try {
+      const created = await submitPublicFeedback(code, payload);
+      const localFeedback = apiFeedbackToLocal(created);
+      setRemoteFeedback(localFeedback);
+      onFeedbackCreate(localFeedback);
+      setError("");
+      setSubmitted(true);
+      if (storageKey) {
+        try {
+          window.localStorage.removeItem(storageKey);
+        } catch {
+          /* ignore */
+        }
       }
+    } catch (err) {
+      setError(firstValidationMessage(err, "Tidak dapat mengirim feedback. Coba lagi."));
+    } finally {
+      setSubmitting(false);
     }
   };
 
   // ----- Gating: link tidak valid / belum selesai -----
   if (access) {
+    if (accessLoading && !accessBooking) {
+      return (
+			<FeedbackGate
+				icon={Clock3}
+				title="Memuat feedback"
+				message="Kami sedang memeriksa tautan feedback kunjunganmu. Mohon tunggu sebentar."
+				busy
+			/>
+      );
+    }
+    if (accessError && !accessBooking) {
+      return (
+        <FeedbackGate
+          icon={ShieldCheck}
+          title="Link feedback tidak valid"
+          message={accessError}
+        />
+      );
+    }
     if (!accessBooking) {
       return (
         <FeedbackGate
           icon={ShieldCheck}
           title="Link feedback tidak valid"
           message="Periksa kembali tautan dari WhatsApp resmi ISTURA. Pastikan kode booking dan token tidak terpotong."
+        />
+      );
+    }
+    if (existing && !submitted) {
+      return (
+        <FeedbackGate
+          icon={BadgeCheck}
+          title="Feedback sudah tercatat"
+          message="Terima kasih, masukan untuk kode kunjungan ini sudah kami terima."
         />
       );
     }
@@ -271,14 +384,19 @@ export function FeedbackScreen({
         />
       );
     }
-  } else if (!booking) {
-    return (
-      <FeedbackGate
-        icon={ShieldCheck}
-        title="Akses feedback dibatasi"
-        message="Tautan feedback dikirim melalui WhatsApp setelah kunjungan selesai. Silakan tunggu pesan resmi dari ISTURA."
-      />
-    );
+	} else if (!booking) {
+		return (
+			<FeedbackGate
+				icon={loading ? Clock3 : ShieldCheck}
+				title={loading ? "Memuat akses feedback" : "Akses feedback dibatasi"}
+				message={
+					loading
+						? "Kami sedang memeriksa data kunjungan yang tersedia. Mohon tunggu sebentar."
+						: "Tautan feedback dikirim melalui WhatsApp setelah kunjungan selesai. Silakan tunggu pesan resmi dari ISTURA."
+				}
+				busy={loading}
+			/>
+		);
   }
 
   if (submitted) {
@@ -451,11 +569,11 @@ export function FeedbackScreen({
           </div>
 
           <div className="wizard-actions">
-            <button
-              className="button button-ghost"
-              type="button"
-              disabled={step === 0}
-              onClick={goBack}
+			<button
+				className="button button-ghost"
+				type="button"
+				disabled={step === 0 || submitting}
+				onClick={goBack}
             >
               <ArrowLeft size={18} aria-hidden="true" />
               Kembali
@@ -469,11 +587,18 @@ export function FeedbackScreen({
               <button
                 className="button button-primary"
                 type="button"
+                disabled={submitting}
                 onClick={submitFeedback}
               >
-                Kirim Feedback
-                <Send size={18} aria-hidden="true" />
-              </button>
+				{submitting ? (
+					<ButtonSpinner label="Mengirim feedback..." />
+				) : (
+					<>
+						Kirim Feedback
+						<Send size={18} aria-hidden="true" />
+					</>
+				)}
+			</button>
             )}
           </div>
         </div>
@@ -483,24 +608,27 @@ export function FeedbackScreen({
 }
 
 function FeedbackGate({
-  icon: Icon,
-  title,
-  message,
+	icon: Icon,
+	title,
+	message,
+	busy = false,
 }: {
-  icon: LucideIcon;
-  title: string;
-  message: string;
+	icon: LucideIcon;
+	title: string;
+	message: string;
+	busy?: boolean;
 }) {
   return (
     <section className="wizard-page feedback-page">
       <div className="feedback-gate-shell">
         <div className="feedback-gate-card">
           <span className="feedback-gate-icon" aria-hidden="true">
-            <Icon size={28} />
-          </span>
-          <h1>{title}</h1>
-          <p>{message}</p>
-          <a className="button button-secondary" href="/">
+				<Icon size={28} />
+			</span>
+			<h1>{title}</h1>
+			<p>{message}</p>
+			{busy && <InlineSpinner label="Mohon tunggu" />}
+			<a className="button button-secondary" href="/">
             Kembali ke Beranda
             <ArrowRight size={18} aria-hidden="true" />
           </a>

@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { BookingStatus } from "../domain/types";
 
 export type ApiFeedback = {
   code: string;
@@ -13,14 +14,21 @@ export type ApiFeedback = {
   submittedAt: string | null;
 };
 
+export type ApiPublicFeedbackBooking = {
+  code: string;
+  institution: string;
+  dateLabel: string;
+  status: BookingStatus;
+};
+
 export const fetchAdminFeedbacks = (): Promise<ApiFeedback[]> =>
   api<{ data: ApiFeedback[] }>("/api/admin/feedback").then((r) => r.data);
 
-export const fetchPublicFeedback = (code: string) =>
+export const fetchPublicFeedback = (code: string, token: string) =>
   api<{
     data: ApiFeedback | null;
-    booking: { code: string; institution: string; dateLabel: string };
-  }>(`/api/public/feedback/${encodeURIComponent(code)}`);
+    booking: ApiPublicFeedbackBooking;
+  }>(`/api/public/feedback/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}`);
 
 export const submitPublicFeedback = (
   code: string,

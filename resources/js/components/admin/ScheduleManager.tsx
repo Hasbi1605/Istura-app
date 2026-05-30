@@ -1,7 +1,8 @@
 // Admin schedule manager + sub-dialogs. Extracted from App.tsx.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Lock, X } from "lucide-react";
-import type { Booking, Slot, VisitDay } from "../../domain/types";
+import type { Booking, Slot, VisitDay, VisitStatus } from "../../domain/types";
+import { bookingKloterSummary, bookingSegments, bookingTimeSummary } from "../../domain/booking";
 import {
   addMonths,
   calendarWeekdays,
@@ -16,17 +17,27 @@ import {
   startOfMonth,
 } from "../../lib/date";
 import { VISIT_TIME_SLOTS } from "../../domain/schedule";
+import {
+  deleteScheduleSlot,
+  fetchAdminSchedule,
+  upsertScheduleRange,
+  upsertScheduleSlot,
+} from "../../api/schedule";
+import { apiVisitDayToLocal } from "../../api/adapters";
 import { StatCard } from "../ui/StatCard";
+import { InlineSpinner, SectionSkeleton, StatCardSkeleton } from "../ui/LoadingStates";
 
 export function AdminScheduleManager({
-  schedules,
-  bookings,
-  onSchedulesChange,
+	schedules,
+	bookings,
+	loading = false,
+	onSchedulesChange,
   onOpenBooking,
 }: {
-  schedules: VisitDay[];
-  bookings: Booking[];
-  onSchedulesChange: (next: VisitDay[]) => void;
+	schedules: VisitDay[];
+	bookings: Booking[];
+	loading?: boolean;
+	onSchedulesChange: (next: VisitDay[]) => void;
   onOpenBooking: (bookingCode: string) => void;
 }) {
   const today = useState(() => startOfDay(new Date()))[0];
@@ -40,7 +51,9 @@ export function AdminScheduleManager({
   const bookingByKey = useMemo(() => {
     const map = new Map<string, Booking>();
     for (const booking of bookings) {
-      map.set(`${booking.date}|${booking.time}`, booking);
+      for (const segment of bookingSegments(booking)) {
+        map.set(`${segment.date}|${segment.time}`, booking);
+      }
     }
     return map;
   }, [bookings]);
@@ -75,7 +88,8 @@ export function AdminScheduleManager({
     "";
   const [selectedDate, setSelectedDate] = useState(firstActive);
   const [customDraft, setCustomDraft] = useState("");
-  const [customError, setCustomError] = useState<string | null>(null);
+	const [customError, setCustomError] = useState<string | null>(null);
+	const [savingLabel, setSavingLabel] = useState<string | null>(null);
   // Slot detail popover (untuk slot Booked/Held).
   const [slotInfoTime, setSlotInfoTime] = useState<string | null>(null);
   // Range modal (#1) state.
@@ -144,9 +158,31 @@ export function AdminScheduleManager({
 
   // Setiap mutasi melalui helper ini agar Undo punya snapshot konsisten.
   const applyChange = (label: string, next: VisitDay[]) => {
-    setUndoState({ label, snapshot: schedules });
+    setUndoState(null);
     onSchedulesChange(next);
   };
+
+  const refreshFromApi = () =>
+    fetchAdminSchedule().then((days) => onSchedulesChange(days.map(apiVisitDayToLocal)));
+
+	const applyPersistedChange = (
+		label: string,
+		next: VisitDay[],
+		persist: () => Promise<unknown>,
+	) => {
+		if (savingLabel) return;
+		const snapshot = schedules;
+		applyChange(label, next);
+		setSavingLabel(`Menyimpan ${label.toLowerCase()}...`);
+		persist()
+			.then(() => refreshFromApi())
+			.catch(() => {
+				onSchedulesChange(snapshot);
+				setUndoState(null);
+				setCustomError("Gagal menyimpan jadwal. Coba lagi.");
+			})
+			.finally(() => setSavingLabel(null));
+	};
 
   const restoreUndo = () => {
     if (!undoState) return;
@@ -156,9 +192,12 @@ export function AdminScheduleManager({
 
   const toggleSlot = (dayDate: string, time: string) => {
     if (isSlotPast(dayDate, time)) return;
-    applyChange(
-      `Slot ${time} diperbarui`,
-      schedules.map((day) =>
+    const day = scheduleByDate.get(dayDate);
+    const slot = day?.slots.find((item) => item.time === time);
+    if (!slot) return;
+    const nextStatus: VisitStatus =
+      slot.status === "Closed" ? "Available" : slot.status === "Available" ? "Closed" : slot.status;
+    const next = schedules.map((day) =>
         day.date === dayDate
           ? {
               ...day,
@@ -166,42 +205,44 @@ export function AdminScheduleManager({
                 slot.time === time
                   ? {
                       ...slot,
-                      status:
-                        slot.status === "Closed"
-                          ? "Available"
-                          : slot.status === "Available"
-                            ? "Closed"
-                            : slot.status,
+                      status: nextStatus,
                     }
                   : slot,
               ),
             }
           : day,
-      ),
+      );
+    applyPersistedChange(
+      `Slot ${time} diperbarui`,
+      next,
+      () => upsertScheduleSlot(dayDate, time, nextStatus),
     );
   };
 
   // Bulk action di satu hari, dengan optional konfirmasi.
   const performSetDayAll = (dayDate: string, action: "open" | "close") => {
-    applyChange(
-      action === "open" ? "Slot dibuka" : "Slot ditutup",
-      schedules.map((day) =>
+    const targetStatus: VisitStatus = action === "open" ? "Available" : "Closed";
+    const next = schedules.map((day) =>
         day.date === dayDate
           ? {
               ...day,
               slots: day.slots.map((slot) =>
-                slot.status === "Booked" || slot.status === "Held"
+                slot.status === "Booked" || slot.status === "Held" || slot.status === "Reschedule Hold"
                   ? slot
                   : isSlotPast(dayDate, slot.time)
                     ? slot
                     : {
                         ...slot,
-                        status: action === "open" ? "Available" : "Closed",
+                        status: targetStatus,
                       },
               ),
             }
           : day,
-      ),
+      );
+    applyPersistedChange(
+      action === "open" ? "Slot dibuka" : "Slot ditutup",
+      next,
+      () => upsertScheduleRange({ from: dayDate, to: dayDate, status: action === "open" ? "Available" : "Closed" }),
     );
   };
 
@@ -270,9 +311,7 @@ export function AdminScheduleManager({
     }
     setCustomError(null);
     setCustomDraft("");
-    applyChange(
-      `Jam khusus ${normalized} ditambahkan`,
-      schedules.map((d) =>
+    const next = schedules.map((d) =>
         d.date === dayDate
           ? {
               ...d,
@@ -282,16 +321,18 @@ export function AdminScheduleManager({
               ]),
             }
           : d,
-      ),
+      );
+    applyPersistedChange(
+      `Jam khusus ${normalized} ditambahkan`,
+      next,
+      () => upsertScheduleSlot(dayDate, normalized, "Available"),
     );
     // Beri tanda highlight singkat ke slot baru.
     setNewlyAddedSlot({ date: dayDate, time: normalized });
   };
 
   const removeCustomSlot = (dayDate: string, time: string) => {
-    applyChange(
-      `Jam khusus ${time} dihapus`,
-      schedules.map((d) =>
+    const next = schedules.map((d) =>
         d.date === dayDate
           ? {
               ...d,
@@ -300,7 +341,11 @@ export function AdminScheduleManager({
               ),
             }
           : d,
-      ),
+      );
+    applyPersistedChange(
+      `Jam khusus ${time} dihapus`,
+      next,
+      () => deleteScheduleSlot(dayDate, time),
     );
   };
 
@@ -323,7 +368,7 @@ export function AdminScheduleManager({
       return {
         ...day,
         slots: day.slots.map((slot): Slot =>
-          slot.status === "Booked" || slot.status === "Held"
+          slot.status === "Booked" || slot.status === "Held" || slot.status === "Reschedule Hold"
             ? slot
             : isSlotPast(day.date, slot.time)
               ? slot
@@ -334,11 +379,17 @@ export function AdminScheduleManager({
         ),
       };
     });
-    applyChange(
+    applyPersistedChange(
       action === "open"
         ? "Rentang tanggal dibuka"
         : "Rentang tanggal ditutup",
       next,
+      () => upsertScheduleRange({
+        from: params.from,
+        to: params.to,
+        weekdays: params.weekdays,
+        status: action === "open" ? "Available" : "Closed",
+      }),
     );
   };
 
@@ -362,8 +413,9 @@ export function AdminScheduleManager({
 
   // KPI hari ini untuk kartu "Hari ini".
   const todayKey = formatDateKey(today);
-  const todaySchedule = scheduleByDate.get(todayKey);
-  const todayAvailable = todaySchedule?.slots.filter((s) => s.status === "Available").length ?? 0;
+	const todaySchedule = scheduleByDate.get(todayKey);
+	const todayAvailable = todaySchedule?.slots.filter((s) => s.status === "Available").length ?? 0;
+	const scheduleBusy = Boolean(savingLabel);
 
   const dayKpi = selectedDay
     ? {
@@ -376,22 +428,40 @@ export function AdminScheduleManager({
 
   return (
     <div className="admin-cms-page">
-      <div className="admin-heading">
-        <div>
-          <h1>Jadwal Kunjungan</h1>
-          <p>Atur slot kunjungan untuk 2 bulan ke depan.</p>
-        </div>
-      </div>
+		<div className="admin-heading">
+			<div>
+				<h1>Jadwal Kunjungan</h1>
+				<p>Atur slot kunjungan untuk 2 bulan ke depan.</p>
+				{loading && <InlineSpinner label="Memuat jadwal terbaru" />}
+			</div>
+		</div>
 
-      <div className="admin-stats">
-        <StatCard label="Slot tersedia" value={totalAvailable} />
-        <StatCard label="Hari ini" value={todaySchedule ? todayAvailable : "—"} />
-        <StatCard label="Sudah terisi" value={totalBooked} />
-        <StatCard label="Hari aktif" value={totalActiveDays} />
-      </div>
+		<div className="admin-stats" aria-busy={loading}>
+			{loading && schedules.length === 0 ? (
+				<StatCardSkeleton />
+			) : (
+				<>
+					<StatCard label="Slot tersedia" value={totalAvailable} />
+					<StatCard label="Hari ini" value={todaySchedule ? todayAvailable : "—"} />
+					<StatCard label="Sudah terisi" value={totalBooked} />
+					<StatCard label="Hari aktif" value={totalActiveDays} />
+				</>
+			)}
+		</div>
 
-      <section className="admin-schedule-shell">
-        <div className="admin-schedule-calendar">
+		<section className="admin-schedule-shell" aria-busy={loading || scheduleBusy}>
+			{loading && schedules.length === 0 ? (
+				<>
+					<div className="admin-schedule-calendar">
+						<SectionSkeleton rows={10} />
+					</div>
+					<div className="admin-schedule-day-panel">
+						<SectionSkeleton rows={8} />
+					</div>
+				</>
+			) : (
+			<>
+			<div className="admin-schedule-calendar">
           <header className="admin-schedule-cal-head">
             <div className="admin-schedule-cal-head-nav">
               <button
@@ -412,10 +482,11 @@ export function AdminScheduleManager({
                 <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
-            <button
-              type="button"
-              className="admin-pill-button"
-              onClick={() => setShowRangeModal(true)}
+			<button
+				type="button"
+				className="admin-pill-button"
+				disabled={scheduleBusy}
+				onClick={() => setShowRangeModal(true)}
             >
               Pengaturan rentang
             </button>
@@ -537,7 +608,7 @@ export function AdminScheduleManager({
                         type="button"
                         className={`admin-segment-button${fullyClosed ? " is-active" : ""}`}
                         onClick={() => setDayAll(selectedDay.date, "close")}
-                        disabled={fullyClosed}
+							disabled={fullyClosed || scheduleBusy}
                         aria-pressed={fullyClosed}
                       >
                         Tutup semua
@@ -546,7 +617,7 @@ export function AdminScheduleManager({
                         type="button"
                         className={`admin-segment-button${fullyOpen ? " is-active" : ""}`}
                         onClick={() => setDayAll(selectedDay.date, "open")}
-                        disabled={fullyOpen}
+							disabled={fullyOpen || scheduleBusy}
                         aria-pressed={fullyOpen}
                       >
                         Buka semua
@@ -556,7 +627,7 @@ export function AdminScheduleManager({
 
                   <div className="admin-schedule-slots">
                     {selectedDay.slots.map((slot) => {
-                      const locked = slot.status === "Booked" || slot.status === "Held";
+                      const locked = slot.status === "Booked" || slot.status === "Held" || slot.status === "Reschedule Hold";
                       const past = isSlotPast(selectedDay.date, slot.time);
                       const disabled = locked || past;
                       const isOpen = slot.status === "Available" && !past;
@@ -613,7 +684,7 @@ export function AdminScheduleManager({
                               if (past) return;
                               toggleSlot(selectedDay.date, slot.time);
                             }}
-                            disabled={past && !locked}
+							disabled={scheduleBusy || (past && !locked)}
                             aria-label={`${slot.time} ${statusLabel}${
                               locked
                                 ? ", klik untuk lihat detail booking"
@@ -648,9 +719,10 @@ export function AdminScheduleManager({
                           {slot.custom && !locked && !past && (
                             <button
                               type="button"
-                              className="admin-schedule-slot-remove"
-                              onClick={() => removeCustomSlot(selectedDay.date, slot.time)}
-                              aria-label={`Hapus jam khusus ${slot.time}`}
+								className="admin-schedule-slot-remove"
+								onClick={() => removeCustomSlot(selectedDay.date, slot.time)}
+								disabled={scheduleBusy}
+								aria-label={`Hapus jam khusus ${slot.time}`}
                               title="Hapus jam khusus"
                             >
                               <X size={14} aria-hidden="true" />
@@ -673,10 +745,11 @@ export function AdminScheduleManager({
 
                   <form
                     className="admin-schedule-add"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      addCustomSlot(selectedDay.date, customDraft);
-                    }}
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (scheduleBusy) return;
+						addCustomSlot(selectedDay.date, customDraft);
+					}}
                   >
                     <label className="admin-schedule-add-field">
                       <span>Tambah jam khusus</span>
@@ -701,11 +774,12 @@ export function AdminScheduleManager({
                         <option value="19.30" />
                       </datalist>
                     </label>
-                    <button
-                      type="submit"
-                      className="admin-pill-button admin-pill-button--primary"
-                    >
-                      Tambah
+			<button
+				type="submit"
+				className="admin-pill-button admin-pill-button--primary"
+				disabled={scheduleBusy}
+			>
+				Tambah
                     </button>
                     {customError && (
                       <small className="admin-schedule-add-error">{customError}</small>
@@ -726,7 +800,15 @@ export function AdminScheduleManager({
             </div>
           )}
         </div>
-      </section>
+			</>
+			)}
+		</section>
+
+		{savingLabel && (
+			<div className="admin-schedule-toast admin-schedule-toast--saving" role="status" aria-live="polite">
+				<InlineSpinner label={savingLabel} />
+			</div>
+		)}
 
       {showRangeModal && (
         <ScheduleRangeModal
@@ -815,7 +897,7 @@ export function SlotBookingPopover({
         <div>
           <dt>Rombongan</dt>
           <dd>
-            {booking.institution} · {booking.groupSize} orang
+            {booking.institution} · {bookingKloterSummary(booking)}
           </dd>
         </div>
         <div>
@@ -824,7 +906,7 @@ export function SlotBookingPopover({
         </div>
         <div>
           <dt>Jam</dt>
-          <dd>{booking.time} WIB</dd>
+          <dd>{bookingTimeSummary(booking)}</dd>
         </div>
       </dl>
       <div className="admin-schedule-slot-popover-actions">
@@ -1124,4 +1206,3 @@ export function ScheduleRangeModal({
     </div>
   );
 }
-

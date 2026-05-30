@@ -35,6 +35,12 @@ export const addMonths = (date: Date, amount: number) => {
   return new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
 };
 
+export const addDays = (date: Date, amount: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+};
+
 export const formatDateKey = (date: Date) =>
   `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
 

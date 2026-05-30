@@ -18,6 +18,8 @@ class FaqSeeder extends Seeder
                     'question' => $item['question'],
                     'answer' => $item['answer'],
                     'category' => $item['category'] ?? null,
+                    'link_label' => $item['link']['label'] ?? null,
+                    'link_href' => $item['link']['href'] ?? null,
                     'sort_order' => $index,
                 ],
             );

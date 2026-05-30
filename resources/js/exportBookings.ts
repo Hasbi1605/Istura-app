@@ -34,6 +34,7 @@ export type BookingExportInput = {
   whatsapp: string;
   institution: string;
   groupSize: number;
+  segments?: { order: number; time: string; groupSize: number }[];
   date: string;        // YYYY-MM-DD (visit date)
   dateLabel: string;   // human-readable visit date
   time: string;        // HH.MM
@@ -121,9 +122,9 @@ const COLUMNS: Column[] = [
   { header: "NIK", width: 20, value: (b) => b.nik },
   { header: "WhatsApp", width: 16, value: (b) => b.whatsapp },
   { header: "Instansi", width: 32, value: (b) => b.institution },
-  { header: "Rombongan", width: 12, value: (b) => b.groupSize },
+  { header: "Rombongan", width: 18, value: (b) => b.segments && b.segments.length > 1 ? `${b.groupSize} (${b.segments.length} kloter)` : b.groupSize },
   { header: "Tanggal Kunjungan", width: 26, value: (b) => b.dateLabel },
-  { header: "Jam", width: 8, value: (b) => b.time },
+  { header: "Jam", width: 36, value: (b) => b.segments && b.segments.length > 1 ? b.segments.map((s) => `K${s.order} ${s.time} (${s.groupSize})`).join("; ") : b.time },
   {
     header: "Tanggal Selesai / Tolak",
     width: 24,
@@ -232,8 +233,8 @@ const buildWorkbook = async (
       }
     });
 
-    // Status badge styling: light tint so the color is glanceable but the
-    // sheet still looks like a report, not a UI mock.
+    // Status badge styling: light tint so the color is glanceable while the
+    // sheet still looks like a formal report.
     const statusCell = row.getCell(4);
     const statusFill =
       booking.status === "Completed"

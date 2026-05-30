@@ -6,15 +6,18 @@ import { PAGE_SIZE_FEEDBACK } from "../../domain/booking";
 import { useMediaQuery } from "../../hooks";
 import { StatCard } from "../ui/StatCard";
 import { Pagination } from "../ui/Pagination";
+import { InlineSpinner, StatCardSkeleton, TableSkeleton } from "../ui/LoadingStates";
 import { FeedbackExportModal } from "./ExportModals";
 
 export function AdminFeedbackList({
   bookings,
   feedbacks,
+  loading = false,
   adminName,
 }: {
   bookings: Booking[];
   feedbacks: Feedback[];
+  loading?: boolean;
   adminName?: string;
 }) {
   const [ratingFilter, setRatingFilter] = useState<"all" | "low" | "high">("all");
@@ -129,6 +132,7 @@ export function AdminFeedbackList({
         <div>
           <h1>Feedback Pengunjung</h1>
           <p>Masukan dari kunjungan yang sudah selesai. Hanya untuk evaluasi internal.</p>
+          {loading && <InlineSpinner label="Memuat feedback terbaru" />}
         </div>
         <div className="admin-heading-actions">
           <div className="search-box">
@@ -151,11 +155,17 @@ export function AdminFeedbackList({
         </div>
       </div>
 
-      <div className="admin-stats">
-        <StatCard label="Total Feedback" value={feedbacks.length} />
-        <StatCard label="Rating Rata-rata" value={averageRating} />
-        <StatCard label="Perlu Perhatian" value={needsAttention} />
-        <StatCard label="Response Rate" value={`${responseRate}%`} />
+      <div className="admin-stats" aria-busy={loading}>
+        {loading && feedbacks.length === 0 ? (
+          <StatCardSkeleton />
+        ) : (
+          <>
+            <StatCard label="Total Feedback" value={feedbacks.length} />
+            <StatCard label="Rating Rata-rata" value={averageRating} />
+            <StatCard label="Perlu Perhatian" value={needsAttention} />
+            <StatCard label="Response Rate" value={`${responseRate}%`} />
+          </>
+        )}
       </div>
 
       <div className="booking-toolbar" role="region" aria-label="Filter feedback">
@@ -230,7 +240,9 @@ export function AdminFeedbackList({
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading && feedbacks.length === 0 ? (
+        <TableSkeleton rows={7} />
+      ) : filtered.length === 0 ? (
         <div className="admin-card admin-card--empty">
           <p>
             {filtersActive

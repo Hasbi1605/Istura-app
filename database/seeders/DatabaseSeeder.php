@@ -13,9 +13,7 @@ class DatabaseSeeder extends Seeder
             FaqSeeder::class,
             FooterContactSeeder::class,
             WaTemplateSeeder::class,
-            BookingSeeder::class,
-            FeedbackSeeder::class,
-            AuditLogSeeder::class,
+            SiteSettingSeeder::class,
         ]);
     }
 }

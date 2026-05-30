@@ -3,11 +3,15 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\ScheduleOverride;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreScheduleRangeRequest extends FormRequest
 {
+    private const MAX_RANGE_DAYS = 93;
+
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
@@ -23,6 +27,24 @@ class StoreScheduleRangeRequest extends FormRequest
             'time' => ['nullable', 'string', 'regex:/^\d{2}\.\d{2}$/'],
             'status' => ['required', Rule::in(ScheduleOverride::STATUSES)],
             'note' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                $from = Carbon::createFromFormat('Y-m-d', $this->input('from'), 'Asia/Jakarta')->startOfDay();
+                $to = Carbon::createFromFormat('Y-m-d', $this->input('to'), 'Asia/Jakarta')->startOfDay();
+
+                if ($from->diffInDays($to) > self::MAX_RANGE_DAYS) {
+                    $validator->errors()->add('to', 'Rentang jadwal maksimal 93 hari.');
+                }
+            },
         ];
     }
 }

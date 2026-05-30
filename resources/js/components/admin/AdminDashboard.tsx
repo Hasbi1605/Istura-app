@@ -16,20 +16,23 @@ import {
   parseDateKey,
   startOfDay,
 } from "../../lib/date";
-import { parseSubmittedAt } from "../../domain/booking";
+import { bookingTimeSummary, parseSubmittedAt } from "../../domain/booking";
 import { StatCard } from "../ui/StatCard";
 import { StatusBadge } from "../ui/StatusBadge";
 import { MonthlyReportModal } from "./ExportModals";
+import { InlineSpinner, SectionSkeleton, StatCardSkeleton } from "../ui/LoadingStates";
 
 export function AdminDashboard({
   bookings,
-  feedbacks,
-  onJumpTab,
+	feedbacks,
+	loading = false,
+	onJumpTab,
   adminName,
 }: {
-  bookings: Booking[];
-  feedbacks: Feedback[];
-  onJumpTab: (tab: AdminTab) => void;
+	bookings: Booking[];
+	feedbacks: Feedback[];
+	loading?: boolean;
+	onJumpTab: (tab: AdminTab) => void;
   adminName?: string;
 }) {
   const [showReportModal, setShowReportModal] = useState(false);
@@ -222,11 +225,12 @@ export function AdminDashboard({
 
   return (
     <div className="admin-cms-page admin-dashboard">
-      <div className="admin-heading">
-        <div>
-          <h1>Dashboard</h1>
-          <p>Ringkasan operasional kunjungan ISTURA hari ini.</p>
-        </div>
+		<div className="admin-heading">
+			<div>
+				<h1>Dashboard</h1>
+				<p>Ringkasan operasional kunjungan ISTURA hari ini.</p>
+				{loading && <InlineSpinner label="Memuat data operasional" />}
+			</div>
         <div className="admin-heading-actions">
           <button
             type="button"
@@ -240,12 +244,18 @@ export function AdminDashboard({
         </div>
       </div>
 
-      <div className="admin-stats">
-        <StatCard label="Pending" value={pendingCount} />
-        <StatCard label="Hari ini" value={todayVisits.length} />
-        <StatCard label="Minggu ini" value={visitsThisWeek} />
-        <StatCard label="Rating Rata-rata" value={averageRating} />
-      </div>
+		<div className="admin-stats" aria-busy={loading}>
+			{loading && bookings.length === 0 && feedbacks.length === 0 ? (
+				<StatCardSkeleton />
+			) : (
+				<>
+					<StatCard label="Pending" value={pendingCount} />
+					<StatCard label="Hari ini" value={todayVisits.length} />
+					<StatCard label="Minggu ini" value={visitsThisWeek} />
+					<StatCard label="Rating Rata-rata" value={averageRating} />
+				</>
+			)}
+		</div>
 
       {heroPending ? (
         <section className="admin-dashboard-alert" role="status">
@@ -260,7 +270,7 @@ export function AdminDashboard({
             </strong>
             <small>
               {heroPending.code} · {heroPending.institution} · {heroPending.dateLabel},{" "}
-              {heroPending.time} WIB
+              {bookingTimeSummary(heroPending)}
               {pendingCount > 1 ? <em> · +{pendingCount - 1} lagi</em> : null}
             </small>
           </div>
@@ -391,8 +401,10 @@ export function AdminDashboard({
             </button>
           </header>
 
-          <div className="admin-card-body">
-            {selectedDayVisits.length === 0 ? (
+			<div className="admin-card-body" aria-busy={loading}>
+				{loading && bookings.length === 0 ? (
+					<SectionSkeleton rows={5} />
+				) : selectedDayVisits.length === 0 ? (
               <p className="admin-card-empty admin-dashboard-empty">
                 <Clock3 size={14} aria-hidden="true" />
                 <span>
@@ -446,8 +458,10 @@ export function AdminDashboard({
             </button>
           </header>
 
-          <div className="admin-card-body">
-            {recentFeedbacks.length === 0 ? (
+			<div className="admin-card-body" aria-busy={loading}>
+				{loading && feedbacks.length === 0 ? (
+					<SectionSkeleton rows={5} />
+				) : recentFeedbacks.length === 0 ? (
               <p className="admin-card-empty">Belum ada feedback masuk.</p>
             ) : (
               <ul className="admin-feedback-list">

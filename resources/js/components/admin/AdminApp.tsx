@@ -1,15 +1,19 @@
 import type { Dispatch, SetStateAction } from "react";
 import type {
-  AdminSession,
-  AdminTab,
-  Booking,
-  Feedback,
+	AdminSession,
+	AdminTab,
+	Booking,
+	CmsSyncState,
+	DataLoadingState,
+	Feedback,
   FaqItem,
   FooterContact,
   Screen,
+  SiteContent,
   VisitDay,
   WaTemplate,
 } from "../../domain/types";
+import type { ApiHero, ApiLetter } from "../../api/cms";
 import { logout as apiLogout } from "../../api/auth";
 import { destroyEcho } from "../../realtime/echo";
 import { clearAdminSession, writeAdminSession } from "../../lib/legacyShims";
@@ -22,8 +26,9 @@ import {
   AdminFaqManager,
   AdminContactsManager,
   AdminWaTemplates,
-  AdminLetterPreview,
-  AdminHeroPreview,
+  AdminLetterManager,
+  AdminHeroManager,
+  AdminLandingManager,
 } from "./AdminCmsManagers";
 import { AdminUsersList, AdminAuditLog } from "./AdminSystemPages";
 
@@ -43,9 +48,15 @@ export function AdminApp({
   onContactsChange,
   waTemplates,
   onWaTemplatesChange,
-  bookingFocusCode,
-  onBookingFocusCodeChange,
-  onExitToPublic,
+  onHeroChange,
+  onLetterChange,
+  siteContent,
+  onSiteContentChange,
+	bookingFocusCode,
+	onBookingFocusCodeChange,
+	loading,
+	cmsSync,
+	onExitToPublic,
 }: {
   session: AdminSession | null;
   onSessionChange: Dispatch<SetStateAction<AdminSession | null>>;
@@ -62,9 +73,15 @@ export function AdminApp({
   onContactsChange: Dispatch<SetStateAction<FooterContact[]>>;
   waTemplates: WaTemplate[];
   onWaTemplatesChange: Dispatch<SetStateAction<WaTemplate[]>>;
-  bookingFocusCode: string | null;
-  onBookingFocusCodeChange: Dispatch<SetStateAction<string | null>>;
-  onExitToPublic: (screen: Screen) => void;
+  onHeroChange: Dispatch<SetStateAction<ApiHero>>;
+  onLetterChange: Dispatch<SetStateAction<ApiLetter>>;
+  siteContent: SiteContent;
+  onSiteContentChange: Dispatch<SetStateAction<SiteContent>>;
+	bookingFocusCode: string | null;
+	onBookingFocusCodeChange: Dispatch<SetStateAction<string | null>>;
+	loading: DataLoadingState;
+	cmsSync: CmsSyncState;
+	onExitToPublic: (screen: Screen) => void;
 }) {
   if (!session) {
     return (
@@ -101,18 +118,20 @@ export function AdminApp({
       }}
     >
       {adminTab === "dashboard" && (
-        <AdminDashboard
-          bookings={bookings}
-          feedbacks={feedbacks}
-          onJumpTab={onAdminTabChange}
+		<AdminDashboard
+			bookings={bookings}
+			feedbacks={feedbacks}
+			loading={loading.admin || loading.bookings || loading.feedbacks}
+			onJumpTab={onAdminTabChange}
           adminName={session.name}
         />
       )}
       {adminTab === "bookings" && (
-        <AdminScreen
-          schedules={schedules}
-          bookings={bookings}
-          onBookingsChange={onBookingsChange}
+		<AdminScreen
+			schedules={schedules}
+			bookings={bookings}
+			loading={loading.bookings}
+			onBookingsChange={onBookingsChange}
           onSchedulesChange={onSchedulesChange}
           focusCode={bookingFocusCode}
           onFocusCodeConsumed={() => onBookingFocusCodeChange(null)}
@@ -120,35 +139,40 @@ export function AdminApp({
         />
       )}
       {adminTab === "feedback" && (
-        <AdminFeedbackList
-          bookings={bookings}
-          feedbacks={feedbacks}
-          adminName={session.name}
+		<AdminFeedbackList
+			bookings={bookings}
+			feedbacks={feedbacks}
+			loading={loading.feedbacks}
+			adminName={session.name}
         />
       )}
       {adminTab === "schedule" && (
-        <AdminScheduleManager
-          schedules={schedules}
-          bookings={bookings}
-          onSchedulesChange={onSchedulesChange}
+		<AdminScheduleManager
+			schedules={schedules}
+			bookings={bookings}
+			loading={loading.schedule}
+			onSchedulesChange={onSchedulesChange}
           onOpenBooking={(code) => {
             onBookingFocusCodeChange(code);
             onAdminTabChange("bookings");
           }}
         />
       )}
-      {adminTab === "cms-faq" && (
-        <AdminFaqManager faqs={faqs} onChange={onFaqsChange} />
-      )}
-      {adminTab === "cms-contacts" && (
-        <AdminContactsManager contacts={contacts} onChange={onContactsChange} />
-      )}
-      {adminTab === "cms-letter" && <AdminLetterPreview />}
-      {adminTab === "cms-hero" && <AdminHeroPreview />}
-      {adminTab === "cms-wa" && (
-        <AdminWaTemplates templates={waTemplates} onChange={onWaTemplatesChange} />
-      )}
-      {adminTab === "users" && <AdminUsersList />}
+		{adminTab === "cms-faq" && (
+			<AdminFaqManager faqs={faqs} syncStatus={cmsSync.faqs} onChange={onFaqsChange} />
+		)}
+		{adminTab === "cms-contacts" && (
+			<AdminContactsManager contacts={contacts} syncStatus={cmsSync.contacts} onChange={onContactsChange} />
+		)}
+      {adminTab === "cms-letter" && <AdminLetterManager onChange={onLetterChange} />}
+      {adminTab === "cms-hero" && <AdminHeroManager onChange={onHeroChange} />}
+		{adminTab === "cms-landing" && (
+			<AdminLandingManager content={siteContent} onChange={onSiteContentChange} />
+		)}
+		{adminTab === "cms-wa" && (
+			<AdminWaTemplates templates={waTemplates} syncStatus={cmsSync.waTemplates} onChange={onWaTemplatesChange} />
+		)}
+      {adminTab === "users" && <AdminUsersList session={session} />}
       {adminTab === "audit" && <AdminAuditLog />}
     </AdminShell>
   );

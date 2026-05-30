@@ -20,22 +20,25 @@ Route::prefix('public')->group(function () {
     Route::get('faqs', [ContentController::class, 'faqs']);
     Route::get('contacts', [ContentController::class, 'contacts']);
     Route::get('schedule', [ContentController::class, 'schedule']);
+    Route::get('hero', [ContentController::class, 'hero']);
+    Route::get('letter', [ContentController::class, 'letter']);
+    Route::get('site-content', [ContentController::class, 'siteContent']);
     Route::get('wa-templates', [ContentController::class, 'waTemplates']);
     Route::get('wa-templates/{status}', [ContentController::class, 'waTemplate']);
 
-    Route::middleware('throttle:30,1')->group(function () {
+    Route::middleware('throttle:public-bookings')->group(function () {
         Route::post('bookings', [PublicBookingController::class, 'store']);
     });
 
     Route::get('feedback/{code}', [PublicFeedbackController::class, 'show']);
-    Route::post('feedback/{code}', [PublicFeedbackController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('feedback/{code}', [PublicFeedbackController::class, 'store'])->middleware('throttle:public-feedback');
 });
 
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
 Route::prefix('auth')->group(function () {
-    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:auth-login');
     Route::get('me', [AuthController::class, 'me']);
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
@@ -71,6 +74,16 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('cms/wa-templates', [CmsController::class, 'waTemplates']);
     Route::put('cms/wa-templates', [CmsController::class, 'updateWaTemplates']);
 
+    Route::get('cms/hero', [CmsController::class, 'hero']);
+    Route::put('cms/hero', [CmsController::class, 'updateHero']);
+    Route::get('cms/letter', [CmsController::class, 'letter']);
+    Route::post('cms/letter', [CmsController::class, 'updateLetter']);
+    Route::get('cms/site-content', [CmsController::class, 'siteContent']);
+    Route::put('cms/site-content', [CmsController::class, 'updateSiteContent']);
+
     Route::get('users', [UserController::class, 'index']);
+    Route::post('users', [UserController::class, 'store']);
+    Route::put('users/{user}', [UserController::class, 'update']);
+    Route::delete('users/{user}', [UserController::class, 'destroy']);
     Route::get('audit-logs', [AuditLogController::class, 'index']);
 });

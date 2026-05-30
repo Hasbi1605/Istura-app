@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Menu, X } from "lucide-react";
-import type { Screen } from "../../domain/types";
+import type { LandingNavItem, Screen, SiteContent } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
 
-export function Navigation({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
+type NavContent = SiteContent["nav"];
+
+const screenTargets: Screen[] = ["home", "booking", "feedback", "admin"];
+
+export function Navigation({
+  screen,
+  content,
+  onNavigate,
+}: {
+  screen: Screen;
+  content: NavContent;
+  onNavigate: (screen: Screen) => void;
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
-  type NavItem =
-    | { label: string; type: "screen"; screen: Screen }
-    | { label: string; type: "anchor"; anchor: string };
-  const items: NavItem[] = [
-    { label: "Beranda", type: "screen", screen: "home" },
-    { label: "Cek Jadwal", type: "anchor", anchor: "panduan" },
-    { label: "Contoh Surat", type: "anchor", anchor: "contoh-surat" },
-    { label: "FAQ", type: "anchor", anchor: "faq" },
-  ];
+  const items = content.items.length ? content.items : [{ label: "Beranda", target: "home" }];
   const menuId = "mobile-navigation-menu";
 
   useEffect(() => {
@@ -42,6 +46,11 @@ export function Navigation({ screen, onNavigate }: { screen: Screen; onNavigate:
     onNavigate(nextScreen);
   };
 
+  const handleExternal = (url: string) => {
+    setIsMenuOpen(false);
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const handleAnchor = (anchor: string) => {
     setIsMenuOpen(false);
     setActiveAnchor(anchor);
@@ -53,22 +62,33 @@ export function Navigation({ screen, onNavigate }: { screen: Screen; onNavigate:
     }
   };
 
-  const isItemActive = (item: NavItem) => {
-    if (item.type === "screen") {
-      if (item.screen === "home") {
-        return screen === "home" && activeAnchor === null;
-      }
-      return screen === item.screen;
+  const handleItem = (item: LandingNavItem) => {
+    const target = item.target.trim();
+    if (screenTargets.includes(target as Screen)) {
+      handleNavigate(target as Screen);
+      return;
     }
-    return screen === "home" && activeAnchor === item.anchor;
+    if (/^https?:\/\//i.test(target)) {
+      handleExternal(target);
+      return;
+    }
+    handleAnchor(target.replace(/^#/, ""));
+  };
+
+  const isItemActive = (item: LandingNavItem) => {
+    const target = item.target.trim();
+    if (screenTargets.includes(target as Screen)) {
+      return target === "home" ? screen === "home" && activeAnchor === null : screen === target;
+    }
+    return screen === "home" && activeAnchor === target.replace(/^#/, "");
   };
 
   return (
     <header className="nav-wrap">
       <nav className="nav-shell" aria-label="Navigasi utama">
         <button className="brand-lockup" type="button" onClick={() => handleNavigate("home")}>
-          <img src={ASSETS.logoWhite} alt="Logo Gedung Agung" />
-          <span>ISTURA</span>
+          <img src={content.logoSrc || ASSETS.logoWhite} alt={content.logoAlt || "Logo Gedung Agung"} />
+          <span>{content.brandText}</span>
         </button>
         <div className="nav-links">
           {items.map((item) => (
@@ -76,16 +96,14 @@ export function Navigation({ screen, onNavigate }: { screen: Screen; onNavigate:
               key={item.label}
               type="button"
               className={isItemActive(item) ? "is-active" : ""}
-              onClick={() =>
-                item.type === "screen" ? handleNavigate(item.screen) : handleAnchor(item.anchor)
-              }
+              onClick={() => handleItem(item)}
             >
               {item.label}
             </button>
           ))}
         </div>
         <button className="nav-cta" type="button" onClick={() => handleNavigate("booking")}>
-          Mulai Booking
+          {content.ctaLabel}
         </button>
         <button
           className="nav-menu-toggle"
@@ -103,9 +121,7 @@ export function Navigation({ screen, onNavigate }: { screen: Screen; onNavigate:
               key={item.label}
               type="button"
               className={isItemActive(item) ? "is-active" : ""}
-              onClick={() =>
-                item.type === "screen" ? handleNavigate(item.screen) : handleAnchor(item.anchor)
-              }
+              onClick={() => handleItem(item)}
             >
               <span>{item.label}</span>
               <ArrowRight size={16} aria-hidden="true" />
@@ -116,7 +132,7 @@ export function Navigation({ screen, onNavigate }: { screen: Screen; onNavigate:
             className="nav-mobile-cta"
             onClick={() => handleNavigate("booking")}
           >
-            <span>Mulai Booking</span>
+            <span>{content.ctaLabel}</span>
             <ArrowRight size={16} aria-hidden="true" />
           </button>
         </div>

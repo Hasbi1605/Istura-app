@@ -3,24 +3,24 @@
     "id": "Accepted",
     "label": "Booking disetujui",
     "description": "Dikirim saat admin menyetujui permohonan kunjungan.",
-    "template": "Yth. {nama}, permohonan kunjungan {instansi} dengan kode {kode} disetujui untuk {tanggal} pukul {jam} WIB. Mohon hadir 15 menit lebih awal dengan menunjukkan kode ini di pintu masuk. Terima kasih."
+    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\u2705 *Booking Disetujui*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* telah disetujui.\n\nKode booking:\n*{kode}*\n\nTanggal kunjungan:\n*{tanggal}*\n\nJumlah rombongan:\n*{rombongan}*\n\nJadwal kunjungan:\n{jam}\n\nMohon hadir *15 menit lebih awal* dan tunjukkan kode booking saat tiba di pintu masuk.\n\nSalam hangat,\nAdmin ISTURA"
   },
   {
     "id": "Rejected",
     "label": "Booking ditolak",
     "description": "Dikirim saat permohonan tidak disetujui.",
-    "template": "Yth. {nama}, mohon maaf permohonan kunjungan {instansi} dengan kode {kode} belum dapat disetujui. Alasan: {catatan}"
+    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\u274C *Booking Belum Dapat Disetujui*\n\nYth. *{nama}*,\nmohon maaf, permohonan kunjungan dari *{instansi}* dengan kode *{kode}* belum dapat disetujui.\n\nAlasan/catatan:\n*{catatan}*\n\nSilakan hubungi admin melalui WhatsApp ini bila perlu informasi lanjutan.\n\nSalam hangat,\nAdmin ISTURA"
   },
   {
     "id": "Reschedule",
     "label": "Tawaran reschedule",
     "description": "Dikirim saat admin menawarkan jadwal alternatif.",
-    "template": "Yth. {nama}, permohonan {kode} perlu penyesuaian jadwal. Usulan jadwal: {catatan}. Mohon konfirmasi melalui WhatsApp ini."
+    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\ud83d\udd01 *Usulan Reschedule Kunjungan*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* dengan kode *{kode}* perlu penyesuaian jadwal.\n\nJumlah rombongan:\n*{rombongan}*\n\nJadwal usulan:\n{jam}\n\nCatatan admin:\n*{catatan}*\n\nMohon konfirmasi melalui WhatsApp ini apakah jadwal tersebut dapat diikuti.\n\nSalam hangat,\nAdmin ISTURA"
   },
   {
     "id": "Completed",
     "label": "Tandai selesai & permintaan feedback",
     "description": "Dikirim setelah kunjungan selesai. {link} adalah tautan feedback unik.",
-    "template": "Yth. {nama}, terima kasih telah berkunjung ke Istana Kepresidenan Yogyakarta pada {tanggal}. Setelah melakukan ISTURA, Bapak/Ibu kami mohon untuk mengisi feedback pada link berikut: {link} agar kami dapat memperbaiki pelayanan kami setiap saat. Terima kasih."
+    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\u2B50 *Form Feedback Kunjungan*\n\nYth. *{nama}*,\nterima kasih telah berkunjung ke Istana Kepresidenan Yogyakarta pada *{tanggal}*.\n\nKami mohon bantuan Bapak/Ibu untuk mengisi feedback melalui tautan berikut:\n*{link}*\n\nMasukan Bapak/Ibu membantu kami meningkatkan pelayanan ISTURA.\n\nSalam hangat,\nAdmin ISTURA"
   }
 ]
