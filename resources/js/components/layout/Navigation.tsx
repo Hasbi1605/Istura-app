@@ -11,10 +11,12 @@ export function Navigation({
   screen,
   content,
   onNavigate,
+  navigationLocked = false,
 }: {
   screen: Screen;
   content: NavContent;
   onNavigate: (screen: Screen) => void;
+  navigationLocked?: boolean;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
@@ -41,17 +43,20 @@ export function Navigation({
   };
 
   const handleNavigate = (nextScreen: Screen) => {
+    if (navigationLocked) return;
     setIsMenuOpen(false);
     setActiveAnchor(null);
     onNavigate(nextScreen);
   };
 
   const handleExternal = (url: string) => {
+    if (navigationLocked) return;
     setIsMenuOpen(false);
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleAnchor = (anchor: string) => {
+    if (navigationLocked) return;
     setIsMenuOpen(false);
     setActiveAnchor(anchor);
     if (screen !== "home") {
@@ -86,7 +91,7 @@ export function Navigation({
   return (
     <header className="nav-wrap">
       <nav className="nav-shell" aria-label="Navigasi utama">
-        <button className="brand-lockup" type="button" onClick={() => handleNavigate("home")}>
+        <button className="brand-lockup" type="button" disabled={navigationLocked} onClick={() => handleNavigate("home")}>
           <img src={content.logoSrc || ASSETS.logoWhite} alt={content.logoAlt || "Logo Gedung Agung"} />
           <span>{content.brandText}</span>
         </button>
@@ -96,13 +101,14 @@ export function Navigation({
               key={item.label}
               type="button"
               className={isItemActive(item) ? "is-active" : ""}
+              disabled={navigationLocked}
               onClick={() => handleItem(item)}
             >
               {item.label}
             </button>
           ))}
         </div>
-        <button className="nav-cta" type="button" onClick={() => handleNavigate("booking")}>
+        <button className="nav-cta" type="button" disabled={navigationLocked} onClick={() => handleNavigate("booking")}>
           {content.ctaLabel}
         </button>
         <button
@@ -111,6 +117,7 @@ export function Navigation({
           aria-label={isMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
           aria-controls={menuId}
           aria-expanded={isMenuOpen}
+          disabled={navigationLocked}
           onClick={() => setIsMenuOpen((current) => !current)}
         >
           {isMenuOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
@@ -121,6 +128,7 @@ export function Navigation({
               key={item.label}
               type="button"
               className={isItemActive(item) ? "is-active" : ""}
+              disabled={navigationLocked}
               onClick={() => handleItem(item)}
             >
               <span>{item.label}</span>
@@ -130,6 +138,7 @@ export function Navigation({
           <button
             type="button"
             className="nav-mobile-cta"
+            disabled={navigationLocked}
             onClick={() => handleNavigate("booking")}
           >
             <span>{content.ctaLabel}</span>

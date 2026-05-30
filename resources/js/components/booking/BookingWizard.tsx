@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
   ArrowLeft,
@@ -152,6 +152,7 @@ export function BookingWizard({
   onShowSchedule: () => void;
   onNavigate: (screen: Screen) => void;
 }) {
+  const documentInputId = useId();
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successCode, setSuccessCode] = useState("");
@@ -467,9 +468,9 @@ export function BookingWizard({
                 <UploadCloud size={42} aria-hidden="true" />
                 <strong>{form.documentName || "Unggah surat permohonan"}</strong>
                 <p>PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.</p>
-                <label className="button button-secondary">
+                <label className="button button-secondary" htmlFor={documentInputId}>
                   Pilih File
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFile} />
+                  <input id={documentInputId} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFile} />
                 </label>
                 {errors.documentName && <small className="field-error">{errors.documentName}</small>}
               </div>
