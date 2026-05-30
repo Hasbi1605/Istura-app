@@ -64,6 +64,7 @@ export function FeedbackScreen({
 	access,
 	loading = false,
 	onFeedbackCreate,
+  onNavigationLockChange,
 }: {
   bookings: Booking[];
   submittedCode: string;
@@ -71,6 +72,7 @@ export function FeedbackScreen({
 	access: { code: string; token: string } | null;
 	loading?: boolean;
 	onFeedbackCreate: (feedback: Feedback) => void;
+  onNavigationLockChange?: (locked: boolean) => void;
 }) {
   // Resolve booking from URL access (preferred) or fallback (e.g. dev/admin testing)
   const localAccessBooking = access
@@ -108,6 +110,13 @@ export function FeedbackScreen({
 
   const existing = [remoteFeedback, ...feedbacks].some((feedback) => feedback?.code === code);
   const reduced = useReducedMotion();
+  const navigationLocked = Boolean(booking && booking.status === "Completed" && !existing && !submitted);
+
+  useEffect(() => {
+    onNavigationLockChange?.(navigationLocked);
+
+    return () => onNavigationLockChange?.(false);
+  }, [navigationLocked, onNavigationLockChange]);
 
   useEffect(() => {
     if (!access) {

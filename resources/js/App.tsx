@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Navigation } from "./components/layout/Navigation";
 import { HomeScreen } from "./components/home/HomeScreen";
 import { BookingWizard } from "./components/booking/BookingWizard";
@@ -10,6 +10,7 @@ import type { Screen } from "./domain/types";
 
 function App() {
   const pageRef = useRef<HTMLElement>(null);
+  const [feedbackNavigationLocked, setFeedbackNavigationLocked] = useState(false);
   const data = useIsturaData();
   const {
     screen,
@@ -49,6 +50,7 @@ function App() {
   useHomeHeroAnimation(pageRef, screen);
 
   const goToScreen = (nextScreen: Screen) => {
+    if (feedbackNavigationLocked && screen === "feedback") return;
     setScreen(nextScreen);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -92,7 +94,12 @@ function App() {
 			/>
       ) : (
         <>
-          <Navigation screen={screen} content={siteContent.nav} onNavigate={goToScreen} />
+          <Navigation
+            screen={screen}
+            content={siteContent.nav}
+            onNavigate={goToScreen}
+            navigationLocked={feedbackNavigationLocked && screen === "feedback"}
+          />
 
           {screen === "home" && (
             <HomeScreen
@@ -137,6 +144,7 @@ function App() {
 					access={feedbackAccess}
 					loading={loading.feedbacks}
 					onFeedbackCreate={(feedback) => setFeedbacks((current) => [feedback, ...current])}
+              onNavigationLockChange={setFeedbackNavigationLocked}
             />
           )}
         </>

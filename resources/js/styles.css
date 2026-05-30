@@ -159,6 +159,24 @@ a {
   outline: none;
 }
 
+.brand-lockup:disabled,
+.nav-links button:disabled,
+.nav-cta:disabled,
+.nav-menu-toggle:disabled,
+.nav-mobile-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+.nav-links button:disabled:hover,
+.nav-links button:disabled:focus-visible,
+.nav-mobile-menu button:disabled:hover,
+.nav-mobile-menu button:disabled:focus-visible {
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+}
+
 .nav-cta {
   min-height: 46px;
   padding: 0 19px;
@@ -2825,12 +2843,18 @@ a {
   height: 1px;
   overflow: hidden;
   opacity: 0;
+  pointer-events: none;
 }
 
 .upload-box .button-secondary {
   color: var(--navy);
   background: var(--white);
   border-color: var(--line);
+  cursor: pointer;
+}
+
+.upload-box .button-secondary * {
+  cursor: pointer;
 }
 
 .review-card {
@@ -2946,6 +2970,8 @@ a {
 .success-box strong {
   color: var(--navy);
   font-size: 2rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
 }
 
 .wizard-actions {
@@ -3282,10 +3308,12 @@ a {
   position: relative;
   display: grid;
   place-items: center;
+  isolation: isolate;
 }
 
 .feedback-success-figure img {
   position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 260px;
   height: auto;
@@ -3297,6 +3325,7 @@ a {
   background: radial-gradient(circle at 50% 50%, rgba(243, 197, 71, 0.45), transparent 65%);
   filter: blur(8px);
   z-index: 0;
+  pointer-events: none;
 }
 
 .feedback-success-bounce {
@@ -8149,6 +8178,11 @@ a {
 }
 
 @media (max-width: 720px) {
+  .success-box strong {
+    font-size: clamp(1.35rem, 6vw, 1.65rem);
+    word-break: keep-all;
+  }
+
   .feedback-context {
     grid-template-columns: 1fr;
   }
