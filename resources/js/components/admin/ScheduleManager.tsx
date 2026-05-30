@@ -102,11 +102,6 @@ export function AdminScheduleManager({
     confirmVariant?: "default" | "danger";
     onConfirm: () => void;
   } | null>(null);
-  // Undo toast (#5). Setiap aksi besar menyimpan snapshot jadwal sebelumnya.
-  const [undoState, setUndoState] = useState<{
-    label: string;
-    snapshot: VisitDay[];
-  } | null>(null);
   // Sumber kebenaran "sekarang" untuk menandai jam yang sudah lewat di hari
   // ini. Diperbarui per menit.
   const [now, setNow] = useState(() => new Date());
@@ -114,12 +109,6 @@ export function AdminScheduleManager({
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
   }, []);
-  // Auto dismiss toast undo setelah 5 detik.
-  useEffect(() => {
-    if (!undoState) return;
-    const id = window.setTimeout(() => setUndoState(null), 5000);
-    return () => window.clearTimeout(id);
-  }, [undoState]);
   // Highlight slot baru selama beberapa detik (#10).
   const [newlyAddedSlot, setNewlyAddedSlot] = useState<{
     date: string;
@@ -156,9 +145,8 @@ export function AdminScheduleManager({
     return parseTimeToMinutes(time) <= now.getHours() * 60 + now.getMinutes();
   };
 
-  // Setiap mutasi melalui helper ini agar Undo punya snapshot konsisten.
-  const applyChange = (label: string, next: VisitDay[]) => {
-    setUndoState(null);
+  // Setiap mutasi melalui helper ini agar optimistic update konsisten.
+  const applyChange = (next: VisitDay[]) => {
     onSchedulesChange(next);
   };
 
@@ -172,23 +160,16 @@ export function AdminScheduleManager({
 	) => {
 		if (savingLabel) return;
 		const snapshot = schedules;
-		applyChange(label, next);
+		applyChange(next);
 		setSavingLabel(`Menyimpan ${label.toLowerCase()}...`);
 		persist()
 			.then(() => refreshFromApi())
 			.catch(() => {
 				onSchedulesChange(snapshot);
-				setUndoState(null);
 				setCustomError("Gagal menyimpan jadwal. Coba lagi.");
 			})
 			.finally(() => setSavingLabel(null));
 	};
-
-  const restoreUndo = () => {
-    if (!undoState) return;
-    onSchedulesChange(undoState.snapshot);
-    setUndoState(null);
-  };
 
   const toggleSlot = (dayDate: string, time: string) => {
     if (isSlotPast(dayDate, time)) return;
@@ -836,19 +817,6 @@ export function AdminScheduleManager({
             setConfirmDialog(null);
           }}
         />
-      )}
-
-      {undoState && (
-        <div className="admin-schedule-toast" role="status" aria-live="polite">
-          <span>{undoState.label}</span>
-          <button
-            type="button"
-            className="admin-schedule-toast-undo"
-            onClick={restoreUndo}
-          >
-            Batalkan
-          </button>
-        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\VisitTime;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DestroyScheduleSlotRequest extends FormRequest
@@ -15,7 +16,7 @@ class DestroyScheduleSlotRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date_format:Y-m-d'],
-            'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/'],
+            'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
         ];
     }
 }

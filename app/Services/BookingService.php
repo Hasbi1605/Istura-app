@@ -129,6 +129,30 @@ class BookingService
     ): Booking {
         try {
             return DB::transaction(function () use ($booking, $newStatus, $actor, $action, $note) {
+                $preparedProposal = null;
+                if ($newStatus === 'Reschedule') {
+                    $preparedProposal = [
+                        'proposed_date' => $booking->proposed_date,
+                        'proposed_time' => $booking->proposed_time,
+                        'proposed_date_label' => $booking->proposed_date_label,
+                        'proposed_segments' => $booking->proposed_segments,
+                        'proposed_at' => $booking->proposed_at,
+                    ];
+                }
+
+                $booking = Booking::with('slots')
+                    ->whereKey($booking->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($preparedProposal !== null) {
+                    $booking->proposed_date = $preparedProposal['proposed_date'];
+                    $booking->proposed_time = $preparedProposal['proposed_time'];
+                    $booking->proposed_date_label = $preparedProposal['proposed_date_label'];
+                    $booking->proposed_segments = $preparedProposal['proposed_segments'];
+                    $booking->proposed_at = $preparedProposal['proposed_at'];
+                }
+
                 $previous = $booking->status;
                 $this->assertValidTransition($previous, $newStatus);
                 $replacementSegments = null;

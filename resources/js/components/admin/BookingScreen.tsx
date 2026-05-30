@@ -1315,11 +1315,16 @@ export function AdminActionModal({
 }) {
   const [note, setNote] = useState("");
   const requiredSlots = requiredSlotCount(modal.booking.groupSize);
-  const availableSlots = schedules.flatMap((day) =>
-    day.slots
+  const minProposedDate = new Date();
+  minProposedDate.setHours(0, 0, 0, 0);
+  minProposedDate.setDate(minProposedDate.getDate() + 1);
+  const availableSlots = schedules.flatMap((day) => {
+    if (parseDateKey(day.date) < minProposedDate) return [];
+
+    return day.slots
       .filter((slot) => canFitConsecutiveSlots(day, slot.time, requiredSlots))
-      .map((slot) => `${day.label}, ${slot.time} WIB`),
-  );
+      .map((slot) => `${day.label}, ${slot.time} WIB`);
+  });
   const [proposed, setProposed] = useState(availableSlots[0] ?? "");
   const titleMap = {
     accept: "Setujui Booking",

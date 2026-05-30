@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Public;
 
+use App\Rules\VisitTime;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -20,7 +21,7 @@ class StoreBookingRequest extends FormRequest
         return [
             'contactName' => ['required', 'string', 'max:120'],
             'nik' => ['required', 'string', 'regex:/^\d{16}$/'],
-            'whatsapp' => ['required', 'string', 'max:32'],
+            'whatsapp' => ['required', 'string', 'max:32', 'regex:/^(08|628)\d{8,13}$/'],
             'institution' => ['required', 'string', 'max:200'],
             'groupSize' => ['required', 'integer', 'min:1', 'max:560'],
             'date' => [
@@ -29,7 +30,7 @@ class StoreBookingRequest extends FormRequest
                 'after_or_equal:'.$earliestDate,
                 'before_or_equal:'.$today->copy()->addMonths(2)->toDateString(),
             ],
-            'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/'],
+            'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
             'document' => ['required', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:5120'],
             'agreement' => ['required', 'accepted'],
         ];
@@ -39,6 +40,7 @@ class StoreBookingRequest extends FormRequest
     {
         return [
             'nik.regex' => 'NIK harus 16 digit angka.',
+            'whatsapp.regex' => 'Nomor WhatsApp harus aktif, contoh 08xxxxxxxxxx.',
             'agreement.accepted' => 'Persetujuan wajib dicentang.',
             'date.after_or_equal' => 'Tanggal kunjungan paling cepat besok.',
             'groupSize.max' => 'Jumlah rombongan maksimal 560 orang per hari kunjungan.',
