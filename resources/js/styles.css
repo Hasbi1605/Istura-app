@@ -6520,15 +6520,15 @@ a {
   flex-wrap: wrap;
   align-items: center;
   gap: 0;
-  color: rgba(16, 24, 47, 0.65);
-  font-size: 0.82rem;
+  color: rgba(16, 24, 47, 0.55);
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
 .admin-schedule-day-counters span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .admin-schedule-day-counters strong {
@@ -6537,9 +6537,9 @@ a {
 }
 
 .admin-schedule-day-counters em {
-  margin: 0 8px;
+  margin: 0 5px;
   font-style: normal;
-  color: rgba(16, 24, 47, 0.3);
+  color: rgba(16, 24, 47, 0.25);
 }
 
 .admin-schedule-day-counters .is-empty {
