@@ -6253,10 +6253,6 @@ a {
   color: rgba(20, 78, 75, 1);
 }
 
-.admin-schedule-slot.is-multi-kloter {
-  box-shadow: inset 3px 0 0 var(--gold);
-}
-
 .admin-schedule-slot-remove {
   position: absolute;
   bottom: 6px;
