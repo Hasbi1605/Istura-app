@@ -1219,6 +1219,42 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('segments');
     }
 
+    public function test_admin_manual_segments_merge_duplicate_slot_and_require_note_for_large_kloter(): void
+    {
+        Storage::fake('local');
+
+        $response = $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-04',
+            'time' => '08.00',
+            'groupSize' => 160,
+        ]), ['Accept' => 'application/json']);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.kloterCount', 2);
+
+        $code = $response->json('data.code');
+        $this->actingAsAdmin();
+
+        $payload = [
+            'segments' => [
+                ['date' => '2026-06-04', 'time' => '08.00', 'groupSize' => 80],
+                ['date' => '2026-06-04', 'time' => '08.00', 'groupSize' => 80],
+            ],
+        ];
+
+        $this->postJson("/api/admin/bookings/{$code}/segments", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('note');
+
+        $this->postJson("/api/admin/bookings/{$code}/segments", $payload + [
+            'note' => 'Admin menggabungkan dua kloter karena rombongan meminta satu sesi.',
+        ])->assertOk()
+            ->assertJsonPath('data.kloterCount', 1)
+            ->assertJsonPath('data.segments.0.time', '08.00')
+            ->assertJsonPath('data.segments.0.groupSize', 160)
+            ->assertJsonPath('data.note', 'Admin menggabungkan dua kloter karena rombongan meminta satu sesi.');
+    }
+
     public function test_admin_manual_segments_require_explicit_overbook_for_occupied_slot(): void
     {
         $this->actingAsAdmin();

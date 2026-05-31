@@ -7742,6 +7742,136 @@ a {
   }
 }
 
+.segment-modal-card {
+  width: min(640px, 100%);
+  gap: 14px;
+  padding: 24px;
+}
+
+.segment-modal-card h2 {
+  font-size: 1.28rem;
+  letter-spacing: 0;
+}
+
+.segment-modal-card .segment-modal-summary {
+  margin: 0;
+  color: rgba(16, 24, 47, 0.64);
+  font-size: 0.9rem;
+}
+
+.segment-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segment-quick-actions .button,
+.segment-add-button {
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.segment-modal-card .segment-date-field {
+  gap: 6px;
+}
+
+.segment-table {
+  display: grid;
+  gap: 6px;
+}
+
+.segment-table-head,
+.segment-table-row {
+  display: grid;
+  grid-template-columns: 54px minmax(120px, 1fr) 104px 34px;
+  align-items: center;
+  gap: 8px;
+}
+
+.segment-table-head {
+  color: rgba(16, 24, 47, 0.48);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.segment-table-row {
+  padding: 6px;
+  background: rgba(16, 24, 47, 0.025);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 8px;
+}
+
+.segment-table-row > strong {
+  color: var(--navy);
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.segment-table-row select,
+.segment-table-row input,
+.segment-modal-card .segment-date-field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  color: var(--navy);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.segment-table-row select:focus,
+.segment-table-row input:focus,
+.segment-modal-card .segment-date-field select:focus {
+  outline: none;
+  border-color: rgba(196, 146, 18, 0.55);
+  box-shadow: 0 0 0 3px rgba(196, 146, 18, 0.14);
+}
+
+.segment-icon-button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: rgba(16, 24, 47, 0.62);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.segment-icon-button:hover:not(:disabled),
+.segment-icon-button:focus-visible:not(:disabled) {
+  outline: none;
+  color: var(--navy);
+  border-color: rgba(16, 24, 47, 0.22);
+}
+
+.segment-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.segment-row-note {
+  margin: 0;
+  color: rgba(16, 24, 47, 0.56);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .segment-table-head {
+    display: none;
+  }
+
+  .segment-table-row {
+    grid-template-columns: 38px 1fr 84px 34px;
+  }
+}
+
 .document-preview-card {
   width: min(880px, 100%);
   max-height: min(86vh, 920px);
