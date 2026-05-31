@@ -81,8 +81,43 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+type PaginatedResponse<T> = {
+  data: T[];
+  meta?: {
+    currentPage: number;
+    perPage: number;
+    total: number;
+    lastPage: number;
+  };
+};
+
 export async function api<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
   return apiRequest<T>(path, options, true);
+}
+
+export async function fetchAllPages<T>(
+  path: string,
+  params: Record<string, string | number | undefined> = {},
+): Promise<T[]> {
+  const items: T[] = [];
+  let page = 1;
+  let lastPage = 1;
+
+  do {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") search.set(key, String(value));
+    });
+    search.set("page", String(page));
+    search.set("perPage", String(params.perPage ?? 500));
+
+    const response = await api<PaginatedResponse<T>>(`${path}?${search.toString()}`);
+    items.push(...response.data);
+    lastPage = response.meta?.lastPage ?? page;
+    page += 1;
+  } while (page <= lastPage);
+
+  return items;
 }
 
 async function apiRequest<T = unknown>(path: string, options: RequestOptions, retryOnCsrf: boolean): Promise<T> {

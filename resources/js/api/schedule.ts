@@ -4,7 +4,7 @@ export type ApiVisitDay = {
   date: string;
   label: string;
   short: string;
-  slots: { time: string; status: string; custom: boolean }[];
+  slots: { time: string; status: string; custom: boolean; bookingCount?: number; overbooked?: boolean }[];
 };
 
 export const fetchAdminSchedule = (from?: string, to?: string): Promise<ApiVisitDay[]> => {

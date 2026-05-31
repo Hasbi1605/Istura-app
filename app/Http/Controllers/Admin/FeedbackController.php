@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\IndexFeedbackRequest;
 use App\Http\Resources\FeedbackResource;
 use App\Models\Feedback;
 use Illuminate\Http\JsonResponse;
@@ -12,14 +13,15 @@ use Illuminate\Support\Facades\Gate;
 
 class FeedbackController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexFeedbackRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Feedback::class);
+        $filters = $request->validated();
 
         $query = Feedback::query()
-            ->when($request->date('from'), fn ($q, $from) => $q->whereDate('submitted_at', '>=', $from))
-            ->when($request->date('to'), fn ($q, $to) => $q->whereDate('submitted_at', '<=', $to))
-            ->when($request->string('scope')->trim()->value(), function ($q, $scope) {
+            ->when($filters['from'] ?? null, fn ($q, $from) => $q->whereDate('submitted_at', '>=', $from))
+            ->when($filters['to'] ?? null, fn ($q, $to) => $q->whereDate('submitted_at', '<=', $to))
+            ->when($filters['scope'] ?? null, function ($q, $scope) {
                 if ($scope === 'positive') {
                     $q->where('rating', '>=', 4);
                 } elseif ($scope === 'attention') {

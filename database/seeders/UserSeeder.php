@@ -21,15 +21,12 @@ class UserSeeder extends Seeder
 
         $defaultPassword = Hash::make($seedPassword);
         foreach ($directory as $user) {
-            User::updateOrCreate(
-                ['email' => $user['email']],
-                [
-                    'name' => $user['name'],
-                    'password' => $defaultPassword,
-                    'role' => $this->mapRole($user['role']),
-                    'email_verified_at' => $user['status'] === 'Aktif' ? now() : null,
-                ],
-            );
+            $admin = User::firstOrNew(['email' => $user['email']]);
+            $admin->name = $user['name'];
+            $admin->password = $defaultPassword;
+            $admin->role = $this->mapRole($user['role']);
+            $admin->email_verified_at = $user['status'] === 'Aktif' ? now() : null;
+            $admin->save();
         }
     }
 

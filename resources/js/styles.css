@@ -3073,12 +3073,30 @@ a {
 }
 
 .form-message {
+  align-items: center;
   color: var(--teal);
+  display: flex;
+  gap: 8px;
   font-weight: 700;
 }
 
 .form-message--error {
   color: #b3261e;
+}
+
+.form-check {
+  align-items: center;
+  color: rgba(16, 24, 47, 0.78);
+  display: flex;
+  font-size: 0.92rem;
+  font-weight: 700;
+  gap: 10px;
+}
+
+.form-check input {
+  accent-color: var(--teal);
+  height: 16px;
+  width: 16px;
 }
 
 /* ---- Feedback-specific layout ---- */

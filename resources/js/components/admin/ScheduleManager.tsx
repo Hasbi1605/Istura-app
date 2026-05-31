@@ -656,7 +656,9 @@ export function AdminScheduleManager({
                           ? "Tersedia"
                           : slot.status === "Closed"
                             ? "Ditutup"
-                            : slot.status === "Booked"
+                            : slot.overbooked
+                              ? `${slot.bookingCount} booking`
+                              : slot.status === "Booked"
                               ? "Sudah terisi"
                               : "Sedang diproses";
                       const StatusIcon = past
@@ -680,6 +682,8 @@ export function AdminScheduleManager({
                           className={`admin-schedule-slot ${statusClass}${
                             disabled ? " is-locked" : ""
                           }${slot.custom ? " is-custom" : ""}${
+                            slot.overbooked ? " is-overbooked" : ""
+                          }${
                             isHighlight ? " is-highlight" : ""
                           }`}
                         >

@@ -90,9 +90,9 @@ class BookingService
         return $this->transitionTo($booking, 'Rejected', $actor, 'reject', $note);
     }
 
-    public function complete(Booking $booking, ?User $actor): Booking
+    public function complete(Booking $booking, ?User $actor, ?string $note = null): Booking
     {
-        return $this->transitionTo($booking, 'Completed', $actor, 'complete');
+        return $this->transitionTo($booking, 'Completed', $actor, 'complete', $note);
     }
 
     public function reschedule(
@@ -158,9 +158,14 @@ class BookingService
      *
      * @param  array<int, array{date:string,time:string,groupSize:int}>  $segments
      */
-    public function overrideSegments(Booking $booking, ?User $actor, array $segments, ?string $note = null): Booking
-    {
-        return DB::transaction(function () use ($booking, $actor, $segments, $note) {
+    public function overrideSegments(
+        Booking $booking,
+        ?User $actor,
+        array $segments,
+        ?string $note = null,
+        bool $allowOverbook = false,
+    ): Booking {
+        return DB::transaction(function () use ($booking, $actor, $segments, $note, $allowOverbook) {
             $booking = Booking::with('slots')
                 ->whereKey($booking->id)
                 ->lockForUpdate()
@@ -191,6 +196,9 @@ class BookingService
                 ];
             })->all();
 
+            $this->lockSlotKeysForSegments($normalized);
+            $conflicts = $this->assertManualSegmentsUsable($booking, $normalized, $allowOverbook);
+
             $first = $normalized[0];
             $booking->date = Carbon::createFromFormat('Y-m-d', $first['date'], 'Asia/Jakarta')->startOfDay();
             $booking->date_label = $first['date_label'];
@@ -201,7 +209,13 @@ class BookingService
             $booking->save();
 
             $this->persistBookingSlots($booking, $normalized, $booking->isActiveForSchedule());
-            $this->logAudit($actor, "Mengubah pembagian kloter booking {$booking->code}", $booking);
+            $description = $conflicts === []
+                ? "Mengubah pembagian kloter booking {$booking->code}"
+                : "Mengubah pembagian kloter booking {$booking->code} dengan overbook manual";
+            $this->logAudit($actor, $description, $booking, [
+                'overbook' => $conflicts !== [],
+                'conflicts' => $conflicts,
+            ]);
             $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments'));
 
             return $booking->fresh()->load('slots');
@@ -253,6 +267,8 @@ class BookingService
                         $proposedDate = Carbon::parse($booking->proposed_date, 'Asia/Jakarta')->startOfDay();
                         $replacementSegments = $this->buildSlotSegments($proposedDate, $booking->proposed_time, $booking->group_size, true, $booking->id);
                     }
+
+                    $this->lockSlotKeysForSegments($replacementSegments);
 
                     $booking->date = Carbon::createFromFormat('Y-m-d', $replacementSegments[0]['date'], 'Asia/Jakarta')->startOfDay();
                     $booking->date_label = $replacementSegments[0]['date_label'];
@@ -375,6 +391,10 @@ class BookingService
             $this->throwUnavailableConsecutiveSlots($requiredSlots);
         }
 
+        if ($lockBookings) {
+            $this->lockSlotKeys($date->toDateString(), $selectedTimes);
+        }
+
         $statuses = $this->schedule->slotStatusesFor($date, $selectedTimes, $lockBookings, $ignoreBookingId);
         if (collect($selectedTimes)->contains(fn (string $time): bool => ($statuses[$time] ?? 'Closed') !== 'Available')) {
             $this->throwUnavailableSlot();
@@ -485,6 +505,98 @@ class BookingService
         }
     }
 
+    /**
+     * @param  array<int, array{date:string,time:string}>  $segments
+     */
+    private function lockSlotKeysForSegments(array $segments): void
+    {
+        $slotKeys = collect($segments)
+            ->map(fn (array $segment): ?string => BookingSlot::slotKey($segment['date'], $segment['time']))
+            ->filter()
+            ->values()
+            ->all();
+
+        $this->lockSlotKeys($slotKeys);
+    }
+
+    /**
+     * @param  array<int, string>|string  $dateOrSlotKeys
+     * @param  array<int, string>|null  $times
+     */
+    private function lockSlotKeys(array|string $dateOrSlotKeys, ?array $times = null): void
+    {
+        $slotKeys = $times === null
+            ? $dateOrSlotKeys
+            : collect($times)->map(fn (string $time): ?string => BookingSlot::slotKey($dateOrSlotKeys, $time))->all();
+
+        $slotKeys = collect($slotKeys)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($slotKeys->isEmpty()) {
+            return;
+        }
+
+        $timestamp = now();
+        DB::table('booking_slot_locks')->upsert(
+            $slotKeys->map(fn (string $slotKey): array => [
+                'slot_key' => $slotKey,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ])->all(),
+            ['slot_key'],
+            ['updated_at'],
+        );
+
+        DB::table('booking_slot_locks')
+            ->whereIn('slot_key', $slotKeys->all())
+            ->orderBy('slot_key')
+            ->lockForUpdate()
+            ->get();
+    }
+
+    /**
+     * @param  array<int, array{slot_order:int,date:string,date_label:string,time:string,group_size:int}>  $segments
+     * @return array<int, array{date:string,time:string,status:string}>
+     */
+    private function assertManualSegmentsUsable(Booking $booking, array $segments, bool $allowOverbook): array
+    {
+        $conflicts = [];
+
+        foreach (collect($segments)->groupBy('date') as $dateKey => $dateSegments) {
+            $date = Carbon::createFromFormat('Y-m-d', $dateKey, 'Asia/Jakarta')->startOfDay();
+            $times = $dateSegments->pluck('time')->all();
+            $statuses = $this->schedule->slotStatusesFor($date, $times, true, $booking->id);
+
+            foreach ($times as $time) {
+                $status = $statuses[$time] ?? 'Closed';
+                if ($status === 'Closed') {
+                    throw ValidationException::withMessages([
+                        'segments' => ["Slot {$dateKey} {$time} sedang tutup. Buka slot jadwal terlebih dahulu sebelum mengatur kloter."],
+                    ]);
+                }
+
+                if ($status !== 'Available') {
+                    $conflicts[] = [
+                        'date' => $dateKey,
+                        'time' => $time,
+                        'status' => $status,
+                    ];
+                }
+            }
+        }
+
+        if ($conflicts !== [] && ! $allowOverbook) {
+            throw ValidationException::withMessages([
+                'allowOverbook' => ['Slot yang dipilih sudah terisi. Centang izin overbook dan isi alasan untuk menggabungkan rombongan.'],
+            ]);
+        }
+
+        return $conflicts;
+    }
+
     private function throwUnavailableSlot(): never
     {
         throw ValidationException::withMessages([
@@ -508,10 +620,10 @@ class BookingService
             && str_contains($message, 'active_slot_key');
     }
 
-    private function logAudit(?User $actor, string $description, Booking $booking): void
+    private function logAudit(?User $actor, string $description, Booking $booking, array $payload = []): void
     {
-        AuditLogger::record($actor, $description, Booking::class, $booking->code, [
+        AuditLogger::record($actor, $description, Booking::class, $booking->code, array_merge([
             'status' => $booking->status,
-        ]);
+        ], $payload));
     }
 }

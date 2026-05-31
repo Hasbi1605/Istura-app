@@ -68,10 +68,14 @@ class ScheduleService
                 ->values();
 
             $slots = $times->map(function (string $time) use ($key, $closedByDefault, $overrides, $bookings, $bookingSlots) {
+                $bookingCount = $this->activeBookingCount($key, $time, $bookings, $bookingSlots);
+
                 return [
                     'time' => $time,
                     'status' => $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots),
                     'custom' => ! in_array($time, self::TIME_SLOTS, true),
+                    'bookingCount' => $bookingCount,
+                    'overbooked' => $bookingCount > 1,
                 ];
             })->all();
 
@@ -121,7 +125,7 @@ class ScheduleService
         $override = ScheduleOverride::whereDate('date', $dateKey)
             ->where('time', $time)
             ->first();
-        if ($override) {
+        if ($override?->status === 'Closed') {
             return $override->status;
         }
 
@@ -150,6 +154,10 @@ class ScheduleService
         $booking = $bookingQuery->first();
         if ($booking) {
             return $this->statusFromBooking($booking);
+        }
+
+        if ($override?->status === 'Available') {
+            return 'Available';
         }
 
         if (! in_array($time, self::TIME_SLOTS, true)) {
@@ -192,7 +200,7 @@ class ScheduleService
         }
 
         $availableTimes = $times
-            ->reject(fn (string $time): bool => $overrides->has($time))
+            ->reject(fn (string $time): bool => $overrides->get($time)?->status === 'Closed')
             ->values();
 
         if ($availableTimes->isEmpty()) {
@@ -255,7 +263,7 @@ class ScheduleService
         Collection $bookingSlots,
     ): string {
         $override = $overrides->get($dateKey)?->firstWhere('time', $time);
-        if ($override) {
+        if ($override?->status === 'Closed') {
             return $override->status;
         }
 
@@ -273,11 +281,37 @@ class ScheduleService
             return $this->statusFromBooking($booking);
         }
 
+        if ($override?->status === 'Available') {
+            return 'Available';
+        }
+
         if (! in_array($time, self::TIME_SLOTS, true)) {
             return 'Closed';
         }
 
         return $closedByDefault ? 'Closed' : 'Available';
+    }
+
+    private function activeBookingCount(
+        string $dateKey,
+        string $time,
+        Collection $bookings,
+        Collection $bookingSlots,
+    ): int {
+        $slotBookingIds = $bookingSlots->get($dateKey)
+            ?->filter(fn ($entry) => $entry->time === $time && $entry->booking?->isActiveForSchedule())
+            ->pluck('booking_id')
+            ->all() ?? [];
+
+        $legacyBookingIds = $bookings->get($dateKey)
+            ?->filter(fn ($entry) => $entry->time === $time && in_array($entry->status, Booking::ACTIVE_STATUSES, true))
+            ->pluck('id')
+            ->all() ?? [];
+
+        return collect($slotBookingIds)
+            ->merge($legacyBookingIds)
+            ->unique()
+            ->count();
     }
 
     private function statusFromBooking(Booking $booking): string

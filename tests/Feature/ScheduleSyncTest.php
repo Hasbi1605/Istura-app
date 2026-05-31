@@ -16,6 +16,7 @@ use App\Services\BookingService;
 use App\Services\ScheduleService;
 use App\Support\SiteContentDefaults;
 use Carbon\Carbon;
+use Database\Seeders\UserSeeder;
 use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Contracts\Broadcasting\Broadcaster as BroadcasterContract;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -24,6 +25,7 @@ use Illuminate\Contracts\Broadcasting\ShouldRescue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -139,6 +141,80 @@ class ScheduleSyncTest extends TestCase
         $migration->down();
     }
 
+    public function test_completed_booking_repair_migration_clears_legacy_active_slot_keys(): void
+    {
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-COMPLETE-LEGACY',
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Completed',
+        ]);
+        DB::table('bookings')
+            ->where('id', $booking->id)
+            ->update(['active_slot_key' => '2026-06-01|08.00']);
+        BookingSlot::create([
+            'booking_id' => $booking->id,
+            'kind' => BookingSlot::KIND_ACTIVE,
+            'slot_order' => 1,
+            'date' => '2026-06-01',
+            'date_label' => 'Senin, 1 Juni 2026',
+            'time' => '08.00',
+            'group_size' => 25,
+            'active_slot_key' => '2026-06-01|08.00',
+        ]);
+
+        $migration = require database_path('migrations/2026_05_31_000002_repair_completed_booking_active_slot_keys.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'active_slot_key' => null,
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'active_slot_key' => null,
+        ]);
+    }
+
+    public function test_large_legacy_booking_slot_repair_migration_splits_segments(): void
+    {
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-LARGE-LEGACY',
+            'date' => '2026-06-04',
+            'time' => '11.00',
+            'status' => 'Pending',
+            'group_size' => 160,
+        ]);
+        BookingSlot::create([
+            'booking_id' => $booking->id,
+            'kind' => BookingSlot::KIND_ACTIVE,
+            'slot_order' => 1,
+            'date' => '2026-06-04',
+            'date_label' => 'Kamis, 4 Juni 2026',
+            'time' => '11.00',
+            'group_size' => 80,
+            'active_slot_key' => '2026-06-04|11.00',
+        ]);
+
+        $migration = require database_path('migrations/2026_05_31_000003_repair_legacy_large_booking_slots.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 1,
+            'time' => '11.00',
+            'group_size' => 80,
+            'active_slot_key' => '2026-06-04|11.00',
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 2,
+            'time' => '12.00',
+            'group_size' => 80,
+            'active_slot_key' => '2026-06-04|12.00',
+        ]);
+    }
+
     public function test_public_schedule_reflects_admin_override_and_active_booking(): void
     {
         $date = '2026-06-01';
@@ -162,7 +238,7 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Booked', $this->slotFromResponse($response->json('data'), $date, '09.00')['status']);
     }
 
-    public function test_admin_available_override_allows_manual_overbooking_active_slot(): void
+    public function test_available_override_does_not_let_public_overbook_active_slot(): void
     {
         Storage::fake('local');
         $date = '2026-06-04';
@@ -184,16 +260,17 @@ class ScheduleSyncTest extends TestCase
         $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
             ->assertOk()
             ->json('data');
-        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '08.00')['status']);
+        $this->assertSame('Booked', $this->slotFromResponse($schedule, $date, '08.00')['status']);
 
-        $response = $this->post('/api/public/bookings', $this->publicBookingPayload([
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
             'date' => $date,
             'time' => '08.00',
             'contactName' => 'Tamu Override',
-        ]), ['Accept' => 'application/json']);
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('time');
 
-        $response->assertCreated();
-        $this->assertDatabaseCount('bookings', 2);
+        $this->assertDatabaseCount('bookings', 1);
     }
 
     public function test_completed_booking_releases_schedule_slot(): void
@@ -219,6 +296,27 @@ class ScheduleSyncTest extends TestCase
             'code' => $booking->code,
             'status' => 'Completed',
             'active_slot_key' => null,
+        ]);
+    }
+
+    public function test_complete_booking_persists_note_when_provided(): void
+    {
+        $booking = $this->createBooking([
+            'date' => '2026-05-28',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->actingAsAdmin();
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete", [
+            'note' => 'Kunjungan selesai dan peserta sudah menerima tautan feedback.',
+        ])->assertOk()
+            ->assertJsonPath('data.note', 'Kunjungan selesai dan peserta sudah menerima tautan feedback.');
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'status' => 'Completed',
+            'note' => 'Kunjungan selesai dan peserta sudah menerima tautan feedback.',
         ]);
     }
 
@@ -425,6 +523,17 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('meta.total', 3);
     }
 
+    public function test_admin_collection_endpoints_reject_invalid_date_filters(): void
+    {
+        $this->actingAsAdmin();
+
+        foreach (['/api/admin/bookings', '/api/admin/feedback', '/api/admin/audit-logs'] as $endpoint) {
+            $this->getJson("{$endpoint}?from=not-a-date")
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('from');
+        }
+    }
+
     public function test_health_endpoint_reports_database_and_cache_status(): void
     {
         $this->getJson('/api/health')
@@ -561,6 +670,24 @@ class ScheduleSyncTest extends TestCase
             'action' => 'Membuat pengguna admin audit-user@example.test',
             'target_id' => (string) $created->json('data.id'),
         ]);
+    }
+
+    public function test_user_seeder_sets_admin_role_and_active_status_without_mass_assignment(): void
+    {
+        config(['app.env' => 'local']);
+        putenv('SEED_ADMIN_PASSWORD=seed-password-123!');
+        $_ENV['SEED_ADMIN_PASSWORD'] = 'seed-password-123!';
+        $_SERVER['SEED_ADMIN_PASSWORD'] = 'seed-password-123!';
+
+        $this->seed(UserSeeder::class);
+
+        $admin = User::where('role', User::ROLE_SUPER_ADMIN)->first();
+        $this->assertNotNull($admin);
+        $this->assertTrue($admin->isActive());
+        $this->assertTrue(Hash::check('seed-password-123!', $admin->password));
+
+        putenv('SEED_ADMIN_PASSWORD');
+        unset($_ENV['SEED_ADMIN_PASSWORD'], $_SERVER['SEED_ADMIN_PASSWORD']);
     }
 
     public function test_super_admin_cannot_disable_or_demote_self(): void
@@ -1090,6 +1217,56 @@ class ScheduleSyncTest extends TestCase
             ],
         ])->assertStatus(422)
             ->assertJsonValidationErrors('segments');
+    }
+
+    public function test_admin_manual_segments_require_explicit_overbook_for_occupied_slot(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-04';
+        $occupied = $this->createBooking([
+            'code' => 'ISTURA-2026-MERGEA',
+            'date' => $date,
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-MERGEB',
+            'date' => $date,
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $payload = [
+            'segments' => [
+                ['date' => $date, 'time' => '08.00', 'groupSize' => $booking->group_size],
+            ],
+            'note' => 'Rombongan meminta digabung dengan slot sebelumnya.',
+        ];
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('allowOverbook');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + ['allowOverbook' => true])
+            ->assertOk()
+            ->assertJsonPath('data.segments.0.time', '08.00');
+
+        $schedule = $this->getJson("/api/admin/schedule?from={$date}&to={$date}")
+            ->assertOk()
+            ->json('data');
+        $slot = $this->slotFromResponse($schedule, $date, '08.00');
+
+        $this->assertSame('Booked', $slot['status']);
+        $this->assertSame(2, $slot['bookingCount']);
+        $this->assertTrue($slot['overbooked']);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => "Mengubah pembagian kloter booking {$booking->code} dengan overbook manual",
+            'target_id' => $booking->code,
+        ]);
+        $this->assertDatabaseHas('bookings', [
+            'id' => $occupied->id,
+            'active_slot_key' => "{$date}|08.00",
+        ]);
     }
 
     public function test_public_booking_at_slot_capacity_stays_single_normal_booking(): void

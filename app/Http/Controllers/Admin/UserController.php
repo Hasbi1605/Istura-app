@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -33,20 +34,22 @@ class UserController extends Controller
             'status' => ['sometimes', Rule::in(['Aktif', 'Nonaktif'])],
         ]);
 
-        $user = new User;
-        $user->name = $data['name'];
-        $user->email = $data['email'];
-        $user->password = Hash::make($data['password']);
-        $user->role = $data['role'];
-        $user->email_verified_at = ($data['status'] ?? 'Aktif') === 'Aktif' ? now() : null;
-        $user->save();
+        return DB::transaction(function () use ($request, $data) {
+            $user = new User;
+            $user->name = $data['name'];
+            $user->email = $data['email'];
+            $user->password = Hash::make($data['password']);
+            $user->role = $data['role'];
+            $user->email_verified_at = ($data['status'] ?? 'Aktif') === 'Aktif' ? now() : null;
+            $user->save();
 
-        AuditLogger::record($request->user(), "Membuat pengguna admin {$user->email}", User::class, $user->id, [
-            'role' => $user->role,
-            'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
-        ]);
+            AuditLogger::record($request->user(), "Membuat pengguna admin {$user->email}", User::class, $user->id, [
+                'role' => $user->role,
+                'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
+            ]);
 
-        return response()->json(['data' => (new UserResource($user))->resolve()], 201);
+            return response()->json(['data' => (new UserResource($user))->resolve()], 201);
+        });
     }
 
     public function update(Request $request, User $user): JsonResponse
@@ -61,33 +64,37 @@ class UserController extends Controller
             'status' => ['sometimes', Rule::in(['Aktif', 'Nonaktif'])],
         ]);
 
-        $this->assertUserUpdateKeepsSuperAdminAccess($request->user(), $user, $data);
+        return DB::transaction(function () use ($request, $user, $data) {
+            $this->lockActiveSuperAdmins();
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $this->assertUserUpdateKeepsSuperAdminAccess($request->user(), $user, $data);
 
-        if (array_key_exists('name', $data)) {
-            $user->name = $data['name'];
-        }
-        if (array_key_exists('email', $data)) {
-            $user->email = $data['email'];
-        }
-        if (array_key_exists('role', $data)) {
-            $user->role = $data['role'];
-        }
-        if (! empty($data['password'])) {
-            $user->password = Hash::make($data['password']);
-        }
-        if (array_key_exists('status', $data)) {
-            $user->email_verified_at = $data['status'] === 'Aktif' ? ($user->email_verified_at ?? now()) : null;
-        }
-        $user->save();
+            if (array_key_exists('name', $data)) {
+                $user->name = $data['name'];
+            }
+            if (array_key_exists('email', $data)) {
+                $user->email = $data['email'];
+            }
+            if (array_key_exists('role', $data)) {
+                $user->role = $data['role'];
+            }
+            if (! empty($data['password'])) {
+                $user->password = Hash::make($data['password']);
+            }
+            if (array_key_exists('status', $data)) {
+                $user->email_verified_at = $data['status'] === 'Aktif' ? ($user->email_verified_at ?? now()) : null;
+            }
+            $user->save();
 
-        AuditLogger::record($request->user(), "Memperbarui pengguna admin {$user->email}", User::class, $user->id, [
-            'fields' => array_values(array_diff(array_keys($data), ['password'])),
-            'password_changed' => ! empty($data['password']),
-            'role' => $user->role,
-            'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
-        ]);
+            AuditLogger::record($request->user(), "Memperbarui pengguna admin {$user->email}", User::class, $user->id, [
+                'fields' => array_values(array_diff(array_keys($data), ['password'])),
+                'password_changed' => ! empty($data['password']),
+                'role' => $user->role,
+                'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
+            ]);
 
-        return response()->json(['data' => (new UserResource($user->fresh()))->resolve()]);
+            return response()->json(['data' => (new UserResource($user->fresh()))->resolve()]);
+        });
     }
 
     public function destroy(Request $request, User $user): JsonResponse
@@ -100,15 +107,19 @@ class UserController extends Controller
             ]);
         }
 
-        $this->assertCanRemoveUser($user);
+        return DB::transaction(function () use ($request, $user) {
+            $this->lockActiveSuperAdmins();
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $this->assertCanRemoveUser($user);
 
-        $targetEmail = $user->email;
-        $targetId = $user->id;
-        $user->delete();
+            $targetEmail = $user->email;
+            $targetId = $user->id;
+            $user->delete();
 
-        AuditLogger::record($request->user(), "Menghapus pengguna admin {$targetEmail}", User::class, $targetId);
+            AuditLogger::record($request->user(), "Menghapus pengguna admin {$targetEmail}", User::class, $targetId);
 
-        return response()->json(['ok' => true]);
+            return response()->json(['ok' => true]);
+        });
     }
 
     private function authorizeSuperAdmin(Request $request): void
@@ -162,5 +173,15 @@ class UserController extends Controller
                 'user' => ['Minimal harus ada satu Super Admin aktif.'],
             ]);
         }
+    }
+
+    private function lockActiveSuperAdmins(): void
+    {
+        User::query()
+            ->where('role', User::ROLE_SUPER_ADMIN)
+            ->whereNotNull('email_verified_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get(['id']);
     }
 }

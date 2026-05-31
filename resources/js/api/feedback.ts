@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, fetchAllPages } from "./client";
 import type { BookingStatus } from "../domain/types";
 
 export type ApiFeedback = {
@@ -22,7 +22,7 @@ export type ApiPublicFeedbackBooking = {
 };
 
 export const fetchAdminFeedbacks = (): Promise<ApiFeedback[]> =>
-  api<{ data: ApiFeedback[] }>("/api/admin/feedback?perPage=250").then((r) => r.data);
+  fetchAllPages<ApiFeedback>("/api/admin/feedback");
 
 export const fetchPublicFeedback = (code: string, token: string) =>
   api<{
