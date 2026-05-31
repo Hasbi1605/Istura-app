@@ -577,20 +577,6 @@ function HeroStage() {
   const messages = isMobile ? HERO_MESSAGES_MOBILE : HERO_MESSAGES;
   const [index, setIndex] = useState(0);
   const safeIndex = index % messages.length;
-  const lastIndexRef = useRef(safeIndex);
-  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (lastIndexRef.current === safeIndex) return;
-
-    setPreviousIndex(lastIndexRef.current);
-    lastIndexRef.current = safeIndex;
-
-    const id = window.setTimeout(() => setPreviousIndex(null), 520);
-    return () => window.clearTimeout(id);
-  }, [safeIndex]);
-
-  const visibleIndexes = previousIndex === null ? [safeIndex] : [previousIndex, safeIndex];
 
   const cycle = () => setIndex((current) => (current + 1) % messages.length);
 
@@ -614,21 +600,20 @@ function HeroStage() {
         <span className="miky-wave-line" />
       </div>
       <div className="miky-hero-stack">
-        {visibleIndexes.map((idx) => {
-          const item = messages[idx];
+        {messages.map((item, idx) => {
           const isActive = idx === safeIndex;
 
           return (
-          <img
-            key={item.image}
-            className={`miky-hero-img${isActive ? " is-active" : ""}`}
-            src={item.image}
-            alt={isActive ? "MIKY, pemandu booking ISTURA" : ""}
-            aria-hidden={isActive ? undefined : "true"}
-            data-reduced={reduced ? "true" : undefined}
-            decoding="async"
-            fetchPriority={isActive ? "high" : "low"}
-          />
+            <img
+              key={item.image}
+              className={`miky-hero-img${isActive ? " is-active" : ""}`}
+              src={item.image}
+              alt={isActive ? "MIKY, pemandu booking ISTURA" : ""}
+              aria-hidden={isActive ? undefined : "true"}
+              data-reduced={reduced ? "true" : undefined}
+              decoding="async"
+              fetchPriority={isActive ? "high" : "low"}
+            />
           );
         })}
       </div>

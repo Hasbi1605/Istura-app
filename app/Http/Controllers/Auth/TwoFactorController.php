@@ -74,6 +74,10 @@ class TwoFactorController extends Controller
             'two_factor_confirmed_at' => now(),
         ])->save();
 
+        if ($request->hasSession()) {
+            $request->session()->put('two_factor_verified', true);
+        }
+
         AuditLogger::record($user, 'Mengaktifkan Two-Factor Authentication', User::class, $user->id);
 
         return response()->json([
@@ -114,8 +118,10 @@ class TwoFactorController extends Controller
             ]);
         }
 
-        // Mark session as 2FA verified
-        $request->session()->put('two_factor_verified', true);
+        // Mark session as 2FA verified when the request uses browser session auth.
+        if ($request->hasSession()) {
+            $request->session()->put('two_factor_verified', true);
+        }
 
         // Trust device if requested
         if ($request->boolean('trust_device')) {
@@ -211,7 +217,7 @@ class TwoFactorController extends Controller
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (! $user || ! $request->hasSession()) {
             return response()->json(['requires_2fa' => false]);
         }
 

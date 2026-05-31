@@ -91,6 +91,10 @@ export function AdminApp({
   const [needsSetup, setNeedsSetup] = useState(false);
   const [checking2fa, setChecking2fa] = useState(false);
 
+  const refreshAdminData = () => {
+    onSessionChange((current) => current ? { ...current, loggedAt: new Date().toISOString() } : current);
+  };
+
   useEffect(() => {
     if (!session) {
       setChecking2fa(false);
@@ -172,7 +176,10 @@ export function AdminApp({
   if (needsSetup) {
     return (
       <TwoFactorSetup
-        onComplete={() => setNeedsSetup(false)}
+        onComplete={() => {
+          setNeedsSetup(false);
+          refreshAdminData();
+        }}
         onCancel={doLogoutAndReset}
       />
     );
@@ -181,7 +188,10 @@ export function AdminApp({
   if (needs2fa) {
     return (
       <TwoFactorChallenge
-        onVerified={() => setNeeds2fa(false)}
+        onVerified={() => {
+          setNeeds2fa(false);
+          refreshAdminData();
+        }}
         onCancel={doLogoutAndReset}
       />
     );

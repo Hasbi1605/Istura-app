@@ -17,7 +17,7 @@
   },
   "site_content": {
     "nav": {
-      "logoSrc": "/assets/gedung-agung-white.png",
+      "logoSrc": "/assets/gedung-agung-white.webp",
       "logoAlt": "Logo Gedung Agung",
       "brandText": "ISTURA",
       "ctaLabel": "Mulai Booking",
@@ -93,22 +93,22 @@
         {
           "title": "Penyambutan",
           "body": "Arahan awal dan foto sambutan di pelataran wapres.",
-          "image": "/assets/penyambutan.jpg"
+          "image": "/assets/penyambutan.webp"
         },
         {
           "title": "Cerita Sejarah Gedung Agung",
           "body": "Mengenal sejarah Gedung Agung sambil foto bersama di gedung induk.",
-          "image": "/assets/cerita-sejarah-gedung-agung.jpg"
+          "image": "/assets/cerita-sejarah-gedung-agung.webp"
         },
         {
           "title": "Tur Museum",
           "body": "Berkeliling melihat koleksi lukisan dan benda seni Istana Kepresidenan Yogyakarta.",
-          "image": "/assets/museum.jpg"
+          "image": "/assets/museum.webp"
         },
         {
           "title": "Perpustakaan",
           "body": "Membaca koleksi buku Gedung Agung sambil beristirahat sejenak.",
-          "image": "/assets/perpustakaan.jpg"
+          "image": "/assets/perpustakaan.webp"
         }
       ]
     },
@@ -131,7 +131,7 @@
       "backgroundImage": "/assets/hero-istana.jpeg"
     },
     "footer": {
-      "logoSrc": "/assets/gedung-agung-white.png",
+      "logoSrc": "/assets/gedung-agung-white.webp",
       "logoAlt": "Gedung Agung",
       "scheduleLabel": "Jadwal buka",
       "scheduleDays": "Senin - Kamis",

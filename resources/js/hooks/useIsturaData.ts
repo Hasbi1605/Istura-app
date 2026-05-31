@@ -20,7 +20,7 @@ import { DEFAULT_SITE_CONTENT, INITIAL_FAQ_ITEMS, INITIAL_FOOTER_CONTACTS, INITI
 import { clearAdminSession, readAdminSession, readCmsCollection, writeCmsCollection } from "../lib/legacyShims";
 import { ASSETS } from "../lib/assets";
 import { setActiveWaTemplates } from "../lib/whatsapp";
-import { me as apiMe } from "../api/auth";
+import { me as apiMe, twoFactorChallenge, twoFactorStatus } from "../api/auth";
 import { fetchAdminBooking, fetchAdminBookings } from "../api/bookings";
 import { fetchAdminFeedbacks } from "../api/feedback";
 import { fetchAdminSchedule, fetchPublicSchedule } from "../api/schedule";
@@ -41,7 +41,7 @@ import {
 } from "../api/cms";
 import { ADMIN_BOOKINGS_CHANNEL, PUBLIC_SCHEDULE_CHANNEL, destroyEcho, getEcho } from "../realtime/echo";
 import { apiBookingToLocal, apiFeedbackToLocal, apiVisitDayToLocal } from "../api/adapters";
-import { onAdminAuthFailure, resetCsrf } from "../api/client";
+import { ApiError, onAdminAuthFailure, resetCsrf } from "../api/client";
 
 export type FeedbackAccess = { code: string; token: string } | null;
 
@@ -63,6 +63,26 @@ const DEFAULT_LETTER: ApiLetter = {
 setActiveWaTemplates(INITIAL_WA_TEMPLATES);
 
 const ALLOW_DEMO_FALLBACK = import.meta.env.DEV || import.meta.env.VITE_ALLOW_DEMO_FALLBACK === "true";
+
+async function canFetchAdminData() {
+  try {
+    const { enabled } = await twoFactorStatus();
+    if (!enabled) return false;
+
+    const { requires_2fa } = await twoFactorChallenge();
+    return !requires_2fa;
+  } catch {
+    return false;
+  }
+}
+
+function isTwoFactorBlock(error: unknown) {
+  if (!(error instanceof ApiError) || error.status !== 403) return false;
+  if (!error.body || typeof error.body !== "object") return false;
+
+  const body = error.body as { two_factor_required?: unknown; two_factor_setup_required?: unknown };
+  return Boolean(body.two_factor_required || body.two_factor_setup_required);
+}
 
 export interface IsturaData {
   screen: Screen;
@@ -443,41 +463,54 @@ export function useIsturaData(): IsturaData {
 				setLoading((current) => ({ ...current, admin: false }));
 			}
 		};
-		fetchAdminBookings()
-      .then((items) => {
-        if (cancelled) return;
-        setBookings(items.map(apiBookingToLocal));
-      })
-			.catch(() => {
-				if (!cancelled && !ALLOW_DEMO_FALLBACK) setBookings([]);
+		void canFetchAdminData().then((allowed) => {
+			if (cancelled) return;
+			if (!allowed) {
+				setLoading((current) => ({
+					...current,
+					admin: false,
+					bookings: false,
+					feedbacks: false,
+					schedule: false,
+				}));
+				return;
+			}
+			fetchAdminBookings()
+				.then((items) => {
+					if (cancelled) return;
+					setBookings(items.map(apiBookingToLocal));
+				})
+			.catch((err) => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK && !isTwoFactorBlock(err)) setBookings([]);
 			})
 			.finally(() => {
 				if (!cancelled) setLoading((current) => ({ ...current, bookings: false }));
 				finishAdminRequest();
 			});
-		fetchAdminFeedbacks()
-      .then((items) => {
-        if (cancelled) return;
-        setFeedbacks(items.map(apiFeedbackToLocal));
-      })
-			.catch(() => {
-				if (!cancelled && !ALLOW_DEMO_FALLBACK) setFeedbacks([]);
+			fetchAdminFeedbacks()
+				.then((items) => {
+					if (cancelled) return;
+					setFeedbacks(items.map(apiFeedbackToLocal));
+				})
+			.catch((err) => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK && !isTwoFactorBlock(err)) setFeedbacks([]);
 			})
 			.finally(() => {
 				if (!cancelled) setLoading((current) => ({ ...current, feedbacks: false }));
 				finishAdminRequest();
 			});
-		fetchAdminSchedule()
-      .then((days) => {
-        if (!cancelled) setSchedules(days.map(apiVisitDayToLocal));
-      })
-			.catch(() => {
-				if (!cancelled && !ALLOW_DEMO_FALLBACK) setSchedules([]);
+			fetchAdminSchedule()
+				.then((days) => {
+					if (!cancelled) setSchedules(days.map(apiVisitDayToLocal));
+				})
+			.catch((err) => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK && !isTwoFactorBlock(err)) setSchedules([]);
 			})
 			.finally(() => {
 				if (!cancelled) setLoading((current) => ({ ...current, schedule: false }));
 				finishAdminRequest();
 			});
+		});
     return () => {
       cancelled = true;
     };

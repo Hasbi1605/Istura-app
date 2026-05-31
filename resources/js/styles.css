@@ -454,8 +454,8 @@ a {
   background-repeat: no-repeat;
   background-position: 140% 140%;
   mix-blend-mode: screen;
-  -webkit-mask: url("/assets/gedung-agung-gold.png") center / 100% 100% no-repeat;
-  mask: url("/assets/gedung-agung-gold.png") center / 100% 100% no-repeat;
+  -webkit-mask: url("/assets/gedung-agung-gold.webp") center / 100% 100% no-repeat;
+  mask: url("/assets/gedung-agung-gold.webp") center / 100% 100% no-repeat;
   animation: heroLogoShine 4.6s ease-in-out infinite;
 }
 

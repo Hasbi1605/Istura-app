@@ -13,7 +13,7 @@ class SiteContentDefaults
     {
         return [
             'nav' => [
-                'logoSrc' => '/assets/gedung-agung-white.png',
+                'logoSrc' => '/assets/gedung-agung-white.webp',
                 'logoAlt' => 'Logo Gedung Agung',
                 'brandText' => 'ISTURA',
                 'ctaLabel' => 'Mulai Booking',
@@ -99,7 +99,7 @@ class SiteContentDefaults
                     [
                         'title' => 'Tur Museum',
                         'body' => 'Berkeliling melihat koleksi lukisan dan benda seni Istana Kepresidenan Yogyakarta.',
-                        'image' => '/assets/museum.jpg',
+                        'image' => '/assets/museum.webp',
                     ],
                     [
                         'title' => 'Perpustakaan',
@@ -127,7 +127,7 @@ class SiteContentDefaults
                 'backgroundImage' => '/assets/hero-istana.jpeg',
             ],
             'footer' => [
-                'logoSrc' => '/assets/gedung-agung-white.png',
+                'logoSrc' => '/assets/gedung-agung-white.webp',
                 'logoAlt' => 'Gedung Agung',
                 'scheduleLabel' => 'Jadwal buka',
                 'scheduleDays' => 'Senin - Kamis',

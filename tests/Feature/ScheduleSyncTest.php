@@ -14,6 +14,7 @@ use App\Models\ScheduleOverride;
 use App\Models\User;
 use App\Services\BookingService;
 use App\Services\ScheduleService;
+use App\Services\TwoFactorService;
 use App\Support\SiteContentDefaults;
 use Carbon\Carbon;
 use Database\Seeders\UserSeeder;
@@ -31,6 +32,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
+use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 class ScheduleSyncTest extends TestCase
@@ -1066,6 +1068,28 @@ class ScheduleSyncTest extends TestCase
         ]));
 
         $this->getJson('/api/admin/bookings')->assertForbidden();
+    }
+
+    public function test_two_factor_setup_confirmation_unlocks_admin_data_in_same_session(): void
+    {
+        $secret = app(TwoFactorService::class)->generateSecret();
+        $code = (new Google2FA)->getCurrentOtp($secret);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $admin->forceFill(['two_factor_secret' => encrypt($secret)])->save();
+        $booking = $this->createBooking(['code' => 'ISTURA-2026-2FA']);
+
+        $this->actingAs($admin);
+
+        $this->postJson('/api/auth/two-factor/confirm', ['code' => $code])
+            ->assertOk()
+            ->assertJsonCount(8, 'recovery_codes');
+
+        $this->assertNotNull($admin->fresh()->two_factor_confirmed_at);
+
+        $this->getJson('/api/admin/bookings')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.code', $booking->code);
     }
 
     public function test_public_booking_allows_h1_to_h4_and_rejects_same_day(): void
