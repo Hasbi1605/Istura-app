@@ -9,7 +9,15 @@ class AuditLog extends Model
 {
     public $timestamps = false;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'actor_id',
+        'actor_name',
+        'action',
+        'target_type',
+        'target_id',
+        'payload',
+        'created_at',
+    ];
 
     protected $casts = [
         'payload' => 'array',

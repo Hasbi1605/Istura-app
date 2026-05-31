@@ -30,7 +30,7 @@ export type ApiBooking = {
   leadTimeDays?: number | null;
   isShortNotice?: boolean;
   note?: string | null;
-  feedbackToken: string;
+  feedbackToken?: string;
   completedAt?: string | null;
   proposedDate?: string | null;
   proposedDateLabel?: string | null;

@@ -19,7 +19,7 @@ class BookingResource extends JsonResource
         return [
             'code' => $this->code,
             'contactName' => $this->contact_name,
-            'nik' => $this->when($this->shouldExposeNik($request), fn () => $this->visibleNik($request)),
+            'nik' => $this->when($this->shouldExposeNik($request), fn () => $this->nik),
             'nikMasked' => $this->nik_masked,
             'whatsapp' => $this->whatsapp,
             'institution' => $this->institution,
@@ -36,7 +36,7 @@ class BookingResource extends JsonResource
             'leadTimeDays' => $leadTimeDays,
             'isShortNotice' => $leadTimeDays !== null && $leadTimeDays >= 0 && $leadTimeDays < 5,
             'note' => $this->note,
-            'feedbackToken' => $this->feedback_token,
+            'feedbackToken' => $this->when($this->shouldExposeFeedbackToken($request), fn () => $this->feedback_token),
             'completedAt' => $this->completed_at ? IndonesianDate::submittedAt($this->completed_at) : null,
             'proposedDate' => $this->proposed_date?->toDateString(),
             'proposedDateLabel' => $this->proposed_date_label,
@@ -87,14 +87,16 @@ class BookingResource extends JsonResource
 
     private function shouldExposeNik(Request $request): bool
     {
-        return (bool) $request->user() && $request->is('api/admin/*');
+        return (bool) $request->user()?->isSuperAdmin()
+            && $request->isMethod('GET')
+            && $request->is('api/admin/bookings/*')
+            && ! $request->is('api/admin/bookings/*/*');
     }
 
-    private function visibleNik(Request $request): ?string
+    private function shouldExposeFeedbackToken(Request $request): bool
     {
-        $user = $request->user();
-
-        return $user?->isAdmin() ? $this->nik : $this->nik_masked;
+        return (bool) $request->user()?->isAdmin()
+            && $request->is('api/admin/*');
     }
 
     private function leadTimeDays(): ?int

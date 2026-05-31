@@ -7,7 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WaTemplate extends Model
 {
-    protected $guarded = [];
+    protected $fillable = [
+        'status_key',
+        'label',
+        'description',
+        'template',
+        'updated_by',
+    ];
 
     public function updater(): BelongsTo
     {

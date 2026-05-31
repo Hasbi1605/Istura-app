@@ -25,7 +25,7 @@ class SafePublicUrl implements ValidationRule
 
     public static function image(): self
     {
-        return new self(['https'], allowRelative: true);
+        return new self(['https'], self::publicImageHosts(), allowRelative: true);
     }
 
     public static function youtube(): self
@@ -118,5 +118,17 @@ class SafePublicUrl implements ValidationRule
         }
 
         return ! str_contains($url, '\\') && ! preg_match('/(?:^|\/)\.\.?(?:\/|$)/', $url);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function publicImageHosts(): array
+    {
+        return collect(config('security.public_image_hosts', []))
+            ->map(fn (string $host) => strtolower(trim($host)))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

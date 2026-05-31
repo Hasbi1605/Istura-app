@@ -50,6 +50,13 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const load = useCallback(() => {
+    if (!canManage) {
+      setUsers([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     fetchAdminUsers()
       .then((data) => {
@@ -58,7 +65,7 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
       })
       .catch(() => setError("Gagal memuat daftar pengguna."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [canManage]);
 
   useEffect(() => {
     load();

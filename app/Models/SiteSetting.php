@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class SiteSetting extends Model
 {
-    protected $guarded = [];
+    protected $fillable = [
+        'key',
+        'value',
+    ];
 
     protected $casts = [
         'value' => 'array',

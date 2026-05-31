@@ -15,7 +15,16 @@ class Booking extends Model
 
     public const ACTIVE_STATUSES = ['Pending', 'Accepted', 'Reschedule'];
 
-    protected $guarded = [];
+    protected $fillable = [
+        'contact_name',
+        'nik',
+        'whatsapp',
+        'institution',
+        'group_size',
+        'date',
+        'date_label',
+        'time',
+    ];
 
     protected $casts = [
         'date' => 'date',

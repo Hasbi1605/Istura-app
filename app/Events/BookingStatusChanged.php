@@ -6,13 +6,16 @@ use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldRescue;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class BookingStatusChanged implements ShouldBroadcastNow
+class BookingStatusChanged implements ShouldBroadcast, ShouldRescue
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public bool $afterCommit = true;
 
     public function __construct(
         public Booking $booking,

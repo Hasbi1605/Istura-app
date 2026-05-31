@@ -6,13 +6,16 @@ use App\Http\Resources\FeedbackResource;
 use App\Models\Feedback;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldRescue;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class FeedbackSubmitted implements ShouldBroadcastNow
+class FeedbackSubmitted implements ShouldBroadcast, ShouldRescue
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public bool $afterCommit = true;
 
     public function __construct(public Feedback $feedback) {}
 

@@ -8,7 +8,13 @@ class ScheduleOverride extends Model
 {
     public const STATUSES = ['Available', 'Held', 'Booked', 'Closed', 'Reschedule Hold'];
 
-    protected $guarded = [];
+    protected $fillable = [
+        'date',
+        'time',
+        'status',
+        'custom',
+        'note',
+    ];
 
     protected $casts = [
         'date' => 'date',
