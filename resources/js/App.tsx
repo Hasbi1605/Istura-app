@@ -2,9 +2,12 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { Navigation } from "./components/layout/Navigation";
 import { HomeScreen } from "./components/home/HomeScreen";
 import { InlineSpinner } from "./components/ui/LoadingStates";
-import { useNavEntranceAnimation, useHomeHeroAnimation } from "./animations/useHomeAnimations";
 import { useIsturaData } from "./hooks/useIsturaData";
 import type { Screen } from "./domain/types";
+
+const HomeAnimationLayer = lazy(() =>
+  import("./animations/HomeAnimationLayer").then((module) => ({ default: module.HomeAnimationLayer })),
+);
 
 const BookingWizard = lazy(() =>
   import("./components/booking/BookingWizard").then((module) => ({ default: module.BookingWizard })),
@@ -54,8 +57,6 @@ function App() {
     cmsSync,
   } = data;
 
-  useNavEntranceAnimation(pageRef);
-  useHomeHeroAnimation(pageRef, screen);
   const screenFallback = (
     <div className="screen-fallback" aria-busy="true">
       <InlineSpinner label="Memuat halaman" />
@@ -78,6 +79,9 @@ function App() {
 
   return (
     <main ref={pageRef} className="app-shell overflow-x-hidden w-full max-w-full">
+      <Suspense fallback={null}>
+        <HomeAnimationLayer pageRef={pageRef} screen={screen} />
+      </Suspense>
       {screen === "admin" ? (
         <Suspense fallback={screenFallback}>
           <AdminApp

@@ -21,6 +21,7 @@ Route::get('health', HealthController::class);
 // Public
 // ---------------------------------------------------------------------------
 Route::prefix('public')->group(function () {
+    Route::get('bootstrap', [ContentController::class, 'bootstrap']);
     Route::get('faqs', [ContentController::class, 'faqs']);
     Route::get('contacts', [ContentController::class, 'contacts']);
     Route::get('schedule', [ContentController::class, 'schedule']);

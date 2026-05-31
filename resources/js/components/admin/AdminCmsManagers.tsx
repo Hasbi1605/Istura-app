@@ -465,12 +465,12 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
       return;
     }
 
-    const isSupportedImage = /\.(jpe?g|png)$/i.test(next.name);
+    const isSupportedImage = /\.(jpe?g|png|webp)$/i.test(next.name);
     if (!isSupportedImage) {
       event.currentTarget.value = "";
       setFile(null);
       setPreview(null);
-      setError("Format gambar harus JPG atau PNG.");
+      setError("Format gambar harus JPG, PNG, atau WebP.");
       return;
     }
 
@@ -545,14 +545,14 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
 			</div>
 		)}
         <div className="admin-file-field">
-          <span className="admin-file-field-label">Ganti gambar (JPG/PNG, maks 5 MB)</span>
+          <span className="admin-file-field-label">Ganti gambar (JPG/PNG/WebP, maks 5 MB)</span>
           <div className="admin-file-row">
             <label className="button button-ghost admin-file-button">
               <UploadCloud size={16} aria-hidden="true" />
               Pilih gambar
               <input
                 type="file"
-                accept="image/jpeg,image/png"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={onFileChange}
                 className="admin-file-input"
               />

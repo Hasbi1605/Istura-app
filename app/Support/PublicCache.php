@@ -10,6 +10,30 @@ class PublicCache
 
     private const SCHEDULE_TTL = 300;
 
+    public const CMS_BROWSER_TTL = 300;
+
+    public const SCHEDULE_BROWSER_TTL = 60;
+
+    public const BOOTSTRAP_BROWSER_TTL = 60;
+
+    public const STALE_WHILE_REVALIDATE = 300;
+
+    /**
+     * Public API payloads do not contain visitor-specific data. Let browsers
+     * and the CDN reuse them briefly while the server-side cache stays longer.
+     */
+    public static function publicHeaders(int $maxAge): array
+    {
+        return [
+            'Cache-Control' => sprintf(
+                'public, max-age=%d, s-maxage=%d, stale-while-revalidate=%d',
+                $maxAge,
+                $maxAge,
+                self::STALE_WHILE_REVALIDATE,
+            ),
+        ];
+    }
+
     public static function rememberCms(string $key, callable $resolver): mixed
     {
         return Cache::remember("public:cms:{$key}", self::CMS_TTL, $resolver);

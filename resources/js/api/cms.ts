@@ -1,5 +1,6 @@
 import { api } from "./client";
 import type { SiteContent } from "../domain/types";
+import type { ApiVisitDay } from "./schedule";
 
 export type ApiFaq = {
   id: string;
@@ -61,6 +62,19 @@ export type ApiLetter = {
   image: string;
   checklist: string[];
 };
+
+export type ApiPublicBootstrap = {
+  schedule: ApiVisitDay[];
+  faqs: ApiFaq[];
+  contacts: ApiContact[];
+  waTemplates: ApiWaTemplate[];
+  hero: ApiHero;
+  letter: ApiLetter;
+  siteContent: SiteContent;
+};
+
+export const fetchPublicBootstrap = () =>
+  api<{ data: ApiPublicBootstrap }>("/api/public/bootstrap").then((r) => r.data);
 
 export const fetchPublicHero = () => api<{ data: ApiHero }>("/api/public/hero").then((r) => r.data);
 export const fetchPublicLetter = () =>

@@ -1,7 +1,8 @@
 // fetch wrapper sesuai pola Laravel + Sanctum (cookie SPA auth).
 //
 // Aturan:
-// - Selalu kirim credentials supaya cookie session terbawa.
+// - Kirim credentials untuk request yang butuh sesi; GET publik sengaja omit
+//   supaya hard refresh tidak ikut menunggu cookie/Sanctum path.
 // - Sebelum mutating request, ambil CSRF cookie via /sanctum/csrf-cookie lalu
 //   sertakan token dari cookie XSRF-TOKEN ke header X-XSRF-TOKEN.
 // - Response dinormalisasi: 200/201 -> JSON, 422 -> ValidationError, lainnya
@@ -84,6 +85,7 @@ type RequestOptions = {
   body?: unknown;
   formData?: FormData;
   signal?: AbortSignal;
+  credentials?: RequestCredentials;
 };
 
 type PaginatedResponse<T> = {
@@ -150,7 +152,7 @@ async function apiRequest<T = unknown>(path: string, options: RequestOptions, re
     method,
     headers,
     body,
-    credentials: "include",
+    credentials: options.credentials ?? (method === "GET" && path.startsWith("/api/public/") ? "omit" : "include"),
     signal: options.signal,
   });
 

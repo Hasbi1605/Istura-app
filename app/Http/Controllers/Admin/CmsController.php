@@ -20,8 +20,10 @@ use App\Services\AuditLogger;
 use App\Support\PublicCache;
 use App\Support\SiteContentDefaults;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Throwable;
 
 class CmsController extends Controller
@@ -179,7 +181,7 @@ class CmsController extends Controller
         ];
 
         if ($request->hasFile('image')) {
-            $newImagePath = $request->file('image')->store('letter', 'public');
+            $newImagePath = $this->storeOptimizedLetterImage($request->file('image'));
             $value['image'] = Storage::disk('public')->url($newImagePath);
         }
 
@@ -237,5 +239,57 @@ class CmsController extends Controller
         $relativePath = ltrim(substr($path, strlen('/storage/')), '/');
 
         return $relativePath !== '' ? $relativePath : null;
+    }
+
+    private function storeOptimizedLetterImage(UploadedFile $image): string
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagewebp')) {
+            return $image->store('letter', 'public');
+        }
+
+        $sourceBytes = file_get_contents($image->getRealPath());
+        if ($sourceBytes === false) {
+            return $image->store('letter', 'public');
+        }
+
+        $source = @imagecreatefromstring($sourceBytes);
+        if (! $source) {
+            return $image->store('letter', 'public');
+        }
+
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        $scale = min(1, 1400 / max(1, $sourceWidth), 1800 / max(1, $sourceHeight));
+        $targetWidth = max(1, (int) round($sourceWidth * $scale));
+        $targetHeight = max(1, (int) round($sourceHeight * $scale));
+        $target = imagecreatetruecolor($targetWidth, $targetHeight);
+
+        $white = imagecolorallocate($target, 255, 255, 255);
+        imagefill($target, 0, 0, $white);
+        imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'istura-letter-');
+        if (! $tmpPath || ! imagewebp($target, $tmpPath, 82)) {
+            imagedestroy($source);
+            imagedestroy($target);
+
+            return $image->store('letter', 'public');
+        }
+
+        imagedestroy($source);
+        imagedestroy($target);
+
+        $path = 'letter/'.Str::uuid().'.webp';
+        $optimizedBytes = file_get_contents($tmpPath);
+        if ($optimizedBytes === false) {
+            @unlink($tmpPath);
+
+            return $image->store('letter', 'public');
+        }
+
+        Storage::disk('public')->put($path, $optimizedBytes);
+        @unlink($tmpPath);
+
+        return $path;
     }
 }

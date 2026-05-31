@@ -27,19 +27,13 @@ import { fetchAdminSchedule, fetchPublicSchedule } from "../api/schedule";
 import type { ApiBooking } from "../api/bookings";
 import type { ApiFeedback } from "../api/feedback";
 import {
-  fetchPublicContacts,
-  fetchPublicFaqs,
-  fetchPublicHero,
-  fetchPublicLetter,
-  fetchPublicSiteContent,
-  fetchPublicWaTemplates,
+  fetchPublicBootstrap,
   updateAdminContacts,
   updateAdminFaqs,
   updateAdminWaTemplates,
   type ApiHero,
   type ApiLetter,
 } from "../api/cms";
-import { ADMIN_BOOKINGS_CHANNEL, PUBLIC_SCHEDULE_CHANNEL, destroyEcho, getEcho } from "../realtime/echo";
 import { apiBookingToLocal, apiFeedbackToLocal, apiVisitDayToLocal } from "../api/adapters";
 import { ApiError, onAdminAuthFailure, resetCsrf } from "../api/client";
 
@@ -198,7 +192,7 @@ export function useIsturaData(): IsturaData {
   useEffect(() => onAdminAuthFailure(() => {
     clearAdminSession();
     resetCsrf();
-    destroyEcho();
+    void import("../realtime/echo").then(({ destroyEcho }) => destroyEcho());
     setAdminSession(null);
     setAdminTab("dashboard");
     setBookingFocusCode(null);
@@ -286,47 +280,33 @@ export function useIsturaData(): IsturaData {
   // dipakai saat dev/env mengizinkan; produksi harus mengikuti API.
 	useEffect(() => {
 		let cancelled = false;
-		let pendingPublicRequests = 7;
 		setLoading((current) => ({ ...current, public: true, schedule: true }));
-		const finishPublicRequest = () => {
-			pendingPublicRequests -= 1;
-			if (!cancelled && pendingPublicRequests <= 0) {
-				setLoading((current) => ({ ...current, public: false }));
-			}
-		};
-		apiMe()
-      .then((user) => {
-        if (cancelled) return;
-        if (user) {
-          setAdminSession({
-            email: user.email,
-            name: user.name,
-            role: user.roleLabel,
-            loggedAt: new Date().toISOString(),
-          });
-        }
-      })
-      .catch(() => {
-        /* not authenticated, leave adminSession null */
-      });
+		if (window.location.pathname.startsWith("/admin") || adminSession) {
+			apiMe()
+        .then((user) => {
+          if (cancelled) return;
+          if (user) {
+            setAdminSession({
+              email: user.email,
+              name: user.name,
+              role: user.roleLabel,
+              loggedAt: new Date().toISOString(),
+            });
+          }
+        })
+        .catch(() => {
+          /* not authenticated, leave adminSession null */
+        });
+		}
 
-		fetchPublicSchedule()
-			.then((days) => {
-				if (!cancelled) setSchedules(days.map(apiVisitDayToLocal));
-			})
-			.catch(() => {
-				if (!cancelled && !ALLOW_DEMO_FALLBACK) setSchedules([]);
-			})
-			.finally(() => {
-				if (!cancelled) setLoading((current) => ({ ...current, schedule: false }));
-				finishPublicRequest();
-			});
-
-		fetchPublicFaqs()
-      .then((items) => {
+		fetchPublicBootstrap()
+      .then((data) => {
         if (cancelled) return;
-        if (items.length > 0) {
-          const nextFaqs = items.map((it) => ({
+
+        setSchedules(data.schedule.map(apiVisitDayToLocal));
+
+        if (data.faqs.length > 0) {
+          const nextFaqs = data.faqs.map((it) => ({
               id: it.id,
               question: it.question,
               answer: it.answer,
@@ -340,24 +320,9 @@ export function useIsturaData(): IsturaData {
         } else {
           faqsBaselineRef.current = JSON.stringify(faqs);
         }
-        // Use rAF to set hydrated flag AFTER the state update has flushed,
-        // so the persistence effect can detect "hydrated" reliably.
-        requestAnimationFrame(() => {
-          faqsHydratedRef.current = true;
-        });
-      })
-			.catch(() => {
-				if (!ALLOW_DEMO_FALLBACK) setFaqs([]);
-				faqsBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? faqs : []);
-				faqsHydratedRef.current = true;
-			})
-			.finally(finishPublicRequest);
 
-		fetchPublicContacts()
-      .then((items) => {
-        if (cancelled) return;
-        if (items.length > 0) {
-          const nextContacts = items.map((it) => ({
+        if (data.contacts.length > 0) {
+          const nextContacts = data.contacts.map((it) => ({
               label: it.label,
               value: it.value,
               href: it.href ?? "",
@@ -371,22 +336,9 @@ export function useIsturaData(): IsturaData {
         } else {
           contactsBaselineRef.current = JSON.stringify(contacts);
         }
-        requestAnimationFrame(() => {
-          contactsHydratedRef.current = true;
-        });
-      })
-			.catch(() => {
-				if (!ALLOW_DEMO_FALLBACK) setContacts([]);
-				contactsBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? contacts : []);
-				contactsHydratedRef.current = true;
-			})
-			.finally(finishPublicRequest);
 
-		fetchPublicWaTemplates()
-      .then((items) => {
-        if (cancelled) return;
-        if (items.length > 0) {
-          const nextWaTemplates = items.map((it) => ({
+        if (data.waTemplates.length > 0) {
+          const nextWaTemplates = data.waTemplates.map((it) => ({
               id: it.id as BookingStatus,
               label: it.label,
               description: it.description,
@@ -400,37 +352,35 @@ export function useIsturaData(): IsturaData {
         } else {
           waBaselineRef.current = JSON.stringify(waTemplates);
         }
+
+        if (data.hero) setHero(data.hero);
+        if (data.letter) setLetter(data.letter);
+        if (data.siteContent) setSiteContent(data.siteContent);
+
         requestAnimationFrame(() => {
+          faqsHydratedRef.current = true;
+          contactsHydratedRef.current = true;
           waHydratedRef.current = true;
         });
       })
 			.catch(() => {
+				if (!cancelled && !ALLOW_DEMO_FALLBACK) {
+					setSchedules([]);
+					setFaqs([]);
+					setContacts([]);
+					setWaTemplates([]);
+				}
+				faqsBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? faqs : []);
+				contactsBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? contacts : []);
 				if (!ALLOW_DEMO_FALLBACK) setWaTemplates([]);
 				waBaselineRef.current = JSON.stringify(ALLOW_DEMO_FALLBACK ? waTemplates : []);
+				faqsHydratedRef.current = true;
+				contactsHydratedRef.current = true;
 				waHydratedRef.current = true;
 			})
-			.finally(finishPublicRequest);
-
-		fetchPublicHero()
-			.then((data) => {
-				if (!cancelled && data) setHero(data);
-			})
-			.catch(() => {})
-			.finally(finishPublicRequest);
-
-		fetchPublicLetter()
-			.then((data) => {
-				if (!cancelled && data) setLetter(data);
-			})
-			.catch(() => {})
-			.finally(finishPublicRequest);
-
-		fetchPublicSiteContent()
-			.then((data) => {
-				if (!cancelled && data) setSiteContent(data);
-			})
-			.catch(() => {})
-			.finally(finishPublicRequest);
+			.finally(() => {
+				if (!cancelled) setLoading((current) => ({ ...current, public: false, schedule: false }));
+			});
 
     return () => {
       cancelled = true;
@@ -518,10 +468,10 @@ export function useIsturaData(): IsturaData {
 
   // Realtime: jadwal publik ikut berubah saat admin membuka/menutup slot.
   useEffect(() => {
-    const echo = getEcho();
-    if (!echo) return;
+    if (loading.public || import.meta.env.VITE_REVERB_ENABLED !== "true") return;
+
     let active = true;
-    const channel = echo.channel(PUBLIC_SCHEDULE_CHANNEL);
+    let cleanup: (() => void) | undefined;
     const refreshSchedule = (payload?: { from?: string; to?: string }) => {
       setLoading((current) => ({ ...current, schedule: true }));
       const fetcher = adminSession ? fetchAdminSchedule : fetchPublicSchedule;
@@ -536,25 +486,37 @@ export function useIsturaData(): IsturaData {
           if (active) setLoading((current) => ({ ...current, schedule: false }));
         });
     };
-    channel.listen(".schedule.updated", refreshSchedule);
+    const subscriptionDelay = adminSession ? 250 : 1800;
+    const timerId = window.setTimeout(() => {
+      void import("../realtime/echo").then(({ getEcho, PUBLIC_SCHEDULE_CHANNEL }) => {
+        if (!active) return;
+        const echo = getEcho();
+        if (!echo) return;
+        const channel = echo.channel(PUBLIC_SCHEDULE_CHANNEL);
+        channel.listen(".schedule.updated", refreshSchedule);
+        cleanup = () => {
+          try {
+            channel.stopListening(".schedule.updated");
+            echo.leave(PUBLIC_SCHEDULE_CHANNEL);
+          } catch {
+            /* ignore */
+          }
+        };
+      });
+    }, subscriptionDelay);
+
     return () => {
       active = false;
-      try {
-        channel.stopListening(".schedule.updated");
-        echo.leave(PUBLIC_SCHEDULE_CHANNEL);
-      } catch {
-        /* ignore */
-      }
+      window.clearTimeout(timerId);
+      cleanup?.();
     };
-  }, [adminSession]);
+  }, [adminSession, loading.public]);
 
   // Realtime: subscribe ke channel admin.bookings ketika admin login.
   useEffect(() => {
     if (!adminSession) return;
-    const echo = getEcho();
-    if (!echo) return;
     let active = true;
-    const channel = echo.private(ADMIN_BOOKINGS_CHANNEL);
+    let cleanup: (() => void) | undefined;
     const refreshSchedule = (from?: string, to?: string) => {
       fetchAdminSchedule(from, to)
         .then((days) => {
@@ -610,19 +572,28 @@ export function useIsturaData(): IsturaData {
         return [next, ...prev];
       });
     };
-    channel.listen(".booking.created", onCreated);
-    channel.listen(".booking.status-changed", onChanged);
-    channel.listen(".feedback.submitted", onFeedback);
+    void import("../realtime/echo").then(({ getEcho, ADMIN_BOOKINGS_CHANNEL }) => {
+      if (!active) return;
+      const echo = getEcho();
+      if (!echo) return;
+      const channel = echo.private(ADMIN_BOOKINGS_CHANNEL);
+      channel.listen(".booking.created", onCreated);
+      channel.listen(".booking.status-changed", onChanged);
+      channel.listen(".feedback.submitted", onFeedback);
+      cleanup = () => {
+        try {
+          channel.stopListening(".booking.created");
+          channel.stopListening(".booking.status-changed");
+          channel.stopListening(".feedback.submitted");
+          echo.leave(`private-${ADMIN_BOOKINGS_CHANNEL}`);
+        } catch {
+          /* ignore */
+        }
+      };
+    });
     return () => {
       active = false;
-      try {
-        channel.stopListening(".booking.created");
-        channel.stopListening(".booking.status-changed");
-        channel.stopListening(".feedback.submitted");
-        echo.leave(`private-${ADMIN_BOOKINGS_CHANNEL}`);
-      } catch {
-        /* ignore */
-      }
+      cleanup?.();
     };
   }, [adminSession]);
 

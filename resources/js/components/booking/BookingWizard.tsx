@@ -89,6 +89,30 @@ function apiBookingToLocal(b: ApiBooking): Booking {
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const GROUP_SIZE_INPUT_MAX_LENGTH = String(MAX_BOOKING_GROUP_SIZE).length;
+const imagePreloadCache = new Map<string, Promise<void>>();
+
+function preloadImage(src: string): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  const cached = imagePreloadCache.get(src);
+  if (cached) return cached;
+
+  const promise = new Promise<void>((resolve) => {
+    const img = new Image();
+    const done = () => resolve();
+    img.onload = () => {
+      if (typeof img.decode === "function") {
+        void img.decode().then(done).catch(done);
+        return;
+      }
+      done();
+    };
+    img.onerror = done;
+    img.src = src;
+  });
+  imagePreloadCache.set(src, promise);
+
+  return promise;
+}
 
 function getWhatsappContact(contacts: FooterContact[]) {
   return (
@@ -158,6 +182,7 @@ export function BookingWizard({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successCode, setSuccessCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [stepTransitioning, setStepTransitioning] = useState(false);
   // File asli surat permohonan disimpan di ref, bukan state, supaya tidak
   // memicu re-render dan tetap kompatibel dengan UX existing yang hanya
   // menampilkan nama file.
@@ -182,6 +207,10 @@ export function BookingWizard({
     if (!initialDate) return;
     setForm((current) => (current.date && current.date >= minBookingDateKey ? current : { ...current, date: initialDate }));
   }, [initialDate, minBookingDateKey]);
+
+  useEffect(() => {
+    void Promise.all(wizardSteps.map((item) => preloadImage(item.image)));
+  }, []);
 
   const selectedDay = schedules.find((day) => day.date === form.date) ?? schedules[0];
   const selectedSlot = selectedDay?.slots.find((slot) => slot.time === form.time);
@@ -248,13 +277,17 @@ export function BookingWizard({
     return Object.keys(nextErrors).length === 0;
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!validateCurrentStep()) return;
     if (step === 6) {
       submitBooking();
       return;
     }
-    setStep((current) => Math.min(current + 1, wizardSteps.length - 1));
+    const nextStep = Math.min(step + 1, wizardSteps.length - 1);
+    setStepTransitioning(true);
+    await preloadImage(wizardSteps[nextStep].image);
+    setStep(nextStep);
+    setStepTransitioning(false);
   };
 
 	const submitBooking = () => {
@@ -519,7 +552,7 @@ export function BookingWizard({
 					<button
 						className="button button-ghost"
 						type="button"
-						disabled={submitting}
+						disabled={submitting || stepTransitioning}
 						onClick={() => {
                     if (step === 0) {
                       onNavigate("home");
@@ -534,10 +567,12 @@ export function BookingWizard({
 					<button
 						className="button button-primary"
 						type="button"
-						disabled={submitting || (step === 3 && scheduleLoading && schedules.length === 0)}
-						onClick={goNext}
+						disabled={submitting || stepTransitioning || (step === 3 && scheduleLoading && schedules.length === 0)}
+						onClick={() => void goNext()}
 					>
-						{step === 6 && submitting ? (
+						{stepTransitioning ? (
+							<ButtonSpinner label="Menyiapkan langkah..." />
+						) : step === 6 && submitting ? (
 							<ButtonSpinner label="Mengirim permohonan..." />
 						) : (
 							<>

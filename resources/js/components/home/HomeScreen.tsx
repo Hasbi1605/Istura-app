@@ -44,6 +44,15 @@ import { Footer } from "../layout/Footer";
 import { InlineSpinner, SectionSkeleton } from "../ui/LoadingStates";
 
 const hasAvailableSlot = (day: VisitDay) => day.slots.some((slot) => slot.status === "Available");
+const warmedImages = new Set<string>();
+
+function warmImage(src?: string) {
+  if (!src || warmedImages.has(src) || typeof window === "undefined") return;
+  warmedImages.add(src);
+  const img = new Image();
+  img.decoding = "async";
+  img.src = src;
+}
 
 const landingIconMap: Record<LandingIconKey, LucideIcon> = {
   clock: Clock3,
@@ -181,6 +190,21 @@ export function HomeScreen({
     setSelectedDateKey(nextDateKey);
     setVisibleMonth(startOfMonth(parseDateKey(nextDateKey)));
   }, [maxScheduleDate, scheduleSignature, schedules, selectedDateKey, selectedDay, today, visibleMonth]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const urls = new Set<string>([
+        ...HERO_MESSAGES.map((item) => item.image),
+        ...HERO_MESSAGES_MOBILE.map((item) => item.image),
+        letter.image || ASSETS.letterExample,
+        siteContent.cta.backgroundImage,
+        ...siteContent.activities.items.map((item) => item.image),
+      ]);
+      urls.forEach(warmImage);
+    }, 1200);
+
+    return () => window.clearTimeout(id);
+  }, [letter.image, siteContent.activities.items, siteContent.cta.backgroundImage]);
 
   const handleMonthChange = (amount: number) => {
     const nextMonth = startOfMonth(addMonths(visibleMonth, amount));
@@ -476,7 +500,14 @@ function HorizontalAccordion({ content }: { content: SiteContent["activities"] }
             onFocus={() => setActive(index)}
             onMouseEnter={() => setActive(index)}
           >
-            <img className="zoom-media" src={item.image} alt="" loading="lazy" decoding="async" />
+            <img
+              className="zoom-media"
+              src={item.image}
+              alt=""
+              loading={index === 0 ? "eager" : "lazy"}
+              decoding="async"
+              fetchPriority="low"
+            />
             <span className="accordion-content">
               <strong>{item.title}</strong>
               <small>{item.body}</small>

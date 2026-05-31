@@ -16,7 +16,7 @@ class UpdateLetterRequest extends FormRequest
         return [
             'checklist' => ['required', 'array', 'min:1'],
             'checklist.*' => ['required', 'string', 'max:255'],
-            'image' => ['sometimes', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'image' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 }
