@@ -1489,13 +1489,6 @@ type SegmentRowState = {
   oversized: boolean;
 };
 
-type SegmentEditMode = "single" | "multi";
-
-const segmentEditModes: Array<{ value: SegmentEditMode; label: string }> = [
-  { value: "single", label: "Satu jam" },
-  { value: "multi", label: "Bagi kloter" },
-];
-
 const segmentStatusLabel: Record<string, string> = {
   Available: "Kosong",
   Held: "Diproses",
@@ -1552,8 +1545,6 @@ export function SegmentOverrideModal({
   onConfirm: (booking: Booking, groupSize: number, segments: BookingSegment[], note: string, allowOverbook: boolean) => void;
 }) {
   const initialSegments = bookingSegments(booking);
-  const initialMode: SegmentEditMode = initialSegments.length > 1 ? "multi" : "single";
-  const [mode, setMode] = useState<SegmentEditMode>(initialMode);
   const [rows, setRows] = useState(() =>
     initialSegments.map((segment) => ({
       date: segment.date,
@@ -1561,8 +1552,7 @@ export function SegmentOverrideModal({
       groupSize: String(segment.groupSize),
     })),
   );
-  const [selectedDate, setSelectedDate] = useState(initialSegments[0]?.date ?? booking.date);
-  const [targetGroupSize, setTargetGroupSize] = useState(String(booking.groupSize));
+  const selectedDate = initialSegments[0]?.date ?? booking.date;
   const [note, setNote] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
   const ownSlotKeys = new Set(initialSegments.map((segment) => `${segment.date}|${segment.time}`));
@@ -1626,24 +1616,20 @@ export function SegmentOverrideModal({
   });
   const overbookRows = rowStates.filter((state) => state.needsOverbook);
   const oversizedRows = rowStates.filter((state) => state.oversized);
-  const targetGroupSizeNumber = Number(targetGroupSize);
-  const validTargetGroupSize = Number.isInteger(targetGroupSizeNumber) && targetGroupSizeNumber >= 1 && targetGroupSizeNumber <= MAX_BOOKING_GROUP_SIZE;
-  const groupSizeChanged = validTargetGroupSize && targetGroupSizeNumber !== booking.groupSize;
   const total = normalizedRows.reduce((sum, row) => {
     const value = Number(row.groupSize);
     return sum + (Number.isFinite(value) ? value : 0);
   }, 0);
+  const validTotal = Number.isInteger(total) && total >= 1 && total <= MAX_BOOKING_GROUP_SIZE;
+  const groupSizeChanged = validTotal && total !== booking.groupSize;
   const busy = Boolean(pendingLabel);
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
-  const totalMismatch = validTargetGroupSize && total !== targetGroupSizeNumber;
-  const riskyMerge = mode === "single" && targetGroupSizeNumber > SLOT_CAPACITY;
-  const noteRequired = groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0 || riskyMerge;
+  const noteRequired = groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0;
   const showRiskNoteWarning = noteRequired && note.trim() === "";
   const validationMessages = [
     normalizedRows.length < 1 ? "Minimal harus ada 1 kloter." : "",
     dateOptions.length === 0 ? "Data jadwal belum dimuat. Muat ulang halaman jika daftar tanggal kosong." : "",
-    !validTargetGroupSize ? `Total peserta harus 1-${MAX_BOOKING_GROUP_SIZE}.` : "",
-    totalMismatch ? `Total kloter harus ${targetGroupSizeNumber}, sekarang ${total}.` : "",
+    !validTotal ? `Total peserta harus 1-${MAX_BOOKING_GROUP_SIZE}.` : "",
     overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
     showRiskNoteWarning ? "Catatan admin wajib untuk perubahan berisiko ini." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
@@ -1651,17 +1637,9 @@ export function SegmentOverrideModal({
   const invalid =
     validationMessages.length > 0 ||
     (overbookRows.length > 0 && !allowOverbook) ||
-    !validTargetGroupSize ||
+    !validTotal ||
     (noteRequired && note.trim() === "");
-  const selectedDateLabel = selectedDay.label ?? (isDateKey(selectedDate) ? formatLongDate(parseDateKey(selectedDate)) : selectedDate);
-  const showSegmentTable = mode === "multi";
-  const totalStatusLabel = validTargetGroupSize
-    ? total === targetGroupSizeNumber
-      ? `${total} / ${targetGroupSizeNumber} peserta`
-      : total < targetGroupSizeNumber
-        ? `Kurang ${targetGroupSizeNumber - total} peserta`
-        : `Lebih ${total - targetGroupSizeNumber} peserta`
-    : "Total belum valid";
+  const totalStatusLabel = validTotal ? `${total} peserta` : "Total belum valid";
 
   useEffect(() => {
     if (overbookRows.length === 0 && allowOverbook) {
@@ -1685,13 +1663,7 @@ export function SegmentOverrideModal({
   const firstUsableTime = (preferredTime?: string, usedTimes = new Set<string>()) =>
     firstUsableTimeForDay(selectedDay, selectedDate, preferredTime, usedTimes);
 
-  const singleRowFor = (preferredTime?: string, groupSize = targetGroupSize): SegmentDraftRow => ({
-    date: selectedDate,
-    time: firstUsableTime(preferredTime ?? rows[0]?.time ?? booking.time),
-    groupSize: groupSize || "1",
-  });
-
-  const splitRowsFor = (groupSize = targetGroupSize): SegmentDraftRow[] => {
+  const splitRowsFor = (groupSize = String(total || booking.groupSize)): SegmentDraftRow[] => {
     const numericGroupSize = Number(groupSize);
     const sizeForSplit = Number.isInteger(numericGroupSize) && numericGroupSize >= 1 ? numericGroupSize : booking.groupSize;
     const sizes = splitGroupSizes(Math.min(sizeForSplit, MAX_BOOKING_GROUP_SIZE));
@@ -1715,50 +1687,6 @@ export function SegmentOverrideModal({
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
   };
 
-  const changeMode = (nextMode: SegmentEditMode) => {
-    setMode(nextMode);
-    if (nextMode === "single") {
-      setRows([singleRowFor(rows[0]?.time ?? booking.time)]);
-    }
-    if (nextMode === "multi") {
-      if (initialSegments.length > 1) {
-        setRows(initialSegments.map((segment) => ({ date: selectedDate, time: segment.time, groupSize: String(segment.groupSize) })));
-      } else {
-        setRows(splitRowsFor());
-      }
-    }
-  };
-
-  const changeTargetGroupSize = (value: string) => {
-    setTargetGroupSize(value);
-    if (mode === "single") {
-      setRows([singleRowFor(rows[0]?.time, value)]);
-    }
-    if (mode === "multi") {
-      setRows(splitRowsFor(value));
-    }
-  };
-
-  const changeDate = (date: string) => {
-    setSelectedDate(date);
-    const day = scheduleByDate.get(date) ?? dateOptions.find((option) => option.date === date) ?? fallbackVisitDay(date);
-    setRows((current) => {
-      if (mode === "single") {
-        return [{ date, time: firstUsableTimeForDay(day, date, current[0]?.time ?? booking.time), groupSize: targetGroupSize || "1" }];
-      }
-
-      const usedTimes = new Set<string>();
-      return current.map((row) => {
-        const currentSlot = day.slots.find((slot) => slot.time === row.time);
-        const keepCurrent = currentSlot && currentSlot.status !== "Closed" && !usedTimes.has(row.time);
-        const time = keepCurrent ? row.time : firstUsableTimeForDay(day, date, row.time, usedTimes);
-        if (time) usedTimes.add(time);
-
-        return { ...row, date, time };
-      });
-    });
-  };
-
   const addManualRow = () => {
     setRows((current) => [...current, firstOpenDraftRow()]);
   };
@@ -1769,25 +1697,11 @@ export function SegmentOverrideModal({
     return own ? "Booking ini" : segmentStatusLabel[status] ?? status;
   };
 
-  const slotClassName = (slot: { time: string; status?: string }, selectedTime: string) => {
-    const status = slot.status ?? "Missing";
-    const own = ownSlotKeys.has(`${selectedDate}|${slot.time}`) && status !== "Closed";
-    const occupied = !own && status !== "Available" && status !== "Closed" && status !== "Missing";
-    return [
-      "segment-slot-chip",
-      selectedTime === slot.time ? "is-selected" : "",
-      status === "Available" ? "is-available" : "",
-      own ? "is-own" : "",
-      occupied ? "is-occupied" : "",
-      status === "Closed" || status === "Missing" ? "is-closed" : "",
-    ].filter(Boolean).join(" ");
-  };
-
   const submit = () => {
     if (invalid || busy) return;
     onConfirm(
       booking,
-      targetGroupSizeNumber,
+      total,
       normalizedRows.map((row, index) => ({
         order: index + 1,
         date: row.date,
@@ -1820,67 +1734,12 @@ export function SegmentOverrideModal({
           </p>
         </header>
 
-        <div className="segment-mode-tabs" role="tablist" aria-label="Pilih jenis perubahan kloter">
-          {segmentEditModes.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              role="tab"
-              aria-selected={mode === item.value}
-              className={mode === item.value ? "is-active" : ""}
-              onClick={() => changeMode(item.value)}
-              disabled={busy}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
         <section className="segment-task-panel" aria-label="Pengaturan kloter">
-          <label className="segment-total-field">
+          <div className="segment-total-field" aria-live="polite">
             <span>Total peserta</span>
-            <input
-              type="number"
-              min={1}
-              max={MAX_BOOKING_GROUP_SIZE}
-              inputMode="numeric"
-              value={targetGroupSize}
-              onChange={(event) => changeTargetGroupSize(event.target.value)}
-              disabled={busy}
-            />
-            <small className={totalMismatch ? "segment-total-status has-error" : "segment-total-status"}>{totalStatusLabel}</small>
-          </label>
+            <strong>{totalStatusLabel}</strong>
+          </div>
 
-          {mode === "single" && (
-            <div className="segment-slot-picker segment-slot-picker--compact">
-              <div className="segment-slot-picker-head">
-                <span>Jam kunjungan</span>
-                <small>{selectedDateLabel}</small>
-              </div>
-              <div className="segment-slot-grid">
-                {slotOptions.map((slot) => {
-                  const status = slot.status ?? "Missing";
-                  const disabled = status === "Closed" || status === "Missing" || busy;
-
-                  return (
-                    <button
-                      key={slot.time}
-                      type="button"
-                      className={slotClassName(slot, rows[0]?.time ?? "")}
-                      onClick={() => updateRow(0, { time: slot.time })}
-                      disabled={disabled}
-                    >
-                      <strong>{slot.time}</strong>
-                      <small>{slotStatusText(slot)}</small>
-                    </button>
-                  );
-                })}
-                {slotOptions.length === 0 && <p className="segment-empty-slot">Belum ada slot pada tanggal ini.</p>}
-              </div>
-            </div>
-          )}
-
-          {showSegmentTable && (
             <div className="segment-table-wrap">
               <div className="segment-table-toolbar">
                 <button type="button" className="button button-outline" onClick={() => setRows(splitRowsFor())} disabled={busy}>
@@ -1938,7 +1797,6 @@ export function SegmentOverrideModal({
                 ))}
               </div>
             </div>
-          )}
         </section>
 
         {normalizedRows.length !== rows.length && (
