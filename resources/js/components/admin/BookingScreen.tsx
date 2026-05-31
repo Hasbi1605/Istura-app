@@ -1723,9 +1723,15 @@ export function SegmentOverrideModal({
   }, 0);
   const validTotal = Number.isInteger(total) && total >= 1 && total <= MAX_BOOKING_GROUP_SIZE;
   const groupSizeChanged = validTotal && total !== booking.groupSize;
+  const hasChanges = groupSizeChanged ||
+    normalizedRows.length !== initialSegments.length ||
+    normalizedRows.some((row, index) => {
+      const initial = initialSegments[index];
+      return !initial || row.time !== initial.time || Number(row.groupSize) !== initial.groupSize;
+    });
   const busy = Boolean(pendingLabel);
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
-  const noteRequired = groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0;
+  const noteRequired = hasChanges && (groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0);
   const showRiskNoteWarning = noteRequired && note.trim() === "";
   const validationMessages = [
     normalizedRows.length < 1 ? "Minimal harus ada 1 kloter." : "",
