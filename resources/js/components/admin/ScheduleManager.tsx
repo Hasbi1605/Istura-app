@@ -657,7 +657,7 @@ export function AdminScheduleManager({
                           : slot.status === "Closed"
                             ? "Ditutup"
                             : slot.overbooked
-                              ? `${slot.bookingCount} booking`
+                              ? `Terisi (${slot.bookingCount})`
                               : slot.status === "Booked"
                               ? "Sudah terisi"
                               : "Sedang diproses";
@@ -673,6 +673,12 @@ export function AdminScheduleManager({
                       const booking = locked
                         ? bookingByKey.get(`${selectedDay.date}|${slot.time}`)
                         : undefined;
+                      // Deteksi multi-kloter: cari kloter ke-berapa dari booking ini
+                      const segments = booking ? bookingSegments(booking) : [];
+                      const isMultiKloter = segments.length > 1;
+                      const kloterIndex = isMultiKloter
+                        ? segments.findIndex((s) => s.time === slot.time) + 1
+                        : 0;
                       const isHighlight =
                         newlyAddedSlot?.date === selectedDay.date &&
                         newlyAddedSlot?.time === slot.time;
@@ -683,6 +689,8 @@ export function AdminScheduleManager({
                             disabled ? " is-locked" : ""
                           }${slot.custom ? " is-custom" : ""}${
                             slot.overbooked ? " is-overbooked" : ""
+                          }${
+                            isMultiKloter && kloterIndex > 0 ? " is-multi-kloter" : ""
                           }${
                             isHighlight ? " is-highlight" : ""
                           }`}
@@ -700,6 +708,10 @@ export function AdminScheduleManager({
                             }}
 							disabled={scheduleBusy || (past && !locked)}
                             aria-label={`${slot.time} ${statusLabel}${
+                              isMultiKloter && kloterIndex > 0
+                                ? `, Kloter ${kloterIndex} dari ${segments.length}`
+                                : ""
+                            }${
                               locked
                                 ? ", klik untuk lihat detail booking"
                                 : past
@@ -725,6 +737,11 @@ export function AdminScheduleManager({
                               <em className="admin-schedule-slot-action">Lihat detail</em>
                             )}
                           </button>
+                          {isMultiKloter && kloterIndex > 0 && (
+                            <span className="admin-schedule-slot-kloter" aria-hidden="true">
+                              K{kloterIndex}/{segments.length}
+                            </span>
+                          )}
                           {slot.custom && (
                             <span className="admin-schedule-slot-tag" aria-hidden="true">
                               Khusus
