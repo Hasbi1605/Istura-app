@@ -638,6 +638,8 @@ class ScheduleSyncTest extends TestCase
         $this->assertStringContainsString("frame-ancestors 'none'", $csp);
         $this->assertStringContainsString("default-src 'self'", $csp);
         $this->assertStringContainsString("script-src 'self'", $csp);
+        $this->assertStringContainsString('https://fonts.googleapis.com', $csp);
+        $this->assertStringContainsString('https://fonts.gstatic.com', $csp);
         $this->assertStringContainsString("object-src 'none'", $csp);
     }
 
@@ -1090,6 +1092,22 @@ class ScheduleSyncTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.code', $booking->code);
+    }
+
+    public function test_two_factor_status_serializes_confirmed_timestamp_for_enabled_user(): void
+    {
+        $confirmedAt = now()->startOfSecond();
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'two_factor_confirmed_at' => $confirmedAt,
+        ]);
+
+        $this->actingAs($admin);
+
+        $this->getJson('/api/auth/two-factor/status')
+            ->assertOk()
+            ->assertJsonPath('enabled', true)
+            ->assertJsonPath('confirmed_at', $confirmedAt->toIso8601String());
     }
 
     public function test_public_booking_allows_h1_to_h4_and_rejects_same_day(): void

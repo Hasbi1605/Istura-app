@@ -87,13 +87,13 @@ export function TwoFactorChallenge({
             </span>
           </label>
 
-          <label className="form-field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <label className="admin-login-check">
             <input
               type="checkbox"
               checked={trustDevice}
               onChange={(e) => setTrustDevice(e.target.checked)}
             />
-            <span style={{ fontSize: "0.85rem" }}>Percayai perangkat ini selama 30 hari</span>
+            <span>Percayai perangkat ini selama 30 hari</span>
           </label>
 
           {error && <strong className="form-message form-message--error">{error}</strong>}

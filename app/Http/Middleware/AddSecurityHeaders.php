@@ -33,24 +33,27 @@ class AddSecurityHeaders
 
     private function buildCsp(Request $request): string
     {
-        $appUrl = config('app.url', '');
-        $reverbHost = config('reverb.servers.reverb.options.host', '');
-        $reverbPort = config('reverb.servers.reverb.options.port', '');
-        $reverbScheme = config('reverb.servers.reverb.options.scheme', 'https') === 'https' ? 'wss' : 'ws';
-
+        $scriptSrc = "'self'";
         $connectSrc = "'self'";
-        if ($reverbHost) {
-            $connectSrc .= " {$reverbScheme}://{$reverbHost}".($reverbPort ? ":{$reverbPort}" : '');
+
+        foreach ($this->reverbClientWebSocketUrls() as $reverbClientUrl) {
+            $connectSrc .= " {$reverbClientUrl}";
+        }
+
+        $viteDevServerUrl = $this->viteDevServerUrl();
+        if ($viteDevServerUrl) {
+            $scriptSrc .= " 'unsafe-inline' {$viteDevServerUrl}";
+            $connectSrc .= " {$viteDevServerUrl} ".$this->toWebSocketUrl($viteDevServerUrl);
         }
 
         $frameAncestors = $this->allowsSameOriginDocumentPreview($request) ? "'self'" : "'none'";
 
         $directives = [
             "default-src 'self'",
-            "script-src 'self'",
-            "style-src 'self' 'unsafe-inline'",
+            "script-src {$scriptSrc}",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "img-src 'self' data: https:",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.gstatic.com",
             "connect-src {$connectSrc}",
             "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://www.google.com https://maps.google.com https://www.google.com/maps",
             "frame-ancestors {$frameAncestors}",
@@ -66,5 +69,47 @@ class AddSecurityHeaders
     {
         return $request->is('api/admin/bookings/*/document')
             && $request->query('disposition') === 'inline';
+    }
+
+    private function viteDevServerUrl(): ?string
+    {
+        if (! app()->environment('local')) {
+            return null;
+        }
+
+        $hotFile = public_path('hot');
+        if (! is_file($hotFile)) {
+            return null;
+        }
+
+        $url = trim((string) file_get_contents($hotFile));
+
+        return filter_var($url, FILTER_VALIDATE_URL) ? rtrim($url, '/') : null;
+    }
+
+    private function toWebSocketUrl(string $url): string
+    {
+        return preg_replace('/^http/', 'ws', $url, 1) ?? $url;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function reverbClientWebSocketUrls(): array
+    {
+        $host = config('reverb.apps.apps.0.options.host');
+        if (! $host) {
+            return [];
+        }
+
+        $scheme = config('reverb.apps.apps.0.options.scheme', 'https') === 'https' ? 'wss' : 'ws';
+        $fallbackScheme = $scheme === 'wss' ? 'ws' : 'wss';
+        $port = config('reverb.apps.apps.0.options.port');
+        $portSuffix = $port ? ":{$port}" : '';
+
+        return [
+            "{$scheme}://{$host}{$portSuffix}",
+            "{$fallbackScheme}://{$host}{$portSuffix}",
+        ];
     }
 }

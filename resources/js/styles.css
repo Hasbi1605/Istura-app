@@ -2599,7 +2599,7 @@ a {
   font-weight: 800;
 }
 
-.form-field input,
+.form-field input:not([type="checkbox"]):not([type="radio"]),
 .form-field textarea,
 .form-field select,
 .search-box input {
@@ -2635,7 +2635,7 @@ a {
   color: rgba(16, 24, 47, 0.7);
 }
 
-.admin-shell-content .form-field input,
+.admin-shell-content .form-field input:not([type="checkbox"]):not([type="radio"]),
 .admin-shell-content .form-field textarea,
 .admin-shell-content .form-field select,
 .admin-shell-content .search-box input {
@@ -2654,7 +2654,7 @@ a {
   font-size: 0.9rem;
 }
 
-.admin-shell-content .form-field input:focus,
+.admin-shell-content .form-field input:not([type="checkbox"]):not([type="radio"]):focus,
 .admin-shell-content .form-field textarea:focus,
 .admin-shell-content .form-field select:focus,
 .admin-shell-content .search-box input:focus {
@@ -4360,7 +4360,8 @@ a {
 
 .admin-login-card h1 {
   margin: 0 0 6px;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
+  line-height: 1.2;
   color: var(--navy);
 }
 
@@ -4439,6 +4440,32 @@ a {
 .admin-login-submit {
   margin-top: 4px;
   width: 100%;
+  min-height: 44px;
+  font-size: 0.95rem;
+}
+
+.admin-login-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--navy);
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.admin-login-check input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--gold);
+  cursor: pointer;
 }
 
 /* ---- Placeholder ---- */

@@ -8,9 +8,6 @@
     <meta property="og:title" content="ISTURA - Istana Untuk Rakyat" />
     <meta name="twitter:title" content="ISTURA - Istana Untuk Rakyat" />
     <link rel="icon" type="image/webp" href="/assets/gedung-agung-gold.webp" />
-    <script>
-        window.__ISTURA_CONFIG__ = @json(['publicAppUrl' => config('app.url')]);
-    </script>
     @viteReactRefresh
     @vite(['resources/js/main.tsx'])
 </head>
