@@ -7439,6 +7439,309 @@ a {
   color: var(--muted);
 }
 
+.segment-modal-card {
+  width: min(940px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+}
+
+.segment-modal-card h2 {
+  padding-right: 42px;
+  font-size: 1.45rem;
+}
+
+.segment-modal-card .segment-modal-summary {
+  margin: 2px 0 0;
+  color: rgba(16, 24, 47, 0.66);
+  line-height: 1.45;
+}
+
+.segment-modal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segment-legend-dot {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  color: rgba(16, 24, 47, 0.72);
+  background: rgba(16, 24, 47, 0.035);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.segment-legend-dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(16, 24, 47, 0.24);
+}
+
+.segment-legend-dot.is-available::before {
+  background: var(--teal);
+}
+
+.segment-legend-dot.is-own::before {
+  background: var(--gold);
+}
+
+.segment-legend-dot.is-occupied::before {
+  background: #9a5b00;
+}
+
+.segment-legend-dot.is-closed::before {
+  background: rgba(16, 24, 47, 0.34);
+}
+
+.segment-editor-list {
+  display: grid;
+  gap: 12px;
+}
+
+.segment-editor-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(248, 250, 252, 0.88);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+}
+
+.segment-editor-row.has-error {
+  border-color: rgba(179, 38, 30, 0.32);
+  background: rgba(255, 248, 247, 0.9);
+}
+
+.segment-editor-head {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(132px, 168px) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.segment-editor-head > strong {
+  align-self: center;
+  color: var(--navy);
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.segment-size-field,
+.segment-date-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: rgba(16, 24, 47, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.segment-size-field input,
+.segment-date-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  color: var(--navy);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.segment-size-field input:focus,
+.segment-date-field select:focus {
+  outline: none;
+  border-color: rgba(196, 146, 18, 0.55);
+  box-shadow: 0 0 0 3px rgba(196, 146, 18, 0.16);
+}
+
+.segment-date-field small {
+  color: rgba(16, 24, 47, 0.58);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.segment-slot-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.segment-slot-picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(16, 24, 47, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.segment-slot-picker-head small {
+  color: rgba(16, 24, 47, 0.54);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.segment-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.segment-slot-chip {
+  min-height: 58px;
+  padding: 9px 10px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  color: var(--navy);
+  text-align: left;
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.segment-slot-chip strong {
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.segment-slot-chip small {
+  color: rgba(16, 24, 47, 0.58);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.segment-slot-chip:hover:not(:disabled),
+.segment-slot-chip:focus-visible:not(:disabled) {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(16, 24, 47, 0.2);
+  box-shadow: 0 8px 18px rgba(16, 24, 47, 0.08);
+}
+
+.segment-slot-chip.is-selected {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(16, 24, 47, 0.12);
+}
+
+.segment-slot-chip.is-available {
+  background: rgba(20, 148, 133, 0.08);
+  border-color: rgba(20, 148, 133, 0.22);
+}
+
+.segment-slot-chip.is-own {
+  background: rgba(255, 244, 209, 0.72);
+  border-color: rgba(196, 146, 18, 0.36);
+}
+
+.segment-slot-chip.is-occupied {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(180, 83, 9, 0.28);
+}
+
+.segment-slot-chip.is-closed {
+  color: rgba(16, 24, 47, 0.45);
+  background: rgba(16, 24, 47, 0.045);
+  border-color: rgba(16, 24, 47, 0.08);
+}
+
+.segment-slot-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.segment-slot-chip.is-selected {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(16, 24, 47, 0.12);
+}
+
+.segment-row-errors {
+  margin: 0;
+  padding-left: 18px;
+  color: #b3261e;
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.segment-row-note {
+  margin: 0;
+  color: rgba(16, 24, 47, 0.64);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.segment-row-note--warning {
+  color: #8a4b06;
+}
+
+.segment-empty-slot {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  color: rgba(16, 24, 47, 0.62);
+  background: rgba(16, 24, 47, 0.04);
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.segment-add-button,
+.segment-remove-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.segment-add-button {
+  justify-self: start;
+}
+
+@media (max-width: 760px) {
+  .segment-modal-card {
+    padding: 22px;
+  }
+
+  .segment-editor-head {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .segment-remove-button {
+    justify-self: start;
+  }
+
+  .segment-slot-picker-head {
+    display: grid;
+  }
+
+  .segment-slot-picker-head small {
+    text-align: left;
+  }
+
+  .segment-slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .document-preview-card {
   width: min(880px, 100%);
   max-height: min(86vh, 920px);
