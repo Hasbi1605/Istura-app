@@ -1489,6 +1489,34 @@ type SegmentRowState = {
   oversized: boolean;
 };
 
+type SegmentEditMode = "correct" | "merge" | "split" | "manual";
+
+const segmentEditModes: Array<{ value: SegmentEditMode; label: string }> = [
+  { value: "correct", label: "Koreksi peserta" },
+  { value: "merge", label: "Gabung kloter" },
+  { value: "split", label: "Pecah kloter" },
+  { value: "manual", label: "Atur manual" },
+];
+
+const segmentModeCopy: Record<SegmentEditMode, { description: string; saveLabel: string }> = {
+  correct: {
+    description: "Ubah total peserta tanpa memecah jadwal.",
+    saveLabel: "Simpan koreksi peserta",
+  },
+  merge: {
+    description: "Satukan semua peserta ke satu jam kunjungan.",
+    saveLabel: "Simpan penggabungan kloter",
+  },
+  split: {
+    description: "Bagi peserta ke beberapa kloter, lalu sesuaikan hasilnya.",
+    saveLabel: "Simpan pembagian kloter",
+  },
+  manual: {
+    description: "Atur jam dan jumlah peserta tiap kloter satu per satu.",
+    saveLabel: "Simpan atur manual",
+  },
+};
+
 const segmentStatusLabel: Record<string, string> = {
   Available: "Kosong",
   Held: "Diproses",
@@ -1545,6 +1573,8 @@ export function SegmentOverrideModal({
   onConfirm: (booking: Booking, groupSize: number, segments: BookingSegment[], note: string, allowOverbook: boolean) => void;
 }) {
   const initialSegments = bookingSegments(booking);
+  const initialMode: SegmentEditMode = initialSegments.length > 1 ? "manual" : "correct";
+  const [mode, setMode] = useState<SegmentEditMode>(initialMode);
   const [rows, setRows] = useState(() =>
     initialSegments.map((segment) => ({
       date: segment.date,
@@ -1556,6 +1586,8 @@ export function SegmentOverrideModal({
   const [targetGroupSize, setTargetGroupSize] = useState(String(booking.groupSize));
   const [note, setNote] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showOptionalNote, setShowOptionalNote] = useState(false);
   const ownSlotKeys = new Set(initialSegments.map((segment) => `${segment.date}|${segment.time}`));
   const scheduleByDate = new Map(schedules.map((day) => [day.date, day]));
   const segmentToday = jakartaToday();
@@ -1633,7 +1665,7 @@ export function SegmentOverrideModal({
     !validTargetGroupSize ? `Total peserta harus 1-${MAX_BOOKING_GROUP_SIZE}.` : "",
     validTargetGroupSize && total !== targetGroupSizeNumber ? `Total kloter harus ${targetGroupSizeNumber}, sekarang ${total}.` : "",
     overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
-    noteRequired && note.trim() === "" ? "Isi alasan perubahan untuk koreksi peserta, kloter besar, atau overbook." : "",
+    noteRequired && note.trim() === "" ? "Isi catatan admin untuk koreksi peserta, kloter besar, atau overbook." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
   ].filter((message, index, messages) => message && messages.indexOf(message) === index);
   const invalid =
@@ -1641,6 +1673,9 @@ export function SegmentOverrideModal({
     (overbookRows.length > 0 && !allowOverbook) ||
     !validTargetGroupSize ||
     (noteRequired && note.trim() === "");
+  const selectedDateLabel = selectedDay.label ?? (isDateKey(selectedDate) ? formatLongDate(parseDateKey(selectedDate)) : selectedDate);
+  const saveLabel = segmentModeCopy[mode].saveLabel;
+  const showSegmentTable = mode === "split" || mode === "manual";
 
   useEffect(() => {
     if (overbookRows.length === 0 && allowOverbook) {
@@ -1648,18 +1683,41 @@ export function SegmentOverrideModal({
     }
   }, [allowOverbook, overbookRows.length]);
 
-  const firstUsableTime = (preferredTime?: string, usedTimes = new Set<string>()) => {
-    const day = selectedDay;
+  const firstUsableTimeForDay = (day: VisitDay, date: string, preferredTime?: string, usedTimes = new Set<string>()) => {
     const preferred = day.slots.find((slot) => slot.time === preferredTime);
     if (preferred && preferred.status !== "Closed" && !usedTimes.has(preferred.time)) return preferred.time;
 
     return (
       day.slots.find((slot) => slot.status === "Available" && !usedTimes.has(slot.time))?.time ??
-      day.slots.find((slot) => ownSlotKeys.has(`${selectedDate}|${slot.time}`) && slot.status !== "Closed" && !usedTimes.has(slot.time))?.time ??
+      day.slots.find((slot) => ownSlotKeys.has(`${date}|${slot.time}`) && slot.status !== "Closed" && !usedTimes.has(slot.time))?.time ??
       day.slots.find((slot) => slot.status !== "Closed" && !usedTimes.has(slot.time))?.time ??
       day.slots[0]?.time ??
       ""
     );
+  };
+
+  const firstUsableTime = (preferredTime?: string, usedTimes = new Set<string>()) =>
+    firstUsableTimeForDay(selectedDay, selectedDate, preferredTime, usedTimes);
+
+  const singleRowFor = (preferredTime?: string, groupSize = targetGroupSize): SegmentDraftRow => ({
+    date: selectedDate,
+    time: firstUsableTime(preferredTime ?? rows[0]?.time ?? booking.time),
+    groupSize: groupSize || "1",
+  });
+
+  const splitRowsFor = (groupSize = targetGroupSize): SegmentDraftRow[] => {
+    const numericGroupSize = Number(groupSize);
+    const sizeForSplit = Number.isInteger(numericGroupSize) && numericGroupSize >= 1 ? numericGroupSize : booking.groupSize;
+    const sizes = splitGroupSizes(Math.min(sizeForSplit, MAX_BOOKING_GROUP_SIZE));
+    const usedTimes = new Set<string>();
+    const ownTimes = initialSegments.map((segment) => segment.time);
+
+    return sizes.map((size, index) => {
+      const time = firstUsableTime(ownTimes[index], usedTimes);
+      if (time) usedTimes.add(time);
+
+      return { date: selectedDate, time, groupSize: String(size) };
+    });
   };
 
   const firstOpenDraftRow = (): SegmentDraftRow => {
@@ -1671,29 +1729,77 @@ export function SegmentOverrideModal({
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
   };
 
+  const changeMode = (nextMode: SegmentEditMode) => {
+    setMode(nextMode);
+    if (nextMode === "correct" || nextMode === "merge") {
+      setRows([singleRowFor(nextMode === "merge" ? rows[0]?.time : booking.time)]);
+    }
+    if (nextMode === "split") {
+      setRows(splitRowsFor());
+    }
+    if (nextMode === "manual" && (mode === "correct" || mode === "merge") && initialSegments.length > 1) {
+      setRows(initialSegments.map((segment) => ({ date: selectedDate, time: segment.time, groupSize: String(segment.groupSize) })));
+    }
+  };
+
+  const changeTargetGroupSize = (value: string) => {
+    setTargetGroupSize(value);
+    if (mode === "correct" || mode === "merge") {
+      setRows([singleRowFor(rows[0]?.time, value)]);
+    }
+    if (mode === "split") {
+      setRows(splitRowsFor(value));
+    }
+  };
+
   const changeDate = (date: string) => {
     setSelectedDate(date);
     const day = scheduleByDate.get(date) ?? dateOptions.find((option) => option.date === date) ?? fallbackVisitDay(date);
-    setRows((current) => current.map((row) => {
-      const currentSlot = day.slots.find((slot) => slot.time === row.time);
-      return { ...row, date, time: currentSlot && currentSlot.status !== "Closed" ? row.time : day.slots.find((slot) => slot.status !== "Closed")?.time ?? row.time };
-    }));
+    setRows((current) => {
+      if (mode === "correct" || mode === "merge") {
+        return [{ date, time: firstUsableTimeForDay(day, date, current[0]?.time ?? booking.time), groupSize: targetGroupSize || "1" }];
+      }
+
+      const usedTimes = new Set<string>();
+      return current.map((row) => {
+        const currentSlot = day.slots.find((slot) => slot.time === row.time);
+        const keepCurrent = currentSlot && currentSlot.status !== "Closed" && !usedTimes.has(row.time);
+        const time = keepCurrent ? row.time : firstUsableTimeForDay(day, date, row.time, usedTimes);
+        if (time) usedTimes.add(time);
+
+        return { ...row, date, time };
+      });
+    });
   };
 
-  const mergeAll = () => {
-    setRows([{ date: selectedDate, time: rows[0]?.time || firstUsableTime(booking.time), groupSize: validTargetGroupSize ? String(targetGroupSizeNumber) : "1" }]);
+  const addManualRow = () => {
+    setMode("manual");
+    setRows((current) => [...current, firstOpenDraftRow()]);
   };
 
-  const splitAuto = () => {
-    const sizes = splitGroupSizes(validTargetGroupSize ? targetGroupSizeNumber : booking.groupSize);
-    const usedTimes = new Set<string>();
-    const ownTimes = initialSegments.map((segment) => segment.time);
-    setRows(sizes.map((size, index) => {
-      const time = firstUsableTime(ownTimes[index], usedTimes);
-      if (time) usedTimes.add(time);
+  const slotStatusText = (slot: { time: string; status?: string }) => {
+    const status = slot.status ?? "Missing";
+    const own = ownSlotKeys.has(`${selectedDate}|${slot.time}`) && status !== "Closed";
+    return own ? "Booking ini" : segmentStatusLabel[status] ?? status;
+  };
 
-      return { date: selectedDate, time, groupSize: String(size) };
-    }));
+  const slotClassName = (slot: { time: string; status?: string }, selectedTime: string) => {
+    const status = slot.status ?? "Missing";
+    const own = ownSlotKeys.has(`${selectedDate}|${slot.time}`) && status !== "Closed";
+    const occupied = !own && status !== "Available" && status !== "Closed" && status !== "Missing";
+    return [
+      "segment-slot-chip",
+      selectedTime === slot.time ? "is-selected" : "",
+      status === "Available" ? "is-available" : "",
+      own ? "is-own" : "",
+      occupied ? "is-occupied" : "",
+      status === "Closed" || status === "Missing" ? "is-closed" : "",
+    ].filter(Boolean).join(" ");
+  };
+
+  const dateOptionLabel = (day: VisitDay) => {
+    const availableCount = day.slots.filter((slot) => slot.status === "Available").length;
+    return `${day.label} - ${availableCount} slot kosong`;
   };
 
   const submit = () => {
@@ -1704,7 +1810,7 @@ export function SegmentOverrideModal({
       normalizedRows.map((row, index) => ({
         order: index + 1,
         date: row.date,
-        dateLabel: scheduleByDate.get(row.date)?.label ?? formatLongDate(parseDateKey(row.date)),
+        dateLabel: scheduleByDate.get(row.date)?.label ?? (isDateKey(row.date) ? formatLongDate(parseDateKey(row.date)) : row.date),
         time: row.time,
         groupSize: Number(row.groupSize),
       })),
@@ -1715,7 +1821,7 @@ export function SegmentOverrideModal({
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <div className="modal-card segment-modal-card" role="dialog" aria-modal="true" aria-label="Atur kloter manual">
+      <div className="modal-card segment-modal-card" role="dialog" aria-modal="true" aria-label="Atur pembagian kloter">
         <button
           className="modal-close"
           type="button"
@@ -1725,99 +1831,159 @@ export function SegmentOverrideModal({
         >
           <X size={18} aria-hidden="true" />
         </button>
-        <h2>Atur pembagian kloter</h2>
-        <p className="segment-modal-summary">
-          {booking.code} - data awal <strong>{booking.groupSize}</strong> peserta - {booking.dateLabel}, {booking.time} WIB.
-        </p>
-        <label className="segment-total-field">
-          <span>Total peserta</span>
-          <input
-            type="number"
-            min={1}
-            max={MAX_BOOKING_GROUP_SIZE}
-            inputMode="numeric"
-            value={targetGroupSize}
-            onChange={(event) => setTargetGroupSize(event.target.value)}
-            disabled={busy}
-          />
-        </label>
-        <div className="segment-quick-actions" aria-label="Aksi cepat pembagian kloter">
-          <button type="button" className="button button-outline" onClick={mergeAll} disabled={busy}>
-            Gabungkan semua
-          </button>
-          <button type="button" className="button button-outline" onClick={splitAuto} disabled={busy}>
-            Pecah otomatis
-          </button>
-          <button
-            type="button"
-            className="button button-outline segment-add-button"
-            onClick={() => setRows((current) => [...current, firstOpenDraftRow()])}
-            disabled={busy || rows.length >= 7}
-          >
-            <Plus size={16} aria-hidden="true" />
-            Tambah kloter
-          </button>
-        </div>
-        <label className="segment-date-field">
-          <span>Tanggal kloter</span>
-          <select value={selectedDate} onChange={(event) => changeDate(event.target.value)} disabled={busy || dateOptions.length === 0}>
-            {dateOptions.map((day) => (
-              <option key={day.date} value={day.date}>{day.label}</option>
-            ))}
-          </select>
-        </label>
-        <div className="segment-table" aria-label="Editor pembagian kloter">
-          <div className="segment-table-head" aria-hidden="true">
-            <span>Kloter</span>
-            <span>Jam</span>
-            <span>Peserta</span>
-            <span />
-          </div>
-          {rows.map((row, index) => (
-            <div className="segment-table-row" key={index}>
-              <strong>{index + 1}</strong>
-              <select value={row.time} onChange={(event) => updateRow(index, { time: event.target.value })} disabled={busy}>
-                {slotOptions.map((slot) => {
-                  const status = slot.status ?? "Missing";
-                  const own = ownSlotKeys.has(`${selectedDate}|${slot.time}`) && status !== "Closed";
-                  const label = own ? "Booking ini" : segmentStatusLabel[status] ?? status;
+        <header className="segment-modal-head">
+          <span className="segment-modal-kicker">{booking.code}</span>
+          <h2>Atur pembagian kloter</h2>
+          <p>
+            Data awal: <strong>{booking.groupSize}</strong> peserta - {booking.dateLabel}, {booking.time} WIB.
+          </p>
+        </header>
 
-                  return (
-                    <option key={slot.time} value={slot.time} disabled={status === "Closed"}>
-                      {slot.time} - {label}
-                    </option>
-                  );
-                })}
-              </select>
-              <input
-                type="number"
-                min={1}
-                inputMode="numeric"
-                value={row.groupSize}
-                onChange={(event) => updateRow(index, { groupSize: event.target.value })}
-                disabled={busy}
-              />
-              <button
-                type="button"
-                className="segment-icon-button"
-                onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
-                disabled={busy || rows.length <= 1}
-                aria-label={`Hapus kloter ${index + 1}`}
-              >
-                <Trash2 size={15} aria-hidden="true" />
-              </button>
-            </div>
+        <div className="segment-mode-tabs" role="tablist" aria-label="Pilih jenis perubahan kloter">
+          {segmentEditModes.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={mode === item.value}
+              className={mode === item.value ? "is-active" : ""}
+              onClick={() => changeMode(item.value)}
+              disabled={busy}
+            >
+              {item.label}
+            </button>
           ))}
         </div>
+        <p className="segment-mode-help">{segmentModeCopy[mode].description}</p>
+
+        <section className="segment-task-panel" aria-label="Pengaturan kloter">
+          <label className="segment-total-field">
+            <span>Total peserta</span>
+            <input
+              type="number"
+              min={1}
+              max={MAX_BOOKING_GROUP_SIZE}
+              inputMode="numeric"
+              value={targetGroupSize}
+              onChange={(event) => changeTargetGroupSize(event.target.value)}
+              disabled={busy}
+            />
+          </label>
+
+          {(mode === "correct" || mode === "merge") && (
+            <div className="segment-slot-picker segment-slot-picker--compact">
+              <div className="segment-slot-picker-head">
+                <span>{mode === "merge" ? "Jam tujuan gabung" : "Jam kunjungan"}</span>
+                <small>{selectedDateLabel}</small>
+              </div>
+              <div className="segment-slot-grid">
+                {slotOptions.map((slot) => {
+                  const status = slot.status ?? "Missing";
+                  const disabled = status === "Closed" || status === "Missing" || busy;
+
+                  return (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      className={slotClassName(slot, rows[0]?.time ?? "")}
+                      onClick={() => updateRow(0, { time: slot.time })}
+                      disabled={disabled}
+                    >
+                      <strong>{slot.time}</strong>
+                      <small>{slotStatusText(slot)}</small>
+                    </button>
+                  );
+                })}
+                {slotOptions.length === 0 && <p className="segment-empty-slot">Belum ada slot pada tanggal ini.</p>}
+              </div>
+            </div>
+          )}
+
+          {showSegmentTable && (
+            <div className="segment-table-wrap">
+              <div className="segment-table-toolbar">
+                {mode === "split" && (
+                  <button type="button" className="button button-outline" onClick={() => setRows(splitRowsFor())} disabled={busy}>
+                    Pecah otomatis
+                  </button>
+                )}
+                {mode === "manual" && (
+                  <button
+                    type="button"
+                    className="button button-outline segment-add-button"
+                    onClick={addManualRow}
+                    disabled={busy || rows.length >= 7}
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                    Tambah kloter
+                  </button>
+                )}
+              </div>
+              <div className="segment-table" aria-label="Editor pembagian kloter">
+                <div className="segment-table-head" aria-hidden="true">
+                  <span>Kloter</span>
+                  <span>Jam</span>
+                  <span>Peserta</span>
+                  <span />
+                </div>
+                {rows.map((row, index) => (
+                  <div className="segment-table-row" key={index}>
+                    <strong>{index + 1}</strong>
+                    <select value={row.time} onChange={(event) => updateRow(index, { time: event.target.value })} disabled={busy}>
+                      {slotOptions.map((slot) => {
+                        const status = slot.status ?? "Missing";
+
+                        return (
+                          <option key={slot.time} value={slot.time} disabled={status === "Closed" || status === "Missing"}>
+                            {slot.time} - {slotStatusText(slot)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <input
+                      type="number"
+                      min={1}
+                      inputMode="numeric"
+                      value={row.groupSize}
+                      onChange={(event) => updateRow(index, { groupSize: event.target.value })}
+                      disabled={busy}
+                    />
+                    <button
+                      type="button"
+                      className="segment-icon-button"
+                      onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
+                      disabled={busy || rows.length <= 1}
+                      aria-label={`Hapus kloter ${index + 1}`}
+                    >
+                      <Trash2 size={15} aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <div className="segment-advanced-block">
+          <button type="button" className="segment-link-button" onClick={() => setShowAdvanced((current) => !current)} disabled={busy}>
+            {showAdvanced ? "Sembunyikan opsi tanggal" : `Tanggal kloter: ${selectedDateLabel}`}
+          </button>
+          {showAdvanced && (
+            <label className="segment-date-field">
+              <span>Tanggal kloter</span>
+              <select value={selectedDate} onChange={(event) => changeDate(event.target.value)} disabled={busy || dateOptions.length === 0}>
+                {dateOptions.map((day) => (
+                  <option key={day.date} value={day.date}>{dateOptionLabel(day)}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
         {normalizedRows.length !== rows.length && (
           <p className="segment-row-note">Baris dengan jam sama akan digabung saat disimpan.</p>
         )}
-        {validationMessages.length > 0 && (
-          <div className="form-message form-message--error" role="alert">
-            <AlertTriangle size={16} aria-hidden="true" />
-            <span>{validationMessages[0]}</span>
-          </div>
-        )}
+
         {overbookRows.length > 0 && (
           <label className="form-check">
             <input
@@ -1829,24 +1995,50 @@ export function SegmentOverrideModal({
             <span>Gabung dengan slot booking lain</span>
           </label>
         )}
-        <p className={validTargetGroupSize && total === targetGroupSizeNumber ? "form-message" : "form-message form-message--error"}>
-          Total kloter: {total} / {validTargetGroupSize ? targetGroupSizeNumber : "-"} peserta.
-        </p>
-        <label className="form-field">
-          <span>Alasan perubahan {noteRequired ? "(wajib)" : "(opsional)"}</span>
-          <textarea
-            value={note}
-            placeholder="Contoh: User salah input jumlah peserta, admin koreksi manual."
-            onChange={(event) => setNote(event.target.value)}
-          />
-        </label>
+
+        <section className={invalid ? "segment-preview has-error" : "segment-preview is-ready"} aria-label="Pratinjau hasil kloter">
+          <div className="segment-preview-head">
+            <span>Hasil setelah disimpan</span>
+            <strong>{normalizedRows.length} kloter - {total} peserta</strong>
+          </div>
+          <div className="segment-preview-list">
+            {normalizedRows.map((row, index) => (
+              <div className="segment-preview-row" key={`${row.date}-${row.time}-${index}`}>
+                <span>Kloter {index + 1}</span>
+                <ArrowRight size={14} aria-hidden="true" />
+                <strong>{row.groupSize} peserta</strong>
+                <small>{row.time || "-"} WIB</small>
+              </div>
+            ))}
+          </div>
+          <p className="segment-preview-state" role={validationMessages.length > 0 ? "alert" : "status"}>
+            {validationMessages.length > 0 ? <AlertTriangle size={16} aria-hidden="true" /> : <BadgeCheck size={16} aria-hidden="true" />}
+            <span>{validationMessages[0] ?? "Siap disimpan."}</span>
+          </p>
+        </section>
+
+        {!noteRequired && (
+          <button type="button" className="segment-link-button" onClick={() => setShowOptionalNote((current) => !current)} disabled={busy}>
+            {showOptionalNote ? "Sembunyikan catatan admin" : "Tambah catatan admin"}
+          </button>
+        )}
+        {(noteRequired || showOptionalNote) && (
+          <label className="form-field segment-note-field">
+            <span>Catatan admin {noteRequired ? "(wajib)" : "(opsional)"}</span>
+            <textarea
+              value={note}
+              placeholder="Tulis alasan singkat perubahan ini."
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </label>
+        )}
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions">
           <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>
             Batal
           </button>
           <button className="button button-primary" type="button" disabled={invalid || busy} onClick={submit}>
-            {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Simpan kloter manual"}
+            {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : saveLabel}
           </button>
         </div>
       </div>
