@@ -45,6 +45,7 @@ import {
   isShortNoticeBooking,
   BOOKING_STATUS_CHIPS,
   BOOKING_STATUS_LABELS,
+  MAX_BOOKING_GROUP_SIZE,
   SLOT_CAPACITY,
   PAGE_SIZE_BOOKING_SPLIT,
   PAGE_SIZE_BOOKING_TABLE,
@@ -366,9 +367,10 @@ export function AdminScreen({
 		});
 	};
 
-	const handleUpdateSegments = (booking: Booking, segments: BookingSegment[], note: string, allowOverbook: boolean) => {
+	const handleUpdateSegments = (booking: Booking, groupSize: number, segments: BookingSegment[], note: string, allowOverbook: boolean) => {
 		void runBookingAction(booking, "Menyimpan kloter manual...", async () => {
 			const updated = await apiUpdateBookingSegments(booking.code, {
+				groupSize,
 				segments: segments.map((segment) => ({
 					date: segment.date,
 					time: segment.time,
@@ -956,6 +958,7 @@ export function BookingDetailPanel({
         {bookingSegments(booking).length > 1 && (
           <KloterDetailList segments={bookingSegments(booking)} />
         )}
+        {booking.note && <DetailItem label="Catatan admin" value={booking.note} />}
         <DocumentDetailItem
           label="Surat"
           documentName={booking.documentName}
@@ -1364,6 +1367,7 @@ export function BookingSlideOver({
           {bookingSegments(booking).length > 1 && (
             <KloterDetailList segments={bookingSegments(booking)} />
           )}
+          {booking.note && <DetailItem label="Catatan admin" value={booking.note} />}
           <DocumentDetailItem
             label="Surat"
             documentName={booking.documentName}
@@ -1538,7 +1542,7 @@ export function SegmentOverrideModal({
   pendingLabel?: string | null;
   error?: string;
   onClose: () => void;
-  onConfirm: (booking: Booking, segments: BookingSegment[], note: string, allowOverbook: boolean) => void;
+  onConfirm: (booking: Booking, groupSize: number, segments: BookingSegment[], note: string, allowOverbook: boolean) => void;
 }) {
   const initialSegments = bookingSegments(booking);
   const [rows, setRows] = useState(() =>
@@ -1549,6 +1553,7 @@ export function SegmentOverrideModal({
     })),
   );
   const [selectedDate, setSelectedDate] = useState(initialSegments[0]?.date ?? booking.date);
+  const [targetGroupSize, setTargetGroupSize] = useState(String(booking.groupSize));
   const [note, setNote] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
   const ownSlotKeys = new Set(initialSegments.map((segment) => `${segment.date}|${segment.time}`));
@@ -1612,24 +1617,29 @@ export function SegmentOverrideModal({
   });
   const overbookRows = rowStates.filter((state) => state.needsOverbook);
   const oversizedRows = rowStates.filter((state) => state.oversized);
+  const targetGroupSizeNumber = Number(targetGroupSize);
+  const validTargetGroupSize = Number.isInteger(targetGroupSizeNumber) && targetGroupSizeNumber >= 1 && targetGroupSizeNumber <= MAX_BOOKING_GROUP_SIZE;
+  const groupSizeChanged = validTargetGroupSize && targetGroupSizeNumber !== booking.groupSize;
   const total = normalizedRows.reduce((sum, row) => {
     const value = Number(row.groupSize);
     return sum + (Number.isFinite(value) ? value : 0);
   }, 0);
   const busy = Boolean(pendingLabel);
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
-  const noteRequired = overbookRows.length > 0 || oversizedRows.length > 0;
+  const noteRequired = groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0;
   const validationMessages = [
     normalizedRows.length < 1 ? "Minimal harus ada 1 kloter." : "",
     dateOptions.length === 0 ? "Data jadwal belum dimuat. Muat ulang halaman jika daftar tanggal kosong." : "",
-    total !== booking.groupSize ? `Total peserta harus ${booking.groupSize}, sekarang ${total}.` : "",
+    !validTargetGroupSize ? `Total peserta harus 1-${MAX_BOOKING_GROUP_SIZE}.` : "",
+    validTargetGroupSize && total !== targetGroupSizeNumber ? `Total kloter harus ${targetGroupSizeNumber}, sekarang ${total}.` : "",
     overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
-    noteRequired && note.trim() === "" ? "Isi catatan admin untuk penggabungan kloter besar atau overbook." : "",
+    noteRequired && note.trim() === "" ? "Isi alasan perubahan untuk koreksi peserta, kloter besar, atau overbook." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
   ].filter((message, index, messages) => message && messages.indexOf(message) === index);
   const invalid =
     validationMessages.length > 0 ||
     (overbookRows.length > 0 && !allowOverbook) ||
+    !validTargetGroupSize ||
     (noteRequired && note.trim() === "");
 
   useEffect(() => {
@@ -1671,11 +1681,11 @@ export function SegmentOverrideModal({
   };
 
   const mergeAll = () => {
-    setRows([{ date: selectedDate, time: rows[0]?.time || firstUsableTime(booking.time), groupSize: String(booking.groupSize) }]);
+    setRows([{ date: selectedDate, time: rows[0]?.time || firstUsableTime(booking.time), groupSize: validTargetGroupSize ? String(targetGroupSizeNumber) : "1" }]);
   };
 
   const splitAuto = () => {
-    const sizes = splitGroupSizes(booking.groupSize);
+    const sizes = splitGroupSizes(validTargetGroupSize ? targetGroupSizeNumber : booking.groupSize);
     const usedTimes = new Set<string>();
     const ownTimes = initialSegments.map((segment) => segment.time);
     setRows(sizes.map((size, index) => {
@@ -1690,6 +1700,7 @@ export function SegmentOverrideModal({
     if (invalid || busy) return;
     onConfirm(
       booking,
+      targetGroupSizeNumber,
       normalizedRows.map((row, index) => ({
         order: index + 1,
         date: row.date,
@@ -1716,8 +1727,20 @@ export function SegmentOverrideModal({
         </button>
         <h2>Atur pembagian kloter</h2>
         <p className="segment-modal-summary">
-          {booking.code} - <strong>{booking.groupSize}</strong> peserta - {booking.dateLabel}, {booking.time} WIB.
+          {booking.code} - data awal <strong>{booking.groupSize}</strong> peserta - {booking.dateLabel}, {booking.time} WIB.
         </p>
+        <label className="segment-total-field">
+          <span>Total peserta</span>
+          <input
+            type="number"
+            min={1}
+            max={MAX_BOOKING_GROUP_SIZE}
+            inputMode="numeric"
+            value={targetGroupSize}
+            onChange={(event) => setTargetGroupSize(event.target.value)}
+            disabled={busy}
+          />
+        </label>
         <div className="segment-quick-actions" aria-label="Aksi cepat pembagian kloter">
           <button type="button" className="button button-outline" onClick={mergeAll} disabled={busy}>
             Gabungkan semua
@@ -1806,14 +1829,14 @@ export function SegmentOverrideModal({
             <span>Gabung dengan slot booking lain</span>
           </label>
         )}
-        <p className={total === booking.groupSize ? "form-message" : "form-message form-message--error"}>
-          Total saat ini: {total} / {booking.groupSize} peserta.
+        <p className={validTargetGroupSize && total === targetGroupSizeNumber ? "form-message" : "form-message form-message--error"}>
+          Total kloter: {total} / {validTargetGroupSize ? targetGroupSizeNumber : "-"} peserta.
         </p>
         <label className="form-field">
-          <span>Catatan admin {noteRequired ? "(wajib)" : "(opsional)"}</span>
+          <span>Alasan perubahan {noteRequired ? "(wajib)" : "(opsional)"}</span>
           <textarea
             value={note}
-            placeholder="Contoh: Rombongan meminta digabung dalam satu kloter."
+            placeholder="Contoh: User salah input jumlah peserta, admin koreksi manual."
             onChange={(event) => setNote(event.target.value)}
           />
         </label>

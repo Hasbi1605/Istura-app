@@ -17,6 +17,7 @@ class UpdateBookingSegmentsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'groupSize' => ['sometimes', 'integer', 'min:1', 'max:560'],
             'segments' => ['required', 'array', 'min:1', 'max:7'],
             'segments.*.date' => ['required', 'date_format:Y-m-d'],
             'segments.*.time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],

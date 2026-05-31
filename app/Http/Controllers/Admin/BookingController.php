@@ -117,6 +117,7 @@ class BookingController extends Controller
             $booking,
             $request->user(),
             $request->validated('segments'),
+            $request->validated('groupSize'),
             $request->input('note'),
             $request->boolean('allowOverbook'),
         );
