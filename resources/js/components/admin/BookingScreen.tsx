@@ -1489,33 +1489,12 @@ type SegmentRowState = {
   oversized: boolean;
 };
 
-type SegmentEditMode = "correct" | "merge" | "split" | "manual";
+type SegmentEditMode = "single" | "multi";
 
 const segmentEditModes: Array<{ value: SegmentEditMode; label: string }> = [
-  { value: "correct", label: "Koreksi total" },
-  { value: "merge", label: "Gabung ke satu jam" },
-  { value: "split", label: "Pecah otomatis" },
-  { value: "manual", label: "Atur manual" },
+  { value: "single", label: "Satu jam" },
+  { value: "multi", label: "Bagi kloter" },
 ];
-
-const segmentModeCopy: Record<SegmentEditMode, { description: string; saveLabel: string }> = {
-  correct: {
-    description: "Ubah total peserta tanpa memecah jadwal.",
-    saveLabel: "Simpan koreksi peserta",
-  },
-  merge: {
-    description: "Satukan semua peserta ke satu jam kunjungan.",
-    saveLabel: "Simpan penggabungan kloter",
-  },
-  split: {
-    description: "Bagi peserta ke beberapa kloter, lalu sesuaikan hasilnya.",
-    saveLabel: "Simpan pembagian kloter",
-  },
-  manual: {
-    description: "Ubah jam dan jumlah peserta per kloter. Total harus sesuai target.",
-    saveLabel: "Simpan perubahan",
-  },
-};
 
 const segmentStatusLabel: Record<string, string> = {
   Available: "Kosong",
@@ -1573,7 +1552,7 @@ export function SegmentOverrideModal({
   onConfirm: (booking: Booking, groupSize: number, segments: BookingSegment[], note: string, allowOverbook: boolean) => void;
 }) {
   const initialSegments = bookingSegments(booking);
-  const initialMode: SegmentEditMode = initialSegments.length > 1 ? "manual" : "correct";
+  const initialMode: SegmentEditMode = initialSegments.length > 1 ? "multi" : "single";
   const [mode, setMode] = useState<SegmentEditMode>(initialMode);
   const [rows, setRows] = useState(() =>
     initialSegments.map((segment) => ({
@@ -1586,8 +1565,6 @@ export function SegmentOverrideModal({
   const [targetGroupSize, setTargetGroupSize] = useState(String(booking.groupSize));
   const [note, setNote] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showOptionalNote, setShowOptionalNote] = useState(false);
   const ownSlotKeys = new Set(initialSegments.map((segment) => `${segment.date}|${segment.time}`));
   const scheduleByDate = new Map(schedules.map((day) => [day.date, day]));
   const segmentToday = jakartaToday();
@@ -1659,7 +1636,7 @@ export function SegmentOverrideModal({
   const busy = Boolean(pendingLabel);
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
   const totalMismatch = validTargetGroupSize && total !== targetGroupSizeNumber;
-  const riskyMerge = mode === "merge" && targetGroupSizeNumber > SLOT_CAPACITY;
+  const riskyMerge = mode === "single" && targetGroupSizeNumber > SLOT_CAPACITY;
   const noteRequired = groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0 || riskyMerge;
   const showRiskNoteWarning = noteRequired && note.trim() === "";
   const validationMessages = [
@@ -1677,8 +1654,7 @@ export function SegmentOverrideModal({
     !validTargetGroupSize ||
     (noteRequired && note.trim() === "");
   const selectedDateLabel = selectedDay.label ?? (isDateKey(selectedDate) ? formatLongDate(parseDateKey(selectedDate)) : selectedDate);
-  const saveLabel = segmentModeCopy[mode].saveLabel;
-  const showSegmentTable = mode === "split" || mode === "manual";
+  const showSegmentTable = mode === "multi";
   const totalStatusLabel = validTargetGroupSize
     ? total === targetGroupSizeNumber
       ? `${total} / ${targetGroupSizeNumber} peserta`
@@ -1741,23 +1717,24 @@ export function SegmentOverrideModal({
 
   const changeMode = (nextMode: SegmentEditMode) => {
     setMode(nextMode);
-    if (nextMode === "correct" || nextMode === "merge") {
-      setRows([singleRowFor(nextMode === "merge" ? rows[0]?.time : booking.time)]);
+    if (nextMode === "single") {
+      setRows([singleRowFor(rows[0]?.time ?? booking.time)]);
     }
-    if (nextMode === "split") {
-      setRows(splitRowsFor());
-    }
-    if (nextMode === "manual" && (mode === "correct" || mode === "merge") && initialSegments.length > 1) {
-      setRows(initialSegments.map((segment) => ({ date: selectedDate, time: segment.time, groupSize: String(segment.groupSize) })));
+    if (nextMode === "multi") {
+      if (initialSegments.length > 1) {
+        setRows(initialSegments.map((segment) => ({ date: selectedDate, time: segment.time, groupSize: String(segment.groupSize) })));
+      } else {
+        setRows(splitRowsFor());
+      }
     }
   };
 
   const changeTargetGroupSize = (value: string) => {
     setTargetGroupSize(value);
-    if (mode === "correct" || mode === "merge") {
+    if (mode === "single") {
       setRows([singleRowFor(rows[0]?.time, value)]);
     }
-    if (mode === "split") {
+    if (mode === "multi") {
       setRows(splitRowsFor(value));
     }
   };
@@ -1766,7 +1743,7 @@ export function SegmentOverrideModal({
     setSelectedDate(date);
     const day = scheduleByDate.get(date) ?? dateOptions.find((option) => option.date === date) ?? fallbackVisitDay(date);
     setRows((current) => {
-      if (mode === "correct" || mode === "merge") {
+      if (mode === "single") {
         return [{ date, time: firstUsableTimeForDay(day, date, current[0]?.time ?? booking.time), groupSize: targetGroupSize || "1" }];
       }
 
@@ -1783,7 +1760,6 @@ export function SegmentOverrideModal({
   };
 
   const addManualRow = () => {
-    setMode("manual");
     setRows((current) => [...current, firstOpenDraftRow()]);
   };
 
@@ -1805,11 +1781,6 @@ export function SegmentOverrideModal({
       occupied ? "is-occupied" : "",
       status === "Closed" || status === "Missing" ? "is-closed" : "",
     ].filter(Boolean).join(" ");
-  };
-
-  const dateOptionLabel = (day: VisitDay) => {
-    const availableCount = day.slots.filter((slot) => slot.status === "Available").length;
-    return `${day.label} - ${availableCount} slot kosong`;
   };
 
   const submit = () => {
@@ -1849,7 +1820,6 @@ export function SegmentOverrideModal({
           </p>
         </header>
 
-        <div className="segment-mode-label">Pilih jenis perubahan</div>
         <div className="segment-mode-tabs" role="tablist" aria-label="Pilih jenis perubahan kloter">
           {segmentEditModes.map((item) => (
             <button
@@ -1865,7 +1835,6 @@ export function SegmentOverrideModal({
             </button>
           ))}
         </div>
-        <p className="segment-mode-help">{segmentModeCopy[mode].description}</p>
 
         <section className="segment-task-panel" aria-label="Pengaturan kloter">
           <label className="segment-total-field">
@@ -1882,10 +1851,10 @@ export function SegmentOverrideModal({
             <small className={totalMismatch ? "segment-total-status has-error" : "segment-total-status"}>{totalStatusLabel}</small>
           </label>
 
-          {(mode === "correct" || mode === "merge") && (
+          {mode === "single" && (
             <div className="segment-slot-picker segment-slot-picker--compact">
               <div className="segment-slot-picker-head">
-                <span>{mode === "merge" ? "Jam tujuan gabung" : "Jam kunjungan"}</span>
+                <span>Jam kunjungan</span>
                 <small>{selectedDateLabel}</small>
               </div>
               <div className="segment-slot-grid">
@@ -1914,22 +1883,18 @@ export function SegmentOverrideModal({
           {showSegmentTable && (
             <div className="segment-table-wrap">
               <div className="segment-table-toolbar">
-                {mode === "split" && (
-                  <button type="button" className="button button-outline" onClick={() => setRows(splitRowsFor())} disabled={busy}>
-                    Pecah otomatis
-                  </button>
-                )}
-                {mode === "manual" && (
-                  <button
-                    type="button"
-                    className="button button-outline segment-add-button"
-                    onClick={addManualRow}
-                    disabled={busy || rows.length >= 7}
-                  >
-                    <Plus size={16} aria-hidden="true" />
-                    Tambah kloter
-                  </button>
-                )}
+                <button type="button" className="button button-outline" onClick={() => setRows(splitRowsFor())} disabled={busy}>
+                  Pecah otomatis
+                </button>
+                <button
+                  type="button"
+                  className="button button-outline segment-add-button"
+                  onClick={addManualRow}
+                  disabled={busy || rows.length >= 7}
+                >
+                  <Plus size={16} aria-hidden="true" />
+                  Tambah kloter
+                </button>
               </div>
               <div className="segment-table" aria-label="Editor pembagian kloter">
                 <div className="segment-table-head" aria-hidden="true">
@@ -1976,22 +1941,6 @@ export function SegmentOverrideModal({
           )}
         </section>
 
-        <div className="segment-advanced-block">
-          <button type="button" className="segment-link-button" onClick={() => setShowAdvanced((current) => !current)} disabled={busy}>
-            {showAdvanced ? "Sembunyikan opsi tanggal" : `Tanggal kloter: ${selectedDateLabel}`}
-          </button>
-          {showAdvanced && (
-            <label className="segment-date-field">
-              <span>Tanggal kloter</span>
-              <select value={selectedDate} onChange={(event) => changeDate(event.target.value)} disabled={busy || dateOptions.length === 0}>
-                {dateOptions.map((day) => (
-                  <option key={day.date} value={day.date}>{dateOptionLabel(day)}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-
         {normalizedRows.length !== rows.length && (
           <p className="segment-row-note">Baris dengan jam sama akan digabung saat disimpan.</p>
         )}
@@ -2008,49 +1957,38 @@ export function SegmentOverrideModal({
           </label>
         )}
 
-        <section className={validationMessages.length > 0 ? "segment-preview has-warning" : "segment-preview is-ready"} aria-label="Pratinjau hasil kloter">
-          <div className="segment-preview-head">
-            <span>Ringkasan perubahan</span>
-            <strong>{normalizedRows.length} kloter - {total} peserta</strong>
-          </div>
-          <div className="segment-preview-list">
-            {normalizedRows.map((row, index) => (
-              <div className="segment-preview-row" key={`${row.date}-${row.time}-${index}`}>
-                <span>Kloter {index + 1}</span>
-                <ArrowRight size={14} aria-hidden="true" />
-                <strong>{row.groupSize} peserta</strong>
-                <small>{row.time || "-"} WIB</small>
-              </div>
-            ))}
-          </div>
-          <p className={showRiskNoteWarning ? "segment-preview-state has-error" : "segment-preview-state"} role={validationMessages.length > 0 ? "alert" : "status"}>
-            {validationMessages.length > 0 ? <AlertTriangle size={16} aria-hidden="true" /> : <BadgeCheck size={16} aria-hidden="true" />}
-            <span>{validationMessages[0] ?? "Siap disimpan."}</span>
+        {validationMessages.length > 0 && (
+          <p className="segment-preview-state has-error" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <span>{validationMessages[0]}</span>
           </p>
-        </section>
-
-        {!noteRequired && (
-          <button type="button" className="segment-link-button" onClick={() => setShowOptionalNote((current) => !current)} disabled={busy}>
-            {showOptionalNote ? "Sembunyikan catatan admin" : "Tambah catatan admin"}
-          </button>
         )}
-        {(noteRequired || showOptionalNote) && (
-          <label className="form-field segment-note-field">
-            <span>Catatan admin {noteRequired ? "(wajib)" : "(opsional)"}</span>
+
+        <label className="form-field segment-note-field">
+          <span>Catatan admin {noteRequired ? "(wajib)" : ""}</span>
+          {noteRequired ? (
             <textarea
               value={note}
               placeholder="Tulis alasan singkat perubahan ini."
               onChange={(event) => setNote(event.target.value)}
             />
-          </label>
-        )}
+          ) : (
+            <input
+              type="text"
+              value={note}
+              placeholder="Opsional: catatan perubahan"
+              onChange={(event) => setNote(event.target.value)}
+            />
+          )}
+        </label>
+
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions">
           <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>
             Batal
           </button>
           <button className="button button-primary" type="button" disabled={invalid || busy} onClick={submit}>
-            {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : saveLabel}
+            {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Simpan perubahan"}
           </button>
         </div>
       </div>
