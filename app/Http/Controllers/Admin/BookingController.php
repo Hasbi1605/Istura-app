@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\IndexBookingsRequest;
 use App\Http\Requests\Admin\RescheduleBookingRequest;
 use App\Http\Requests\Admin\UpdateBookingSegmentsRequest;
 use App\Http\Requests\Admin\UpdateBookingStatusRequest;
@@ -21,21 +22,22 @@ class BookingController extends Controller
 {
     public function __construct(private readonly BookingService $bookings) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexBookingsRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Booking::class);
+        $filters = $request->validated();
 
         $query = Booking::query()
             ->with('slots')
-            ->when($request->string('status')->trim()->value(), fn ($q, $status) => $q->where('status', $status))
-            ->when($request->string('search')->trim()->value(), function ($q, $term) {
+            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->when(trim((string) ($filters['search'] ?? '')), function ($q, $term) {
                 $q->where(function ($w) use ($term) {
                     $w->where('code', 'like', "%{$term}%")
                         ->orWhere('contact_name', 'like', "%{$term}%")
                         ->orWhere('institution', 'like', "%{$term}%");
                 });
             })
-            ->forRange($request->date('from')?->toDateString(), $request->date('to')?->toDateString())
+            ->forRange($filters['from'] ?? null, $filters['to'] ?? null)
             ->orderByDesc('submitted_at');
 
         $paginator = $query->paginate($this->perPage($request));
@@ -102,7 +104,7 @@ class BookingController extends Controller
     {
         $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         Gate::authorize('update', $booking);
-        $updated = $this->bookings->complete($booking, $request->user());
+        $updated = $this->bookings->complete($booking, $request->user(), $request->input('note'));
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }
@@ -116,6 +118,7 @@ class BookingController extends Controller
             $request->user(),
             $request->validated('segments'),
             $request->input('note'),
+            $request->boolean('allowOverbook'),
         );
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);

@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, fetchAllPages } from "./client";
 
 export type ApiBookingSegment = {
   order: number;
@@ -47,15 +47,13 @@ export const fetchAdminBookings = (params?: {
   page?: number;
   perPage?: number;
 }): Promise<ApiBooking[]> => {
-  const search = new URLSearchParams();
-  if (params?.status) search.set("status", params.status);
-  if (params?.search) search.set("search", params.search);
-  if (params?.from) search.set("from", params.from);
-  if (params?.to) search.set("to", params.to);
-  search.set("page", String(params?.page ?? 1));
-  search.set("perPage", String(params?.perPage ?? 250));
-  const qs = search.toString();
-  return api<{ data: ApiBooking[] }>(`/api/admin/bookings${qs ? `?${qs}` : ""}`).then((r) => r.data);
+  return fetchAllPages<ApiBooking>("/api/admin/bookings", {
+    status: params?.status,
+    search: params?.search,
+    from: params?.from,
+    to: params?.to,
+    perPage: params?.perPage ?? 500,
+  });
 };
 
 export const fetchAdminBooking = (code: string): Promise<ApiBooking> =>
@@ -95,7 +93,11 @@ export const completeBooking = (code: string) =>
 
 export const updateBookingSegments = (
   code: string,
-  payload: { segments: Array<{ date: string; time: string; groupSize: number }>; note?: string },
+  payload: {
+    segments: Array<{ date: string; time: string; groupSize: number }>;
+    note?: string;
+    allowOverbook?: boolean;
+  },
 ) =>
   api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/segments`, {
     method: "POST",

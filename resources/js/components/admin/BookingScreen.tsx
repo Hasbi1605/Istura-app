@@ -1,6 +1,7 @@
 // Booking admin screen + sub-components. Extracted from App.tsx (refactor F6.5).
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowRight,
   BadgeCheck,
   ChevronLeft,
@@ -48,7 +49,7 @@ import {
   segmentListLabel,
   VIRTUALIZE_THRESHOLD,
 } from "../../domain/booking";
-import { formatCount, formatCountShort, parseDateKey } from "../../lib/date";
+import { addDays, addMonths, formatCount, formatCountShort, formatDateKey, jakartaToday, parseDateKey } from "../../lib/date";
 import { openWhatsApp, createWhatsappMessage } from "../../lib/waActions";
 import { useMediaQuery, useVirtualWindow } from "../../hooks";
 import {
@@ -361,7 +362,7 @@ export function AdminScreen({
 		});
 	};
 
-	const handleUpdateSegments = (booking: Booking, segments: BookingSegment[], note: string) => {
+	const handleUpdateSegments = (booking: Booking, segments: BookingSegment[], note: string, allowOverbook: boolean) => {
 		void runBookingAction(booking, "Menyimpan kloter manual...", async () => {
 			const updated = await apiUpdateBookingSegments(booking.code, {
 				segments: segments.map((segment) => ({
@@ -370,6 +371,7 @@ export function AdminScreen({
 					groupSize: segment.groupSize,
 				})),
 				note: note.trim() || undefined,
+				allowOverbook: allowOverbook || undefined,
 			});
 			await syncBookingFromApi(updated);
 			setSegmentModal(null);
@@ -681,6 +683,7 @@ export function AdminScreen({
       {segmentModal && (
 		<SegmentOverrideModal
 			booking={segmentModal.booking}
+			schedules={schedules}
 			pendingLabel={pendingLabelFor(segmentModal.booking)}
 			error={actionError}
 			onClose={() => setSegmentModal(null)}
@@ -1400,9 +1403,7 @@ export function AdminActionModal({
 }) {
   const [note, setNote] = useState("");
   const requiredSlots = requiredSlotCount(modal.booking.groupSize);
-  const minProposedDate = new Date();
-  minProposedDate.setHours(0, 0, 0, 0);
-  minProposedDate.setDate(minProposedDate.getDate() + 1);
+  const minProposedDate = addDays(jakartaToday(), 1);
   const availableSlots = schedules.flatMap((day) => {
     if (parseDateKey(day.date) < minProposedDate) return [];
 
@@ -1470,16 +1471,18 @@ export function AdminActionModal({
 
 export function SegmentOverrideModal({
   booking,
+  schedules,
   pendingLabel,
   error,
   onClose,
   onConfirm,
 }: {
   booking: Booking;
+  schedules: VisitDay[];
   pendingLabel?: string | null;
   error?: string;
   onClose: () => void;
-  onConfirm: (booking: Booking, segments: BookingSegment[], note: string) => void;
+  onConfirm: (booking: Booking, segments: BookingSegment[], note: string, allowOverbook: boolean) => void;
 }) {
   const [rows, setRows] = useState(() =>
     bookingSegments(booking).map((segment) => ({
@@ -1489,11 +1492,34 @@ export function SegmentOverrideModal({
     })),
   );
   const [note, setNote] = useState("Penggabungan kloter manual oleh admin.");
+  const [allowOverbook, setAllowOverbook] = useState(false);
+  const ownSlotKeys = new Set(bookingSegments(booking).map((segment) => `${segment.date}|${segment.time}`));
+  const scheduleByDate = new Map(schedules.map((day) => [day.date, day]));
+  const duplicateKeys = rows.reduce<Record<string, number>>((acc, row) => {
+    const key = `${row.date}|${row.time}`;
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const blockedRows = rows
+    .flatMap((row) => {
+      const key = `${row.date}|${row.time}`;
+      if (ownSlotKeys.has(key)) return [];
+      const status = scheduleByDate.get(row.date)?.slots.find((slot) => slot.time === row.time)?.status ?? "Closed";
+      return status === "Available" ? [] : [{ row, status }];
+    });
+  const closedRows = blockedRows.filter((item) => item.status === "Closed");
+  const overbookRows = blockedRows.filter((item) => item.status !== "Closed");
   const total = rows.reduce((sum, row) => sum + Number(row.groupSize || 0), 0);
+  const segmentToday = jakartaToday();
+  const minSegmentDateKey = formatDateKey(segmentToday);
+  const maxSegmentDateKey = formatDateKey(addMonths(segmentToday, 2));
   const busy = Boolean(pendingLabel);
   const invalid =
     rows.length < 1 ||
     rows.some((row) => !row.date || !/^\d{2}\.\d{2}$/.test(row.time) || Number(row.groupSize) < 1) ||
+    Object.values(duplicateKeys).some((count) => count > 1) ||
+    closedRows.length > 0 ||
+    (overbookRows.length > 0 && (!allowOverbook || note.trim() === "")) ||
     total !== booking.groupSize;
 
   const updateRow = (index: number, patch: Partial<(typeof rows)[number]>) => {
@@ -1512,6 +1538,7 @@ export function SegmentOverrideModal({
         groupSize: Number(row.groupSize),
       })),
       note,
+      allowOverbook,
     );
   };
 
@@ -1538,6 +1565,8 @@ export function SegmentOverrideModal({
               <input
                 type="date"
                 value={row.date}
+                min={minSegmentDateKey}
+                max={maxSegmentDateKey}
                 onChange={(event) => updateRow(index, { date: event.target.value })}
               />
               <input
@@ -1574,6 +1603,25 @@ export function SegmentOverrideModal({
         >
           Tambah kloter
         </button>
+        {blockedRows.length > 0 && (
+          <div className="form-message form-message--error" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            {closedRows.length > 0
+              ? "Ada slot yang tutup. Buka slot jadwal terlebih dahulu."
+              : "Ada slot yang sudah terisi. Overbook hanya boleh untuk penggabungan rombongan yang disetujui admin."}
+          </div>
+        )}
+        {overbookRows.length > 0 && closedRows.length === 0 && (
+          <label className="form-check">
+            <input
+              type="checkbox"
+              checked={allowOverbook}
+              onChange={(event) => setAllowOverbook(event.target.checked)}
+              disabled={busy}
+            />
+            <span>Izinkan overbook untuk penggabungan rombongan</span>
+          </label>
+        )}
         <p className={total === booking.groupSize ? "form-message" : "form-message form-message--error"}>
           Total saat ini: {total} / {booking.groupSize} peserta.
         </p>

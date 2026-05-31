@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\IndexAuditLogsRequest;
 use App\Http\Resources\AuditLogResource;
 use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
@@ -11,12 +12,14 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class AuditLogController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexAuditLogsRequest $request): JsonResponse
     {
+        $filters = $request->validated();
+
         $query = AuditLog::query()
             ->with('actor')
-            ->when($request->date('from'), fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
-            ->when($request->date('to'), fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
+            ->when($filters['from'] ?? null, fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
+            ->when($filters['to'] ?? null, fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
             ->orderByDesc('created_at');
 
         $paginator = $query->paginate($this->perPage($request));

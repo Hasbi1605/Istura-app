@@ -37,12 +37,12 @@ import {
   formatMonthTitle,
   isSameMonth,
   isWithinRange,
+  jakartaToday,
   legendStatuses,
   parseDateKey,
   publicSlotStatusLabel,
   publicSlotStatusToClass,
   publicStatusMeta,
-  startOfDay,
   startOfMonth,
 } from "../../lib/date";
 import { INITIAL_FOOTER_CONTACTS, wizardSteps } from "../../constants";
@@ -162,7 +162,7 @@ export function BookingWizard({
   // memicu re-render dan tetap kompatibel dengan UX existing yang hanya
   // menampilkan nama file.
   const documentFileRef = useRef<File | null>(null);
-  const [today] = useState(() => startOfDay(new Date()));
+  const [today] = useState(jakartaToday);
   const minBookingDate = addDays(today, 1);
   const minBookingDateKey = formatDateKey(minBookingDate);
   const initialDate = firstAvailableScheduleDate(schedules, minBookingDateKey);
@@ -672,7 +672,7 @@ function SchedulePicker({
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
 }) {
-  const [today] = useState(() => startOfDay(new Date()));
+  const [today] = useState(() => addDays(minDate, -1));
   const minMonth = startOfMonth(minDate);
   const maxScheduleDate = addMonths(today, 2);
   const maxMonth = startOfMonth(maxScheduleDate);

@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, fetchAllPages } from "./client";
 
 export type ApiAdminUser = {
   id: number;
@@ -56,6 +56,6 @@ export const deleteAdminUser = (id: number) =>
   api<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" });
 
 export const fetchAdminAuditLogs = () =>
-  api<{ data: ApiAuditLog[] }>("/api/admin/audit-logs?perPage=250").then((r) => r.data);
+  fetchAllPages<ApiAuditLog>("/api/admin/audit-logs");
 
 export const fetchAdminDashboard = () => api<ApiDashboard>("/api/admin/dashboard");

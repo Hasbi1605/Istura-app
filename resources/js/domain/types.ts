@@ -35,6 +35,8 @@ export type Slot = {
   time: string;
   status: VisitStatus;
   custom?: boolean;
+  bookingCount?: number;
+  overbooked?: boolean;
 };
 
 export type VisitDay = {
