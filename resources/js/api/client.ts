@@ -47,10 +47,15 @@ function notifyAdminAuthFailure(context: AdminAuthFailureContext) {
   adminAuthFailureListeners.forEach((listener) => listener(context));
 }
 
-function shouldNotifyAdminAuthFailure(path: string, status: number, message: string): boolean {
+function shouldNotifyAdminAuthFailure(path: string, status: number, message: string, body: unknown): boolean {
   if (!path.startsWith("/api/admin/")) return false;
   if (status === 401) return true;
   if (status !== 403) return false;
+
+  if (body && typeof body === "object") {
+    const error = body as { two_factor_required?: unknown; two_factor_setup_required?: unknown };
+    if (error.two_factor_required || error.two_factor_setup_required) return false;
+  }
 
   return message !== "Hanya Super Admin yang dapat mengakses area ini.";
 }
@@ -169,7 +174,7 @@ async function apiRequest<T = unknown>(path: string, options: RequestOptions, re
       json && typeof json === "object" && "message" in json
         ? String((json as { message: unknown }).message)
         : `Permintaan gagal (${response.status})`;
-    if (shouldNotifyAdminAuthFailure(path, response.status, message)) {
+    if (shouldNotifyAdminAuthFailure(path, response.status, message, json)) {
       notifyAdminAuthFailure({ path, status: response.status, message });
     }
     throw new ApiError(response.status, message, json);
