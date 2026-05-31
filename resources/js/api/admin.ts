@@ -56,6 +56,6 @@ export const deleteAdminUser = (id: number) =>
   api<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" });
 
 export const fetchAdminAuditLogs = () =>
-  api<{ data: ApiAuditLog[] }>("/api/admin/audit-logs").then((r) => r.data);
+  api<{ data: ApiAuditLog[] }>("/api/admin/audit-logs?perPage=250").then((r) => r.data);
 
 export const fetchAdminDashboard = () => api<ApiDashboard>("/api/admin/dashboard");

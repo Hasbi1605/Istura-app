@@ -13,6 +13,7 @@ use App\Models\FooterContact;
 use App\Models\SiteSetting;
 use App\Models\WaTemplate;
 use App\Services\ScheduleService;
+use App\Support\PublicCache;
 use App\Support\SiteContentDefaults;
 use Illuminate\Http\JsonResponse;
 
@@ -21,14 +22,14 @@ class ContentController extends Controller
     public function faqs(): JsonResponse
     {
         return response()->json([
-            'data' => FaqResource::collection(Faq::orderBy('sort_order')->get())->resolve(),
+            'data' => PublicCache::rememberCms('faqs', fn () => FaqResource::collection(Faq::orderBy('sort_order')->get())->resolve()),
         ]);
     }
 
     public function contacts(): JsonResponse
     {
         return response()->json([
-            'data' => FooterContactResource::collection(FooterContact::orderBy('sort_order')->get())->resolve(),
+            'data' => PublicCache::rememberCms('contacts', fn () => FooterContactResource::collection(FooterContact::orderBy('sort_order')->get())->resolve()),
         ]);
     }
 
@@ -37,10 +38,14 @@ class ContentController extends Controller
         $from = $request->startDate();
         $to = $request->endDate();
 
-        $days = $service->buildHorizon($from, $to);
+        $data = PublicCache::rememberSchedule(
+            $from->toDateString(),
+            $to->toDateString(),
+            fn () => collect($service->buildHorizon($from, $to))->map(fn ($d) => (new VisitDayResource($d))->resolve())->all(),
+        );
 
         return response()->json([
-            'data' => collect($days)->map(fn ($d) => (new VisitDayResource($d))->resolve())->all(),
+            'data' => $data,
         ]);
     }
 
@@ -56,27 +61,27 @@ class ContentController extends Controller
     public function waTemplates(): JsonResponse
     {
         return response()->json([
-            'data' => WaTemplateResource::collection(WaTemplate::orderBy('id')->get())->resolve(),
+            'data' => PublicCache::rememberCms('wa-templates', fn () => WaTemplateResource::collection(WaTemplate::orderBy('id')->get())->resolve()),
         ]);
     }
 
     public function hero(): JsonResponse
     {
         return response()->json([
-            'data' => SiteSetting::read('hero', [
+            'data' => PublicCache::rememberCms('hero', fn () => SiteSetting::read('hero', [
                 'headline' => 'ISTURA - Istana Untuk Rakyat',
                 'subheadline' => 'Booking Kunjungan Istana Kepresidenan Yogyakarta',
                 'primaryCta' => 'Mulai Booking',
                 'secondaryCta' => 'Cek Jadwal',
                 'story' => 'Pilih jadwal, isi data, unggah surat, lalu tunggu konfirmasi WhatsApp.',
-            ]),
+            ])),
         ]);
     }
 
     public function letter(): JsonResponse
     {
         return response()->json([
-            'data' => SiteSetting::read('letter', [
+            'data' => PublicCache::rememberCms('letter', fn () => SiteSetting::read('letter', [
                 'image' => '/assets/contoh-kop-surat.png',
                 'checklist' => [
                     'Kop surat resmi instansi atau organisasi.',
@@ -84,14 +89,14 @@ class ContentController extends Controller
                     'Tanggal, waktu, jumlah peserta, nama koordinator, NIK, dan nomor HP.',
                     'Tanda tangan kepala instansi atau penanggung jawab.',
                 ],
-            ]),
+            ])),
         ]);
     }
 
     public function siteContent(): JsonResponse
     {
         return response()->json([
-            'data' => SiteContentDefaults::mergeSiteContent(SiteSetting::read('site_content')),
+            'data' => PublicCache::rememberCms('site-content', fn () => SiteContentDefaults::mergeSiteContent(SiteSetting::read('site_content'))),
         ]);
     }
 }

@@ -8,10 +8,13 @@ use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Public\BookingController as PublicBookingController;
 use App\Http\Controllers\Public\ContentController;
 use App\Http\Controllers\Public\FeedbackController as PublicFeedbackController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('health', HealthController::class);
 
 // ---------------------------------------------------------------------------
 // Public

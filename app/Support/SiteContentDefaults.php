@@ -89,12 +89,12 @@ class SiteContentDefaults
                     [
                         'title' => 'Penyambutan',
                         'body' => 'Arahan awal dan foto sambutan di pelataran wapres.',
-                        'image' => '/assets/penyambutan.jpg',
+                        'image' => '/assets/penyambutan.webp',
                     ],
                     [
                         'title' => 'Cerita Sejarah Gedung Agung',
                         'body' => 'Mengenal sejarah Gedung Agung sambil foto bersama di gedung induk.',
-                        'image' => '/assets/cerita-sejarah-gedung-agung.jpg',
+                        'image' => '/assets/cerita-sejarah-gedung-agung.webp',
                     ],
                     [
                         'title' => 'Tur Museum',
@@ -104,7 +104,7 @@ class SiteContentDefaults
                     [
                         'title' => 'Perpustakaan',
                         'body' => 'Membaca koleksi buku Gedung Agung sambil beristirahat sejenak.',
-                        'image' => '/assets/perpustakaan.jpg',
+                        'image' => '/assets/perpustakaan.webp',
                     ],
                 ],
             ],
@@ -147,6 +147,7 @@ class SiteContentDefaults
         foreach ($defaults as $key => $defaultValue) {
             if (! array_key_exists($key, $value)) {
                 $merged[$key] = $defaultValue;
+
                 continue;
             }
 

@@ -44,12 +44,16 @@ export const fetchAdminBookings = (params?: {
   search?: string;
   from?: string;
   to?: string;
+  page?: number;
+  perPage?: number;
 }): Promise<ApiBooking[]> => {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
   if (params?.search) search.set("search", params.search);
   if (params?.from) search.set("from", params.from);
   if (params?.to) search.set("to", params.to);
+  search.set("page", String(params?.page ?? 1));
+  search.set("perPage", String(params?.perPage ?? 250));
   const qs = search.toString();
   return api<{ data: ApiBooking[] }>(`/api/admin/bookings${qs ? `?${qs}` : ""}`).then((r) => r.data);
 };

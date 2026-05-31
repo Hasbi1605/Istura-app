@@ -60,7 +60,7 @@ export function MikyGuide({
       )}
 
       <div className="miky-guide-figure">
-        <img className="miky-guide-img" src={figureSrc} alt="MIKY, pemandu booking ISTURA" />
+        <img className="miky-guide-img" src={figureSrc} alt="MIKY, pemandu booking ISTURA" decoding="async" />
         <span className="miky-guide-platform" aria-hidden="true" />
       </div>
 

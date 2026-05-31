@@ -22,7 +22,7 @@ export type ApiPublicFeedbackBooking = {
 };
 
 export const fetchAdminFeedbacks = (): Promise<ApiFeedback[]> =>
-  api<{ data: ApiFeedback[] }>("/api/admin/feedback").then((r) => r.data);
+  api<{ data: ApiFeedback[] }>("/api/admin/feedback?perPage=250").then((r) => r.data);
 
 export const fetchPublicFeedback = (code: string, token: string) =>
   api<{

@@ -17,10 +17,12 @@ use App\Models\FooterContact;
 use App\Models\SiteSetting;
 use App\Models\WaTemplate;
 use App\Services\AuditLogger;
+use App\Support\PublicCache;
 use App\Support\SiteContentDefaults;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class CmsController extends Controller
 {
@@ -55,6 +57,7 @@ class CmsController extends Controller
         AuditLogger::record($request->user(), 'Memperbarui FAQ publik', Faq::class, null, [
             'count' => count($items),
         ]);
+        PublicCache::forgetCms('faqs');
 
         return $this->faqs();
     }
@@ -88,6 +91,7 @@ class CmsController extends Controller
         AuditLogger::record($request->user(), 'Memperbarui kontak footer publik', FooterContact::class, null, [
             'count' => count($items),
         ]);
+        PublicCache::forgetCms('contacts');
 
         return $this->contacts();
     }
@@ -119,6 +123,7 @@ class CmsController extends Controller
         AuditLogger::record($request->user(), 'Memperbarui template WhatsApp', WaTemplate::class, null, [
             'statuses' => collect($items)->pluck('id')->values()->all(),
         ]);
+        PublicCache::forgetCms('wa-templates');
 
         return $this->waTemplates();
     }
@@ -153,6 +158,7 @@ class CmsController extends Controller
         SiteSetting::write('hero', $request->validated());
 
         AuditLogger::record($request->user(), 'Memperbarui konten hero', SiteSetting::class, 'hero');
+        PublicCache::forgetCms('hero');
 
         return $this->hero();
     }
@@ -165,22 +171,37 @@ class CmsController extends Controller
     public function updateLetter(UpdateLetterRequest $request): JsonResponse
     {
         $current = SiteSetting::read('letter', self::LETTER_DEFAULT);
+        $oldImagePath = $this->publicDiskPathFromUrl($current['image'] ?? null);
+        $newImagePath = null;
         $value = [
             'checklist' => array_values($request->validated('checklist')),
             'image' => $current['image'] ?? self::LETTER_DEFAULT['image'],
         ];
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('letter', 'public');
-            $value['image'] = Storage::disk('public')->url($path);
+            $newImagePath = $request->file('image')->store('letter', 'public');
+            $value['image'] = Storage::disk('public')->url($newImagePath);
         }
 
-        SiteSetting::write('letter', $value);
+        try {
+            SiteSetting::write('letter', $value);
+        } catch (Throwable $exception) {
+            if ($newImagePath) {
+                Storage::disk('public')->delete($newImagePath);
+            }
+
+            throw $exception;
+        }
+
+        if ($newImagePath && $oldImagePath && $oldImagePath !== $newImagePath) {
+            Storage::disk('public')->delete($oldImagePath);
+        }
 
         AuditLogger::record($request->user(), 'Memperbarui konten contoh surat', SiteSetting::class, 'letter', [
             'checklist_count' => count($value['checklist']),
             'image_updated' => $request->hasFile('image'),
         ]);
+        PublicCache::forgetCms('letter');
 
         return $this->letter();
     }
@@ -197,7 +218,24 @@ class CmsController extends Controller
         SiteSetting::write('site_content', $request->validated());
 
         AuditLogger::record($request->user(), 'Memperbarui konten landing page', SiteSetting::class, 'site_content');
+        PublicCache::forgetCms('site-content');
 
         return $this->siteContent();
+    }
+
+    private function publicDiskPathFromUrl(?string $url): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?: $url;
+        if (! str_starts_with($path, '/storage/')) {
+            return null;
+        }
+
+        $relativePath = ltrim(substr($path, strlen('/storage/')), '/');
+
+        return $relativePath !== '' ? $relativePath : null;
     }
 }
