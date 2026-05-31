@@ -75,8 +75,9 @@ export function AdminScheduleManager({
   }, [bookings]);
 
   const scheduleByDate = new Map(schedules.map((day) => [day.date, day] as const));
-  // Pilih default ke hari aktif terdekat dari hari ini (slot Available),
-  // bukan sekadar tanggal pertama agar admin tidak mendarat di hari Closed.
+  // Default ke hari ini agar sinkron dengan highlight kalender.
+  // Fallback ke hari aktif terdekat jika hari ini tidak ada di daftar jadwal.
+  const todayKey = formatDateKey(today);
   const firstActive =
     schedules.find(
       (day) =>
@@ -86,7 +87,9 @@ export function AdminScheduleManager({
     schedules.find((day) => parseDateKey(day.date) >= today)?.date ??
     schedules[0]?.date ??
     "";
-  const [selectedDate, setSelectedDate] = useState(firstActive);
+  const [selectedDate, setSelectedDate] = useState(() =>
+    schedules.some((day) => day.date === todayKey) ? todayKey : firstActive
+  );
   const [customDraft, setCustomDraft] = useState("");
 	const [customError, setCustomError] = useState<string | null>(null);
 	const [savingLabel, setSavingLabel] = useState<string | null>(null);
@@ -422,7 +425,6 @@ export function AdminScheduleManager({
   );
 
   // KPI hari ini untuk kartu "Hari ini".
-  const todayKey = formatDateKey(today);
 	const todaySchedule = scheduleByDate.get(todayKey);
 	const todayAvailable = todaySchedule?.slots.filter((s) => s.status === "Available").length ?? 0;
 	const scheduleBusy = Boolean(savingLabel);
