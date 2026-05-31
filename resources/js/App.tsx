@@ -1,12 +1,20 @@
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { Navigation } from "./components/layout/Navigation";
 import { HomeScreen } from "./components/home/HomeScreen";
-import { BookingWizard } from "./components/booking/BookingWizard";
-import { FeedbackScreen } from "./components/feedback/FeedbackScreen";
-import { AdminApp } from "./components/admin/AdminApp";
+import { InlineSpinner } from "./components/ui/LoadingStates";
 import { useNavEntranceAnimation, useHomeHeroAnimation } from "./animations/useHomeAnimations";
 import { useIsturaData } from "./hooks/useIsturaData";
 import type { Screen } from "./domain/types";
+
+const BookingWizard = lazy(() =>
+  import("./components/booking/BookingWizard").then((module) => ({ default: module.BookingWizard })),
+);
+const FeedbackScreen = lazy(() =>
+  import("./components/feedback/FeedbackScreen").then((module) => ({ default: module.FeedbackScreen })),
+);
+const AdminApp = lazy(() =>
+  import("./components/admin/AdminApp").then((module) => ({ default: module.AdminApp })),
+);
 
 function App() {
   const pageRef = useRef<HTMLElement>(null);
@@ -40,14 +48,19 @@ function App() {
     setAdminSession,
     adminTab,
     setAdminTab,
-		bookingFocusCode,
-		setBookingFocusCode,
-		loading,
-		cmsSync,
-	} = data;
+    bookingFocusCode,
+    setBookingFocusCode,
+    loading,
+    cmsSync,
+  } = data;
 
   useNavEntranceAnimation(pageRef);
   useHomeHeroAnimation(pageRef, screen);
+  const screenFallback = (
+    <div className="screen-fallback" aria-busy="true">
+      <InlineSpinner label="Memuat halaman" />
+    </div>
+  );
 
   const goToScreen = (nextScreen: Screen) => {
     if (feedbackNavigationLocked && screen === "feedback") return;
@@ -66,32 +79,34 @@ function App() {
   return (
     <main ref={pageRef} className="app-shell overflow-x-hidden w-full max-w-full">
       {screen === "admin" ? (
-        <AdminApp
-          session={adminSession}
-          onSessionChange={setAdminSession}
-          adminTab={adminTab}
-          onAdminTabChange={setAdminTab}
-          schedules={schedules}
-          onSchedulesChange={setSchedules}
-          bookings={bookings}
-          onBookingsChange={setBookings}
-          feedbacks={feedbacks}
-          faqs={faqs}
-          onFaqsChange={setFaqs}
-          contacts={contacts}
-          onContactsChange={setContacts}
-          waTemplates={waTemplates}
-          onWaTemplatesChange={setWaTemplates}
-          onHeroChange={setHero}
-          onLetterChange={setLetter}
-          siteContent={siteContent}
-          onSiteContentChange={setSiteContent}
-				bookingFocusCode={bookingFocusCode}
-				onBookingFocusCodeChange={setBookingFocusCode}
-				loading={loading}
-				cmsSync={cmsSync}
-				onExitToPublic={setScreen}
-			/>
+        <Suspense fallback={screenFallback}>
+          <AdminApp
+            session={adminSession}
+            onSessionChange={setAdminSession}
+            adminTab={adminTab}
+            onAdminTabChange={setAdminTab}
+            schedules={schedules}
+            onSchedulesChange={setSchedules}
+            bookings={bookings}
+            onBookingsChange={setBookings}
+            feedbacks={feedbacks}
+            faqs={faqs}
+            onFaqsChange={setFaqs}
+            contacts={contacts}
+            onContactsChange={setContacts}
+            waTemplates={waTemplates}
+            onWaTemplatesChange={setWaTemplates}
+            onHeroChange={setHero}
+            onLetterChange={setLetter}
+            siteContent={siteContent}
+            onSiteContentChange={setSiteContent}
+            bookingFocusCode={bookingFocusCode}
+            onBookingFocusCodeChange={setBookingFocusCode}
+            loading={loading}
+            cmsSync={cmsSync}
+            onExitToPublic={setScreen}
+          />
+        </Suspense>
       ) : (
         <>
           <Navigation
@@ -105,47 +120,51 @@ function App() {
             <HomeScreen
               contacts={contacts}
               faqs={faqs}
-					schedules={schedules}
-					hero={hero}
-					letter={letter}
-					siteContent={siteContent}
-					loading={loading.public || loading.schedule}
-					onNavigate={goToScreen}
-				/>
-          )}
-          {screen === "booking" && (
-            <BookingWizard
               schedules={schedules}
-              bookings={bookings}
-					contacts={contacts}
-					onScheduleLock={setSchedules}
-					scheduleLoading={loading.schedule}
-					onBookingCreate={(booking) => {
-                setBookings((current) => {
-                  const existingIndex = current.findIndex((item) => item.code === booking.code);
-                  if (existingIndex < 0) return [booking, ...current];
-
-                  const next = current.slice();
-                  next[existingIndex] = booking;
-                  return next;
-                });
-                setSubmittedCode(booking.code);
-              }}
-              onShowExampleLetter={() => goToHomeSection("contoh-surat")}
-              onShowSchedule={() => goToHomeSection("panduan")}
+              hero={hero}
+              letter={letter}
+              siteContent={siteContent}
+              loading={loading.public || loading.schedule}
               onNavigate={goToScreen}
             />
           )}
+          {screen === "booking" && (
+            <Suspense fallback={screenFallback}>
+              <BookingWizard
+                schedules={schedules}
+                bookings={bookings}
+                contacts={contacts}
+                onScheduleLock={setSchedules}
+                scheduleLoading={loading.schedule}
+                onBookingCreate={(booking) => {
+                  setBookings((current) => {
+                    const existingIndex = current.findIndex((item) => item.code === booking.code);
+                    if (existingIndex < 0) return [booking, ...current];
+
+                    const next = current.slice();
+                    next[existingIndex] = booking;
+                    return next;
+                  });
+                  setSubmittedCode(booking.code);
+                }}
+                onShowExampleLetter={() => goToHomeSection("contoh-surat")}
+                onShowSchedule={() => goToHomeSection("panduan")}
+                onNavigate={goToScreen}
+              />
+            </Suspense>
+          )}
           {screen === "feedback" && (
-            <FeedbackScreen
-              bookings={bookings}
-              submittedCode={submittedCode}
-              feedbacks={feedbacks}
-					access={feedbackAccess}
-					loading={loading.feedbacks}
-					onFeedbackCreate={(feedback) => setFeedbacks((current) => [feedback, ...current])}
-              onNavigationLockChange={setFeedbackNavigationLocked}
-            />
+            <Suspense fallback={screenFallback}>
+              <FeedbackScreen
+                bookings={bookings}
+                submittedCode={submittedCode}
+                feedbacks={feedbacks}
+                access={feedbackAccess}
+                loading={loading.feedbacks}
+                onFeedbackCreate={(feedback) => setFeedbacks((current) => [feedback, ...current])}
+                onNavigationLockChange={setFeedbackNavigationLocked}
+              />
+            </Suspense>
           )}
         </>
       )}

@@ -476,7 +476,7 @@ function HorizontalAccordion({ content }: { content: SiteContent["activities"] }
             onFocus={() => setActive(index)}
             onMouseEnter={() => setActive(index)}
           >
-            <img className="zoom-media" src={item.image} alt="" />
+            <img className="zoom-media" src={item.image} alt="" loading="lazy" decoding="async" />
             <span className="accordion-content">
               <strong>{item.title}</strong>
               <small>{item.body}</small>
@@ -512,6 +512,8 @@ function LetterExampleSection({
             className="letter-example-image"
             src={letter.image || ASSETS.letterExample}
             alt="Contoh kop surat permohonan kunjungan ISTURA"
+            loading="lazy"
+            decoding="async"
           />
         </article>
 

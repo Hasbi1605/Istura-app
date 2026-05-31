@@ -440,6 +440,8 @@ export function FeedbackScreen({
                 src={ASSETS.mikyFeedback}
                 alt="MIKY mengucapkan terima kasih"
                 className={reduced ? "" : "feedback-success-bounce"}
+                loading="lazy"
+                decoding="async"
               />
               <span className="feedback-success-burst" aria-hidden="true" />
             </div>

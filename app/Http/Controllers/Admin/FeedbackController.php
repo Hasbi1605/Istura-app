@@ -7,6 +7,7 @@ use App\Http\Resources\FeedbackResource;
 use App\Models\Feedback;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
 
 class FeedbackController extends Controller
@@ -27,8 +28,11 @@ class FeedbackController extends Controller
             })
             ->orderByDesc('submitted_at');
 
+        $paginator = $query->paginate($this->perPage($request));
+
         return response()->json([
-            'data' => FeedbackResource::collection($query->get())->resolve(),
+            'data' => FeedbackResource::collection($paginator->getCollection())->resolve(),
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 
@@ -38,5 +42,20 @@ class FeedbackController extends Controller
         Gate::authorize('view', $feedback);
 
         return response()->json(['data' => (new FeedbackResource($feedback))->resolve()]);
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(max($request->integer('perPage', 100), 1), 500);
+    }
+
+    private function paginationMeta(LengthAwarePaginator $paginator): array
+    {
+        return [
+            'currentPage' => $paginator->currentPage(),
+            'perPage' => $paginator->perPage(),
+            'total' => $paginator->total(),
+            'lastPage' => $paginator->lastPage(),
+        ];
     }
 }

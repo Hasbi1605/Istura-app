@@ -235,12 +235,12 @@ export const accordionItems = [
   {
     title: "Penyambutan",
     body: "Arahan awal dan foto sambutan di pelataran wapres.",
-    image: "/assets/penyambutan.jpg",
+    image: "/assets/penyambutan.webp",
   },
   {
     title: "Cerita Sejarah Gedung Agung",
     body: "Mengenal sejarah Gedung Agung sambil foto bersama di gedung induk.",
-    image: "/assets/cerita-sejarah-gedung-agung.jpg",
+    image: "/assets/cerita-sejarah-gedung-agung.webp",
   },
   {
     title: "Tur Museum",
@@ -250,7 +250,7 @@ export const accordionItems = [
   {
     title: "Perpustakaan",
     body: "Membaca koleksi buku Gedung Agung sambil beristirahat sejenak.",
-    image: "/assets/perpustakaan.jpg",
+    image: "/assets/perpustakaan.webp",
   },
 ];
 

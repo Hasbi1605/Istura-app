@@ -12,6 +12,7 @@ use App\Http\Resources\VisitDayResource;
 use App\Models\ScheduleOverride;
 use App\Services\AuditLogger;
 use App\Services\ScheduleService;
+use App\Support\PublicCache;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +49,7 @@ class ScheduleController extends Controller
             ['status' => $data['status'], 'custom' => true, 'note' => $data['note'] ?? null],
         );
 
+        PublicCache::bumpScheduleVersion();
         ScheduleUpdated::dispatch($data['date'], $data['date']);
 
         AuditLogger::record($request->user(), "Mengubah slot jadwal {$data['date']} {$data['time']}", ScheduleOverride::class, $override->id, [
@@ -69,6 +71,7 @@ class ScheduleController extends Controller
             ->where('time', $data['time'])
             ->delete();
 
+        PublicCache::bumpScheduleVersion();
         ScheduleUpdated::dispatch($data['date'], $data['date']);
 
         AuditLogger::record($request->user(), "Menghapus override slot {$data['date']} {$data['time']}", ScheduleOverride::class, null, [
@@ -85,26 +88,39 @@ class ScheduleController extends Controller
         Gate::authorize('update', ScheduleOverride::class);
 
         $data = $request->validated();
-        $weekdays = $data['weekdays'] ?? [];
+        $weekdays = array_map('intval', $data['weekdays'] ?? []);
         $times = isset($data['time']) && $data['time']
             ? [$data['time']]
             : $this->rangeTimes($data['from'], $data['to']);
 
         DB::transaction(function () use ($data, $weekdays, $times) {
+            $now = now();
+            $rows = [];
+
             foreach (CarbonPeriod::create($data['from'], '1 day', $data['to']) as $cursor) {
                 if ($weekdays !== [] && ! in_array($cursor->dayOfWeek, $weekdays, true)) {
                     continue;
                 }
+
                 foreach ($times as $time) {
-                    $this->upsertOverride(
-                        $cursor->toDateString(),
-                        $time,
-                        ['status' => $data['status'], 'custom' => true, 'note' => $data['note'] ?? null],
-                    );
+                    $rows[] = [
+                        'date' => $cursor->copy()->startOfDay()->toDateTimeString(),
+                        'time' => $time,
+                        'status' => $data['status'],
+                        'custom' => true,
+                        'note' => $data['note'] ?? null,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
                 }
+            }
+
+            if ($rows !== []) {
+                ScheduleOverride::upsert($rows, ['date', 'time'], ['status', 'custom', 'note', 'updated_at']);
             }
         });
 
+        PublicCache::bumpScheduleVersion();
         ScheduleUpdated::dispatch($data['from'], $data['to']);
 
         AuditLogger::record($request->user(), "Mengubah rentang jadwal {$data['from']} sampai {$data['to']}", ScheduleOverride::class, null, [

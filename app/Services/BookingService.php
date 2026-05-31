@@ -7,6 +7,7 @@ use App\Events\BookingStatusChanged;
 use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\User;
+use App\Support\PublicCache;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
@@ -35,16 +36,12 @@ class BookingService
         $documentPath = null;
 
         try {
-            return DB::transaction(function () use ($data, $document, $date, &$documentPath) {
-                $segments = $this->buildSlotSegments($date, $data['time'], (int) $data['groupSize'], true);
+            $code = $this->codes->next();
+            $storedName = $code.'-'.Str::uuid().'.'.strtolower($document->getClientOriginalExtension());
+            $documentPath = $document->storeAs('booking-letters', $storedName, 'local');
 
-                $code = $this->codes->next();
-                $storedName = $code.'-'.Str::uuid().'.'.strtolower($document->getClientOriginalExtension());
-                $documentPath = $document->storeAs(
-                    'booking-letters',
-                    $storedName,
-                    'local',
-                );
+            return DB::transaction(function () use ($data, $document, $date, $documentPath, $code) {
+                $segments = $this->buildSlotSegments($date, $data['time'], (int) $data['groupSize'], true);
 
                 $booking = new Booking;
                 $booking->code = $code;
@@ -346,7 +343,12 @@ class BookingService
 
     private function broadcastAfterCommit(callable $callback): void
     {
-        DB::afterCommit(fn () => rescue($callback));
+        PublicCache::bumpScheduleVersion();
+
+        DB::afterCommit(function () use ($callback) {
+            PublicCache::bumpScheduleVersion();
+            rescue($callback);
+        });
     }
 
     /**
@@ -373,10 +375,13 @@ class BookingService
             $this->throwUnavailableConsecutiveSlots($requiredSlots);
         }
 
+        $statuses = $this->schedule->slotStatusesFor($date, $selectedTimes, $lockBookings, $ignoreBookingId);
+        if (collect($selectedTimes)->contains(fn (string $time): bool => ($statuses[$time] ?? 'Closed') !== 'Available')) {
+            $this->throwUnavailableSlot();
+        }
+
         $segments = [];
         foreach ($selectedTimes as $index => $time) {
-            $this->assertSlotAvailable($date, $time, $lockBookings, $ignoreBookingId);
-
             $segments[] = [
                 'slot_order' => $index + 1,
                 'date' => $date->toDateString(),

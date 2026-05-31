@@ -6,6 +6,7 @@ use App\Events\BookingCreated;
 use App\Events\BookingStatusChanged;
 use App\Events\FeedbackSubmitted;
 use App\Events\ScheduleUpdated;
+use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\Feedback;
@@ -370,6 +371,67 @@ class ScheduleSyncTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'Menghapus override slot 2026-06-01 15.30',
         ]);
+    }
+
+    public function test_admin_collection_endpoints_return_pagination_meta(): void
+    {
+        $this->actingAsAdmin();
+
+        $bookings = collect(range(1, 3))->map(fn (int $index) => $this->createBooking([
+            'code' => "ISTURA-2026-PAGE{$index}",
+            'time' => sprintf('%02d.00', 7 + $index),
+        ]));
+
+        $this->getJson('/api/admin/bookings?perPage=2')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.perPage', 2)
+            ->assertJsonPath('meta.total', 3);
+
+        $bookings->each(function (Booking $booking, int $index): void {
+            Feedback::create([
+                'booking_id' => $booking->id,
+                'code' => $booking->code,
+                'rating' => 5 - $index,
+                'booking_ease' => 5,
+                'service' => 5,
+                'recommend' => 5,
+                'highlights' => [],
+                'improvements' => [],
+                'comment' => null,
+                'allow_publish' => false,
+                'submitted_at' => now()->subMinutes($index),
+            ]);
+
+            AuditLog::create([
+                'actor_name' => 'Admin',
+                'action' => "Audit pagination {$index}",
+                'target_type' => Booking::class,
+                'target_id' => $booking->code,
+                'created_at' => now()->subMinutes($index),
+            ]);
+        });
+
+        $this->getJson('/api/admin/feedback?perPage=2')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.perPage', 2)
+            ->assertJsonPath('meta.total', 3);
+
+        $this->getJson('/api/admin/audit-logs?perPage=2')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.perPage', 2)
+            ->assertJsonPath('meta.total', 3);
+    }
+
+    public function test_health_endpoint_reports_database_and_cache_status(): void
+    {
+        $this->getJson('/api/health')
+            ->assertOk()
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('checks.database', true)
+            ->assertJsonPath('checks.cache', true);
     }
 
     public function test_faq_link_persists_through_admin_and_public_cms(): void

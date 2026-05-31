@@ -159,6 +159,93 @@ class ScheduleService
         return $this->isDefaultHoliday($date) ? 'Closed' : 'Available';
     }
 
+    /**
+     * @param  array<int, string>  $times
+     * @return array<string, string>
+     */
+    public function slotStatusesFor(Carbon|string $date, array $times, bool $lockBookings = false, ?int $ignoreBookingId = null): array
+    {
+        $date = $date instanceof Carbon
+            ? $date->copy()->startOfDay()
+            : Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
+        $dateKey = $date->toDateString();
+        $times = collect($times)->unique()->values();
+
+        if ($times->isEmpty()) {
+            return [];
+        }
+
+        $defaultStatus = $this->isDefaultHoliday($date) ? 'Closed' : 'Available';
+        $statuses = $times
+            ->mapWithKeys(fn (string $time): array => [
+                $time => in_array($time, self::TIME_SLOTS, true) ? $defaultStatus : 'Closed',
+            ])
+            ->all();
+
+        $overrides = ScheduleOverride::whereDate('date', $dateKey)
+            ->whereIn('time', $times->all())
+            ->get()
+            ->keyBy('time');
+
+        foreach ($overrides as $time => $override) {
+            $statuses[$time] = $override->status;
+        }
+
+        $availableTimes = $times
+            ->reject(fn (string $time): bool => $overrides->has($time))
+            ->values();
+
+        if ($availableTimes->isEmpty()) {
+            return $statuses;
+        }
+
+        $slotKeys = $availableTimes
+            ->map(fn (string $time): string => BookingSlot::slotKey($dateKey, $time))
+            ->all();
+        $slotQuery = BookingSlot::with('booking')
+            ->whereIn('active_slot_key', $slotKeys)
+            ->when($ignoreBookingId, fn ($query) => $query->where('booking_id', '!=', $ignoreBookingId));
+
+        if ($lockBookings) {
+            $slotQuery->lockForUpdate();
+        }
+
+        $bookingSlots = $slotQuery->get()->groupBy('time');
+        foreach ($availableTimes as $time) {
+            $bookingSlot = $bookingSlots->get($time)?->first(fn (BookingSlot $slot): bool => $slot->booking !== null);
+            if ($bookingSlot?->booking) {
+                $statuses[$time] = $this->statusFromBookingSlot($bookingSlot);
+            }
+        }
+
+        $timesWithoutSlots = $availableTimes
+            ->reject(fn (string $time): bool => ($statuses[$time] ?? null) !== 'Available')
+            ->values();
+
+        if ($timesWithoutSlots->isEmpty()) {
+            return $statuses;
+        }
+
+        $bookingQuery = Booking::whereDate('date', $dateKey)
+            ->whereIn('time', $timesWithoutSlots->all())
+            ->whereIn('status', Booking::ACTIVE_STATUSES)
+            ->when($ignoreBookingId, fn ($query) => $query->whereKeyNot($ignoreBookingId));
+
+        if ($lockBookings) {
+            $bookingQuery->lockForUpdate();
+        }
+
+        $bookings = $bookingQuery->get()->keyBy('time');
+        foreach ($timesWithoutSlots as $time) {
+            $booking = $bookings->get($time);
+            if ($booking) {
+                $statuses[$time] = $this->statusFromBooking($booking);
+            }
+        }
+
+        return $statuses;
+    }
+
     private function resolveSlotStatus(
         string $dateKey,
         string $time,

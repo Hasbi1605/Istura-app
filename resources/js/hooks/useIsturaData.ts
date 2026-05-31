@@ -120,6 +120,13 @@ const markCmsSync = (
   setCmsSync((current) => ({ ...current, [key]: status }));
 };
 
+const mergeScheduleDays = (current: VisitDay[], incoming: VisitDay[]) => {
+  const byDate = new Map(current.map((day) => [day.date, day]));
+  incoming.forEach((day) => byDate.set(day.date, day));
+
+  return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
+};
+
 // Semua state global + efek (persistensi CMS, hydration API publik & admin,
 // realtime, dan routing awal dari URL) dikemas di sini supaya App.tsx tetap
 // jadi shell tipis. Perilaku tidak berubah dari versi inline sebelumnya.
@@ -482,12 +489,14 @@ export function useIsturaData(): IsturaData {
     if (!echo) return;
     let active = true;
     const channel = echo.channel(PUBLIC_SCHEDULE_CHANNEL);
-    const refreshSchedule = () => {
+    const refreshSchedule = (payload?: { from?: string; to?: string }) => {
       setLoading((current) => ({ ...current, schedule: true }));
       const fetcher = adminSession ? fetchAdminSchedule : fetchPublicSchedule;
-      fetcher()
+      fetcher(payload?.from, payload?.to)
         .then((days) => {
-          if (active) setSchedules(days.map(apiVisitDayToLocal));
+          if (!active) return;
+          const nextDays = days.map(apiVisitDayToLocal);
+          setSchedules((current) => (payload?.from ? mergeScheduleDays(current, nextDays) : nextDays));
         })
         .catch(() => {})
         .finally(() => {
@@ -513,12 +522,23 @@ export function useIsturaData(): IsturaData {
     if (!echo) return;
     let active = true;
     const channel = echo.private(ADMIN_BOOKINGS_CHANNEL);
-    const refreshSchedule = () => {
-      fetchAdminSchedule()
+    const refreshSchedule = (from?: string, to?: string) => {
+      fetchAdminSchedule(from, to)
         .then((days) => {
-          if (active) setSchedules(days.map(apiVisitDayToLocal));
+          if (!active) return;
+          const nextDays = days.map(apiVisitDayToLocal);
+          setSchedules((current) => (from ? mergeScheduleDays(current, nextDays) : nextDays));
         })
         .catch(() => {});
+    };
+    const refreshBookingSchedule = (booking: Booking) => {
+      const dates = (booking.segments?.map((segment) => segment.date) ?? [booking.date]).sort();
+      if (dates.length === 0) {
+        refreshSchedule();
+        return;
+      }
+
+      refreshSchedule(dates[0], dates[dates.length - 1]);
     };
     const upsertBooking = (booking: Booking) => {
       setBookings((prev) => {
@@ -541,12 +561,14 @@ export function useIsturaData(): IsturaData {
         .catch(() => {});
     };
     const onCreated = (payload: { booking: ApiBooking }) => {
+      const fallback = apiBookingToLocal(payload.booking);
       hydrateAdminBooking(payload);
-      refreshSchedule();
+      refreshBookingSchedule(fallback);
     };
     const onChanged = (payload: { booking: ApiBooking }) => {
+      const fallback = apiBookingToLocal(payload.booking);
       hydrateAdminBooking(payload);
-      refreshSchedule();
+      refreshBookingSchedule(fallback);
     };
     const onFeedback = (payload: { feedback: ApiFeedback }) => {
       setFeedbacks((prev) => {

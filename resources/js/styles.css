@@ -254,6 +254,13 @@ a {
   color: var(--gold);
 }
 
+.screen-fallback {
+  min-height: 48vh;
+  display: grid;
+  place-items: center;
+  padding: 80px 24px;
+}
+
 .section-skeleton,
 .table-skeleton {
   display: grid;
@@ -1674,7 +1681,7 @@ a {
   position: absolute;
   width: 132px;
   height: 132px;
-  background: url("/assets/penyambutan.jpg") center/cover;
+  background: url("/assets/penyambutan.webp") center/cover;
   border: 5px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
   box-shadow: 0 20px 38px rgba(0, 0, 0, 0.2);
@@ -1682,7 +1689,7 @@ a {
 
 .portrait-stack span:nth-child(2) {
   left: 70px;
-  background-image: url("/assets/cerita-sejarah-gedung-agung.jpg");
+  background-image: url("/assets/cerita-sejarah-gedung-agung.webp");
 }
 
 .portrait-stack span:nth-child(3) {
