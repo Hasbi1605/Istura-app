@@ -661,7 +661,7 @@ class ScheduleSyncTest extends TestCase
 
     public function test_super_admin_user_management_writes_audit_log(): void
     {
-        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]));
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'two_factor_confirmed_at' => now()]));
 
         $created = $this->postJson('/api/admin/users', [
             'name' => 'Audit User',
@@ -697,7 +697,7 @@ class ScheduleSyncTest extends TestCase
 
     public function test_super_admin_cannot_disable_or_demote_self(): void
     {
-        $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]);
+        $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'two_factor_confirmed_at' => now()]);
         Sanctum::actingAs($superAdmin);
 
         $this->putJson("/api/admin/users/{$superAdmin->id}", [
@@ -782,7 +782,7 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonMissingPath('data.nik')
             ->assertJsonPath('data.nikMasked', '3374********9012');
 
-        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]));
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'two_factor_confirmed_at' => now()]));
 
         $this->getJson('/api/admin/bookings')
             ->assertOk()
@@ -1693,7 +1693,10 @@ class ScheduleSyncTest extends TestCase
 
     private function actingAsAdmin(): User
     {
-        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'two_factor_confirmed_at' => now(),
+        ]);
         Sanctum::actingAs($admin);
 
         return $admin;

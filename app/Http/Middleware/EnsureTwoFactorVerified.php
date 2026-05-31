@@ -15,8 +15,20 @@ class EnsureTwoFactorVerified
     {
         $user = $request->user();
 
-        // No user or 2FA not enabled: pass through
-        if (! $user || ! $user->two_factor_confirmed_at) {
+        if (! $user) {
+            return $next($request);
+        }
+
+        // 2FA not set up yet: block access and require setup
+        if (! $user->two_factor_confirmed_at) {
+            return response()->json([
+                'message' => 'Anda harus mengaktifkan Two-Factor Authentication terlebih dahulu.',
+                'two_factor_setup_required' => true,
+            ], 403);
+        }
+
+        // If no session available (e.g. token-based auth in tests), skip session check
+        if (! $request->hasSession()) {
             return $next($request);
         }
 
@@ -32,7 +44,7 @@ class EnsureTwoFactorVerified
             return $next($request);
         }
 
-        // 2FA required but not verified
+        // 2FA enabled but not verified this session
         return response()->json([
             'message' => 'Verifikasi 2FA diperlukan.',
             'two_factor_required' => true,

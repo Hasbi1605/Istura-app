@@ -15,11 +15,12 @@ import type {
   WaTemplate,
 } from "../../domain/types";
 import type { ApiHero, ApiLetter } from "../../api/cms";
-import { logout as apiLogout, twoFactorChallenge } from "../../api/auth";
+import { logout as apiLogout, twoFactorChallenge, twoFactorStatus } from "../../api/auth";
 import { destroyEcho } from "../../realtime/echo";
 import { clearAdminSession, writeAdminSession } from "../../lib/legacyShims";
 import { AdminShell, AdminLogin } from "./AdminShell";
 import { TwoFactorChallenge } from "./TwoFactorChallenge";
+import { TwoFactorSetup } from "./TwoFactorSetup";
 import { AdminDashboard } from "./AdminDashboard";
 import { AdminScreen } from "./BookingScreen";
 import { AdminFeedbackList } from "./AdminFeedbackList";
@@ -86,6 +87,17 @@ export function AdminApp({
 	onExitToPublic: (screen: Screen) => void;
 }) {
   const [needs2fa, setNeeds2fa] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
+
+  const doLogoutAndReset = () => {
+    clearAdminSession();
+    onSessionChange(null);
+    setNeeds2fa(false);
+    setNeedsSetup(false);
+    destroyEcho();
+    window.history.replaceState(null, "", "/admin");
+    void apiLogout().catch(() => {});
+  };
 
   if (!session) {
     return (
@@ -95,10 +107,20 @@ export function AdminApp({
           onSessionChange(next);
           onAdminTabChange("dashboard");
           window.history.replaceState(null, "", "/admin");
-          // Check if 2FA verification is needed
-          twoFactorChallenge()
-            .then(({ requires_2fa }) => {
-              if (requires_2fa) setNeeds2fa(true);
+          // Check 2FA status after login
+          twoFactorStatus()
+            .then(({ enabled }) => {
+              if (!enabled) {
+                // 2FA not set up yet - force setup
+                setNeedsSetup(true);
+              } else {
+                // 2FA enabled - check if verification needed
+                twoFactorChallenge()
+                  .then(({ requires_2fa }) => {
+                    if (requires_2fa) setNeeds2fa(true);
+                  })
+                  .catch(() => {});
+              }
             })
             .catch(() => {});
         }}
@@ -110,18 +132,20 @@ export function AdminApp({
     );
   }
 
+  if (needsSetup) {
+    return (
+      <TwoFactorSetup
+        onComplete={() => setNeedsSetup(false)}
+        onCancel={doLogoutAndReset}
+      />
+    );
+  }
+
   if (needs2fa) {
     return (
       <TwoFactorChallenge
         onVerified={() => setNeeds2fa(false)}
-        onCancel={() => {
-          clearAdminSession();
-          onSessionChange(null);
-          setNeeds2fa(false);
-          destroyEcho();
-          window.history.replaceState(null, "", "/admin");
-          void apiLogout().catch(() => {});
-        }}
+        onCancel={doLogoutAndReset}
       />
     );
   }
