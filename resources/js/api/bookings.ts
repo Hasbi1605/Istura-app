@@ -94,6 +94,7 @@ export const completeBooking = (code: string) =>
 export const updateBookingSegments = (
   code: string,
   payload: {
+    groupSize?: number;
     segments: Array<{ date: string; time: string; groupSize: number }>;
     note?: string;
     allowOverbook?: boolean;

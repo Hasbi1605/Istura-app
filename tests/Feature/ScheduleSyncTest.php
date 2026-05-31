@@ -1255,6 +1255,48 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('data.note', 'Admin menggabungkan dua kloter karena rombongan meminta satu sesi.');
     }
 
+    public function test_admin_manual_segments_can_correct_booking_group_size_with_note(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-04';
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-CORRECTSIZE',
+            'date' => $date,
+            'time' => '08.00',
+            'group_size' => 2,
+            'status' => 'Accepted',
+        ]);
+
+        $payload = [
+            'groupSize' => 30,
+            'segments' => [
+                ['date' => $date, 'time' => '08.00', 'groupSize' => 30],
+            ],
+        ];
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('note');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + [
+            'note' => 'User salah input jumlah peserta, admin koreksi manual.',
+        ])->assertOk()
+            ->assertJsonPath('data.groupSize', 30)
+            ->assertJsonPath('data.segments.0.groupSize', 30)
+            ->assertJsonPath('data.note', 'User salah input jumlah peserta, admin koreksi manual.');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'group_size' => 30,
+            'note' => 'User salah input jumlah peserta, admin koreksi manual.',
+        ]);
+
+        $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
+        $this->assertSame(2, $log->payload['old_group_size']);
+        $this->assertSame(30, $log->payload['new_group_size']);
+        $this->assertSame('User salah input jumlah peserta, admin koreksi manual.', $log->payload['note']);
+    }
+
     public function test_admin_manual_segments_require_explicit_overbook_for_occupied_slot(): void
     {
         $this->actingAsAdmin();

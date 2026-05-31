@@ -162,10 +162,11 @@ class BookingService
         Booking $booking,
         ?User $actor,
         array $segments,
+        ?int $groupSize = null,
         ?string $note = null,
         bool $allowOverbook = false,
     ): Booking {
-        return DB::transaction(function () use ($booking, $actor, $segments, $note, $allowOverbook) {
+        return DB::transaction(function () use ($booking, $actor, $segments, $groupSize, $note, $allowOverbook) {
             $booking = Booking::with('slots')
                 ->whereKey($booking->id)
                 ->lockForUpdate()
@@ -177,10 +178,12 @@ class BookingService
                 ]);
             }
 
+            $oldGroupSize = (int) $booking->group_size;
+            $targetGroupSize = $groupSize ?? $oldGroupSize;
             $total = collect($segments)->sum(fn (array $segment) => (int) $segment['groupSize']);
-            if ($total !== (int) $booking->group_size) {
+            if ($total !== $targetGroupSize) {
                 throw ValidationException::withMessages([
-                    'segments' => ["Total peserta kloter ({$total}) harus sama dengan jumlah rombongan ({$booking->group_size})."],
+                    'segments' => ["Total peserta kloter ({$total}) harus sama dengan jumlah rombongan ({$targetGroupSize})."],
                 ]);
             }
 
@@ -201,16 +204,18 @@ class BookingService
                 })->all();
 
             $hasOversizedSegment = collect($normalized)->contains(fn (array $segment): bool => $segment['group_size'] > self::SLOT_CAPACITY);
+            $hasGroupSizeChange = $targetGroupSize !== $oldGroupSize;
 
             $this->lockSlotKeysForSegments($normalized);
             $conflicts = $this->assertManualSegmentsUsable($booking, $normalized, $allowOverbook);
-            if (($hasOversizedSegment || $conflicts !== []) && trim((string) $note) === '') {
+            if (($hasGroupSizeChange || $hasOversizedSegment || $conflicts !== []) && trim((string) $note) === '') {
                 throw ValidationException::withMessages([
-                    'note' => ['Catatan wajib diisi saat mengizinkan overbook atau menggabungkan kloter besar.'],
+                    'note' => ['Catatan wajib diisi saat mengubah jumlah peserta, mengizinkan overbook, atau menggabungkan kloter besar.'],
                 ]);
             }
 
             $first = $normalized[0];
+            $booking->group_size = $targetGroupSize;
             $booking->date = Carbon::createFromFormat('Y-m-d', $first['date'], 'Asia/Jakarta')->startOfDay();
             $booking->date_label = $first['date_label'];
             $booking->time = $first['time'];
@@ -226,6 +231,9 @@ class BookingService
             $this->logAudit($actor, $description, $booking, [
                 'overbook' => $conflicts !== [],
                 'conflicts' => $conflicts,
+                'old_group_size' => $oldGroupSize,
+                'new_group_size' => $targetGroupSize,
+                'note' => $note,
             ]);
             $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments'));
 

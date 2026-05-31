@@ -7765,6 +7765,33 @@ a {
   gap: 8px;
 }
 
+.segment-total-field {
+  width: min(220px, 100%);
+  display: grid;
+  gap: 6px;
+  color: rgba(16, 24, 47, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.segment-total-field input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--navy);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.segment-total-field input:focus {
+  outline: none;
+  border-color: rgba(196, 146, 18, 0.55);
+  box-shadow: 0 0 0 3px rgba(196, 146, 18, 0.14);
+}
+
 .segment-quick-actions .button,
 .segment-add-button {
   min-height: 38px;
