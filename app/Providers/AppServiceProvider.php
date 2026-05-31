@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(10)->by(
-            'auth-login:'.$request->ip(),
+            'auth-login:'.sha1($request->ip().'|'.strtolower(trim($request->input('email', '')))),
         ));
 
         RateLimiter::for('public-bookings', fn (Request $request) => Limit::perMinute(30)->by(

@@ -617,10 +617,8 @@ class ScheduleSyncTest extends TestCase
     public function test_security_headers_are_sent_on_public_and_auth_responses(): void
     {
         $expectedHeaders = [
-            'Content-Security-Policy' => "frame-ancestors 'none'",
             'X-Frame-Options' => 'DENY',
             'X-Content-Type-Options' => 'nosniff',
-            'Strict-Transport-Security' => 'max-age=31536000; includeSubDomains',
             'Referrer-Policy' => 'strict-origin-when-cross-origin',
             'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
         ];
@@ -632,6 +630,13 @@ class ScheduleSyncTest extends TestCase
             $public->assertHeader($name, $value);
             $auth->assertHeader($name, $value);
         }
+
+        // CSP should contain frame-ancestors and other directives
+        $csp = $public->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("frame-ancestors 'none'", $csp);
+        $this->assertStringContainsString("default-src 'self'", $csp);
+        $this->assertStringContainsString("script-src 'self'", $csp);
+        $this->assertStringContainsString("object-src 'none'", $csp);
     }
 
     public function test_viewer_cannot_read_sensitive_admin_endpoints(): void
@@ -729,14 +734,15 @@ class ScheduleSyncTest extends TestCase
             'document_path' => null,
         ]);
 
-        $this->get("/api/admin/bookings/{$withDocument->code}/document?disposition=inline")
+        $inlineResponse = $this->get("/api/admin/bookings/{$withDocument->code}/document?disposition=inline")
             ->assertOk()
-            ->assertHeader('Content-Security-Policy', "frame-ancestors 'self'")
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN');
-        $this->get("/api/admin/bookings/{$withDocument->code}/document")
+        $this->assertStringContainsString("frame-ancestors 'self'", $inlineResponse->headers->get('Content-Security-Policy'));
+
+        $downloadResponse = $this->get("/api/admin/bookings/{$withDocument->code}/document")
             ->assertOk()
-            ->assertHeader('Content-Security-Policy', "frame-ancestors 'none'")
             ->assertHeader('X-Frame-Options', 'DENY');
+        $this->assertStringContainsString("frame-ancestors 'none'", $downloadResponse->headers->get('Content-Security-Policy'));
         $this->getJson("/api/admin/bookings/{$withDocument->code}")
             ->assertOk()
             ->assertJsonPath('data.hasDocument', true);

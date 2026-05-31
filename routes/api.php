@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Public\BookingController as PublicBookingController;
 use App\Http\Controllers\Public\ContentController;
@@ -45,13 +46,20 @@ Route::prefix('auth')->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
+        Route::get('two-factor/status', [TwoFactorController::class, 'status']);
+        Route::post('two-factor/setup', [TwoFactorController::class, 'setup']);
+        Route::post('two-factor/confirm', [TwoFactorController::class, 'confirm']);
+        Route::post('two-factor/verify', [TwoFactorController::class, 'verify']);
+        Route::post('two-factor/disable', [TwoFactorController::class, 'disable']);
+        Route::post('two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes']);
+        Route::get('two-factor/challenge', [TwoFactorController::class, 'challenge']);
     });
 });
 
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
-Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'two-factor', 'admin'])->prefix('admin')->group(function () {
     Route::get('dashboard', DashboardController::class);
 
     Route::get('bookings', [AdminBookingController::class, 'index']);

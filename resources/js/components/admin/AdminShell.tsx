@@ -7,6 +7,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Timer,
 } from "lucide-react";
 import type { AdminSession, AdminTab } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
@@ -15,6 +16,7 @@ import type { AdminMenuItem } from "../../constants";
 import { login as apiLogin } from "../../api/auth";
 import { ApiError, ValidationError } from "../../api/client";
 import { ButtonSpinner } from "../ui/LoadingStates";
+import { useIdleTimeout } from "../../hooks/useIdleTimeout";
 
 export function AdminShell({
   session,
@@ -32,6 +34,12 @@ export function AdminShell({
   children: ReactNode;
 }) {
   const [isMobileNavOpen, setMobileNavOpen] = useState(false);
+  const { showWarning, remainingSeconds, extendSession } = useIdleTimeout({
+    timeoutMinutes: 55,
+    warningSeconds: 120,
+    onLogout,
+    enabled: true,
+  });
   const visibleMenu = ADMIN_MENU.filter(
     (item) => item.key !== "users" || session.role === "Super Admin",
   );
@@ -139,6 +147,26 @@ export function AdminShell({
 
         <div className="admin-shell-content">{children}</div>
       </div>
+
+      {showWarning && (
+        <div className="admin-idle-overlay">
+          <div className="admin-idle-modal">
+            <Timer size={32} aria-hidden="true" />
+            <h2>Sesi akan berakhir</h2>
+            <p>
+              Anda tidak aktif selama beberapa saat. Sesi akan otomatis keluar dalam{" "}
+              <strong>{remainingSeconds} detik</strong>.
+            </p>
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={extendSession}
+            >
+              Perpanjang Sesi
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

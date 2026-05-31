@@ -23,6 +23,7 @@ class UserResource extends JsonResource
             },
             'status' => $this->email_verified_at ? 'Aktif' : 'Nonaktif',
             'lastLogin' => $this->last_login_at ? IndonesianDate::submittedAt($this->last_login_at) : null,
+            'twoFactorEnabled' => $this->two_factor_confirmed_at !== null,
         ];
     }
 }

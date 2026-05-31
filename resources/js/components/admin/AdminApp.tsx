@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
 	AdminSession,
@@ -14,10 +15,11 @@ import type {
   WaTemplate,
 } from "../../domain/types";
 import type { ApiHero, ApiLetter } from "../../api/cms";
-import { logout as apiLogout } from "../../api/auth";
+import { logout as apiLogout, twoFactorChallenge } from "../../api/auth";
 import { destroyEcho } from "../../realtime/echo";
 import { clearAdminSession, writeAdminSession } from "../../lib/legacyShims";
 import { AdminShell, AdminLogin } from "./AdminShell";
+import { TwoFactorChallenge } from "./TwoFactorChallenge";
 import { AdminDashboard } from "./AdminDashboard";
 import { AdminScreen } from "./BookingScreen";
 import { AdminFeedbackList } from "./AdminFeedbackList";
@@ -83,6 +85,8 @@ export function AdminApp({
 	cmsSync: CmsSyncState;
 	onExitToPublic: (screen: Screen) => void;
 }) {
+  const [needs2fa, setNeeds2fa] = useState(false);
+
   if (!session) {
     return (
       <AdminLogin
@@ -91,10 +95,32 @@ export function AdminApp({
           onSessionChange(next);
           onAdminTabChange("dashboard");
           window.history.replaceState(null, "", "/admin");
+          // Check if 2FA verification is needed
+          twoFactorChallenge()
+            .then(({ requires_2fa }) => {
+              if (requires_2fa) setNeeds2fa(true);
+            })
+            .catch(() => {});
         }}
         onCancel={() => {
           onExitToPublic("home");
           window.history.replaceState(null, "", "/");
+        }}
+      />
+    );
+  }
+
+  if (needs2fa) {
+    return (
+      <TwoFactorChallenge
+        onVerified={() => setNeeds2fa(false)}
+        onCancel={() => {
+          clearAdminSession();
+          onSessionChange(null);
+          setNeeds2fa(false);
+          destroyEcho();
+          window.history.replaceState(null, "", "/admin");
+          void apiLogout().catch(() => {});
         }}
       />
     );
