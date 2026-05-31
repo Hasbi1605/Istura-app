@@ -1445,22 +1445,44 @@ export function AdminActionModal({
     }
   };
 
+  // Compute the set of consecutive slot times that are part of the selection
+  const selectedSlotSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!currentDay || !selectedTime || requiredSlots <= 1) {
+      if (selectedTime) set.add(selectedTime);
+      return set;
+    }
+    const startIndex = currentDay.slots.findIndex((s) => s.time === selectedTime);
+    if (startIndex === -1) return set;
+    for (let i = 0; i < requiredSlots && startIndex + i < currentDay.slots.length; i++) {
+      set.add(currentDay.slots[startIndex + i].time);
+    }
+    return set;
+  }, [currentDay, selectedTime, requiredSlots]);
+
   const slotChipClass = (slot: { time: string; status: string }) => {
     const available = slot.status === "Available";
     const closed = slot.status === "Closed";
-    const selected = slot.time === selectedTime;
+    const selected = selectedSlotSet.has(slot.time);
     const fits = currentDay ? canFitConsecutiveSlots(currentDay, slot.time, requiredSlots) : false;
     return [
       "segment-slot-chip",
       selected ? "is-selected" : "",
-      available && fits ? "is-available" : "",
-      available && !fits ? "is-full" : "",
-      !available && !closed ? "is-occupied" : "",
-      closed ? "is-closed" : "",
+      !selected && available && fits ? "is-available" : "",
+      !selected && available && !fits ? "is-full" : "",
+      !selected && !available && !closed ? "is-occupied" : "",
+      !selected && closed ? "is-closed" : "",
     ].filter(Boolean).join(" ");
   };
 
   const slotLabel = (slot: { time: string; status: string }) => {
+    if (selectedSlotSet.has(slot.time) && requiredSlots > 1) {
+      const startIndex = currentDay ? currentDay.slots.findIndex((s) => s.time === selectedTime) : -1;
+      const slotIndex = currentDay ? currentDay.slots.findIndex((s) => s.time === slot.time) : -1;
+      if (startIndex >= 0 && slotIndex >= 0) {
+        return `Kloter ${slotIndex - startIndex + 1}`;
+      }
+    }
     if (slot.status === "Available") {
       const fits = currentDay ? canFitConsecutiveSlots(currentDay, slot.time, requiredSlots) : false;
       return fits ? "Tersedia" : "Tidak cukup";
