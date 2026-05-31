@@ -1412,20 +1412,53 @@ export function AdminActionModal({
   const [note, setNote] = useState("");
   const requiredSlots = requiredSlotCount(modal.booking.groupSize);
   const minProposedDate = addDays(jakartaToday(), 1);
-  const availableSlots = schedules.flatMap((day) => {
-    if (parseDateKey(day.date) < minProposedDate) return [];
-
-    return day.slots
-      .filter((slot) => canFitConsecutiveSlots(day, slot.time, requiredSlots))
-      .map((slot) => `${day.label}, ${slot.time} WIB`);
+  const eligibleDays = schedules.filter((day) => parseDateKey(day.date) >= minProposedDate && day.slots.length > 0);
+  const [selectedDay, setSelectedDay] = useState(eligibleDays[0]?.date ?? "");
+  const currentDay = eligibleDays.find((day) => day.date === selectedDay) ?? eligibleDays[0];
+  const [selectedTime, setSelectedTime] = useState(() => {
+    if (!currentDay) return "";
+    const first = currentDay.slots.find((slot) => canFitConsecutiveSlots(currentDay, slot.time, requiredSlots));
+    return first?.time ?? "";
   });
-  const [proposed, setProposed] = useState(availableSlots[0] ?? "");
+  const proposed = currentDay && selectedTime ? `${currentDay.label}, ${selectedTime} WIB` : "";
+  const canFitSelected = currentDay ? canFitConsecutiveSlots(currentDay, selectedTime, requiredSlots) : false;
   const titleMap = {
     accept: "Setujui booking",
     reject: "Tolak booking",
     reschedule: "Tawarkan jadwal lain",
   };
   const needsNote = modal.action !== "accept";
+
+  const handleDayChange = (date: string) => {
+    setSelectedDay(date);
+    const day = eligibleDays.find((d) => d.date === date);
+    if (day) {
+      const first = day.slots.find((slot) => canFitConsecutiveSlots(day, slot.time, requiredSlots));
+      setSelectedTime(first?.time ?? "");
+    } else {
+      setSelectedTime("");
+    }
+  };
+
+  const slotChipClass = (slot: { time: string; status: string }) => {
+    const available = slot.status === "Available";
+    const closed = slot.status === "Closed";
+    const selected = slot.time === selectedTime;
+    const fits = currentDay ? canFitConsecutiveSlots(currentDay, slot.time, requiredSlots) : false;
+    return [
+      "segment-slot-chip",
+      selected ? "is-selected" : "",
+      available && fits ? "is-available" : "",
+      !available && !closed ? "is-occupied" : "",
+      closed ? "is-closed" : "",
+    ].filter(Boolean).join(" ");
+  };
+
+  const slotLabel = (slot: { time: string; status: string }) => {
+    if (slot.status === "Available") return "Kosong";
+    if (slot.status === "Closed") return "Tutup";
+    return segmentStatusLabel[slot.status] ?? "Terisi";
+  };
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -1442,17 +1475,50 @@ export function AdminActionModal({
         <h2>{titleMap[modal.action]}</h2>
         <p>{modal.booking.code} - {modal.booking.institution}</p>
         {modal.action === "reschedule" && (
-          <label className="form-field">
-            <span>Jadwal alternatif{requiredSlots > 1 ? ` (${requiredSlots} kloter berurutan)` : ""}</span>
-            <select value={proposed} onChange={(event) => setProposed(event.target.value)}>
-              {availableSlots.map((slot) => (
-                <option key={slot} value={slot}>
-                  {slot}
-                </option>
-              ))}
-            </select>
-            {availableSlots.length === 0 && <small>Tidak ada rangkaian slot yang cukup untuk jumlah rombongan ini.</small>}
-          </label>
+          <div className="segment-slot-picker">
+            <label className="form-field">
+              <span>Pilih tanggal</span>
+              <select value={selectedDay} onChange={(event) => handleDayChange(event.target.value)}>
+                {eligibleDays.map((day) => {
+                  const availCount = day.slots.filter((s) => s.status === "Available").length;
+                  return (
+                    <option key={day.date} value={day.date}>
+                      {day.label} - {availCount} slot kosong
+                    </option>
+                  );
+                })}
+              </select>
+              {eligibleDays.length === 0 && <small>Tidak ada tanggal tersedia untuk dijadwalkan ulang.</small>}
+            </label>
+            {currentDay && (
+              <>
+                <div className="segment-slot-picker-head">
+                  <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot berurutan)` : ""}</span>
+                </div>
+                <div className="segment-slot-grid">
+                  {currentDay.slots.map((slot) => {
+                    const closed = slot.status === "Closed";
+                    const fits = canFitConsecutiveSlots(currentDay, slot.time, requiredSlots);
+                    return (
+                      <button
+                        key={slot.time}
+                        type="button"
+                        className={slotChipClass(slot)}
+                        onClick={() => setSelectedTime(slot.time)}
+                        disabled={closed || !fits}
+                      >
+                        <strong>{slot.time}</strong>
+                        <small>{slotLabel(slot)}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+                {!canFitSelected && selectedTime && (
+                  <small className="form-message form-message--error">Slot ini tidak cukup untuk {modal.booking.groupSize} peserta ({requiredSlots} kloter berurutan).</small>
+                )}
+              </>
+            )}
+          </div>
         )}
         <label className="form-field">
           <span>{needsNote ? "Alasan" : "Catatan admin opsional"}</span>
