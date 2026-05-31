@@ -82,7 +82,7 @@ class ContentController extends Controller
     {
         return response()->json([
             'data' => PublicCache::rememberCms('letter', fn () => SiteSetting::read('letter', [
-                'image' => '/assets/contoh-kop-surat.png',
+                'image' => '/assets/contoh-kop-surat.webp',
                 'checklist' => [
                     'Kop surat resmi instansi atau organisasi.',
                     'Perihal permohonan kunjungan dan tujuan surat yang jelas.',

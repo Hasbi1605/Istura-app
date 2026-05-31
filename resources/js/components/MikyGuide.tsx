@@ -1,5 +1,4 @@
 import type { LucideIcon } from "lucide-react";
-import { ASSETS } from "../lib/assets";
 import { useReducedMotion, useTypewriter } from "../hooks";
 
 export function MikyGuide({
@@ -17,12 +16,11 @@ export function MikyGuide({
   step?: number;
   totalSteps?: number;
   variant?: "welcome" | "default";
-  imageSrc?: string;
+  imageSrc: string;
 }) {
   const reduced = useReducedMotion();
   const typed = useTypewriter(message, 22, !reduced);
   const showStepper = typeof step === "number" && typeof totalSteps === "number" && totalSteps > 1;
-  const figureSrc = imageSrc ?? (variant === "welcome" ? ASSETS.mikyHero : ASSETS.miky);
 
   return (
     <div className={`miky-guide miky-guide--${variant}`} data-reduced={reduced ? "true" : undefined}>
@@ -60,7 +58,7 @@ export function MikyGuide({
       )}
 
       <div className="miky-guide-figure">
-        <img className="miky-guide-img" src={figureSrc} alt="MIKY, pemandu booking ISTURA" decoding="async" />
+        <img className="miky-guide-img" src={imageSrc} alt="MIKY, pemandu booking ISTURA" decoding="async" />
         <span className="miky-guide-platform" aria-hidden="true" />
       </div>
 

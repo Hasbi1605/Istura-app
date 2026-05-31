@@ -1,8 +1,6 @@
 // Static asset path map. Mirror dari ASSETS di App.tsx; file ada di public/assets.
 export const ASSETS = {
-  miky: "/assets/miky.webp",
   mikyHero: "/assets/miky-greeting.webp",
-  mikyHeroSvg: "/assets/miky-hero.svg",
   mikyHero3: "/assets/miky-hero-3.webp",
   mikyStep1: "/assets/miky-step-1.webp",
   mikyStep2: "/assets/miky-step-2.webp",
@@ -17,5 +15,5 @@ export const ASSETS = {
   mikyFeedback3: "/assets/miky-feedback-3.webp",
   logoGold: "/assets/gedung-agung-gold.webp",
   logoWhite: "/assets/gedung-agung-white.webp",
-  letterExample: "/assets/contoh-kop-surat.png",
+  letterExample: "/assets/contoh-kop-surat.webp",
 };

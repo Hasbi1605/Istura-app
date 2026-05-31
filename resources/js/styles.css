@@ -376,7 +376,7 @@ a {
     radial-gradient(circle at 77% 44%, rgba(229, 189, 85, 0.14), transparent 23rem),
     radial-gradient(circle at 76% 44%, rgba(16, 24, 47, 0.32), rgba(16, 24, 47, 0.88) 58%),
     linear-gradient(120deg, rgba(16, 24, 47, 0.94), rgba(16, 24, 47, 0.66)),
-    url("/assets/hero-istana.jpeg") center/cover;
+    url("/assets/hero-istana.webp") center/cover;
   isolation: isolate;
 }
 
@@ -1737,7 +1737,7 @@ a {
   color: var(--white);
   background:
     linear-gradient(135deg, rgba(16, 24, 47, 0.95), rgba(16, 24, 47, 0.7)),
-    url("/assets/hero-istana.jpeg") center/cover;
+    url("/assets/hero-istana.webp") center/cover;
   border-radius: 8px;
   box-shadow: var(--shadow);
 }

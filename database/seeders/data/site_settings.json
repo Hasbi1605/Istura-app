@@ -7,7 +7,7 @@
     "story": "Pilih jadwal, isi data, unggah surat, lalu tunggu konfirmasi WhatsApp."
   },
   "letter": {
-    "image": "/assets/contoh-kop-surat.png",
+    "image": "/assets/contoh-kop-surat.webp",
     "checklist": [
       "Kop surat resmi instansi atau organisasi.",
       "Perihal permohonan kunjungan dan tujuan surat yang jelas.",
@@ -128,7 +128,7 @@
       "title": "Siap mengajukan kunjungan ISTURA?",
       "body": "Mulai dari jadwal yang tersedia, unggah surat permohonan, lalu tunggu konfirmasi admin maksimal 1x24 jam melalui WhatsApp.",
       "buttonLabel": "Mulai Booking Sekarang",
-      "backgroundImage": "/assets/hero-istana.jpeg"
+      "backgroundImage": "/assets/hero-istana.webp"
     },
     "footer": {
       "logoSrc": "/assets/gedung-agung-white.webp",

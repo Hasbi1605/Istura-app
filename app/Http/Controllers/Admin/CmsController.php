@@ -139,7 +139,7 @@ class CmsController extends Controller
     ];
 
     private const LETTER_DEFAULT = [
-        'image' => '/assets/contoh-kop-surat.png',
+        'image' => '/assets/contoh-kop-surat.webp',
         'checklist' => [
             'Kop surat resmi instansi atau organisasi.',
             'Perihal permohonan kunjungan dan tujuan surat yang jelas.',

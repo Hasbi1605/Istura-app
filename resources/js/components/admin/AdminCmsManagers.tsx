@@ -927,7 +927,7 @@ export function AdminLandingManager({
         ...current.activities,
         items: [
           ...current.activities.items,
-          { title: "Aktivitas baru", body: "Deskripsi aktivitas.", image: "/assets/hero-istana.jpeg" },
+          { title: "Aktivitas baru", body: "Deskripsi aktivitas.", image: "/assets/hero-istana.webp" },
         ],
       },
     }));

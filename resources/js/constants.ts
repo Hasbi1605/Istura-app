@@ -359,7 +359,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     title: "Siap mengajukan kunjungan ISTURA?",
     body: "Mulai dari jadwal yang tersedia, unggah surat permohonan, lalu tunggu konfirmasi admin maksimal 1x24 jam melalui WhatsApp.",
     buttonLabel: "Mulai Booking Sekarang",
-    backgroundImage: "/assets/hero-istana.jpeg",
+    backgroundImage: "/assets/hero-istana.webp",
   },
   footer: {
     logoSrc: ASSETS.logoWhite,
