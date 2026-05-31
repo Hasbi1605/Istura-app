@@ -1543,7 +1543,7 @@ export function AdminActionModal({
                         type="button"
                         className={slotChipClass(slot)}
                         onClick={() => setSelectedTime(slot.time)}
-                        disabled={closed || !(available && fits)}
+                        disabled={!selectedSlotSet.has(slot.time) && (closed || !(available && fits))}
                       >
                         <strong>{slot.time}</strong>
                         <small>{slotLabel(slot)}</small>
