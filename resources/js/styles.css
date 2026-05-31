@@ -10245,3 +10245,71 @@ a {
     gap: 6px;
   }
 }
+
+/* --- Idle Timeout Warning --- */
+.admin-idle-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.admin-idle-modal {
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.admin-idle-modal svg {
+  color: var(--accent, #b8860b);
+  margin-bottom: 0.75rem;
+}
+
+.admin-idle-modal h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.admin-idle-modal p {
+  font-size: 0.9rem;
+  color: var(--text-muted, #666);
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.admin-idle-modal p strong {
+  color: var(--text, #1b1b18);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-idle-modal .button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* --- 2FA Toggle Mode Link --- */
+.admin-2fa-toggle-mode {
+  display: block;
+  margin: 1rem auto 0;
+  background: none;
+  border: none;
+  color: var(--accent, #b8860b);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.admin-2fa-toggle-mode:hover {
+  opacity: 0.8;
+}

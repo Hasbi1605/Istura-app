@@ -8,15 +8,32 @@ use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Maximum failed attempts before progressive delay kicks in.
+     */
+    private const MAX_ATTEMPTS_BEFORE_DELAY = 3;
+
+    /**
+     * Maximum delay in seconds (cap the exponential growth).
+     */
+    private const MAX_DELAY_SECONDS = 300; // 5 minutes
+
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->safe()->only(['email', 'password']);
+        $throttleKey = $this->loginThrottleKey($request);
+
+        // Check progressive delay
+        $this->enforceProgressiveDelay($throttleKey);
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            $this->recordFailedAttempt($throttleKey);
+
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
             ]);
@@ -30,6 +47,9 @@ class AuthController extends Controller
                 'email' => ['Akun ini sedang nonaktif. Hubungi Super Admin.'],
             ]);
         }
+
+        // Clear failed attempts on successful login
+        $this->clearFailedAttempts($throttleKey);
 
         if ($request->hasSession()) {
             $request->session()->regenerate();
@@ -74,5 +94,64 @@ class AuthController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
+    }
+
+    /**
+     * Generate throttle key combining IP + email for targeted protection.
+     */
+    private function loginThrottleKey(Request $request): string
+    {
+        $email = strtolower(trim($request->input('email', '')));
+
+        return 'login_attempts:'.sha1($request->ip().'|'.$email);
+    }
+
+    /**
+     * Enforce progressive delay based on failed attempt count.
+     * Delay formula: 2^(attempts - threshold) seconds, capped at MAX_DELAY_SECONDS.
+     */
+    private function enforceProgressiveDelay(string $key): void
+    {
+        $lockKey = $key.':locked_until';
+        $lockedUntil = Cache::get($lockKey);
+
+        if ($lockedUntil && now()->timestamp < $lockedUntil) {
+            $remainingSeconds = $lockedUntil - now()->timestamp;
+
+            throw ValidationException::withMessages([
+                'email' => ["Terlalu banyak percobaan login. Coba lagi dalam {$remainingSeconds} detik."],
+            ]);
+        }
+    }
+
+    /**
+     * Record a failed login attempt and apply progressive delay if threshold exceeded.
+     */
+    private function recordFailedAttempt(string $key): void
+    {
+        $attemptsKey = $key.':count';
+        $attempts = (int) Cache::get($attemptsKey, 0) + 1;
+
+        // Store attempts for 30 minutes
+        Cache::put($attemptsKey, $attempts, now()->addMinutes(30));
+
+        if ($attempts >= self::MAX_ATTEMPTS_BEFORE_DELAY) {
+            $delaySeconds = min(
+                (int) pow(2, $attempts - self::MAX_ATTEMPTS_BEFORE_DELAY),
+                self::MAX_DELAY_SECONDS,
+            );
+
+            $lockKey = $key.':locked_until';
+            Cache::put($lockKey, now()->timestamp + $delaySeconds, now()->addSeconds($delaySeconds));
+        }
+    }
+
+    /**
+     * Clear failed attempts after successful login.
+     */
+    private function clearFailedAttempts(string $key): void
+    {
+        Cache::forget($key.':count');
+        Cache::forget($key.':locked_until');
     }
 }
