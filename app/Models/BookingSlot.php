@@ -12,7 +12,16 @@ class BookingSlot extends Model
 
     public const KIND_PROPOSED = 'proposed';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'booking_id',
+        'kind',
+        'slot_order',
+        'date',
+        'date_label',
+        'time',
+        'group_size',
+        'active_slot_key',
+    ];
 
     protected $casts = [
         'date' => 'date',

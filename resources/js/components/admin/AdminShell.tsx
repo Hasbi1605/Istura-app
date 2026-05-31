@@ -32,10 +32,13 @@ export function AdminShell({
   children: ReactNode;
 }) {
   const [isMobileNavOpen, setMobileNavOpen] = useState(false);
-  const currentItem = ADMIN_MENU.find((item) => item.key === tab) ?? ADMIN_MENU[0];
+  const visibleMenu = ADMIN_MENU.filter(
+    (item) => item.key !== "users" || session.role === "Super Admin",
+  );
+  const currentItem = visibleMenu.find((item) => item.key === tab) ?? visibleMenu[0];
 
   // Group menu by section header
-  const grouped = ADMIN_MENU.reduce<Record<string, AdminMenuItem[]>>((acc, item) => {
+  const grouped = visibleMenu.reduce<Record<string, AdminMenuItem[]>>((acc, item) => {
     const key = item.group ?? "Operasional";
     acc[key] = acc[key] ?? [];
     acc[key].push(item);

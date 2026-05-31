@@ -29,6 +29,32 @@ export class ValidationError extends ApiError {
 
 let csrfPrimed = false;
 
+type AdminAuthFailureContext = {
+  path: string;
+  status: number;
+  message: string;
+};
+
+const adminAuthFailureListeners = new Set<(context: AdminAuthFailureContext) => void>();
+
+export function onAdminAuthFailure(listener: (context: AdminAuthFailureContext) => void): () => void {
+  adminAuthFailureListeners.add(listener);
+
+  return () => adminAuthFailureListeners.delete(listener);
+}
+
+function notifyAdminAuthFailure(context: AdminAuthFailureContext) {
+  adminAuthFailureListeners.forEach((listener) => listener(context));
+}
+
+function shouldNotifyAdminAuthFailure(path: string, status: number, message: string): boolean {
+  if (!path.startsWith("/api/admin/")) return false;
+  if (status === 401) return true;
+  if (status !== 403) return false;
+
+  return message !== "Hanya Super Admin yang dapat mengakses area ini.";
+}
+
 async function ensureCsrf(): Promise<void> {
   if (csrfPrimed) return;
   const response = await fetch(`${BASE_URL}/sanctum/csrf-cookie`, { credentials: "include" });
@@ -108,6 +134,9 @@ async function apiRequest<T = unknown>(path: string, options: RequestOptions, re
       json && typeof json === "object" && "message" in json
         ? String((json as { message: unknown }).message)
         : `Permintaan gagal (${response.status})`;
+    if (shouldNotifyAdminAuthFailure(path, response.status, message)) {
+      notifyAdminAuthFailure({ path, status: response.status, message });
+    }
     throw new ApiError(response.status, message, json);
   }
 

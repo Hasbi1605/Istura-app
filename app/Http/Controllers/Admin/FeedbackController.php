@@ -7,11 +7,14 @@ use App\Http\Resources\FeedbackResource;
 use App\Models\Feedback;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class FeedbackController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', Feedback::class);
+
         $query = Feedback::query()
             ->when($request->date('from'), fn ($q, $from) => $q->whereDate('submitted_at', '>=', $from))
             ->when($request->date('to'), fn ($q, $to) => $q->whereDate('submitted_at', '<=', $to))
@@ -32,6 +35,7 @@ class FeedbackController extends Controller
     public function show(string $code): JsonResponse
     {
         $feedback = Feedback::where('code', $code)->firstOrFail();
+        Gate::authorize('view', $feedback);
 
         return response()->json(['data' => (new FeedbackResource($feedback))->resolve()]);
     }

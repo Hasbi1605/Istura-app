@@ -66,7 +66,7 @@ class BookingService
 
                 $this->logAudit(null, "Booking baru {$booking->code} dari {$booking->institution}", $booking);
 
-                BookingCreated::dispatch($booking->fresh()->load('slots'));
+                $this->broadcastAfterCommit(fn () => BookingCreated::dispatch($booking->fresh()->load('slots')));
 
                 return $booking->fresh()->load('slots');
             });
@@ -149,7 +149,7 @@ class BookingService
             $this->syncBookingSlotKeys($booking);
 
             $this->logAudit($actor, "Membatalkan usulan reschedule booking {$booking->code}", $booking);
-            BookingStatusChanged::dispatch($booking->fresh()->load('slots'), 'Reschedule', 'reschedule-cancel');
+            $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), 'Reschedule', 'reschedule-cancel'));
 
             return $booking->fresh()->load('slots');
         });
@@ -205,7 +205,7 @@ class BookingService
 
             $this->persistBookingSlots($booking, $normalized, $booking->isActiveForSchedule());
             $this->logAudit($actor, "Mengubah pembagian kloter booking {$booking->code}", $booking);
-            BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments');
+            $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments'));
 
             return $booking->fresh()->load('slots');
         });
@@ -315,7 +315,7 @@ class BookingService
                 };
                 $this->logAudit($actor, "{$verb} booking {$booking->code}", $booking);
 
-                BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, $action);
+                $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, $action));
 
                 return $booking->fresh()->load('slots');
             });
@@ -342,6 +342,11 @@ class BookingService
                 'status' => ["Status {$currentStatus} tidak dapat diubah menjadi {$newStatus}."],
             ]);
         }
+    }
+
+    private function broadcastAfterCommit(callable $callback): void
+    {
+        DB::afterCommit(fn () => rescue($callback));
     }
 
     /**

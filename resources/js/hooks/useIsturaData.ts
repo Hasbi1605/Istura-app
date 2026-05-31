@@ -17,7 +17,7 @@ import type {
   WaTemplate,
 } from "../domain/types";
 import { DEFAULT_SITE_CONTENT, INITIAL_FAQ_ITEMS, INITIAL_FOOTER_CONTACTS, INITIAL_WA_TEMPLATES, letterChecklist, storyWords } from "../constants";
-import { readAdminSession, readCmsCollection, writeCmsCollection } from "../lib/legacyShims";
+import { clearAdminSession, readAdminSession, readCmsCollection, writeCmsCollection } from "../lib/legacyShims";
 import { ASSETS } from "../lib/assets";
 import { setActiveWaTemplates } from "../lib/whatsapp";
 import { me as apiMe } from "../api/auth";
@@ -39,8 +39,9 @@ import {
   type ApiHero,
   type ApiLetter,
 } from "../api/cms";
-import { ADMIN_BOOKINGS_CHANNEL, PUBLIC_SCHEDULE_CHANNEL, getEcho } from "../realtime/echo";
+import { ADMIN_BOOKINGS_CHANNEL, PUBLIC_SCHEDULE_CHANNEL, destroyEcho, getEcho } from "../realtime/echo";
 import { apiBookingToLocal, apiFeedbackToLocal, apiVisitDayToLocal } from "../api/adapters";
+import { onAdminAuthFailure, resetCsrf } from "../api/client";
 
 export type FeedbackAccess = { code: string; token: string } | null;
 
@@ -166,6 +167,23 @@ export function useIsturaData(): IsturaData {
   // Komunikasi antar tab admin: misal Jadwal Kunjungan ingin mengarahkan
   // admin ke booking tertentu di tab Booking.
   const [bookingFocusCode, setBookingFocusCode] = useState<string | null>(null);
+
+  useEffect(() => onAdminAuthFailure(() => {
+    clearAdminSession();
+    resetCsrf();
+    destroyEcho();
+    setAdminSession(null);
+    setAdminTab("dashboard");
+    setBookingFocusCode(null);
+    setBookings([]);
+    setFeedbacks([]);
+    setLoading((current) => ({
+      ...current,
+      admin: false,
+      bookings: false,
+      feedbacks: false,
+    }));
+  }), []);
 
   useEffect(() => {
 		writeCmsCollection("istura-faqs", faqs);

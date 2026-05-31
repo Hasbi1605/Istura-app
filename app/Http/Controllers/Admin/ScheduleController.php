@@ -16,6 +16,7 @@ use Carbon\CarbonPeriod;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class ScheduleController extends Controller
 {
@@ -23,6 +24,8 @@ class ScheduleController extends Controller
 
     public function index(ScheduleRangeRequest $request): JsonResponse
     {
+        Gate::authorize('viewAny', ScheduleOverride::class);
+
         $from = $request->startDate();
         $to = $request->endDate();
 
@@ -35,6 +38,8 @@ class ScheduleController extends Controller
 
     public function storeSlot(StoreScheduleSlotRequest $request): JsonResponse
     {
+        Gate::authorize('update', ScheduleOverride::class);
+
         $data = $request->validated();
 
         $override = $this->upsertOverride(
@@ -56,6 +61,8 @@ class ScheduleController extends Controller
 
     public function destroySlot(DestroyScheduleSlotRequest $request): JsonResponse
     {
+        Gate::authorize('delete', ScheduleOverride::class);
+
         $data = $request->validated();
 
         $deleted = ScheduleOverride::whereDate('date', $data['date'])
@@ -75,6 +82,8 @@ class ScheduleController extends Controller
 
     public function storeRange(StoreScheduleRangeRequest $request): JsonResponse
     {
+        Gate::authorize('update', ScheduleOverride::class);
+
         $data = $request->validated();
         $weekdays = $data['weekdays'] ?? [];
         $times = isset($data['time']) && $data['time']

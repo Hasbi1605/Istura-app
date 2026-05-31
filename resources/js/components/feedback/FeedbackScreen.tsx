@@ -86,24 +86,19 @@ export function FeedbackScreen({
 	onFeedbackCreate: (feedback: Feedback) => void;
   onNavigationLockChange?: (locked: boolean) => void;
 }) {
-  // Resolve booking from URL access (preferred) or fallback (e.g. dev/admin testing)
+  // Resolve booking only from explicit URL access.
   const localAccessBooking = access
     ? bookings.find(
         (booking) => booking.code === access.code && booking.feedbackToken === access.token,
       )
     : undefined;
 
-  const fallbackBooking =
-    bookings.find((booking) => booking.code === submittedCode) ??
-    bookings.find((booking) => booking.status === "Completed") ??
-    bookings[0];
-
   const [remoteBooking, setRemoteBooking] = useState<FeedbackBookingContext | null>(null);
   const [remoteFeedback, setRemoteFeedback] = useState<Feedback | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessError, setAccessError] = useState("");
   const accessBooking = localAccessBooking ?? remoteBooking ?? undefined;
-  const booking = accessBooking ?? (access ? undefined : fallbackBooking);
+  const booking = accessBooking;
   const code = booking?.code ?? "";
   const storageKey = booking ? `istura-feedback-draft-${booking.code}` : null;
 
@@ -321,7 +316,7 @@ export function FeedbackScreen({
   };
 
   const submitFeedback = async () => {
-    if (!booking) return;
+    if (!booking || !access) return;
     if (submitting) return;
     if (!stepReady[0]) {
       setError("Mohon berikan rating untuk ketiga aspek di langkah 1.");
@@ -339,7 +334,7 @@ export function FeedbackScreen({
     }
 
     const payload = {
-      token: access?.token ?? booking.feedbackToken,
+      token: access.token,
       rating,
       bookingEase,
       service,
@@ -420,7 +415,7 @@ export function FeedbackScreen({
         />
       );
     }
-	} else if (!booking) {
+	} else {
 		return (
 			<FeedbackGate
 				icon={loading ? Clock3 : ShieldCheck}

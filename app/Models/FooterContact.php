@@ -8,7 +8,14 @@ class FooterContact extends Model
 {
     public const ICONS = ['instagram', 'youtube', 'whatsapp', 'email', 'phone'];
 
-    protected $guarded = [];
+    protected $fillable = [
+        'slug',
+        'label',
+        'value',
+        'icon',
+        'href',
+        'sort_order',
+    ];
 
     protected $casts = [
         'sort_order' => 'integer',

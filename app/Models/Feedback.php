@@ -9,7 +9,19 @@ class Feedback extends Model
 {
     protected $table = 'feedbacks';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'booking_id',
+        'code',
+        'rating',
+        'booking_ease',
+        'service',
+        'recommend',
+        'highlights',
+        'improvements',
+        'comment',
+        'allow_publish',
+        'submitted_at',
+    ];
 
     protected $casts = [
         'highlights' => 'array',

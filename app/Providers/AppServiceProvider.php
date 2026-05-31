@@ -2,8 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\Booking;
+use App\Models\Feedback;
+use App\Models\ScheduleOverride;
+use App\Policies\BookingPolicy;
+use App\Policies\FeedbackPolicy;
+use App\Policies\ScheduleOverridePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +29,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(Booking::class, BookingPolicy::class);
+        Gate::policy(Feedback::class, FeedbackPolicy::class);
+        Gate::policy(ScheduleOverride::class, ScheduleOverridePolicy::class);
+
         if (! $this->app->environment(['local', 'testing']) && config('app.debug')) {
             throw new \RuntimeException('APP_DEBUG must be false outside local environments.');
         }

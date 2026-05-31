@@ -100,10 +100,13 @@ export function AdminApp({
     );
   }
 
+  const canManageUsers = session.role === "Super Admin";
+  const safeAdminTab: AdminTab = !canManageUsers && adminTab === "users" ? "dashboard" : adminTab;
+
   return (
     <AdminShell
       session={session}
-      tab={adminTab}
+      tab={safeAdminTab}
       onTabChange={onAdminTabChange}
       onLogout={() => {
         clearAdminSession();
@@ -117,7 +120,7 @@ export function AdminApp({
         window.history.replaceState(null, "", "/");
       }}
     >
-      {adminTab === "dashboard" && (
+      {safeAdminTab === "dashboard" && (
 		<AdminDashboard
 			bookings={bookings}
 			feedbacks={feedbacks}
@@ -126,7 +129,7 @@ export function AdminApp({
           adminName={session.name}
         />
       )}
-      {adminTab === "bookings" && (
+      {safeAdminTab === "bookings" && (
 		<AdminScreen
 			schedules={schedules}
 			bookings={bookings}
@@ -138,7 +141,7 @@ export function AdminApp({
           adminName={session.name}
         />
       )}
-      {adminTab === "feedback" && (
+      {safeAdminTab === "feedback" && (
 		<AdminFeedbackList
 			bookings={bookings}
 			feedbacks={feedbacks}
@@ -146,7 +149,7 @@ export function AdminApp({
 			adminName={session.name}
         />
       )}
-      {adminTab === "schedule" && (
+      {safeAdminTab === "schedule" && (
 		<AdminScheduleManager
 			schedules={schedules}
 			bookings={bookings}
@@ -158,22 +161,22 @@ export function AdminApp({
           }}
         />
       )}
-		{adminTab === "cms-faq" && (
+		{safeAdminTab === "cms-faq" && (
 			<AdminFaqManager faqs={faqs} syncStatus={cmsSync.faqs} onChange={onFaqsChange} />
 		)}
-		{adminTab === "cms-contacts" && (
+		{safeAdminTab === "cms-contacts" && (
 			<AdminContactsManager contacts={contacts} syncStatus={cmsSync.contacts} onChange={onContactsChange} />
 		)}
-      {adminTab === "cms-letter" && <AdminLetterManager onChange={onLetterChange} />}
-      {adminTab === "cms-hero" && <AdminHeroManager onChange={onHeroChange} />}
-		{adminTab === "cms-landing" && (
+	  {safeAdminTab === "cms-letter" && <AdminLetterManager onChange={onLetterChange} />}
+      {safeAdminTab === "cms-hero" && <AdminHeroManager onChange={onHeroChange} />}
+		{safeAdminTab === "cms-landing" && (
 			<AdminLandingManager content={siteContent} onChange={onSiteContentChange} />
 		)}
-		{adminTab === "cms-wa" && (
+		{safeAdminTab === "cms-wa" && (
 			<AdminWaTemplates templates={waTemplates} syncStatus={cmsSync.waTemplates} onChange={onWaTemplatesChange} />
 		)}
-      {adminTab === "users" && <AdminUsersList session={session} />}
-      {adminTab === "audit" && <AdminAuditLog />}
+      {safeAdminTab === "users" && <AdminUsersList session={session} />}
+      {safeAdminTab === "audit" && <AdminAuditLog />}
     </AdminShell>
   );
 }

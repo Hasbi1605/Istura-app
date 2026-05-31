@@ -23,15 +23,19 @@ jobs:
       - name: Prepare SSH key
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          if [ -z "$SSH_KNOWN_HOSTS" ]; then
+            echo "SSH_KNOWN_HOSTS secret is required. Pin the production host key instead of using ssh-keyscan." >&2
+            exit 1
+          fi
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Put application in maintenance mode
         env:
@@ -80,10 +84,11 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SUPERVISOR_USER: ${{ secrets.SUPERVISOR_USER || 'www-data' }}
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
+            "DEPLOY_PATH='$DEPLOY_PATH' SUPERVISOR_USER='$SUPERVISOR_USER' bash -s" <<'REMOTE'
           set -euo pipefail
 
           cd "$DEPLOY_PATH"
@@ -93,7 +98,7 @@ jobs:
           export COMPOSER_ALLOW_SUPERUSER=1
 
           composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
-          npm ci
+          npm ci --ignore-scripts
           npm run build
 
           php artisan migrate --force
@@ -103,6 +108,7 @@ jobs:
           php artisan route:cache
           php artisan view:cache
           php artisan event:cache
+          php artisan queue:restart || true
 
           if command -v systemctl >/dev/null 2>&1; then
             if command -v sudo >/dev/null 2>&1; then
@@ -112,14 +118,67 @@ jobs:
             fi
           fi
 
-          if command -v supervisorctl >/dev/null 2>&1; then
+          SUPERVISOR_USER="${SUPERVISOR_USER:-www-data}"
+          PHP_BINARY="$(command -v php)"
+
+          if ! command -v supervisorctl >/dev/null 2>&1; then
+            echo "supervisorctl is required for QUEUE_CONNECTION=database and Reverb realtime." >&2
+            exit 1
+          fi
+
+          if ! id "$SUPERVISOR_USER" >/dev/null 2>&1; then
+            echo "Supervisor user '$SUPERVISOR_USER' does not exist. Set GitHub secret SUPERVISOR_USER or create the user." >&2
+            exit 1
+          fi
+
+          if [ ! -d /etc/supervisor/conf.d ]; then
+            echo "/etc/supervisor/conf.d not found. Install Supervisor before deploying realtime workers." >&2
+            exit 1
+          fi
+
+          run_supervisor() {
             if command -v sudo >/dev/null 2>&1; then
-              sudo -n supervisorctl restart istura-queue || true
-              sudo -n supervisorctl restart istura-reverb || true
+              sudo -n supervisorctl "$@"
             else
-              supervisorctl restart istura-queue || true
-              supervisorctl restart istura-reverb || true
+              supervisorctl "$@"
             fi
+          }
+
+          install_supervisor_config() {
+            source_file="$1"
+            target_file="$2"
+            tmp_file="$(mktemp)"
+            sed \
+              -e "s#__DEPLOY_PATH__#${DEPLOY_PATH}#g" \
+              -e "s#__PHP_BINARY__#${PHP_BINARY}#g" \
+              -e "s#__SUPERVISOR_USER__#${SUPERVISOR_USER}#g" \
+              "$source_file" > "$tmp_file"
+
+            if command -v sudo >/dev/null 2>&1; then
+              sudo -n install -m 0644 "$tmp_file" "$target_file"
+            else
+              install -m 0644 "$tmp_file" "$target_file"
+            fi
+            rm -f "$tmp_file"
+          }
+
+          install_supervisor_config deploy/supervisor/istura-queue.conf /etc/supervisor/conf.d/istura-queue.conf
+          install_supervisor_config deploy/supervisor/istura-reverb.conf /etc/supervisor/conf.d/istura-reverb.conf
+
+          run_supervisor reread
+          run_supervisor update
+          run_supervisor restart istura-queue || run_supervisor start istura-queue
+          run_supervisor restart istura-reverb || run_supervisor start istura-reverb
+          run_supervisor status istura-queue istura-reverb
+
+          if ! run_supervisor status istura-queue | grep -q RUNNING; then
+            echo "istura-queue is not RUNNING after deploy." >&2
+            exit 1
+          fi
+
+          if ! run_supervisor status istura-reverb | grep -q RUNNING; then
+            echo "istura-reverb is not RUNNING after deploy." >&2
+            exit 1
           fi
           REMOTE
 

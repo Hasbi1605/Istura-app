@@ -2,8 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Events\BookingCreated;
+use App\Events\BookingStatusChanged;
+use App\Events\FeedbackSubmitted;
 use App\Events\ScheduleUpdated;
 use App\Models\Booking;
+use App\Models\BookingSlot;
 use App\Models\Feedback;
 use App\Models\ScheduleOverride;
 use App\Models\User;
@@ -11,8 +15,14 @@ use App\Services\BookingService;
 use App\Services\ScheduleService;
 use App\Support\SiteContentDefaults;
 use Carbon\Carbon;
+use Illuminate\Broadcasting\BroadcastException;
+use Illuminate\Contracts\Broadcasting\Broadcaster as BroadcasterContract;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldRescue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +48,94 @@ class ScheduleSyncTest extends TestCase
         Carbon::setTestNow();
 
         parent::tearDown();
+    }
+
+    public function test_realtime_events_are_queued_after_commit_and_rescued(): void
+    {
+        foreach ([BookingCreated::class, BookingStatusChanged::class, FeedbackSubmitted::class, ScheduleUpdated::class] as $eventClass) {
+            $interfaces = class_implements($eventClass) ?: [];
+
+            $this->assertContains(ShouldBroadcast::class, $interfaces);
+            $this->assertContains(ShouldRescue::class, $interfaces);
+            $this->assertNotContains(ShouldBroadcastNow::class, $interfaces);
+        }
+
+        $this->assertTrue((new BookingCreated(new Booking))->afterCommit);
+        $this->assertTrue((new BookingStatusChanged(new Booking, 'Pending'))->afterCommit);
+        $this->assertTrue((new FeedbackSubmitted(new Feedback))->afterCommit);
+        $this->assertTrue((new ScheduleUpdated('2026-06-01', '2026-06-01'))->afterCommit);
+    }
+
+    public function test_broadcast_failure_does_not_block_booking_status_or_schedule_writes(): void
+    {
+        Storage::fake('local');
+        $this->useFailingBroadcaster();
+
+        $created = $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-04',
+            'time' => '08.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $created->json('data.code'),
+            'status' => 'Pending',
+        ]);
+
+        $this->actingAsAdmin();
+        $pending = $this->createBooking([
+            'code' => 'ISTURA-2026-BCAST',
+            'date' => '2026-06-01',
+            'time' => '09.00',
+            'status' => 'Pending',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$pending->code}/accept")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'Accepted');
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $pending->code,
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => '2026-06-01',
+            'time' => '10.00',
+            'status' => 'Closed',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('schedule_overrides', [
+            'date' => '2026-06-01 00:00:00',
+            'time' => '10.00',
+            'status' => 'Closed',
+        ]);
+    }
+
+    public function test_overbooking_migration_rollback_blocks_duplicate_active_slot_keys(): void
+    {
+        $first = $this->createBooking(['code' => 'ISTURA-2026-DUP1', 'time' => '08.00']);
+        $second = $this->createBooking(['code' => 'ISTURA-2026-DUP2', 'time' => '09.00']);
+
+        foreach ([$first, $second] as $booking) {
+            BookingSlot::create([
+                'booking_id' => $booking->id,
+                'kind' => BookingSlot::KIND_ACTIVE,
+                'slot_order' => 1,
+                'date' => '2026-06-01',
+                'date_label' => 'Senin, 1 Juni 2026',
+                'time' => '08.00',
+                'group_size' => 25,
+                'active_slot_key' => '2026-06-01|08.00',
+            ]);
+        }
+
+        $migration = require database_path('migrations/2026_05_30_000005_allow_admin_schedule_overrides_to_overbook_slots.php');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('booking_slots has duplicate active_slot_key values');
+
+        $migration->down();
     }
 
     public function test_public_schedule_reflects_admin_override_and_active_booking(): void
@@ -336,6 +434,33 @@ class ScheduleSyncTest extends TestCase
         $this->putJson('/api/admin/cms/site-content', $siteContent)
             ->assertStatus(422)
             ->assertJsonValidationErrors('video.url');
+
+        $siteContent = SiteContentDefaults::siteContent();
+        $siteContent['activities']['items'][0]['image'] = 'https://tracker.example/pixel.png';
+
+        $this->putJson('/api/admin/cms/site-content', $siteContent)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('activities.items.0.image');
+    }
+
+    public function test_security_headers_are_sent_on_public_and_auth_responses(): void
+    {
+        $expectedHeaders = [
+            'Content-Security-Policy' => "frame-ancestors 'none'",
+            'X-Frame-Options' => 'DENY',
+            'X-Content-Type-Options' => 'nosniff',
+            'Strict-Transport-Security' => 'max-age=31536000; includeSubDomains',
+            'Referrer-Policy' => 'strict-origin-when-cross-origin',
+            'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
+        ];
+
+        $public = $this->getJson('/api/public/site-content')->assertOk();
+        $auth = $this->getJson('/api/auth/me')->assertOk();
+
+        foreach ($expectedHeaders as $name => $value) {
+            $public->assertHeader($name, $value);
+            $auth->assertHeader($name, $value);
+        }
     }
 
     public function test_viewer_cannot_read_sensitive_admin_endpoints(): void
@@ -437,7 +562,7 @@ class ScheduleSyncTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_admin_booking_payload_exposes_nik_for_display_and_export(): void
+    public function test_admin_booking_payload_masks_nik_unless_super_admin_reads_detail(): void
     {
         $this->actingAsAdmin();
         $booking = $this->createBooking([
@@ -448,7 +573,19 @@ class ScheduleSyncTest extends TestCase
         $this->getJson('/api/admin/bookings')
             ->assertOk()
             ->assertJsonPath('data.0.code', $booking->code)
-            ->assertJsonPath('data.0.nik', '3374123456789012')
+            ->assertJsonMissingPath('data.0.nik')
+            ->assertJsonPath('data.0.nikMasked', '3374********9012');
+
+        $this->getJson("/api/admin/bookings/{$booking->code}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.nik')
+            ->assertJsonPath('data.nikMasked', '3374********9012');
+
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]));
+
+        $this->getJson('/api/admin/bookings')
+            ->assertOk()
+            ->assertJsonMissingPath('data.0.nik')
             ->assertJsonPath('data.0.nikMasked', '3374********9012');
 
         $this->getJson("/api/admin/bookings/{$booking->code}")
@@ -466,7 +603,25 @@ class ScheduleSyncTest extends TestCase
         ]), ['Accept' => 'application/json'])
             ->assertCreated()
             ->assertJsonMissingPath('data.nik')
+            ->assertJsonMissingPath('data.feedbackToken')
             ->assertJsonPath('data.nikMasked', '3374********9012');
+    }
+
+    public function test_sensitive_fields_are_not_mass_assignable(): void
+    {
+        $booking = new Booking;
+
+        $this->assertTrue($booking->isFillable('contact_name'));
+        $this->assertTrue($booking->isFillable('nik'));
+        $this->assertFalse($booking->isFillable('status'));
+        $this->assertFalse($booking->isFillable('feedback_token'));
+        $this->assertFalse($booking->isFillable('document_path'));
+        $this->assertFalse($booking->isFillable('active_slot_key'));
+
+        $user = new User;
+
+        $this->assertTrue($user->isFillable('email'));
+        $this->assertFalse($user->isFillable('role'));
     }
 
     public function test_reschedule_proposal_rejects_unavailable_slot(): void
@@ -1128,6 +1283,11 @@ class ScheduleSyncTest extends TestCase
                 'allowPublish' => true,
             ])
             ->assertCreated();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => "Feedback dikirim untuk booking {$booking->code}",
+            'target_type' => Feedback::class,
+        ]);
     }
 
     public function test_public_feedback_show_requires_valid_token_and_returns_booking_status(): void
@@ -1173,6 +1333,33 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('code');
 
         $this->assertDatabaseCount('feedbacks', 0);
+    }
+
+    private function useFailingBroadcaster(): void
+    {
+        config([
+            'broadcasting.default' => 'failing',
+            'broadcasting.connections.failing' => ['driver' => 'failing'],
+            'queue.default' => 'sync',
+        ]);
+
+        Broadcast::extend('failing', fn () => new class implements BroadcasterContract
+        {
+            public function auth($request)
+            {
+                return null;
+            }
+
+            public function validAuthenticationResponse($request, $result)
+            {
+                return $result;
+            }
+
+            public function broadcast(array $channels, $event, array $payload = []): void
+            {
+                throw new BroadcastException('Broadcast transport unavailable.');
+            }
+        });
     }
 
     private function actingAsAdmin(): User

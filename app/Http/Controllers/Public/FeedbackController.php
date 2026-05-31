@@ -8,6 +8,7 @@ use App\Http\Requests\Public\StoreFeedbackRequest;
 use App\Http\Resources\FeedbackResource;
 use App\Models\Booking;
 use App\Models\Feedback;
+use App\Services\AuditLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,7 +57,7 @@ class FeedbackController extends Controller
                     $this->throwDuplicateFeedback();
                 }
 
-                return Feedback::create([
+                $feedback = Feedback::create([
                     'booking_id' => $booking->id,
                     'code' => $booking->code,
                     'rating' => $payload['rating'],
@@ -69,6 +70,14 @@ class FeedbackController extends Controller
                     'allow_publish' => (bool) $payload['allowPublish'],
                     'submitted_at' => now(),
                 ]);
+
+                AuditLogger::record(null, "Feedback dikirim untuk booking {$booking->code}", Feedback::class, $feedback->id, [
+                    'booking_code' => $booking->code,
+                    'rating' => $feedback->rating,
+                    'allow_publish' => $feedback->allow_publish,
+                ]);
+
+                return $feedback;
             });
         } catch (QueryException $exception) {
             if ($this->isDuplicateFeedbackConflict($exception)) {

@@ -60,7 +60,7 @@ function apiBookingToLocal(b: ApiBooking): Booking {
   return {
     code: b.code,
     contactName: b.contactName,
-    nik: b.nik ?? "",
+    nik: b.nik ?? b.nikMasked ?? "",
     nikMasked: b.nikMasked,
     whatsapp: b.whatsapp,
     institution: b.institution,
@@ -77,7 +77,7 @@ function apiBookingToLocal(b: ApiBooking): Booking {
     leadTimeDays: b.leadTimeDays ?? undefined,
     isShortNotice: b.isShortNotice ?? false,
     note: b.note ?? undefined,
-    feedbackToken: b.feedbackToken,
+    feedbackToken: b.feedbackToken ?? "",
     completedAt: b.completedAt ?? undefined,
     proposedDate: b.proposedDate ?? undefined,
     proposedDateLabel: b.proposedDateLabel ?? undefined,
