@@ -7674,7 +7674,8 @@ a {
 }
 
 .segment-slot-chip.is-occupied {
-  background: rgba(31, 107, 103, 0.1);
+  color: var(--teal);
+  background: rgba(31, 107, 103, 0.12);
   border-color: rgba(31, 107, 103, 0.18);
 }
 
@@ -7700,7 +7701,6 @@ a {
 
 .segment-slot-chip:disabled {
   cursor: not-allowed;
-  opacity: 0.68;
 }
 
 .segment-row-errors {
