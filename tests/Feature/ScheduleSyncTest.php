@@ -603,7 +603,13 @@ class ScheduleSyncTest extends TestCase
         ]);
 
         $this->get("/api/admin/bookings/{$withDocument->code}/document?disposition=inline")
-            ->assertOk();
+            ->assertOk()
+            ->assertHeader('Content-Security-Policy', "frame-ancestors 'self'")
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+        $this->get("/api/admin/bookings/{$withDocument->code}/document")
+            ->assertOk()
+            ->assertHeader('Content-Security-Policy', "frame-ancestors 'none'")
+            ->assertHeader('X-Frame-Options', 'DENY');
         $this->getJson("/api/admin/bookings/{$withDocument->code}")
             ->assertOk()
             ->assertJsonPath('data.hasDocument', true);
