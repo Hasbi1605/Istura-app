@@ -52,6 +52,7 @@ class AddSecurityHeaders
             "img-src 'self' data: https:",
             "font-src 'self' data:",
             "connect-src {$connectSrc}",
+            "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com",
             "frame-ancestors {$frameAncestors}",
             "base-uri 'self'",
             "form-action 'self'",
