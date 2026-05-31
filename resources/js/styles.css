@@ -7576,6 +7576,23 @@ a {
   gap: 8px;
 }
 
+.segment-slot-picker-context {
+  margin: 0;
+  padding: 10px 12px;
+  color: rgba(16, 24, 47, 0.72);
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.segment-slot-picker-context strong {
+  color: var(--navy);
+  font-weight: 900;
+}
+
 .segment-slot-picker-head {
   display: flex;
   align-items: baseline;
@@ -7636,13 +7653,19 @@ a {
 }
 
 .segment-slot-chip.is-selected {
-  border-color: var(--navy);
-  box-shadow: 0 0 0 3px rgba(16, 24, 47, 0.12);
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 8px 18px rgba(196, 146, 18, 0.2);
+}
+
+.segment-slot-chip.is-selected strong,
+.segment-slot-chip.is-selected small {
+  color: var(--navy);
 }
 
 .segment-slot-chip.is-available {
-  background: rgba(20, 148, 133, 0.08);
-  border-color: rgba(20, 148, 133, 0.22);
+  background: rgba(229, 189, 85, 0.14);
+  border-color: rgba(196, 146, 18, 0.24);
 }
 
 .segment-slot-chip.is-own {
@@ -7651,24 +7674,33 @@ a {
 }
 
 .segment-slot-chip.is-occupied {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(180, 83, 9, 0.28);
+  background: rgba(31, 107, 103, 0.1);
+  border-color: rgba(31, 107, 103, 0.18);
+}
+
+.segment-slot-chip.is-occupied small {
+  color: var(--teal);
+}
+
+.segment-slot-chip.is-full {
+  color: var(--white);
+  background: linear-gradient(135deg, var(--navy), var(--navy-2));
+  border-color: rgba(16, 24, 47, 0.2);
+}
+
+.segment-slot-chip.is-full small {
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .segment-slot-chip.is-closed {
-  color: rgba(16, 24, 47, 0.45);
-  background: rgba(16, 24, 47, 0.045);
-  border-color: rgba(16, 24, 47, 0.08);
+  color: rgba(16, 24, 47, 0.38);
+  background: rgba(238, 232, 220, 0.42);
+  border-color: rgba(16, 24, 47, 0.06);
 }
 
 .segment-slot-chip:disabled {
   cursor: not-allowed;
   opacity: 0.68;
-}
-
-.segment-slot-chip.is-selected {
-  border-color: var(--navy);
-  box-shadow: 0 0 0 3px rgba(16, 24, 47, 0.12);
 }
 
 .segment-row-errors {
