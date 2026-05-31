@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
 	AdminSession,
@@ -21,6 +21,7 @@ import { clearAdminSession, writeAdminSession } from "../../lib/legacyShims";
 import { AdminShell, AdminLogin } from "./AdminShell";
 import { TwoFactorChallenge } from "./TwoFactorChallenge";
 import { TwoFactorSetup } from "./TwoFactorSetup";
+import { ButtonSpinner } from "../ui/LoadingStates";
 import { AdminDashboard } from "./AdminDashboard";
 import { AdminScreen } from "./BookingScreen";
 import { AdminFeedbackList } from "./AdminFeedbackList";
@@ -88,12 +89,54 @@ export function AdminApp({
 }) {
   const [needs2fa, setNeeds2fa] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [checking2fa, setChecking2fa] = useState(false);
+
+  useEffect(() => {
+    if (!session) {
+      setChecking2fa(false);
+      setNeeds2fa(false);
+      setNeedsSetup(false);
+      return;
+    }
+
+    let cancelled = false;
+    setChecking2fa(true);
+
+    void (async () => {
+      try {
+        const { enabled } = await twoFactorStatus();
+        if (cancelled) return;
+
+        if (!enabled) {
+          setNeedsSetup(true);
+          setNeeds2fa(false);
+          return;
+        }
+
+        const { requires_2fa } = await twoFactorChallenge();
+        if (cancelled) return;
+
+        setNeeds2fa(requires_2fa);
+        setNeedsSetup(false);
+      } catch {
+        if (cancelled) return;
+        setNeeds2fa(true);
+      } finally {
+        if (!cancelled) setChecking2fa(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const doLogoutAndReset = () => {
     clearAdminSession();
     onSessionChange(null);
     setNeeds2fa(false);
     setNeedsSetup(false);
+    setChecking2fa(false);
     destroyEcho();
     window.history.replaceState(null, "", "/admin");
     void apiLogout().catch(() => {});
@@ -107,28 +150,22 @@ export function AdminApp({
           onSessionChange(next);
           onAdminTabChange("dashboard");
           window.history.replaceState(null, "", "/admin");
-          // Check 2FA status after login
-          twoFactorStatus()
-            .then(({ enabled }) => {
-              if (!enabled) {
-                // 2FA not set up yet - force setup
-                setNeedsSetup(true);
-              } else {
-                // 2FA enabled - check if verification needed
-                twoFactorChallenge()
-                  .then(({ requires_2fa }) => {
-                    if (requires_2fa) setNeeds2fa(true);
-                  })
-                  .catch(() => {});
-              }
-            })
-            .catch(() => {});
         }}
         onCancel={() => {
           onExitToPublic("home");
           window.history.replaceState(null, "", "/");
         }}
       />
+    );
+  }
+
+  if (checking2fa) {
+    return (
+      <div className="admin-login">
+        <div className="admin-login-card" style={{ maxWidth: 440, textAlign: "center" }}>
+          <ButtonSpinner label="Memeriksa keamanan akun..." />
+        </div>
+      </div>
     );
   }
 

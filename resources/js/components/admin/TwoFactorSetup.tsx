@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Shield, Copy, Check, ArrowRight } from "lucide-react";
 import { twoFactorSetup, twoFactorConfirm } from "../../api/auth";
@@ -27,19 +27,27 @@ export function TwoFactorSetup({
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Start setup on mount
-  useState(() => {
+  // Start setup once after mount. Do not run this during render.
+  useEffect(() => {
+    let cancelled = false;
+
     twoFactorSetup()
       .then((res) => {
+        if (cancelled) return;
         setQrSvg(res.qr_svg);
         setSecret(res.secret);
         setStep("scan");
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err instanceof ApiError ? err.message : "Gagal memulai setup 2FA.");
         setStep("scan");
       });
-  });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const confirmCode = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
