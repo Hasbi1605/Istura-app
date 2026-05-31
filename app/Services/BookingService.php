@@ -184,20 +184,31 @@ class BookingService
                 ]);
             }
 
-            $normalized = collect($segments)->values()->map(function (array $segment, int $index) {
-                $date = Carbon::createFromFormat('Y-m-d', $segment['date'], 'Asia/Jakarta')->startOfDay();
+            $normalized = collect($segments)
+                ->groupBy(fn (array $segment): string => $segment['date'].'|'.$segment['time'])
+                ->values()
+                ->map(function ($group, int $index) {
+                    $first = $group->first();
+                    $date = Carbon::createFromFormat('Y-m-d', $first['date'], 'Asia/Jakarta')->startOfDay();
 
-                return [
-                    'slot_order' => $index + 1,
-                    'date' => $date->toDateString(),
-                    'date_label' => $this->schedule->formatLongDate($date),
-                    'time' => $segment['time'],
-                    'group_size' => (int) $segment['groupSize'],
-                ];
-            })->all();
+                    return [
+                        'slot_order' => $index + 1,
+                        'date' => $date->toDateString(),
+                        'date_label' => $this->schedule->formatLongDate($date),
+                        'time' => $first['time'],
+                        'group_size' => $group->sum(fn (array $segment): int => (int) $segment['groupSize']),
+                    ];
+                })->all();
+
+            $hasOversizedSegment = collect($normalized)->contains(fn (array $segment): bool => $segment['group_size'] > self::SLOT_CAPACITY);
 
             $this->lockSlotKeysForSegments($normalized);
             $conflicts = $this->assertManualSegmentsUsable($booking, $normalized, $allowOverbook);
+            if (($hasOversizedSegment || $conflicts !== []) && trim((string) $note) === '') {
+                throw ValidationException::withMessages([
+                    'note' => ['Catatan wajib diisi saat mengizinkan overbook atau menggabungkan kloter besar.'],
+                ]);
+            }
 
             $first = $normalized[0];
             $booking->date = Carbon::createFromFormat('Y-m-d', $first['date'], 'Asia/Jakarta')->startOfDay();

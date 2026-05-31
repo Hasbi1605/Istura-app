@@ -34,15 +34,12 @@ class UpdateBookingSegmentsRequest extends FormRequest
                     return;
                 }
 
-                $seen = [];
                 $today = Carbon::today('Asia/Jakarta');
                 $maxDate = $today->copy()->addMonths(2);
+                $groupedSizes = [];
                 foreach ($this->input('segments', []) as $index => $segment) {
                     $key = ($segment['date'] ?? '').'|'.($segment['time'] ?? '');
-                    if (isset($seen[$key])) {
-                        $validator->errors()->add("segments.{$index}.time", 'Tanggal dan jam kloter tidak boleh duplikat.');
-                    }
-                    $seen[$key] = true;
+                    $groupedSizes[$key] = ($groupedSizes[$key] ?? 0) + (int) ($segment['groupSize'] ?? 0);
 
                     $date = Carbon::createFromFormat('Y-m-d', $segment['date'], 'Asia/Jakarta')->startOfDay();
                     if ($date->lt($today)) {
@@ -53,8 +50,9 @@ class UpdateBookingSegmentsRequest extends FormRequest
                     }
                 }
 
-                if ($this->boolean('allowOverbook') && trim((string) $this->input('note', '')) === '') {
-                    $validator->errors()->add('note', 'Alasan wajib diisi saat mengizinkan overbook.');
+                $requiresNote = $this->boolean('allowOverbook') || collect($groupedSizes)->contains(fn (int $size): bool => $size > 80);
+                if ($requiresNote && trim((string) $this->input('note', '')) === '') {
+                    $validator->errors()->add('note', 'Catatan wajib diisi saat mengizinkan overbook atau menggabungkan kloter besar.');
                 }
             },
         ];

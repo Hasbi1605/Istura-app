@@ -24,7 +24,6 @@ import type {
   Booking,
   BookingSegment,
   VisitDay,
-  VisitStatus,
   BookingStatus,
   BookingStatusFilter,
   BookingSort,
@@ -46,10 +45,12 @@ import {
   isShortNoticeBooking,
   BOOKING_STATUS_CHIPS,
   BOOKING_STATUS_LABELS,
+  SLOT_CAPACITY,
   PAGE_SIZE_BOOKING_SPLIT,
   PAGE_SIZE_BOOKING_TABLE,
   requiredSlotCount,
   segmentListLabel,
+  splitGroupSizes,
   VIRTUALIZE_THRESHOLD,
 } from "../../domain/booking";
 import { addDays, addMonths, formatCount, formatCountShort, formatDateKey, formatLongDate, jakartaToday, parseDateKey } from "../../lib/date";
@@ -1479,12 +1480,12 @@ type SegmentDraftRow = {
 };
 
 type SegmentRowState = {
-  isClosed: boolean;
   issues: string[];
   needsOverbook: boolean;
+  oversized: boolean;
 };
 
-const segmentStatusLabel: Record<VisitStatus | "Missing", string> = {
+const segmentStatusLabel: Record<string, string> = {
   Available: "Kosong",
   Held: "Diproses",
   Booked: "Terisi",
@@ -1506,11 +1507,22 @@ const fallbackVisitDay = (date: string): VisitDay => {
   };
 };
 
-const slotToneClass = (status: VisitStatus | "Missing", isOwnSlot: boolean) => {
-  if (isOwnSlot && status !== "Closed") return "is-own";
-  if (status === "Available") return "is-available";
-  if (status === "Closed" || status === "Missing") return "is-closed";
-  return "is-occupied";
+const normalizeSegmentRows = (rows: SegmentDraftRow[]): SegmentDraftRow[] => {
+  const grouped = new Map<string, SegmentDraftRow>();
+
+  rows.forEach((row) => {
+    const key = `${row.date}|${row.time}`;
+    const groupSize = Math.max(0, Number(row.groupSize) || 0);
+    const existing = grouped.get(key);
+
+    grouped.set(key, {
+      date: row.date,
+      time: row.time,
+      groupSize: String((existing ? Number(existing.groupSize) : 0) + groupSize),
+    });
+  });
+
+  return Array.from(grouped.values());
 };
 
 export function SegmentOverrideModal({
@@ -1528,16 +1540,18 @@ export function SegmentOverrideModal({
   onClose: () => void;
   onConfirm: (booking: Booking, segments: BookingSegment[], note: string, allowOverbook: boolean) => void;
 }) {
+  const initialSegments = bookingSegments(booking);
   const [rows, setRows] = useState(() =>
-    bookingSegments(booking).map((segment) => ({
+    initialSegments.map((segment) => ({
       date: segment.date,
       time: segment.time,
       groupSize: String(segment.groupSize),
     })),
   );
+  const [selectedDate, setSelectedDate] = useState(initialSegments[0]?.date ?? booking.date);
   const [note, setNote] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
-  const ownSlotKeys = new Set(bookingSegments(booking).map((segment) => `${segment.date}|${segment.time}`));
+  const ownSlotKeys = new Set(initialSegments.map((segment) => `${segment.date}|${segment.time}`));
   const scheduleByDate = new Map(schedules.map((day) => [day.date, day]));
   const segmentToday = jakartaToday();
   const minSegmentDateKey = formatDateKey(segmentToday);
@@ -1549,39 +1563,24 @@ export function SegmentOverrideModal({
       .filter((date, index, dates) => date && dates.indexOf(date) === index && !scheduleByDate.has(date))
       .map(fallbackVisitDay),
   ].sort((a, b) => a.date.localeCompare(b.date));
-  const duplicateKeys = rows.reduce<Record<string, number>>((acc, row) => {
+  const selectedDay = scheduleByDate.get(selectedDate) ?? dateOptions.find((day) => day.date === selectedDate) ?? fallbackVisitDay(selectedDate);
+  const slotOptions = [
+    ...selectedDay.slots,
+    ...rows
+      .filter((row) => row.time && !selectedDay.slots.some((slot) => slot.time === row.time))
+      .map((row) => ({ time: row.time, status: "Missing", custom: true })),
+  ];
+  const normalizedRows = normalizeSegmentRows(rows.map((row) => ({ ...row, date: selectedDate })));
+  const rowStates: SegmentRowState[] = normalizedRows.map((row) => {
     const key = `${row.date}|${row.time}`;
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
-  const describeDay = (day?: VisitDay) => {
-    if (!day || day.slots.length === 0) return "jadwal belum dimuat";
-
-    const own = day.slots.filter((slot) => ownSlotKeys.has(`${day.date}|${slot.time}`) && slot.status !== "Closed").length;
-    const available = day.slots.filter((slot) => slot.status === "Available").length;
-    const occupied = day.slots.filter((slot) => slot.status !== "Available" && slot.status !== "Closed" && !ownSlotKeys.has(`${day.date}|${slot.time}`)).length;
-    const closed = day.slots.filter((slot) => slot.status === "Closed").length;
-    const parts = [
-      available > 0 ? `${available} kosong` : "",
-      own > 0 ? `${own} booking ini` : "",
-      occupied > 0 ? `${occupied} terisi` : "",
-      available === 0 && own === 0 && occupied === 0 && closed > 0 ? "tutup" : "",
-    ].filter(Boolean);
-
-    return parts.join(", ") || "tidak ada slot";
-  };
-  const rowStates: SegmentRowState[] = rows.map((row) => {
-    const key = `${row.date}|${row.time}`;
-    const day = scheduleByDate.get(row.date);
-    const slot = day?.slots.find((item) => item.time === row.time);
+    const slot = selectedDay.slots.find((item) => item.time === row.time);
     const status = slot?.status ?? "Missing";
     const isOwnSlot = ownSlotKeys.has(key) && status !== "Closed";
-    const duplicate = Boolean(row.date && row.time && duplicateKeys[key] > 1);
     const groupSize = Number(row.groupSize);
-    const validDate = isDateKey(row.date);
     const issues: string[] = [];
+    const oversized = groupSize > SLOT_CAPACITY;
 
-    if (!validDate) {
+    if (!isDateKey(row.date)) {
       issues.push("Pilih tanggal dari daftar jadwal.");
     } else if (row.date < minSegmentDateKey) {
       issues.push("Tanggal sudah lewat.");
@@ -1599,10 +1598,6 @@ export function SegmentOverrideModal({
       issues.push("Jumlah peserta kloter minimal 1 orang.");
     }
 
-    if (duplicate) {
-      issues.push("Tanggal dan jam sama dipakai lebih dari sekali.");
-    }
-
     if (status === "Closed" || status === "Missing") {
       issues.push("Slot tutup atau belum dibuka.");
     }
@@ -1610,31 +1605,32 @@ export function SegmentOverrideModal({
     const needsOverbook = !isOwnSlot && status !== "Available" && status !== "Closed" && status !== "Missing";
 
     return {
-      isClosed: status === "Closed" || status === "Missing",
       issues,
       needsOverbook,
+      oversized,
     };
   });
-  const closedRows = rowStates.filter((state) => state.isClosed);
   const overbookRows = rowStates.filter((state) => state.needsOverbook);
-  const total = rows.reduce((sum, row) => {
+  const oversizedRows = rowStates.filter((state) => state.oversized);
+  const total = normalizedRows.reduce((sum, row) => {
     const value = Number(row.groupSize);
     return sum + (Number.isFinite(value) ? value : 0);
   }, 0);
   const busy = Boolean(pendingLabel);
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
+  const noteRequired = overbookRows.length > 0 || oversizedRows.length > 0;
   const validationMessages = [
-    rows.length < 1 ? "Minimal harus ada 1 kloter." : "",
+    normalizedRows.length < 1 ? "Minimal harus ada 1 kloter." : "",
     dateOptions.length === 0 ? "Data jadwal belum dimuat. Muat ulang halaman jika daftar tanggal kosong." : "",
     total !== booking.groupSize ? `Total peserta harus ${booking.groupSize}, sekarang ${total}.` : "",
     overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
-    overbookRows.length > 0 && allowOverbook && note.trim() === "" ? "Isi catatan admin untuk alasan overbook." : "",
+    noteRequired && note.trim() === "" ? "Isi catatan admin untuk penggabungan kloter besar atau overbook." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
   ].filter((message, index, messages) => message && messages.indexOf(message) === index);
   const invalid =
     validationMessages.length > 0 ||
-    closedRows.length > 0 ||
-    (overbookRows.length > 0 && (!allowOverbook || note.trim() === ""));
+    (overbookRows.length > 0 && !allowOverbook) ||
+    (noteRequired && note.trim() === "");
 
   useEffect(() => {
     if (overbookRows.length === 0 && allowOverbook) {
@@ -1642,46 +1638,59 @@ export function SegmentOverrideModal({
     }
   }, [allowOverbook, overbookRows.length]);
 
-  const firstUsableTime = (date: string, preferredTime?: string) => {
-    const day = scheduleByDate.get(date);
-    if (!day) return preferredTime ?? "";
+  const firstUsableTime = (preferredTime?: string, usedTimes = new Set<string>()) => {
+    const day = selectedDay;
     const preferred = day.slots.find((slot) => slot.time === preferredTime);
-    if (preferred && preferred.status !== "Closed") return preferred.time;
+    if (preferred && preferred.status !== "Closed" && !usedTimes.has(preferred.time)) return preferred.time;
 
     return (
-      day.slots.find((slot) => slot.status === "Available")?.time ??
-      day.slots.find((slot) => ownSlotKeys.has(`${date}|${slot.time}`) && slot.status !== "Closed")?.time ??
-      day.slots.find((slot) => slot.status !== "Closed")?.time ??
+      day.slots.find((slot) => slot.status === "Available" && !usedTimes.has(slot.time))?.time ??
+      day.slots.find((slot) => ownSlotKeys.has(`${selectedDate}|${slot.time}`) && slot.status !== "Closed" && !usedTimes.has(slot.time))?.time ??
+      day.slots.find((slot) => slot.status !== "Closed" && !usedTimes.has(slot.time))?.time ??
       day.slots[0]?.time ??
       ""
     );
   };
 
   const firstOpenDraftRow = (): SegmentDraftRow => {
-    const usedKeys = new Set(rows.map((row) => `${row.date}|${row.time}`));
-    for (const day of dateOptions) {
-      const slot = day.slots.find((item) => item.status === "Available" && !usedKeys.has(`${day.date}|${item.time}`));
-      if (slot) return { date: day.date, time: slot.time, groupSize: "1" };
-    }
-
-    const day = dateOptions[0] ?? fallbackVisitDay(booking.date);
-    return { date: day.date, time: firstUsableTime(day.date, booking.time), groupSize: "1" };
+    const usedTimes = new Set(rows.map((row) => row.time).filter(Boolean));
+    return { date: selectedDate, time: firstUsableTime(undefined, usedTimes), groupSize: "1" };
   };
 
   const updateRow = (index: number, patch: Partial<SegmentDraftRow>) => {
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
   };
 
-  const selectDate = (index: number, date: string) => {
-    const currentTime = rows[index]?.time;
-    updateRow(index, { date, time: firstUsableTime(date, currentTime) });
+  const changeDate = (date: string) => {
+    setSelectedDate(date);
+    const day = scheduleByDate.get(date) ?? dateOptions.find((option) => option.date === date) ?? fallbackVisitDay(date);
+    setRows((current) => current.map((row) => {
+      const currentSlot = day.slots.find((slot) => slot.time === row.time);
+      return { ...row, date, time: currentSlot && currentSlot.status !== "Closed" ? row.time : day.slots.find((slot) => slot.status !== "Closed")?.time ?? row.time };
+    }));
+  };
+
+  const mergeAll = () => {
+    setRows([{ date: selectedDate, time: rows[0]?.time || firstUsableTime(booking.time), groupSize: String(booking.groupSize) }]);
+  };
+
+  const splitAuto = () => {
+    const sizes = splitGroupSizes(booking.groupSize);
+    const usedTimes = new Set<string>();
+    const ownTimes = initialSegments.map((segment) => segment.time);
+    setRows(sizes.map((size, index) => {
+      const time = firstUsableTime(ownTimes[index], usedTimes);
+      if (time) usedTimes.add(time);
+
+      return { date: selectedDate, time, groupSize: String(size) };
+    }));
   };
 
   const submit = () => {
     if (invalid || busy) return;
     onConfirm(
       booking,
-      rows.map((row, index) => ({
+      normalizedRows.map((row, index) => ({
         order: index + 1,
         date: row.date,
         dateLabel: scheduleByDate.get(row.date)?.label ?? formatLongDate(parseDateKey(row.date)),
@@ -1705,130 +1714,88 @@ export function SegmentOverrideModal({
         >
           <X size={18} aria-hidden="true" />
         </button>
-        <h2>Atur kloter manual</h2>
+        <h2>Atur pembagian kloter</h2>
         <p className="segment-modal-summary">
-          {booking.code} - total <strong>{booking.groupSize}</strong> peserta. Total kloter harus tetap sama.
+          {booking.code} - <strong>{booking.groupSize}</strong> peserta - {booking.dateLabel}, {booking.time} WIB.
         </p>
-        <div className="segment-modal-legend" aria-label="Legenda slot">
-          <span className="segment-legend-dot is-available">Kosong</span>
-          <span className="segment-legend-dot is-own">Booking ini</span>
-          <span className="segment-legend-dot is-occupied">Terisi</span>
-          <span className="segment-legend-dot is-closed">Tutup</span>
+        <div className="segment-quick-actions" aria-label="Aksi cepat pembagian kloter">
+          <button type="button" className="button button-outline" onClick={mergeAll} disabled={busy}>
+            Gabungkan semua
+          </button>
+          <button type="button" className="button button-outline" onClick={splitAuto} disabled={busy}>
+            Pecah otomatis
+          </button>
+          <button
+            type="button"
+            className="button button-outline segment-add-button"
+            onClick={() => setRows((current) => [...current, firstOpenDraftRow()])}
+            disabled={busy || rows.length >= 7}
+          >
+            <Plus size={16} aria-hidden="true" />
+            Tambah kloter
+          </button>
         </div>
-        <div className="segment-editor-list" aria-label="Editor pembagian kloter">
-          {rows.map((row, index) => {
-            const selectedDay = scheduleByDate.get(row.date) ?? dateOptions.find((day) => day.date === row.date);
-            const state = rowStates[index];
-            const overbookReady = Boolean(state?.needsOverbook && allowOverbook && note.trim());
+        <label className="segment-date-field">
+          <span>Tanggal kloter</span>
+          <select value={selectedDate} onChange={(event) => changeDate(event.target.value)} disabled={busy || dateOptions.length === 0}>
+            {dateOptions.map((day) => (
+              <option key={day.date} value={day.date}>{day.label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="segment-table" aria-label="Editor pembagian kloter">
+          <div className="segment-table-head" aria-hidden="true">
+            <span>Kloter</span>
+            <span>Jam</span>
+            <span>Peserta</span>
+            <span />
+          </div>
+          {rows.map((row, index) => (
+            <div className="segment-table-row" key={index}>
+              <strong>{index + 1}</strong>
+              <select value={row.time} onChange={(event) => updateRow(index, { time: event.target.value })} disabled={busy}>
+                {slotOptions.map((slot) => {
+                  const status = slot.status ?? "Missing";
+                  const own = ownSlotKeys.has(`${selectedDate}|${slot.time}`) && status !== "Closed";
+                  const label = own ? "Booking ini" : segmentStatusLabel[status] ?? status;
 
-            return (
-              <section className={`segment-editor-row${state?.issues.length || (state?.needsOverbook && !overbookReady) ? " has-error" : ""}`} key={index}>
-                <header className="segment-editor-head">
-                  <strong>Kloter {index + 1}</strong>
-                  <label className="segment-size-field">
-                    <span>Peserta</span>
-                    <input
-                      type="number"
-                      min={1}
-                      inputMode="numeric"
-                      value={row.groupSize}
-                      onChange={(event) => updateRow(index, { groupSize: event.target.value })}
-                    />
-                  </label>
-                  {rows.length > 1 && (
-                    <button
-                      type="button"
-                      className="button button-ghost segment-remove-button"
-                      onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
-                      disabled={busy}
-                    >
-                      <Trash2 size={15} aria-hidden="true" />
-                      Hapus
-                    </button>
-                  )}
-                </header>
-                <label className="segment-date-field">
-                  <span>Tanggal tujuan</span>
-                  <select value={row.date} onChange={(event) => selectDate(index, event.target.value)} disabled={busy || dateOptions.length === 0}>
-                    {dateOptions.map((day) => (
-                      <option key={day.date} value={day.date}>
-                        {day.label} - {describeDay(day)}
-                      </option>
-                    ))}
-                  </select>
-                  <small>{selectedDay ? describeDay(selectedDay) : "Pilih tanggal dari jadwal."}</small>
-                </label>
-                <div className="segment-slot-picker">
-                  <div className="segment-slot-picker-head">
-                    <span>Jam tujuan</span>
-                    <small>{selectedDay?.label ?? "Tanggal belum dipilih"}</small>
-                  </div>
-                  <div className="segment-slot-grid">
-                    {selectedDay?.slots.length ? (
-                      selectedDay.slots.map((slot) => {
-                        const key = `${selectedDay.date}|${slot.time}`;
-                        const isOwnSlot = ownSlotKeys.has(key) && slot.status !== "Closed";
-                        const isSelected = row.time === slot.time;
-                        const isDisabled = busy || slot.status === "Closed";
-                        const label = isOwnSlot
-                          ? "Booking ini"
-                          : slot.status === "Available"
-                            ? "Kosong"
-                            : slot.status === "Closed"
-                              ? "Tutup"
-                              : `${segmentStatusLabel[slot.status]}${slot.bookingCount ? ` (${slot.bookingCount})` : ""}`;
-
-                        return (
-                          <button
-                            key={slot.time}
-                            type="button"
-                            className={`segment-slot-chip ${slotToneClass(slot.status, isOwnSlot)}${isSelected ? " is-selected" : ""}`}
-                            onClick={() => updateRow(index, { time: slot.time })}
-                            disabled={isDisabled}
-                            aria-pressed={isSelected}
-                          >
-                            <strong>{slot.time}</strong>
-                            <small>{label}</small>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <p className="segment-empty-slot">Jadwal tanggal ini belum tersedia.</p>
-                    )}
-                  </div>
-                </div>
-                {state?.issues.length > 0 && (
-                  <ul className="segment-row-errors">
-                    {state.issues.map((issue) => (
-                      <li key={issue}>{issue}</li>
-                    ))}
-                  </ul>
-                )}
-                {state?.needsOverbook && (
-                  <p className={`segment-row-note${overbookReady ? "" : " segment-row-note--warning"}`}>
-                    {overbookReady ? "Slot terisi ini akan disimpan sebagai overbook." : "Slot terisi. Centang izin overbook dan isi catatan."}
-                  </p>
-                )}
-              </section>
-            );
-          })}
+                  return (
+                    <option key={slot.time} value={slot.time} disabled={status === "Closed"}>
+                      {slot.time} - {label}
+                    </option>
+                  );
+                })}
+              </select>
+              <input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={row.groupSize}
+                onChange={(event) => updateRow(index, { groupSize: event.target.value })}
+                disabled={busy}
+              />
+              <button
+                type="button"
+                className="segment-icon-button"
+                onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
+                disabled={busy || rows.length <= 1}
+                aria-label={`Hapus kloter ${index + 1}`}
+              >
+                <Trash2 size={15} aria-hidden="true" />
+              </button>
+            </div>
+          ))}
         </div>
-        <button
-          type="button"
-          className="button button-outline segment-add-button"
-          onClick={() => setRows((current) => [...current, firstOpenDraftRow()])}
-          disabled={busy || rows.length >= 7}
-        >
-          <Plus size={16} aria-hidden="true" />
-          Tambah kloter
-        </button>
+        {normalizedRows.length !== rows.length && (
+          <p className="segment-row-note">Baris dengan jam sama akan digabung saat disimpan.</p>
+        )}
         {validationMessages.length > 0 && (
           <div className="form-message form-message--error" role="alert">
             <AlertTriangle size={16} aria-hidden="true" />
             <span>{validationMessages[0]}</span>
           </div>
         )}
-        {overbookRows.length > 0 && closedRows.length === 0 && (
+        {overbookRows.length > 0 && (
           <label className="form-check">
             <input
               type="checkbox"
@@ -1836,17 +1803,17 @@ export function SegmentOverrideModal({
               onChange={(event) => setAllowOverbook(event.target.checked)}
               disabled={busy}
             />
-            <span>Izinkan overbook untuk {overbookRows.length} slot terisi</span>
+            <span>Gabung dengan slot booking lain</span>
           </label>
         )}
         <p className={total === booking.groupSize ? "form-message" : "form-message form-message--error"}>
           Total saat ini: {total} / {booking.groupSize} peserta.
         </p>
         <label className="form-field">
-          <span>Catatan admin {overbookRows.length > 0 ? "(wajib untuk overbook)" : "(opsional)"}</span>
+          <span>Catatan admin {noteRequired ? "(wajib)" : "(opsional)"}</span>
           <textarea
             value={note}
-            placeholder={overbookRows.length > 0 ? "Contoh: Rombongan meminta digabung dengan slot lain." : "Isi jika ada alasan perubahan kloter."}
+            placeholder="Contoh: Rombongan meminta digabung dalam satu kloter."
             onChange={(event) => setNote(event.target.value)}
           />
         </label>
