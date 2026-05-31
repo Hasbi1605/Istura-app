@@ -6650,44 +6650,57 @@ a {
 
 .admin-schedule-slot-popover {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 10px);
   left: 0;
-  right: 0;
-  z-index: 30;
+  z-index: 40;
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  width: min(520px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  gap: 12px;
+  padding: 16px 18px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.12);
-  border-radius: 10px;
-  box-shadow: 0 18px 40px rgba(16, 24, 47, 0.18);
+  border: 1px solid rgba(16, 24, 47, 0.14);
+  border-radius: 14px;
+  box-shadow: 0 18px 42px rgba(16, 24, 47, 0.16);
   color: var(--navy);
   text-align: left;
   font-weight: 600;
   white-space: normal;
 }
 
+.admin-schedule-slot:nth-child(even) .admin-schedule-slot-popover {
+  right: 0;
+  left: auto;
+}
+
 .admin-schedule-slot-popover header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(16, 24, 47, 0.08);
 }
 
 .admin-schedule-slot-popover header strong {
-  font-size: 0.82rem;
-  font-weight: 800;
+  min-width: 0;
   color: var(--navy);
+  font-size: 0.96rem;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .admin-schedule-slot-popover-status {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 4px 10px;
   background: rgba(16, 24, 47, 0.06);
   color: var(--navy);
   border-radius: 999px;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -6711,10 +6724,11 @@ a {
 
 .admin-schedule-slot-popover dl {
   display: grid;
-  gap: 4px 8px;
-  grid-template-columns: 84px 1fr;
+  gap: 8px 14px;
+  grid-template-columns: 92px minmax(0, 1fr);
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .admin-schedule-slot-popover dl div {
@@ -6728,15 +6742,45 @@ a {
 }
 
 .admin-schedule-slot-popover dd {
+  min-width: 0;
   margin: 0;
   color: var(--navy);
-  font-weight: 700;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .admin-schedule-slot-popover-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.admin-schedule-slot-popover-actions .admin-pill-button {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 0.76rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+@media (max-width: 540px) {
+  .admin-schedule-slot-popover,
+  .admin-schedule-slot:nth-child(even) .admin-schedule-slot-popover {
+    right: auto;
+    left: 0;
+    width: min(420px, calc(100vw - 24px));
+    padding: 14px;
+  }
+
+  .admin-schedule-slot-popover dl {
+    grid-template-columns: 86px minmax(0, 1fr);
+    font-size: 0.78rem;
+  }
+
+  .admin-schedule-slot-popover-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ---- Modal & confirm dialog ---- */
