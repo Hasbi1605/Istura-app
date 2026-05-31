@@ -7743,10 +7743,10 @@ a {
 }
 
 .segment-modal-card {
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(88vh, 760px);
-  gap: 12px;
-  padding: 22px;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  gap: 14px;
+  padding: 24px;
   overflow-y: auto;
 }
 
@@ -7767,7 +7767,7 @@ a {
 .segment-modal-card h2 {
   margin: 0;
   color: var(--navy);
-  font-size: 1.18rem;
+  font-size: 1.24rem;
   letter-spacing: 0;
 }
 
@@ -7777,6 +7777,14 @@ a {
   color: rgba(16, 24, 47, 0.62);
   font-size: 0.86rem;
   line-height: 1.45;
+}
+
+.segment-mode-label {
+  margin: 2px 0 -6px;
+  color: rgba(16, 24, 47, 0.54);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .segment-mode-tabs {
@@ -7796,7 +7804,7 @@ a {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 850;
   cursor: pointer;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
@@ -7819,14 +7827,14 @@ a {
 .segment-task-panel {
   display: grid;
   gap: 12px;
-  padding: 14px;
+  padding: 16px;
   background: rgba(248, 250, 252, 0.8);
   border: 1px solid rgba(16, 24, 47, 0.08);
   border-radius: 8px;
 }
 
 .segment-total-field {
-  width: min(180px, 100%);
+  width: min(220px, 100%);
   display: grid;
   gap: 6px;
   color: rgba(16, 24, 47, 0.72);
@@ -7850,6 +7858,16 @@ a {
   outline: none;
   border-color: rgba(16, 24, 47, 0.36);
   box-shadow: 0 0 0 3px rgba(16, 24, 47, 0.1);
+}
+
+.segment-total-status {
+  color: rgba(16, 24, 47, 0.56);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.segment-total-status.has-error {
+  color: #b3261e;
 }
 
 .segment-slot-picker--compact {
@@ -8032,9 +8050,9 @@ a {
   border-radius: 8px;
 }
 
-.segment-preview.has-error {
-  background: rgba(255, 248, 247, 0.9);
-  border-color: rgba(179, 38, 30, 0.24);
+.segment-preview.has-warning {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(196, 146, 18, 0.24);
 }
 
 .segment-preview-head {
@@ -8094,8 +8112,18 @@ a {
   line-height: 1.35;
 }
 
-.segment-preview.has-error .segment-preview-state {
+.segment-preview-state.has-error {
   color: #b3261e;
+}
+
+.segment-modal-card > .modal-actions {
+  position: sticky;
+  bottom: -24px;
+  z-index: 2;
+  margin: 0 -24px -24px;
+  padding: 14px 24px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), var(--white) 34%);
+  border-top: 1px solid rgba(16, 24, 47, 0.08);
 }
 
 .segment-note-field textarea {

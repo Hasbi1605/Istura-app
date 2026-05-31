@@ -1492,9 +1492,9 @@ type SegmentRowState = {
 type SegmentEditMode = "correct" | "merge" | "split" | "manual";
 
 const segmentEditModes: Array<{ value: SegmentEditMode; label: string }> = [
-  { value: "correct", label: "Koreksi peserta" },
-  { value: "merge", label: "Gabung kloter" },
-  { value: "split", label: "Pecah kloter" },
+  { value: "correct", label: "Koreksi total" },
+  { value: "merge", label: "Gabung ke satu jam" },
+  { value: "split", label: "Pecah otomatis" },
   { value: "manual", label: "Atur manual" },
 ];
 
@@ -1512,8 +1512,8 @@ const segmentModeCopy: Record<SegmentEditMode, { description: string; saveLabel:
     saveLabel: "Simpan pembagian kloter",
   },
   manual: {
-    description: "Atur jam dan jumlah peserta tiap kloter satu per satu.",
-    saveLabel: "Simpan atur manual",
+    description: "Ubah jam dan jumlah peserta per kloter. Total harus sesuai target.",
+    saveLabel: "Simpan perubahan",
   },
 };
 
@@ -1658,14 +1658,17 @@ export function SegmentOverrideModal({
   }, 0);
   const busy = Boolean(pendingLabel);
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
-  const noteRequired = groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0;
+  const totalMismatch = validTargetGroupSize && total !== targetGroupSizeNumber;
+  const riskyMerge = mode === "merge" && targetGroupSizeNumber > SLOT_CAPACITY;
+  const noteRequired = groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0 || riskyMerge;
+  const showRiskNoteWarning = noteRequired && note.trim() === "";
   const validationMessages = [
     normalizedRows.length < 1 ? "Minimal harus ada 1 kloter." : "",
     dateOptions.length === 0 ? "Data jadwal belum dimuat. Muat ulang halaman jika daftar tanggal kosong." : "",
     !validTargetGroupSize ? `Total peserta harus 1-${MAX_BOOKING_GROUP_SIZE}.` : "",
-    validTargetGroupSize && total !== targetGroupSizeNumber ? `Total kloter harus ${targetGroupSizeNumber}, sekarang ${total}.` : "",
+    totalMismatch ? `Total kloter harus ${targetGroupSizeNumber}, sekarang ${total}.` : "",
     overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
-    noteRequired && note.trim() === "" ? "Isi catatan admin untuk koreksi peserta, kloter besar, atau overbook." : "",
+    showRiskNoteWarning ? "Catatan admin wajib untuk perubahan berisiko ini." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
   ].filter((message, index, messages) => message && messages.indexOf(message) === index);
   const invalid =
@@ -1676,6 +1679,13 @@ export function SegmentOverrideModal({
   const selectedDateLabel = selectedDay.label ?? (isDateKey(selectedDate) ? formatLongDate(parseDateKey(selectedDate)) : selectedDate);
   const saveLabel = segmentModeCopy[mode].saveLabel;
   const showSegmentTable = mode === "split" || mode === "manual";
+  const totalStatusLabel = validTargetGroupSize
+    ? total === targetGroupSizeNumber
+      ? `${total} / ${targetGroupSizeNumber} peserta`
+      : total < targetGroupSizeNumber
+        ? `Kurang ${targetGroupSizeNumber - total} peserta`
+        : `Lebih ${total - targetGroupSizeNumber} peserta`
+    : "Total belum valid";
 
   useEffect(() => {
     if (overbookRows.length === 0 && allowOverbook) {
@@ -1839,6 +1849,7 @@ export function SegmentOverrideModal({
           </p>
         </header>
 
+        <div className="segment-mode-label">Pilih jenis perubahan</div>
         <div className="segment-mode-tabs" role="tablist" aria-label="Pilih jenis perubahan kloter">
           {segmentEditModes.map((item) => (
             <button
@@ -1868,6 +1879,7 @@ export function SegmentOverrideModal({
               onChange={(event) => changeTargetGroupSize(event.target.value)}
               disabled={busy}
             />
+            <small className={totalMismatch ? "segment-total-status has-error" : "segment-total-status"}>{totalStatusLabel}</small>
           </label>
 
           {(mode === "correct" || mode === "merge") && (
@@ -1996,9 +2008,9 @@ export function SegmentOverrideModal({
           </label>
         )}
 
-        <section className={invalid ? "segment-preview has-error" : "segment-preview is-ready"} aria-label="Pratinjau hasil kloter">
+        <section className={validationMessages.length > 0 ? "segment-preview has-warning" : "segment-preview is-ready"} aria-label="Pratinjau hasil kloter">
           <div className="segment-preview-head">
-            <span>Hasil setelah disimpan</span>
+            <span>Ringkasan perubahan</span>
             <strong>{normalizedRows.length} kloter - {total} peserta</strong>
           </div>
           <div className="segment-preview-list">
@@ -2011,7 +2023,7 @@ export function SegmentOverrideModal({
               </div>
             ))}
           </div>
-          <p className="segment-preview-state" role={validationMessages.length > 0 ? "alert" : "status"}>
+          <p className={showRiskNoteWarning ? "segment-preview-state has-error" : "segment-preview-state"} role={validationMessages.length > 0 ? "alert" : "status"}>
             {validationMessages.length > 0 ? <AlertTriangle size={16} aria-hidden="true" /> : <BadgeCheck size={16} aria-hidden="true" />}
             <span>{validationMessages[0] ?? "Siap disimpan."}</span>
           </p>
