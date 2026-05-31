@@ -6223,6 +6223,40 @@ a {
   color: rgba(20, 78, 75, 1);
 }
 
+/* Multi-kloter badge dan visual grouping */
+.admin-schedule-slot-kloter {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  background: rgba(196, 146, 18, 0.18);
+  color: rgba(120, 88, 12, 1);
+  border: 1px solid rgba(196, 146, 18, 0.4);
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.admin-schedule-slot.is-full .admin-schedule-slot-kloter {
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.admin-schedule-slot.is-processing .admin-schedule-slot-kloter {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(31, 107, 103, 0.4);
+  color: rgba(20, 78, 75, 1);
+}
+
+.admin-schedule-slot.is-multi-kloter {
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+
 .admin-schedule-slot-remove {
   position: absolute;
   bottom: 6px;
