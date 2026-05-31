@@ -1694,7 +1694,7 @@ a {
 
 .portrait-stack span:nth-child(3) {
   left: 132px;
-  background-image: url("/assets/museum.jpg");
+  background-image: url("/assets/museum.webp");
 }
 
 .testimonial-copy p {

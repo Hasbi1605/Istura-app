@@ -245,7 +245,7 @@ export const accordionItems = [
   {
     title: "Tur Museum",
     body: "Berkeliling melihat koleksi lukisan dan benda seni Istana Kepresidenan Yogyakarta.",
-    image: "/assets/museum.jpg",
+    image: "/assets/museum.webp",
   },
   {
     title: "Perpustakaan",
