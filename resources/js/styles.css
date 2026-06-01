@@ -4975,6 +4975,38 @@ a {
   background: rgba(16, 24, 47, 0.05);
 }
 
+/* Aksi di header card "Minggu ini": tombol poster + atur jadwal. */
+.admin-dashboard-week-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-dashboard-week-poster {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 6px 10px;
+  color: var(--navy);
+  background: var(--gold-2);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+
+.admin-dashboard-week-poster:hover,
+.admin-dashboard-week-poster:focus-visible {
+  outline: none;
+  background: var(--gold);
+  box-shadow: 0 6px 16px rgba(196, 146, 18, 0.28);
+}
+
 /* Cards used inside dashboard pages */
 
 .admin-card {
@@ -10383,4 +10415,356 @@ a {
 
 .admin-2fa-toggle-mode:hover {
   opacity: 0.8;
+}
+
+/* ====================================================================== */
+/* Weekly agenda poster modal (share ke grup WA)                          */
+/* ====================================================================== */
+
+.poster-modal {
+  width: min(880px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.poster-modal-sub {
+  margin: 4px 0 0;
+  color: rgba(16, 24, 47, 0.6);
+  font-size: 0.8rem;
+}
+
+.poster-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.poster-week-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poster-week-nav-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--navy);
+  background: rgba(16, 24, 47, 0.04);
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.poster-week-nav-btn:hover:not(:disabled),
+.poster-week-nav-btn:focus-visible:not(:disabled) {
+  outline: none;
+  background: rgba(16, 24, 47, 0.09);
+}
+
+.poster-week-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.poster-week-nav-label {
+  min-width: 168px;
+  text-align: center;
+  color: var(--navy);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.poster-row-count {
+  color: rgba(16, 24, 47, 0.6);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.poster-preview-scroll {
+  margin-top: 14px;
+  padding: 16px;
+  overflow: auto;
+  background: rgba(16, 24, 47, 0.06);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.poster-empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: rgba(16, 24, 47, 0.7);
+}
+
+.poster-empty p {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.poster-empty small {
+  color: rgba(16, 24, 47, 0.55);
+}
+
+/* ---- The poster canvas itself (this node is exported to PNG) ---- */
+/* Fixed pixel width so the exported image is deterministic & crisp.    */
+
+.poster-canvas {
+  position: relative;
+  width: 1024px;
+  flex-shrink: 0;
+  padding: 0;
+  background: #3a3a3c;
+  color: #f4f1ea;
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* Motif geometris samar meniru background poster manual. */
+.poster-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image:
+    radial-gradient(circle at 25% 25%, #ffffff 2px, transparent 2.5px),
+    radial-gradient(circle at 75% 75%, #ffffff 2px, transparent 2.5px);
+  background-size: 54px 54px, 54px 54px;
+  background-position: 0 0, 27px 27px;
+  pointer-events: none;
+}
+
+.poster-inner {
+  position: relative;
+  padding: 40px 48px 48px;
+}
+
+.poster-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.poster-logo img {
+  height: 92px;
+  width: auto;
+  object-fit: contain;
+}
+
+.poster-logo-fallback {
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.poster-title {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  text-align: center;
+  color: #f4f1ea;
+  background: transparent;
+  border: 1px dashed transparent;
+  font-family: inherit;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.poster-month {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 4px;
+}
+
+.poster-month-input {
+  width: 320px;
+  padding: 8px 16px;
+  text-align: center;
+  color: #2a2a2c;
+  background: var(--gold);
+  border: 1px dashed transparent;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.poster-divider {
+  height: 2px;
+  margin: 18px 0 22px;
+  background: linear-gradient(90deg, transparent, rgba(244, 241, 234, 0.55), transparent);
+}
+
+.poster-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Satu hari = badge tanggal (kiri) + daftar agenda (kanan). */
+.poster-day {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 0;
+  background: rgba(232, 228, 219, 0.95);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.poster-day-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 8px;
+  background: var(--gold);
+  color: #2a2a2c;
+}
+
+.poster-day-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.poster-day-num {
+  font-size: 3.4rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.poster-day-entries {
+  display: flex;
+  flex-direction: column;
+}
+
+.poster-entry {
+  display: grid;
+  grid-template-columns: 150px 1fr 150px;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 18px;
+  color: #2a2a2c;
+}
+
+.poster-entry + .poster-entry {
+  border-top: 1px solid rgba(42, 42, 44, 0.12);
+}
+
+.poster-entry-time {
+  width: 100%;
+  padding: 4px 6px;
+  color: #2a2a2c;
+  background: transparent;
+  border: 1px dashed transparent;
+  font-family: inherit;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.poster-entry-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.poster-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.poster-bullet-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 9px;
+  background: #2a2a2c;
+  border-radius: 50%;
+}
+
+.poster-bullet-text {
+  flex: 1;
+  padding: 2px 6px;
+  color: #2a2a2c;
+  background: transparent;
+  border: 1px dashed transparent;
+  font-family: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+  resize: none;
+  overflow: hidden;
+}
+
+.poster-bullet-actions {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.poster-line-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-top: 4px;
+  color: rgba(42, 42, 44, 0.6);
+  background: rgba(42, 42, 44, 0.08);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.poster-line-btn:hover,
+.poster-line-btn:focus-visible {
+  outline: none;
+  color: #2a2a2c;
+  background: rgba(42, 42, 44, 0.18);
+}
+
+.poster-entry-people {
+  width: 100%;
+  padding: 4px 6px;
+  color: #2a2a2c;
+  background: transparent;
+  border: 1px dashed transparent;
+  font-family: inherit;
+  font-size: 1.15rem;
+  text-align: left;
+}
+
+/* Editable fields: garis putus-putus halus saat fokus/hover supaya admin
+   tahu teks bisa diubah, tapi tidak ikut terlihat di PNG hasil ekspor. */
+.poster-editable:hover {
+  border-color: rgba(42, 42, 44, 0.25);
+}
+
+.poster-title.poster-editable:hover,
+.poster-month-input.poster-editable:hover {
+  border-color: rgba(244, 241, 234, 0.4);
+}
+
+.poster-editable:focus {
+  outline: none;
+  border-color: var(--gold);
+  border-style: dashed;
+}
+
+.poster-month-input.poster-editable:focus {
+  border-color: #2a2a2c;
 }

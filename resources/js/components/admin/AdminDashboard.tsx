@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Clock3,
   FileText,
+  ImageDown,
   Star,
 } from "lucide-react";
 import type { AdminTab, Booking, Feedback } from "../../domain/types";
@@ -20,6 +21,7 @@ import { bookingTimeSummary, parseSubmittedAt } from "../../domain/booking";
 import { StatCard } from "../ui/StatCard";
 import { StatusBadge } from "../ui/StatusBadge";
 import { MonthlyReportModal } from "./ExportModals";
+import { WeeklyPosterModal } from "./WeeklyPosterModal";
 import { InlineSpinner, SectionSkeleton, StatCardSkeleton } from "../ui/LoadingStates";
 
 export function AdminDashboard({
@@ -36,6 +38,7 @@ export function AdminDashboard({
   adminName?: string;
 }) {
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showPosterModal, setShowPosterModal] = useState(false);
   const today = startOfDay(new Date());
   const todayKey = formatDateKey(today);
   const tomorrow = new Date(today);
@@ -295,14 +298,25 @@ export function AdminDashboard({
                 <h3>Minggu ini</h3>
                 <small>{weekRangeLabel}</small>
               </div>
-              <button
-                type="button"
-                className="admin-dashboard-week-cta"
-                onClick={() => onJumpTab("schedule")}
-              >
-                Atur jadwal
-                <ArrowRight size={14} aria-hidden="true" />
-              </button>
+              <div className="admin-dashboard-week-actions">
+                <button
+                  type="button"
+                  className="admin-dashboard-week-poster"
+                  onClick={() => setShowPosterModal(true)}
+                  title="Buat poster agenda mingguan untuk dibagikan ke grup WA"
+                >
+                  <ImageDown size={14} aria-hidden="true" />
+                  Poster agenda
+                </button>
+                <button
+                  type="button"
+                  className="admin-dashboard-week-cta"
+                  onClick={() => onJumpTab("schedule")}
+                >
+                  Atur jadwal
+                  <ArrowRight size={14} aria-hidden="true" />
+                </button>
+              </div>
             </div>
             <ol className="admin-dashboard-week-strip" aria-label="Pilih hari di minggu ini">
               {weekDistribution.map((day) => {
@@ -513,6 +527,13 @@ export function AdminDashboard({
           feedbacks={feedbacks}
           adminName={adminName}
           onClose={() => setShowReportModal(false)}
+        />
+      )}
+
+      {showPosterModal && (
+        <WeeklyPosterModal
+          bookings={bookings}
+          onClose={() => setShowPosterModal(false)}
         />
       )}
     </div>
