@@ -23,6 +23,7 @@ export function TwoFactorSetup({
   const [secret, setSecret] = useState("");
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [codesConfirmed, setCodesConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -59,6 +60,7 @@ export function TwoFactorSetup({
     twoFactorConfirm(code.trim())
       .then((res) => {
         setRecoveryCodes(res.recovery_codes);
+        setCodesConfirmed(false);
         setStep("recovery");
         setLoading(false);
       })
@@ -182,12 +184,12 @@ export function TwoFactorSetup({
               2FA berhasil diaktifkan! Simpan kode pemulihan di bawah ini di tempat yang aman.
               Kode ini bisa digunakan jika HP Anda hilang.
             </p>
-            <p style={{ fontSize: "0.82rem", color: "#c00", marginBottom: 12 }}>
-              Kode ini hanya ditampilkan sekali. Pastikan Anda sudah menyimpannya.
+            <p className="admin-2fa-recovery-note">
+              Kode hanya ditampilkan sekali. Simpan di password manager atau tempat aman yang tidak mudah diakses orang lain.
             </p>
 
-            <div className="admin-2fa-recovery-codes" style={{ background: "#f5f5f3", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", fontFamily: "monospace", fontSize: "0.85rem" }}>
+            <div className="admin-2fa-recovery-codes">
+              <div className="admin-2fa-recovery-grid">
                 {recoveryCodes.map((c) => (
                   <span key={c}>{c}</span>
                 ))}
@@ -202,10 +204,20 @@ export function TwoFactorSetup({
               </button>
             </div>
 
+            <label className="admin-login-check admin-2fa-recovery-confirm">
+              <input
+                type="checkbox"
+                checked={codesConfirmed}
+                onChange={(event) => setCodesConfirmed(event.target.checked)}
+              />
+              <span>Saya sudah menyimpan recovery code di tempat aman.</span>
+            </label>
+
             <button
               type="button"
               className="button button-primary admin-login-submit"
               onClick={onComplete}
+              disabled={!codesConfirmed}
               style={{ width: "100%" }}
             >
               Saya sudah menyimpan, lanjut ke dashboard

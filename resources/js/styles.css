@@ -10478,6 +10478,42 @@ a {
   justify-content: center;
 }
 
+/* --- 2FA Recovery Codes --- */
+.admin-2fa-recovery-note {
+  margin: 0 0 12px;
+  color: #9f2f2d;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.admin-2fa-recovery-codes {
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  background: #f5f5f3;
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 8px;
+}
+
+.admin-2fa-recovery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.admin-2fa-recovery-confirm {
+  margin: 0 0 12px;
+  align-items: flex-start;
+}
+
+@media (max-width: 420px) {
+  .admin-2fa-recovery-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- 2FA Toggle Mode Link --- */
 .admin-2fa-toggle-mode {
   display: block;

@@ -9,8 +9,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * - Calls onLogout when idle timeout expires.
  */
 export function useIdleTimeout({
-  timeoutMinutes = 55,
+  timeoutMinutes = 120,
   warningSeconds = 120,
+  keepAliveMinutes = 10,
+  onKeepAlive,
   onLogout,
   enabled = true,
 }: {
@@ -18,6 +20,10 @@ export function useIdleTimeout({
   timeoutMinutes?: number;
   /** Seconds before timeout to show warning */
   warningSeconds?: number;
+  /** Minimum minutes between server-side session refresh calls */
+  keepAliveMinutes?: number;
+  /** Called to keep the server-side session alive while the admin is active */
+  onKeepAlive?: () => Promise<void> | void;
   /** Called when timeout expires */
   onLogout: () => void;
   /** Enable/disable the idle monitor */
@@ -28,11 +34,14 @@ export function useIdleTimeout({
 
   const timeoutMs = timeoutMinutes * 60 * 1000;
   const warningMs = warningSeconds * 1000;
+  const keepAliveMs = keepAliveMinutes * 60 * 1000;
 
   const lastActivityRef = useRef(Date.now());
+  const lastKeepAliveRef = useRef(Date.now());
   const warningTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const countdownRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const keepAliveInFlightRef = useRef(false);
 
   const clearTimers = useCallback(() => {
     if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
@@ -40,12 +49,29 @@ export function useIdleTimeout({
     if (countdownRef.current) clearInterval(countdownRef.current);
   }, []);
 
-  const resetTimers = useCallback(() => {
+  const keepServerSessionAlive = useCallback((force = false) => {
+    if (!onKeepAlive || keepAliveInFlightRef.current) return;
+    if (!force && Date.now() - lastKeepAliveRef.current < keepAliveMs) return;
+
+    keepAliveInFlightRef.current = true;
+    void Promise.resolve()
+      .then(onKeepAlive)
+      .then(() => {
+        lastKeepAliveRef.current = Date.now();
+      })
+      .catch(onLogout)
+      .finally(() => {
+        keepAliveInFlightRef.current = false;
+      });
+  }, [keepAliveMs, onKeepAlive, onLogout]);
+
+  const resetTimers = useCallback((refreshServer = false) => {
     if (!enabled) return;
 
     clearTimers();
     setShowWarning(false);
     lastActivityRef.current = Date.now();
+    keepServerSessionAlive(refreshServer);
 
     // Set warning timer
     warningTimerRef.current = setTimeout(() => {
@@ -70,10 +96,10 @@ export function useIdleTimeout({
       setShowWarning(false);
       onLogout();
     }, timeoutMs);
-  }, [enabled, timeoutMs, warningMs, clearTimers, onLogout]);
+  }, [enabled, timeoutMs, warningMs, clearTimers, keepServerSessionAlive, onLogout]);
 
   const extendSession = useCallback(() => {
-    resetTimers();
+    resetTimers(true);
   }, [resetTimers]);
 
   useEffect(() => {

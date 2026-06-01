@@ -41,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
             'auth-login:'.sha1($request->ip().'|'.strtolower(trim($request->input('email', '')))),
         ));
 
+        RateLimiter::for('two-factor', fn (Request $request) => Limit::perMinute(5)->by(
+            'two-factor:'.sha1(($request->user()?->id ?? 'guest').'|'.$request->ip()),
+        ));
+
         RateLimiter::for('public-bookings', fn (Request $request) => Limit::perMinute(30)->by(
             'public-bookings:'.$request->ip(),
         ));

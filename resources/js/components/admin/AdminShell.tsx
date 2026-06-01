@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
   ArrowLeft,
@@ -13,7 +13,7 @@ import type { AdminSession, AdminTab } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
 import { ADMIN_MENU } from "../../constants";
 import type { AdminMenuItem } from "../../constants";
-import { login as apiLogin } from "../../api/auth";
+import { login as apiLogin, me as apiMe } from "../../api/auth";
 import { ApiError, ValidationError } from "../../api/client";
 import { ButtonSpinner } from "../ui/LoadingStates";
 import { useIdleTimeout } from "../../hooks/useIdleTimeout";
@@ -34,9 +34,15 @@ export function AdminShell({
   children: ReactNode;
 }) {
   const [isMobileNavOpen, setMobileNavOpen] = useState(false);
+  const refreshServerSession = useCallback(async () => {
+    const user = await apiMe();
+    if (!user) throw new Error("Sesi admin sudah berakhir.");
+  }, []);
   const { showWarning, remainingSeconds, extendSession } = useIdleTimeout({
-    timeoutMinutes: 55,
+    timeoutMinutes: 120,
     warningSeconds: 120,
+    keepAliveMinutes: 10,
+    onKeepAlive: refreshServerSession,
     onLogout,
     enabled: true,
   });

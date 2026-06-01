@@ -9,11 +9,15 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
+use Symfony\Component\HttpFoundation\Cookie;
 
 class TwoFactorService
 {
+    public const TRUSTED_DEVICE_COOKIE = 'istura_trusted_device';
+
     private Google2FA $engine;
 
     public function __construct()
@@ -59,15 +63,52 @@ class TwoFactorService
             ->all();
     }
 
+    public function hashRecoveryCodes(array $codes): array
+    {
+        return array_map(fn (string $code) => Hash::make($this->normalizeRecoveryCode($code)), $codes);
+    }
+
+    public function useRecoveryCode(User $user, string $code): bool
+    {
+        if (! $user->two_factor_recovery_codes) {
+            return false;
+        }
+
+        $codes = json_decode(decrypt($user->two_factor_recovery_codes), true);
+        if (! is_array($codes)) {
+            return false;
+        }
+
+        $normalizedCode = $this->normalizeRecoveryCode($code);
+
+        foreach ($codes as $index => $storedCode) {
+            if (! is_string($storedCode) || ! $this->recoveryCodeMatches($normalizedCode, $storedCode)) {
+                continue;
+            }
+
+            unset($codes[$index]);
+            $user->forceFill([
+                'two_factor_recovery_codes' => encrypt(json_encode($this->rehashPlainRecoveryCodes(array_values($codes)))),
+            ])->save();
+
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Check if a device is trusted for the user.
      */
     public function isDeviceTrusted(User $user, Request $request): bool
     {
-        $deviceHash = $this->getDeviceHash($request);
+        $token = $request->cookie(self::TRUSTED_DEVICE_COOKIE);
+        if (! is_string($token) || ! $this->isValidTrustedDeviceToken($token)) {
+            return false;
+        }
 
         return TrustedDevice::where('user_id', $user->id)
-            ->where('device_hash', $deviceHash)
+            ->where('device_hash', $this->hashTrustedDeviceToken($token))
             ->where('trusted_until', '>', now())
             ->exists();
     }
@@ -75,9 +116,10 @@ class TwoFactorService
     /**
      * Trust the current device for N days.
      */
-    public function trustDevice(User $user, Request $request, int $days = 30): void
+    public function trustDevice(User $user, Request $request, int $days = 30): Cookie
     {
-        $deviceHash = $this->getDeviceHash($request);
+        $token = Str::random(64);
+        $deviceHash = $this->hashTrustedDeviceToken($token);
         $deviceName = $this->getDeviceName($request);
 
         TrustedDevice::updateOrCreate(
@@ -89,6 +131,18 @@ class TwoFactorService
         TrustedDevice::where('user_id', $user->id)
             ->where('trusted_until', '<', now())
             ->delete();
+
+        return cookie(
+            self::TRUSTED_DEVICE_COOKIE,
+            $token,
+            $days * 24 * 60,
+            '/',
+            config('session.domain'),
+            config('session.secure'),
+            true,
+            false,
+            config('session.same_site', 'lax'),
+        );
     }
 
     /**
@@ -99,17 +153,48 @@ class TwoFactorService
         TrustedDevice::where('user_id', $user->id)->delete();
     }
 
-    /**
-     * Generate a unique hash for the current device/browser.
-     */
-    private function getDeviceHash(Request $request): string
+    public function forgetTrustedDeviceCookie(): Cookie
     {
-        $fingerprint = implode('|', [
-            $request->ip(),
-            $request->userAgent(),
-        ]);
+        return cookie()->forget(self::TRUSTED_DEVICE_COOKIE, '/', config('session.domain'));
+    }
 
-        return hash('sha256', $fingerprint);
+    public function hashTrustedDeviceToken(string $token): string
+    {
+        return hash('sha256', $token);
+    }
+
+    private function isValidTrustedDeviceToken(string $token): bool
+    {
+        return strlen($token) >= 64 && preg_match('/^[A-Za-z0-9]+$/', $token) === 1;
+    }
+
+    private function normalizeRecoveryCode(string $code): string
+    {
+        return Str::upper(trim($code));
+    }
+
+    private function recoveryCodeMatches(string $code, string $storedCode): bool
+    {
+        if (str_starts_with($storedCode, '$2y$') || str_starts_with($storedCode, '$argon2')) {
+            return Hash::check($code, $storedCode);
+        }
+
+        return hash_equals($this->normalizeRecoveryCode($storedCode), $code);
+    }
+
+    private function rehashPlainRecoveryCodes(array $codes): array
+    {
+        return array_values(array_filter(array_map(function (mixed $storedCode): ?string {
+            if (! is_string($storedCode)) {
+                return null;
+            }
+
+            if (str_starts_with($storedCode, '$2y$') || str_starts_with($storedCode, '$argon2')) {
+                return $storedCode;
+            }
+
+            return Hash::make($this->normalizeRecoveryCode($storedCode));
+        }, $codes)));
     }
 
     /**

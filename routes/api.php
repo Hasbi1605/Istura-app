@@ -48,11 +48,13 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('two-factor/status', [TwoFactorController::class, 'status']);
-        Route::post('two-factor/setup', [TwoFactorController::class, 'setup']);
-        Route::post('two-factor/confirm', [TwoFactorController::class, 'confirm']);
-        Route::post('two-factor/verify', [TwoFactorController::class, 'verify']);
-        Route::post('two-factor/disable', [TwoFactorController::class, 'disable']);
-        Route::post('two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes']);
+        Route::middleware('throttle:two-factor')->group(function () {
+            Route::post('two-factor/setup', [TwoFactorController::class, 'setup']);
+            Route::post('two-factor/confirm', [TwoFactorController::class, 'confirm']);
+            Route::post('two-factor/verify', [TwoFactorController::class, 'verify']);
+            Route::post('two-factor/disable', [TwoFactorController::class, 'disable']);
+            Route::post('two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes']);
+        });
         Route::get('two-factor/challenge', [TwoFactorController::class, 'challenge']);
     });
 });
@@ -60,7 +62,7 @@ Route::prefix('auth')->group(function () {
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
-Route::middleware(['auth:sanctum', 'two-factor', 'admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'admin-session', 'two-factor', 'admin'])->prefix('admin')->group(function () {
     Route::get('dashboard', DashboardController::class);
 
     Route::get('bookings', [AdminBookingController::class, 'index']);

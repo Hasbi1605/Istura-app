@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureAdminSessionFresh;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use Illuminate\Foundation\Application;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         $middleware->alias([
             'admin' => EnsureAdmin::class,
+            'admin-session' => EnsureAdminSessionFresh::class,
             'super-admin' => EnsureSuperAdmin::class,
             'two-factor' => EnsureTwoFactorVerified::class,
         ]);

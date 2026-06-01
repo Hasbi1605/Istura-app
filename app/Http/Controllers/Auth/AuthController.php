@@ -53,6 +53,7 @@ class AuthController extends Controller
 
         if ($request->hasSession()) {
             $request->session()->regenerate();
+            $request->session()->put('admin_session_started_at', now()->timestamp);
         }
 
         $user->forceFill(['last_login_at' => now()])->save();
@@ -75,6 +76,12 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        if ($user && $this->adminSessionExpired($request)) {
+            $this->logoutCurrentSession($request);
+
+            return response()->json(['user' => null]);
+        }
+
         if ($user && ! $user->isActive()) {
             $this->logoutCurrentSession($request);
 
@@ -94,6 +101,24 @@ class AuthController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
+    }
+
+    private function adminSessionExpired(Request $request): bool
+    {
+        if (! $request->hasSession()) {
+            return false;
+        }
+
+        $startedAt = (int) $request->session()->get('admin_session_started_at', 0);
+        if ($startedAt <= 0) {
+            $request->session()->put('admin_session_started_at', now()->timestamp);
+
+            return false;
+        }
+
+        $absoluteLifetime = max(1, (int) config('session.admin_absolute_lifetime', 720));
+
+        return (now()->timestamp - $startedAt) > $absoluteLifetime * 60;
     }
 
     /**

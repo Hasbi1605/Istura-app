@@ -28,7 +28,7 @@ class TwoFactorController extends Controller
 
         $secret = $this->twoFactor->generateSecret();
 
-        // Store unconfirmed secret (encrypted via model cast)
+        // Store unconfirmed secret until the user proves the authenticator works.
         $user->forceFill(['two_factor_secret' => encrypt($secret)])->save();
 
         $qrUri = $this->twoFactor->getQrCodeUri($user, $secret);
@@ -70,7 +70,7 @@ class TwoFactorController extends Controller
         $recoveryCodes = $this->twoFactor->generateRecoveryCodes();
 
         $user->forceFill([
-            'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
+            'two_factor_recovery_codes' => encrypt(json_encode($this->twoFactor->hashRecoveryCodes($recoveryCodes))),
             'two_factor_confirmed_at' => now(),
         ])->save();
 
@@ -109,7 +109,7 @@ class TwoFactorController extends Controller
 
         // Try recovery code if TOTP fails
         if (! $valid) {
-            $valid = $this->useRecoveryCode($user, $code);
+            $valid = $this->twoFactor->useRecoveryCode($user, $code);
         }
 
         if (! $valid) {
@@ -123,12 +123,16 @@ class TwoFactorController extends Controller
             $request->session()->put('two_factor_verified', true);
         }
 
+        $trustedCookie = null;
+
         // Trust device if requested
         if ($request->boolean('trust_device')) {
-            $this->twoFactor->trustDevice($user, $request, 30);
+            $trustedCookie = $this->twoFactor->trustDevice($user, $request, 30);
         }
 
-        return response()->json(['ok' => true]);
+        $response = response()->json(['ok' => true]);
+
+        return $trustedCookie ? $response->withCookie($trustedCookie) : $response;
     }
 
     /**
@@ -155,13 +159,14 @@ class TwoFactorController extends Controller
         ])->save();
 
         $this->twoFactor->revokeAllDevices($user);
+        $forgetTrustedDeviceCookie = $this->twoFactor->forgetTrustedDeviceCookie();
 
         // Clear 2FA session flag
         $request->session()->forget('two_factor_verified');
 
         AuditLogger::record($user, 'Menonaktifkan Two-Factor Authentication', User::class, $user->id);
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true])->withCookie($forgetTrustedDeviceCookie);
     }
 
     /**
@@ -200,7 +205,7 @@ class TwoFactorController extends Controller
 
         $recoveryCodes = $this->twoFactor->generateRecoveryCodes();
         $user->forceFill([
-            'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
+            'two_factor_recovery_codes' => encrypt(json_encode($this->twoFactor->hashRecoveryCodes($recoveryCodes))),
         ])->save();
 
         AuditLogger::record($user, 'Memperbarui recovery codes 2FA', User::class, $user->id);
@@ -226,28 +231,5 @@ class TwoFactorController extends Controller
             && ! $this->twoFactor->isDeviceTrusted($user, $request);
 
         return response()->json(['requires_2fa' => $requires2fa]);
-    }
-
-    private function useRecoveryCode(User $user, string $code): bool
-    {
-        if (! $user->two_factor_recovery_codes) {
-            return false;
-        }
-
-        $codes = json_decode(decrypt($user->two_factor_recovery_codes), true);
-        $normalizedCode = strtoupper(trim($code));
-
-        $index = array_search($normalizedCode, $codes, true);
-        if ($index === false) {
-            return false;
-        }
-
-        // Remove used recovery code
-        unset($codes[$index]);
-        $user->forceFill([
-            'two_factor_recovery_codes' => encrypt(json_encode(array_values($codes))),
-        ])->save();
-
-        return true;
     }
 }
