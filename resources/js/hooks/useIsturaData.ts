@@ -512,6 +512,45 @@ export function useIsturaData(): IsturaData {
     };
   }, [adminSession, loading.public]);
 
+  // Fallback agar public tetap auto-sync saat WebSocket/Reverb belum tersambung
+  // atau service realtime production sedang restart.
+  useEffect(() => {
+    if (adminSession || loading.public) return;
+
+    let active = true;
+    let inFlight = false;
+
+    const refreshPublicSchedule = () => {
+      if (inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      fetchPublicSchedule()
+        .then((days) => {
+          if (!active) return;
+          setSchedules(days.map(apiVisitDayToLocal));
+        })
+        .catch(() => {})
+        .finally(() => {
+          inFlight = false;
+        });
+    };
+
+    const intervalId = window.setInterval(refreshPublicSchedule, 10_000);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshPublicSchedule();
+    };
+    const handleFocus = () => refreshPublicSchedule();
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [adminSession, loading.public]);
+
   // Realtime: subscribe ke channel admin.bookings ketika admin login.
   useEffect(() => {
     if (!adminSession) return;
