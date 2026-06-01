@@ -49,6 +49,13 @@ import { INITIAL_FOOTER_CONTACTS, wizardSteps } from "../../constants";
 import { submitPublicBooking } from "../../api/bookings";
 import type { ApiBooking } from "../../api/bookings";
 import { ValidationError } from "../../api/client";
+import {
+  clearBookingDraft,
+  hasBookingDraftContent,
+  readBookingDraft,
+  writeBookingDraft,
+  type BookingDraft,
+} from "../../lib/bookingDraft";
 import { buildWhatsappTextUrl, normalizeWhatsapp } from "../../lib/whatsapp";
 import { MikyGuide } from "../MikyGuide";
 import { WhatsAppIcon } from "../icons/SocialIcons";
@@ -178,8 +185,17 @@ export function BookingWizard({
   onNavigate: (screen: Screen) => void;
 }) {
   const documentInputId = useId();
-  const [step, setStep] = useState(0);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const restoredDraftRef = useRef<BookingDraft | null | undefined>(undefined);
+  if (restoredDraftRef.current === undefined) {
+    restoredDraftRef.current = readBookingDraft();
+  }
+  const restoredDraft = restoredDraftRef.current;
+  const [step, setStep] = useState(() => restoredDraft?.step ?? 0);
+  const [errors, setErrors] = useState<Record<string, string>>((): Record<string, string> => {
+    if (!restoredDraft?.needsDocumentUpload) return {};
+
+    return { documentName: "Surat permohonan perlu diunggah ulang setelah halaman dimuat ulang." };
+  });
   const [successCode, setSuccessCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [stepTransitioning, setStepTransitioning] = useState(false);
@@ -191,17 +207,19 @@ export function BookingWizard({
   const minBookingDate = addDays(today, 1);
   const minBookingDateKey = formatDateKey(minBookingDate);
   const initialDate = firstAvailableScheduleDate(schedules, minBookingDateKey);
-  const [form, setForm] = useState<BookingForm>({
-    contactName: "",
-    nik: "",
-    whatsapp: "",
-    institution: "",
-    groupSize: "",
-    date: initialDate,
-    time: "",
-    documentName: "",
-    agreement: false,
-  });
+  const [form, setForm] = useState<BookingForm>(() =>
+    restoredDraft?.form ?? {
+      contactName: "",
+      nik: "",
+      whatsapp: "",
+      institution: "",
+      groupSize: "",
+      date: initialDate,
+      time: "",
+      documentName: "",
+      agreement: false,
+    },
+  );
 
   useEffect(() => {
     if (!initialDate) return;
@@ -211,6 +229,23 @@ export function BookingWizard({
   useEffect(() => {
     void Promise.all(wizardSteps.map((item) => preloadImage(item.image)));
   }, []);
+
+  useEffect(() => {
+    if (step >= 7) return;
+    writeBookingDraft(step, form);
+  }, [form, step]);
+
+  useEffect(() => {
+    if (step >= 7 || !hasBookingDraftContent(form, step)) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [form, step]);
 
   const selectedDay = schedules.find((day) => day.date === form.date) ?? schedules[0];
   const selectedSlot = selectedDay?.slots.find((slot) => slot.time === form.time);
@@ -339,6 +374,8 @@ export function BookingWizard({
           ),
         );
         onBookingCreate(localBooking);
+        clearBookingDraft();
+        documentFileRef.current = null;
         setSuccessCode(localBooking.code);
         setStep(7);
         setErrors({});

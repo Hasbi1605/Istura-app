@@ -17,6 +17,7 @@ import type {
   WaTemplate,
 } from "../domain/types";
 import { DEFAULT_SITE_CONTENT, INITIAL_FAQ_ITEMS, INITIAL_FOOTER_CONTACTS, INITIAL_WA_TEMPLATES, letterChecklist, storyWords } from "../constants";
+import { hasFreshBookingDraft } from "../lib/bookingDraft";
 import { clearAdminSession, readAdminSession, readCmsCollection, writeCmsCollection } from "../lib/legacyShims";
 import { ASSETS } from "../lib/assets";
 import { setActiveWaTemplates } from "../lib/whatsapp";
@@ -145,7 +146,14 @@ const mergeScheduleDays = (current: VisitDay[], incoming: VisitDay[]) => {
 // realtime, dan routing awal dari URL) dikemas di sini supaya App.tsx tetap
 // jadi shell tipis. Perilaku tidak berubah dari versi inline sebelumnya.
 export function useIsturaData(): IsturaData {
-  const [screen, setScreen] = useState<Screen>("home");
+  const [screen, setScreen] = useState<Screen>(() => {
+    if (typeof window !== "undefined") {
+      if (window.location.pathname.startsWith("/admin")) return "admin";
+      if (window.location.pathname.match(/^\/feedback\/([^/]+)\/?$/)) return "feedback";
+    }
+
+    return hasFreshBookingDraft() ? "booking" : "home";
+  });
   const [schedules, setSchedules] = useState<VisitDay[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
 	const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
