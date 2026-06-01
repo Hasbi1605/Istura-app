@@ -125,6 +125,19 @@ export function WeeklyPosterModal({
     setZoom(fitZoom);
   };
 
+  // Zoom dengan Ctrl/Cmd + scroll, pola yang familiar dari editor/peta.
+  // Tanpa modifier, scroll tetap menggulung preview seperti biasa.
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
+    setAutoFit(false);
+    const delta = event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+    setZoom((prev) => {
+      const base = autoFit ? fitZoom : prev;
+      return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number((base + delta).toFixed(2))));
+    });
+  };
+
   // Textarea agenda auto-tinggi supaya teks multi-baris tidak terpotong, baik
   // di preview maupun di PNG hasil ekspor.
   const autoResize = (el: HTMLTextAreaElement | null) => {
@@ -320,43 +333,8 @@ export function WeeklyPosterModal({
           </span>
         </div>
 
-        {rowCount > 0 && (
-          <div className="poster-zoom-bar">
-            <button
-              type="button"
-              className="poster-zoom-btn"
-              onClick={zoomOut}
-              disabled={busy || effectiveZoom <= ZOOM_MIN}
-              aria-label="Perkecil"
-              title="Perkecil"
-            >
-              <Minus size={14} aria-hidden="true" />
-            </button>
-            <span className="poster-zoom-value">{Math.round(effectiveZoom * 100)}%</span>
-            <button
-              type="button"
-              className="poster-zoom-btn"
-              onClick={zoomIn}
-              disabled={busy || effectiveZoom >= ZOOM_MAX}
-              aria-label="Perbesar"
-              title="Perbesar"
-            >
-              <Plus size={14} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className={`poster-zoom-fit${autoFit ? " is-active" : ""}`}
-              onClick={zoomFit}
-              disabled={busy}
-              title="Sesuaikan ke lebar"
-            >
-              <Maximize2 size={13} aria-hidden="true" />
-              Sesuaikan
-            </button>
-          </div>
-        )}
-
-        <div className="poster-preview-scroll" ref={stageRef}>
+        <div className="poster-preview-wrap">
+        <div className="poster-preview-scroll" ref={stageRef} onWheel={handleWheel}>
           {model && rowCount > 0 ? (
             <div
               className="poster-scaler"
@@ -497,6 +475,44 @@ export function WeeklyPosterModal({
               </small>
             </div>
           )}
+        </div>
+
+        {rowCount > 0 && (
+          <div className="poster-zoom-dock" role="group" aria-label="Kontrol zoom">
+            <button
+              type="button"
+              className="poster-zoom-btn"
+              onClick={zoomOut}
+              disabled={busy || effectiveZoom <= ZOOM_MIN}
+              aria-label="Perkecil"
+              title="Perkecil (Ctrl/Cmd + scroll)"
+            >
+              <Minus size={16} aria-hidden="true" />
+            </button>
+            <span className="poster-zoom-value">{Math.round(effectiveZoom * 100)}%</span>
+            <button
+              type="button"
+              className="poster-zoom-btn"
+              onClick={zoomIn}
+              disabled={busy || effectiveZoom >= ZOOM_MAX}
+              aria-label="Perbesar"
+              title="Perbesar (Ctrl/Cmd + scroll)"
+            >
+              <Plus size={16} aria-hidden="true" />
+            </button>
+            <span className="poster-zoom-sep" aria-hidden="true" />
+            <button
+              type="button"
+              className={`poster-zoom-fit${autoFit ? " is-active" : ""}`}
+              onClick={zoomFit}
+              disabled={busy}
+              title="Sesuaikan ke lebar"
+            >
+              <Maximize2 size={14} aria-hidden="true" />
+              Sesuaikan
+            </button>
+          </div>
+        )}
         </div>
 
         {error && (

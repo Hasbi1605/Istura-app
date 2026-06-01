@@ -10488,24 +10488,45 @@ a {
   font-weight: 700;
 }
 
-/* Zoom controls untuk preview poster. */
-.poster-zoom-bar {
+/* Zoom controls: floating dock di bawah-tengah area preview. Mengambang di
+   atas poster (tidak makan ruang header) dan tetap terlihat saat scroll. */
+.poster-preview-wrap {
+  position: relative;
+}
+
+.poster-zoom-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(20, 24, 38, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(16, 24, 47, 0.28);
+  backdrop-filter: blur(4px);
+}
+
+.poster-zoom-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .poster-zoom-btn {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  color: var(--navy);
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.12);
-  border-radius: 7px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid transparent;
+  border-radius: 50%;
   cursor: pointer;
   transition: background 0.18s ease;
 }
@@ -10513,19 +10534,19 @@ a {
 .poster-zoom-btn:hover:not(:disabled),
 .poster-zoom-btn:focus-visible:not(:disabled) {
   outline: none;
-  background: rgba(16, 24, 47, 0.09);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .poster-zoom-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .poster-zoom-value {
-  min-width: 46px;
+  min-width: 50px;
   text-align: center;
-  color: var(--navy);
-  font-size: 0.8rem;
+  color: #fff;
+  font-size: 0.82rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -10533,34 +10554,38 @@ a {
 .poster-zoom-fit {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  color: rgba(16, 24, 47, 0.7);
-  background: transparent;
-  border: 1px solid rgba(16, 24, 47, 0.12);
-  border-radius: 7px;
-  font-size: 0.76rem;
+  gap: 6px;
+  padding: 7px 14px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
 .poster-zoom-fit:hover:not(:disabled),
 .poster-zoom-fit:focus-visible:not(:disabled) {
   outline: none;
-  color: var(--navy);
-  background: rgba(16, 24, 47, 0.05);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .poster-zoom-fit.is-active {
-  color: var(--navy);
-  background: rgba(255, 244, 209, 0.7);
-  border-color: rgba(196, 146, 18, 0.5);
+  color: #2b2b2b;
+  background: var(--gold-2);
+  border-color: var(--gold);
+}
+
+.poster-zoom-fit.is-active:hover:not(:disabled),
+.poster-zoom-fit.is-active:focus-visible:not(:disabled) {
+  background: var(--gold);
 }
 
 .poster-preview-scroll {
   margin-top: 14px;
-  padding: 16px;
+  padding: 16px 16px 64px;
   overflow: auto;
   max-height: 60vh;
   background: rgba(16, 24, 47, 0.06);
