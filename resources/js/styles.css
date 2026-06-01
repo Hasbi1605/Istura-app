@@ -7535,6 +7535,54 @@ a {
   white-space: nowrap;
 }
 
+.admin-audit-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(16, 24, 47, 0.08);
+}
+
+.admin-audit-filter-field {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-audit-filter-field span {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: rgba(16, 24, 47, 0.6);
+}
+
+.admin-audit-filter-field input {
+  padding: 8px 10px;
+  border: 1px solid rgba(16, 24, 47, 0.16);
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: var(--navy);
+  background: var(--white);
+}
+
+.admin-audit-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid rgba(16, 24, 47, 0.16);
+  border-radius: 8px;
+  background: var(--white);
+  color: rgba(16, 24, 47, 0.7);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.admin-audit-filter-clear:hover {
+  background: rgba(16, 24, 47, 0.06);
+  color: var(--navy);
+}
+
 .admin-audit-footer {
   display: flex;
   align-items: center;

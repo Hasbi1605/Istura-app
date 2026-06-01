@@ -82,6 +82,11 @@ export function useHomeHeroAnimation(
             duration: 0.64,
             delay: 0.9,
             ease: "back.out(1.55)",
+            // Tandai saat fade-in benar-benar mulai (setelah delay) supaya
+            // typewriter ikut start di sini, bukan saat opacity natural pra-GSAP.
+            onStart: () => {
+              document.querySelector(".miky-speech")?.setAttribute("data-speech-revealed", "1");
+            },
           });
           gsap.from(".miky-wave-line", {
             scale: 0.2,
@@ -162,6 +167,9 @@ export function useHomeHeroAnimation(
                 scale: 1,
                 duration: 0.18,
                 ease: "power2.out",
+                onStart: () => {
+                  document.querySelector(".miky-speech")?.setAttribute("data-speech-revealed", "1");
+                },
               },
               "<0.06",
             )

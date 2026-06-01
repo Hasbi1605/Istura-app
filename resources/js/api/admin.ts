@@ -65,10 +65,14 @@ export type ApiAuditLogPage = {
   };
 };
 
-export const fetchAdminAuditLogs = (params: { page?: number; perPage?: number } = {}) => {
+export const fetchAdminAuditLogs = (
+  params: { page?: number; perPage?: number; from?: string; to?: string } = {},
+) => {
   const search = new URLSearchParams();
   search.set("page", String(params.page ?? 1));
   search.set("perPage", String(params.perPage ?? 20));
+  if (params.from) search.set("from", params.from);
+  if (params.to) search.set("to", params.to);
   return api<ApiAuditLogPage>(`/api/admin/audit-logs?${search.toString()}`);
 };
 

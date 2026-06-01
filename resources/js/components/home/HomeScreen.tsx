@@ -667,9 +667,12 @@ function HeroMikySpeech({
   const message = messages[safeIndex].text;
   const bubbleRef = useRef<HTMLDivElement | null>(null);
 
-  // Pesan pertama: tunggu sampai bubble benar-benar mulai fade-in (apapun
-  // pemicunya — GSAP intro di desktop atau scroll-trigger di mobile) supaya
-  // teks dan bubble muncul bersamaan, sesnap pose ke-2 dan seterusnya.
+  // Pesan pertama: tunggu sampai GSAP benar-benar memulai fade-in bubble
+  // (sinyal `data-speech-revealed`) supaya teks dan bubble muncul bersamaan.
+  // Memeriksa computed opacity tidak reliable: layer animasi di-lazy-load,
+  // jadi sebelum GSAP sempat jalan bubble masih pada opacity natural (1) dan
+  // typewriter terlanjur selesai sebelum bubble terlihat. Sinyal eksplisit ini
+  // selalu terpicu setelah delay, kapan pun layer GSAP selesai dimuat.
   // Pesan berikutnya: bubble sudah on-screen, langsung ketik.
   const [ready, setReady] = useState(index !== 0 || reduced);
   useEffect(() => {
@@ -679,21 +682,26 @@ function HeroMikySpeech({
     }
     setReady(false);
     let rafId = 0;
+    // Fallback: kalau layer GSAP gagal dimuat, jangan biarkan teks tidak pernah
+    // muncul — tetap mulai ketik setelah jeda aman.
+    const fallbackId = window.setTimeout(() => {
+      window.cancelAnimationFrame(rafId);
+      setReady(true);
+    }, 2000);
     const tick = () => {
       const node = bubbleRef.current;
-      if (!node) {
-        rafId = window.requestAnimationFrame(tick);
-        return;
-      }
-      const opacity = parseFloat(window.getComputedStyle(node).opacity || "0");
-      if (opacity > 0.05) {
+      if (node?.getAttribute("data-speech-revealed") === "1") {
+        window.clearTimeout(fallbackId);
         setReady(true);
         return;
       }
       rafId = window.requestAnimationFrame(tick);
     };
     rafId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(rafId);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(fallbackId);
+    };
   }, [index, reduced]);
 
   const typed = useTypewriter(message, 22, !reduced, ready);

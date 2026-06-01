@@ -341,13 +341,18 @@ export function AdminAuditLog() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const rangeInvalid = Boolean(from) && Boolean(to) && from > to;
+
   useEffect(() => {
+    if (rangeInvalid) return;
     let cancelled = false;
     setLoading(true);
-    fetchAdminAuditLogs({ page, perPage: 20 })
+    fetchAdminAuditLogs({ page, perPage: 20, from: from || undefined, to: to || undefined })
       .then((response) => {
         if (cancelled) return;
         setLogs(response.data);
@@ -364,13 +369,30 @@ export function AdminAuditLog() {
     return () => {
       cancelled = true;
     };
-  }, [page]);
+  }, [page, from, to, rangeInvalid]);
 
-  // Kalau lastPage menyusut (mis. retention menghapus log lama), jangan
-  // tinggalkan user di halaman yang sudah tidak ada.
+  // Kalau lastPage menyusut (mis. retention menghapus log lama, atau filter
+  // mempersempit hasil), jangan tinggalkan user di halaman yang sudah tidak ada.
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  // Filter tanggal mengubah jumlah hasil, jadi kembali ke halaman pertama.
+  const changeFrom = (value: string) => {
+    setFrom(value);
+    setPage(1);
+  };
+  const changeTo = (value: string) => {
+    setTo(value);
+    setPage(1);
+  };
+  const clearFilters = () => {
+    setFrom("");
+    setTo("");
+    setPage(1);
+  };
+
+  const hasFilters = Boolean(from) || Boolean(to);
 
   return (
     <div className="admin-cms-page">
@@ -383,12 +405,45 @@ export function AdminAuditLog() {
       </div>
 
       <section className="admin-card">
-        {error ? (
+        <div className="admin-audit-filters">
+          <label className="admin-audit-filter-field">
+            <span>Dari tanggal</span>
+            <input
+              type="date"
+              value={from}
+              max={to || undefined}
+              onChange={(event) => changeFrom(event.target.value)}
+            />
+          </label>
+          <label className="admin-audit-filter-field">
+            <span>Sampai tanggal</span>
+            <input
+              type="date"
+              value={to}
+              min={from || undefined}
+              onChange={(event) => changeTo(event.target.value)}
+            />
+          </label>
+          {hasFilters && (
+            <button type="button" className="admin-audit-filter-clear" onClick={clearFilters}>
+              <X size={14} aria-hidden="true" />
+              Reset filter
+            </button>
+          )}
+        </div>
+
+        {rangeInvalid ? (
+          <p className="admin-info-note">Tanggal &ldquo;Dari&rdquo; tidak boleh melewati tanggal &ldquo;Sampai&rdquo;.</p>
+        ) : error ? (
           <p className="admin-info-note">{error}</p>
 		) : loading ? (
 			<TableSkeleton rows={7} />
         ) : logs.length === 0 ? (
-          <p className="admin-info-note">Belum ada aktivitas tercatat.</p>
+          <p className="admin-info-note">
+            {hasFilters
+              ? "Tidak ada aktivitas pada rentang tanggal ini."
+              : "Belum ada aktivitas tercatat."}
+          </p>
         ) : (
           <>
             <ol className="admin-audit-list">
