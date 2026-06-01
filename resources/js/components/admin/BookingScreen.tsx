@@ -1962,6 +1962,7 @@ export function SegmentOverrideModal({
 }
 
 function ShortNoticeBadge({ booking }: { booking: Booking }) {
+  if (booking.status !== "Pending") return null;
   if (!isShortNoticeBooking(booking)) return null;
 
   return <span className="booking-short-notice">{bookingLeadTimeLabel(booking)}</span>;
