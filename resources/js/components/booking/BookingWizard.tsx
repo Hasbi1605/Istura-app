@@ -470,7 +470,6 @@ export function BookingWizard({
                     maxLength={GROUP_SIZE_INPUT_MAX_LENGTH}
                     value={form.groupSize}
                     error={errors.groupSize}
-                    helper={`Isi estimasi total peserta. Maksimal ${MAX_BOOKING_GROUP_SIZE} orang per hari.`}
                     onChange={(value) => setField("groupSize", normalizeGroupSizeInput(value))}
                   />
                 </div>
