@@ -288,9 +288,7 @@ export function WeeklyPosterModal({
           <div>
             <h2 id="poster-modal-title">Poster Agenda Mingguan</h2>
             <p className="poster-modal-sub">
-              Otomatis dari kunjungan disetujui. Bisa diedit, lalu unduh untuk
-              dibagikan ke grup WA. Tip: agar tetap HD, kirim di WhatsApp sebagai
-              <strong> Dokumen</strong>, bukan lewat Foto/Galeri.
+              Otomatis dari kunjungan disetujui. Bisa diedit sebelum diunduh.
             </p>
           </div>
           <button

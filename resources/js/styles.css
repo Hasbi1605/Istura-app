@@ -2847,6 +2847,94 @@ a {
   border-radius: 8px;
 }
 
+.upload-box {
+  align-content: center;
+  min-height: 292px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.upload-box--uploaded {
+  background: rgba(45, 118, 84, 0.08);
+  border-color: rgba(45, 118, 84, 0.46);
+  box-shadow: inset 0 0 0 1px rgba(45, 118, 84, 0.1);
+}
+
+.upload-box--error {
+  background: rgba(161, 61, 54, 0.08);
+  border-color: rgba(161, 61, 54, 0.46);
+}
+
+.upload-box-icon {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  color: var(--navy);
+  background: rgba(16, 24, 47, 0.05);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 999px;
+}
+
+.upload-box--uploaded .upload-box-icon {
+  color: var(--green);
+  background: rgba(45, 118, 84, 0.12);
+  border-color: rgba(45, 118, 84, 0.22);
+}
+
+.upload-box--error .upload-box-icon {
+  color: var(--red);
+  background: rgba(161, 61, 54, 0.1);
+  border-color: rgba(161, 61, 54, 0.18);
+}
+
+.upload-box-copy {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(100%, 560px);
+}
+
+.upload-box-copy strong {
+  color: var(--navy);
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.upload-box-copy p,
+.upload-box-copy small {
+  margin: 0;
+  color: var(--muted);
+}
+
+.upload-box-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 12px;
+  color: var(--green);
+  background: rgba(45, 118, 84, 0.12);
+  border: 1px solid rgba(45, 118, 84, 0.2);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.upload-box-copy .upload-file-name {
+  width: min(100%, 520px);
+  padding: 12px 16px;
+  color: var(--navy);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(45, 118, 84, 0.18);
+  border-radius: 8px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
 .upload-box input {
   position: absolute;
   width: 1px;

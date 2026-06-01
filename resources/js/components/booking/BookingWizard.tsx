@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  FileCheck2,
   UploadCloud,
 } from "lucide-react";
 import type {
@@ -422,6 +423,8 @@ export function BookingWizard({
   };
 
   const StepIcon = wizardSteps[step].icon;
+  const hasDocument = Boolean(form.documentName);
+  const UploadStateIcon = hasDocument ? FileCheck2 : UploadCloud;
 
   return (
     <section className="wizard-page">
@@ -538,12 +541,27 @@ export function BookingWizard({
             )}
 
             {step === 4 && (
-              <div className="upload-box">
-                <UploadCloud size={42} aria-hidden="true" />
-                <strong>{form.documentName || "Unggah surat permohonan"}</strong>
-                <p>PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.</p>
+              <div
+                className={`upload-box${hasDocument ? " upload-box--uploaded" : ""}${
+                  errors.documentName ? " upload-box--error" : ""
+                }`}
+                aria-live="polite"
+              >
+                <span className="upload-box-icon" aria-hidden="true">
+                  <UploadStateIcon size={42} />
+                </span>
+                <div className="upload-box-copy">
+                  {hasDocument && <span className="upload-box-status">File siap dikirim</span>}
+                  <strong>{hasDocument ? "Surat berhasil dipilih" : "Unggah surat permohonan"}</strong>
+                  {hasDocument ? (
+                    <p className="upload-file-name">{form.documentName}</p>
+                  ) : (
+                    <p>PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.</p>
+                  )}
+                  {hasDocument && <small>PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.</small>}
+                </div>
                 <label className="button button-secondary" htmlFor={documentInputId}>
-                  Pilih File
+                  {hasDocument ? "Ganti File" : "Pilih File"}
                   <input id={documentInputId} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFile} />
                 </label>
                 {errors.documentName && <small className="field-error">{errors.documentName}</small>}
