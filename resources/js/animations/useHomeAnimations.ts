@@ -144,9 +144,9 @@ export function useHomeHeroAnimation(
           const mikyScroll = gsap.timeline({
             scrollTrigger: {
               trigger: ".hero-visual",
-              start: "top 62%",
-              end: "bottom 28%",
-              scrub: 0.65,
+              start: "top 72%",
+              toggleActions: "play none none none",
+              once: true,
             },
           });
 
@@ -184,20 +184,30 @@ export function useHomeHeroAnimation(
               },
               "<0.04",
             )
-            .to(".miky-stage-greeting", {
-              autoAlpha: 1,
-              y: -8,
-              rotate: 0.35,
-              duration: 0.32,
-              ease: "none",
-            })
-            .to(".miky-stage-greeting", {
-              autoAlpha: 0,
-              y: -58,
-              rotate: 1.2,
-              scale: 0.97,
-              duration: 0.22,
-              ease: "power2.in",
+            .add(() => {
+              gsap.to(".miky-hero-stack", {
+                y: -5,
+                rotate: 0.25,
+                duration: 3.5,
+                repeat: -1,
+                yoyo: true,
+                ease: "sine.inOut",
+              });
+              gsap.to(".miky-speech", {
+                y: -3,
+                duration: 2.7,
+                repeat: -1,
+                yoyo: true,
+                ease: "sine.inOut",
+              });
+              gsap.to(".miky-wave-lines", {
+                x: 2,
+                rotate: 3,
+                duration: 1.55,
+                repeat: -1,
+                yoyo: true,
+                ease: "sine.inOut",
+              });
             });
         });
 

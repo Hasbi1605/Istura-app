@@ -22,7 +22,7 @@ class StoreBookingRequest extends FormRequest
             'contactName' => ['required', 'string', 'max:120', 'regex:/^[\p{L}][\p{L}\s.\'-]*$/u'],
             'nik' => ['required', 'string', 'regex:/^\d{16}$/'],
             'whatsapp' => ['required', 'string', 'max:32', 'regex:/^(08|628)\d{8,13}$/'],
-            'institution' => ['required', 'string', 'max:200'],
+            'institution' => ['required', 'string', 'max:200', 'regex:/^(?=.*[\p{L}\d])[\p{L}\d\s.,\'()\/&-]+$/u'],
             'groupSize' => ['required', 'integer', 'min:1', 'max:560'],
             'date' => [
                 'required',
@@ -41,6 +41,7 @@ class StoreBookingRequest extends FormRequest
         return [
             'nik.regex' => 'NIK harus 16 digit angka.',
             'contactName.regex' => 'Nama contact person hanya boleh berisi huruf, spasi, titik, apostrof, atau tanda hubung.',
+            'institution.regex' => 'Asal instansi hanya boleh berisi huruf, angka, spasi, titik, koma, apostrof, tanda hubung, garis miring, ampersand, atau kurung.',
             'whatsapp.regex' => 'Nomor WhatsApp harus aktif, contoh 08xxxxxxxxxx.',
             'agreement.accepted' => 'Persetujuan wajib dicentang.',
             'date.after_or_equal' => 'Tanggal kunjungan paling cepat besok.',

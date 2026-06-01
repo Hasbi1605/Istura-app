@@ -373,7 +373,6 @@ a {
   padding: 138px max(24px, calc((100vw - 1180px) / 2)) 52px;
   color: var(--white);
   background:
-    radial-gradient(circle at 77% 44%, rgba(229, 189, 85, 0.14), transparent 23rem),
     radial-gradient(circle at 76% 44%, rgba(16, 24, 47, 0.32), rgba(16, 24, 47, 0.88) 58%),
     linear-gradient(120deg, rgba(16, 24, 47, 0.94), rgba(16, 24, 47, 0.66)),
     url("/assets/hero-istana.webp") center/cover;
@@ -518,6 +517,26 @@ a {
   padding-top: 48px;
 }
 
+.hero-visual::before {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  z-index: 0;
+  width: min(660px, 96vw);
+  height: min(540px, 62vh);
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(229, 189, 85, 0.28) 0%,
+    rgba(229, 189, 85, 0.14) 34%,
+    transparent 72%
+  );
+  filter: blur(18px);
+  opacity: 0.9;
+  transform: translateX(-50%);
+}
+
 .zoom-media {
   transition: transform 700ms ease;
 }
@@ -529,6 +548,7 @@ a {
 
 .miky-stage {
   position: relative;
+  z-index: 1;
   width: min(500px, 100%);
   margin-top: clamp(20px, 6vh, 68px);
   transform-origin: 50% 82%;
@@ -2264,6 +2284,15 @@ a {
   }
   to {
     transform: rotate(10deg);
+  }
+}
+
+@keyframes miky-wave-mobile {
+  from {
+    transform: scale(0.56) rotate(-9deg);
+  }
+  to {
+    transform: scale(0.56) rotate(6deg);
   }
 }
 
@@ -8617,6 +8646,13 @@ a {
     padding-top: 0;
   }
 
+  .hero-visual::before {
+    bottom: 10%;
+    width: min(560px, 98vw);
+    height: 460px;
+    opacity: 0.76;
+  }
+
   .miky-stage {
     width: min(430px, 86vw);
   }
@@ -8787,6 +8823,10 @@ a {
     overflow: hidden;
   }
 
+  .ambient-one {
+    display: none;
+  }
+
   .hero-copy {
     max-width: min(100%, 32rem);
     margin: 0 auto;
@@ -8824,6 +8864,14 @@ a {
     margin-top: 82px;
   }
 
+  .hero-visual::before {
+    bottom: 7%;
+    width: min(430px, 104vw);
+    height: 420px;
+    opacity: 0.74;
+    transform: translateX(-50%) translateY(2%);
+  }
+
   .miky-stage {
     width: min(318px, 84vw);
   }
@@ -8846,8 +8894,8 @@ a {
     top: 7%;
     right: 4%;
     opacity: 0.64;
-    animation: none;
-    transform: scale(0.56) rotate(-8deg);
+    animation: miky-wave-mobile 1.9s ease-in-out infinite alternate;
+    transform: scale(0.56) rotate(-9deg);
   }
 
   .miky-speech {

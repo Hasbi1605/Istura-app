@@ -99,6 +99,8 @@ const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const GROUP_SIZE_INPUT_MAX_LENGTH = String(MAX_BOOKING_GROUP_SIZE).length;
 const PERSON_NAME_PATTERN = /^[\p{L}][\p{L}\s.'-]*$/u;
 const PERSON_NAME_DISALLOWED_PATTERN = /[^\p{L}\s.'-]/gu;
+const INSTITUTION_PATTERN = /^(?=.*[\p{L}\d])[\p{L}\d\s.,'()/&-]+$/u;
+const INSTITUTION_DISALLOWED_PATTERN = /[^\p{L}\d\s.,'()/&-]/gu;
 const imagePreloadCache = new Map<string, Promise<void>>();
 
 function preloadImage(src: string): Promise<void> {
@@ -285,6 +287,9 @@ export function BookingWizard({
 
     if (step === 2) {
       if (!form.institution.trim()) nextErrors.institution = "Asal instansi wajib diisi.";
+      else if (!INSTITUTION_PATTERN.test(form.institution.trim())) {
+        nextErrors.institution = "Asal instansi hanya boleh berisi huruf, angka, spasi, titik, koma, apostrof, tanda hubung, garis miring, ampersand, atau kurung.";
+      }
       const groupSize = Number(form.groupSize);
       if (!groupSize || groupSize < 1) {
         nextErrors.groupSize = "Jumlah rombongan harus lebih dari 0.";
@@ -508,7 +513,8 @@ export function BookingWizard({
                     label="Asal Instansi"
                     value={form.institution}
                     error={errors.institution}
-                    onChange={(value) => setField("institution", value)}
+                    maxLength={200}
+                    onChange={(value) => setField("institution", normalizeInstitutionInput(value))}
                   />
                   <FormField
                     label="Jumlah Rombongan"
@@ -698,6 +704,10 @@ function normalizeGroupSizeInput(value: string): string {
 
 function normalizePersonNameInput(value: string): string {
   return value.replace(PERSON_NAME_DISALLOWED_PATTERN, "").replace(/\s{2,}/g, " ");
+}
+
+function normalizeInstitutionInput(value: string): string {
+  return value.replace(INSTITUTION_DISALLOWED_PATTERN, "").replace(/\s{2,}/g, " ");
 }
 
 function validationErrorStep(errors: Record<string, string>): number | null {

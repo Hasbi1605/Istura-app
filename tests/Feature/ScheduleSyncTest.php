@@ -1195,6 +1195,30 @@ class ScheduleSyncTest extends TestCase
         }
     }
 
+    public function test_public_booking_validates_institution_without_rejecting_common_names(): void
+    {
+        Storage::fake('local');
+
+        foreach (['UKT %% ##', '###'] as $institution) {
+            $this->post('/api/public/bookings', $this->publicBookingPayload([
+                'date' => '2026-06-04',
+                'institution' => $institution,
+            ]), ['Accept' => 'application/json'])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('institution');
+        }
+
+        foreach (['SMK Negeri 1 Yogyakarta', 'PT. Maju Bersama', 'Universitas 17 Agustus 1945', 'CV Karya & Co.'] as $index => $institution) {
+            $this->post('/api/public/bookings', $this->publicBookingPayload([
+                'date' => '2026-06-04',
+                'time' => sprintf('%02d.00', 8 + $index),
+                'institution' => $institution,
+            ]), ['Accept' => 'application/json'])
+                ->assertCreated()
+                ->assertJsonPath('data.institution', $institution);
+        }
+    }
+
     public function test_public_booking_splits_large_group_into_consecutive_kloters(): void
     {
         Storage::fake('local');
