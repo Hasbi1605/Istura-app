@@ -557,7 +557,10 @@ a {
 
 .miky-hero-stack .miky-hero-img {
   position: absolute;
-  inset: 0;
+  /* Anchor ke bawah (garis kaki), bukan ke atas. Pose dengan rasio lebih
+     tinggi (mis. step-4 & hero-3) jadi sejajar kakinya dengan pose greeting
+     dan kelebihan tingginya naik ke area hero, bukan melimpah ke bawah. */
+  inset: auto 0 0;
   width: 100%;
   height: auto;
   opacity: 0;
@@ -7536,13 +7539,9 @@ a {
 }
 
 .admin-audit-filters {
-  display: flex;
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.08);
 }
 
 .admin-audit-filter-field {
@@ -8802,6 +8801,15 @@ a {
     padding-left: 16px;
   }
 
+  /* Rapatkan jarak vertikal antar section di mobile. Default 128px atas-bawah
+     terasa terlalu jauh di layar kecil; turunkan ke ~64px. Section dengan
+     override sendiri (schedule-showcase, quick-info, video) tetap berlaku
+     karena dideklarasikan setelah aturan ini. */
+  .chapter {
+    padding-top: 64px;
+    padding-bottom: 64px;
+  }
+
   .schedule-showcase {
     padding-top: 80px;
     padding-bottom: 72px;
@@ -8811,6 +8819,12 @@ a {
   .action-panel,
   .testimonial-shell {
     padding: 22px;
+  }
+
+  /* Default action-panel punya margin-bottom 100px yang menyisakan celah
+     besar sebelum footer di mobile. */
+  .action-panel {
+    margin-bottom: 56px;
   }
 
   .admin-shell-content {

@@ -402,10 +402,7 @@ export function AdminAuditLog() {
 				<p>Log perubahan yang dilakukan oleh tim admin.</p>
 				{loading && <InlineSpinner label="Memuat riwayat" />}
 			</div>
-      </div>
-
-      <section className="admin-card">
-        <div className="admin-audit-filters">
+        <div className="admin-heading-actions admin-audit-filters">
           <label className="admin-audit-filter-field">
             <span>Dari tanggal</span>
             <input
@@ -425,13 +422,20 @@ export function AdminAuditLog() {
             />
           </label>
           {hasFilters && (
-            <button type="button" className="admin-audit-filter-clear" onClick={clearFilters}>
+            <button
+              type="button"
+              className="admin-audit-filter-clear"
+              onClick={clearFilters}
+              aria-label="Reset filter tanggal"
+            >
               <X size={14} aria-hidden="true" />
-              Reset filter
+              Reset
             </button>
           )}
         </div>
+      </div>
 
+      <section className="admin-card">
         {rangeInvalid ? (
           <p className="admin-info-note">Tanggal &ldquo;Dari&rdquo; tidak boleh melewati tanggal &ldquo;Sampai&rdquo;.</p>
         ) : error ? (
