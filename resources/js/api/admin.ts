@@ -1,4 +1,4 @@
-import { api, fetchAllPages } from "./client";
+import { api } from "./client";
 
 export type ApiAdminUser = {
   id: number;
@@ -55,7 +55,21 @@ export const updateAdminUser = (id: number, input: Partial<AdminUserInput>) =>
 export const deleteAdminUser = (id: number) =>
   api<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" });
 
-export const fetchAdminAuditLogs = () =>
-  fetchAllPages<ApiAuditLog>("/api/admin/audit-logs");
+export type ApiAuditLogPage = {
+  data: ApiAuditLog[];
+  meta: {
+    currentPage: number;
+    perPage: number;
+    total: number;
+    lastPage: number;
+  };
+};
+
+export const fetchAdminAuditLogs = (params: { page?: number; perPage?: number } = {}) => {
+  const search = new URLSearchParams();
+  search.set("page", String(params.page ?? 1));
+  search.set("perPage", String(params.perPage ?? 20));
+  return api<ApiAuditLogPage>(`/api/admin/audit-logs?${search.toString()}`);
+};
 
 export const fetchAdminDashboard = () => api<ApiDashboard>("/api/admin/dashboard");

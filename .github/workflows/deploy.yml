@@ -171,12 +171,14 @@ jobs:
 
           install_supervisor_config deploy/supervisor/istura-queue.conf /etc/supervisor/conf.d/istura-queue.conf
           install_supervisor_config deploy/supervisor/istura-reverb.conf /etc/supervisor/conf.d/istura-reverb.conf
+          install_supervisor_config deploy/supervisor/istura-scheduler.conf /etc/supervisor/conf.d/istura-scheduler.conf
 
           run_supervisor reread
           run_supervisor update
           run_supervisor restart istura-queue || run_supervisor start istura-queue
           run_supervisor restart istura-reverb || run_supervisor start istura-reverb
-          run_supervisor status istura-queue istura-reverb
+          run_supervisor restart istura-scheduler || run_supervisor start istura-scheduler
+          run_supervisor status istura-queue istura-reverb istura-scheduler
 
           if ! run_supervisor status istura-queue | grep -q RUNNING; then
             echo "istura-queue is not RUNNING after deploy." >&2
@@ -185,6 +187,11 @@ jobs:
 
           if ! run_supervisor status istura-reverb | grep -q RUNNING; then
             echo "istura-reverb is not RUNNING after deploy." >&2
+            exit 1
+          fi
+
+          if ! run_supervisor status istura-scheduler | grep -q RUNNING; then
+            echo "istura-scheduler is not RUNNING after deploy." >&2
             exit 1
           fi
           REMOTE

@@ -12,6 +12,7 @@ import {
 } from "../../api/admin";
 import { ApiError, ValidationError } from "../../api/client";
 import { ButtonSpinner, InlineSpinner, TableSkeleton } from "../ui/LoadingStates";
+import { Pagination } from "../ui/Pagination";
 
 type UserRole = "super_admin" | "admin" | "viewer";
 
@@ -337,16 +338,21 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
 
 export function AdminAuditLog() {
   const [logs, setLogs] = useState<ApiAuditLog[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchAdminAuditLogs()
-      .then((data) => {
+    fetchAdminAuditLogs({ page, perPage: 20 })
+      .then((response) => {
         if (cancelled) return;
-        setLogs(data);
+        setLogs(response.data);
+        setTotalPages(Math.max(1, response.meta.lastPage));
+        setTotal(response.meta.total);
         setError(null);
       })
       .catch(() => {
@@ -358,7 +364,13 @@ export function AdminAuditLog() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page]);
+
+  // Kalau lastPage menyusut (mis. retention menghapus log lama), jangan
+  // tinggalkan user di halaman yang sudah tidak ada.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <div className="admin-cms-page">
@@ -378,18 +390,28 @@ export function AdminAuditLog() {
         ) : logs.length === 0 ? (
           <p className="admin-info-note">Belum ada aktivitas tercatat.</p>
         ) : (
-          <ol className="admin-audit-list">
-            {logs.map((entry) => (
-              <li key={entry.id}>
-                <span className="admin-audit-dot" aria-hidden="true" />
-                <div>
-                  <strong>{entry.actor ?? "Sistem"}</strong>
-                  <p>{entry.action}</p>
-                  <small>{entry.at ?? ""}</small>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <>
+            <ol className="admin-audit-list">
+              {logs.map((entry) => (
+                <li key={entry.id}>
+                  <span className="admin-audit-dot" aria-hidden="true" />
+                  <div>
+                    <strong>{entry.actor ?? "Sistem"}</strong>
+                    <p>{entry.action}</p>
+                    <small>{entry.at ?? ""}</small>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {totalPages > 1 && (
+              <div className="admin-audit-footer">
+                <span className="admin-audit-count">
+                  Halaman {page} dari {totalPages} · {total} aktivitas
+                </span>
+                <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>

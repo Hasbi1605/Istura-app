@@ -7535,6 +7535,22 @@ a {
   white-space: nowrap;
 }
 
+.admin-audit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(16, 24, 47, 0.08);
+}
+
+.admin-audit-count {
+  color: rgba(16, 24, 47, 0.55);
+  font-size: 0.78rem;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
