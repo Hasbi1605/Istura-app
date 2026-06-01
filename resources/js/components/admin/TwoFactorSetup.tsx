@@ -210,7 +210,7 @@ export function TwoFactorSetup({
                 checked={codesConfirmed}
                 onChange={(event) => setCodesConfirmed(event.target.checked)}
               />
-              <span>Saya sudah menyimpan recovery code di tempat aman.</span>
+              <span>Kode pemulihan sudah saya simpan di tempat aman.</span>
             </label>
 
             <button
@@ -220,7 +220,7 @@ export function TwoFactorSetup({
               disabled={!codesConfirmed}
               style={{ width: "100%" }}
             >
-              Saya sudah menyimpan, lanjut ke dashboard
+              Lanjut ke Dashboard
               <ArrowRight size={18} aria-hidden="true" />
             </button>
           </>

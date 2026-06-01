@@ -1181,6 +1181,20 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('whatsapp');
     }
 
+    public function test_public_booking_rejects_contact_name_with_digits_or_symbols(): void
+    {
+        Storage::fake('local');
+
+        foreach (['Rina Prasetya 123', 'Rina Prasetya ###'] as $contactName) {
+            $this->post('/api/public/bookings', $this->publicBookingPayload([
+                'date' => '2026-06-04',
+                'contactName' => $contactName,
+            ]), ['Accept' => 'application/json'])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('contactName');
+        }
+    }
+
     public function test_public_booking_splits_large_group_into_consecutive_kloters(): void
     {
         Storage::fake('local');

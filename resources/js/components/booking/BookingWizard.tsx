@@ -97,6 +97,8 @@ function apiBookingToLocal(b: ApiBooking): Booking {
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const GROUP_SIZE_INPUT_MAX_LENGTH = String(MAX_BOOKING_GROUP_SIZE).length;
+const PERSON_NAME_PATTERN = /^[\p{L}][\p{L}\s.'-]*$/u;
+const PERSON_NAME_DISALLOWED_PATTERN = /[^\p{L}\s.'-]/gu;
 const imagePreloadCache = new Map<string, Promise<void>>();
 
 function preloadImage(src: string): Promise<void> {
@@ -272,6 +274,9 @@ export function BookingWizard({
 
     if (step === 1) {
       if (!form.contactName.trim()) nextErrors.contactName = "Nama contact person wajib diisi.";
+      else if (!PERSON_NAME_PATTERN.test(form.contactName.trim())) {
+        nextErrors.contactName = "Nama contact person hanya boleh berisi huruf, spasi, titik, apostrof, atau tanda hubung.";
+      }
       if (!/^\d{16}$/.test(form.nik)) nextErrors.nik = "NIK harus 16 digit angka.";
       if (!/^(08|628)\d{8,13}$/.test(form.whatsapp)) {
         nextErrors.whatsapp = "Nomor WhatsApp harus aktif, contoh 08xxxxxxxxxx.";
@@ -475,7 +480,8 @@ export function BookingWizard({
                   label="Nama Lengkap CP"
                   value={form.contactName}
                   error={errors.contactName}
-                  onChange={(value) => setField("contactName", value)}
+                  maxLength={120}
+                  onChange={(value) => setField("contactName", normalizePersonNameInput(value))}
                 />
                 <FormField
                   label="NIK KTP"
@@ -688,6 +694,10 @@ function FormField({
 
 function normalizeGroupSizeInput(value: string): string {
   return value.replace(/\D/g, "").slice(0, GROUP_SIZE_INPUT_MAX_LENGTH);
+}
+
+function normalizePersonNameInput(value: string): string {
+  return value.replace(PERSON_NAME_DISALLOWED_PATTERN, "").replace(/\s{2,}/g, " ");
 }
 
 function validationErrorStep(errors: Record<string, string>): number | null {

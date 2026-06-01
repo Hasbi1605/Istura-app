@@ -19,7 +19,7 @@ class StoreBookingRequest extends FormRequest
         $earliestDate = $today->copy()->addDay()->toDateString();
 
         return [
-            'contactName' => ['required', 'string', 'max:120'],
+            'contactName' => ['required', 'string', 'max:120', 'regex:/^[\p{L}][\p{L}\s.\'-]*$/u'],
             'nik' => ['required', 'string', 'regex:/^\d{16}$/'],
             'whatsapp' => ['required', 'string', 'max:32', 'regex:/^(08|628)\d{8,13}$/'],
             'institution' => ['required', 'string', 'max:200'],
@@ -40,6 +40,7 @@ class StoreBookingRequest extends FormRequest
     {
         return [
             'nik.regex' => 'NIK harus 16 digit angka.',
+            'contactName.regex' => 'Nama contact person hanya boleh berisi huruf, spasi, titik, apostrof, atau tanda hubung.',
             'whatsapp.regex' => 'Nomor WhatsApp harus aktif, contoh 08xxxxxxxxxx.',
             'agreement.accepted' => 'Persetujuan wajib dicentang.',
             'date.after_or_equal' => 'Tanggal kunjungan paling cepat besok.',
