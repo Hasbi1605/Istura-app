@@ -1,4 +1,6 @@
 import { chromium } from "playwright";
+import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -17,12 +19,97 @@ if (!ADMIN_PASSWORD) {
   process.exit(1);
 }
 
-const ARTIFACT_DIR = path.resolve("output/e2e");
+const ARTIFACT_DIR = path.resolve(process.env.E2E_ARTIFACT_DIR ?? "output/e2e");
 fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
 
 const results = [];
 let assertions = 0;
 let clientCounter = 10;
+let bookingCounter = 10_000;
+const totpSecrets = new Map();
+
+function envSecretForEmail(email) {
+  if (email === "admin@istura.id") return process.env.E2E_ADMIN_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
+  if (email === "operator@istura.id") return process.env.E2E_OPERATOR_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
+  return process.env.E2E_VIEWER_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
+}
+
+function base32Decode(input) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const clean = input.toUpperCase().replace(/[^A-Z2-7]/g, "");
+  const bytes = [];
+  let bits = 0;
+  let value = 0;
+
+  for (const char of clean) {
+    const index = alphabet.indexOf(char);
+    if (index < 0) continue;
+    value = (value << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(bytes);
+}
+
+function currentTotp(secret, now = Date.now()) {
+  const counter = Math.floor(now / 1000 / 30);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+  counterBuffer.writeUInt32BE(counter >>> 0, 4);
+  const digest = crypto.createHmac("sha1", base32Decode(secret)).update(counterBuffer).digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const code = ((digest[offset] & 0x7f) << 24)
+    | ((digest[offset + 1] & 0xff) << 16)
+    | ((digest[offset + 2] & 0xff) << 8)
+    | (digest[offset + 3] & 0xff);
+  return String(code % 1_000_000).padStart(6, "0");
+}
+
+function artisanTinker(statement) {
+  const database = process.env.E2E_DB_DATABASE ?? process.env.DB_DATABASE;
+  if (!database) throw new Error("Set E2E_DB_DATABASE for isolated DB fixture operations.");
+
+  execFileSync("php", ["artisan", "tinker", "--execute", statement], {
+    cwd: process.cwd(),
+    stdio: "pipe",
+    env: {
+      ...process.env,
+      APP_ENV: process.env.APP_ENV ?? "local",
+      APP_URL: BASE_URL,
+      DB_CONNECTION: process.env.DB_CONNECTION ?? "sqlite",
+      DB_DATABASE: database,
+      CACHE_STORE: process.env.CACHE_STORE ?? "array",
+      QUEUE_CONNECTION: process.env.QUEUE_CONNECTION ?? "sync",
+      BROADCAST_CONNECTION: process.env.BROADCAST_CONNECTION ?? "null",
+      SESSION_DRIVER: process.env.SESSION_DRIVER ?? "file",
+    },
+  });
+}
+
+function makeBookingCompletable(code) {
+  const encoded = Buffer.from(code, "utf8").toString("base64");
+  artisanTinker(`
+    $code = base64_decode('${encoded}');
+    $booking = App\\Models\\Booking::with('slots')->where('code', $code)->firstOrFail();
+    $date = Carbon\\Carbon::today('Asia/Jakarta');
+    $label = app(App\\Services\\ScheduleService::class)->formatLongDate($date);
+    $booking->date = $date;
+    $booking->date_label = $label;
+    $booking->save();
+    foreach ($booking->slots as $slot) {
+      if ($slot->kind === App\\Models\\BookingSlot::KIND_ACTIVE) {
+        $slot->date = $date;
+        $slot->date_label = $label;
+        $slot->active_slot_key = App\\Models\\BookingSlot::slotKey($date, $slot->time);
+        $slot->save();
+      }
+    }
+  `);
+}
 
 class CookieJar {
   constructor() {
@@ -138,6 +225,36 @@ class ApiClient {
     expect(json.user?.email === email, `${this.name} login returned expected user`);
     return json.user;
   }
+
+  async ensureTwoFactor(email) {
+    const status = await this.json("/api/auth/two-factor/status");
+    let secret = totpSecrets.get(email) ?? envSecretForEmail(email);
+
+    if (!status.enabled) {
+      const setup = await this.json("/api/auth/two-factor/setup", { method: "POST" });
+      secret = setup.secret;
+      totpSecrets.set(email, secret);
+      const confirmed = await this.json("/api/auth/two-factor/confirm", {
+        method: "POST",
+        body: { code: currentTotp(secret) },
+      });
+      expect(Array.isArray(confirmed.recovery_codes), `${this.name} 2FA setup returns recovery codes`);
+      return;
+    }
+
+    if (!secret) {
+      throw new Error(`2FA already enabled for ${email}; set E2E_TOTP_SECRET or a role-specific TOTP secret env var.`);
+    }
+
+    totpSecrets.set(email, secret);
+    const challenge = await this.json("/api/auth/two-factor/challenge");
+    if (challenge.requires_2fa) {
+      await this.json("/api/auth/two-factor/verify", {
+        method: "POST",
+        body: { code: currentTotp(secret), trust_device: false },
+      });
+    }
+  }
 }
 
 function expect(condition, message) {
@@ -158,7 +275,11 @@ async function scenario(name, fn) {
 }
 
 function firstAvailable(days, skip = new Set()) {
+  const earliestBookingDate = new Date();
+  earliestBookingDate.setHours(0, 0, 0, 0);
+  earliestBookingDate.setDate(earliestBookingDate.getDate() + 1);
   for (const day of days) {
+    if (new Date(`${day.date}T00:00:00`) < earliestBookingDate) continue;
     for (const slot of day.slots) {
       const key = `${day.date}|${slot.time}`;
       if (slot.status === "Available" && !skip.has(key)) {
@@ -170,18 +291,37 @@ function firstAvailable(days, skip = new Set()) {
   throw new Error("Tidak ada slot Available di horizon jadwal.");
 }
 
+function firstAvailableRun(days, length, skip = new Set()) {
+  const earliestBookingDate = new Date();
+  earliestBookingDate.setHours(0, 0, 0, 0);
+  earliestBookingDate.setDate(earliestBookingDate.getDate() + 1);
+  for (const day of days) {
+    if (new Date(`${day.date}T00:00:00`) < earliestBookingDate) continue;
+    for (let index = 0; index <= day.slots.length - length; index += 1) {
+      const run = day.slots.slice(index, index + length);
+      if (run.every((slot) => slot.status === "Available" && !skip.has(`${day.date}|${slot.time}`))) {
+        for (const slot of run) skip.add(`${day.date}|${slot.time}`);
+        return { date: day.date, label: day.label, time: run[0].time, slots: run };
+      }
+    }
+  }
+  throw new Error(`Tidak ada ${length} slot Available berurutan di horizon jadwal.`);
+}
+
 async function nextAvailable(client, skip = new Set()) {
   const fresh = await client.json("/api/public/schedule");
   return firstAvailable(fresh.data, skip);
 }
 
-function publicBookingPayload(slot, suffix = Date.now()) {
+function publicBookingPayload(slot, suffix = Date.now(), overrides = {}) {
+  bookingCounter += 1;
+  const numericSuffix = String(bookingCounter).padStart(6, "0");
   const fd = new FormData();
   fd.append("contactName", `E2E User ${suffix}`);
-  fd.append("nik", String(3200000000000000 + (Number(String(suffix).slice(-4)) || 1)).padStart(16, "0").slice(0, 16));
-  fd.append("whatsapp", `08123456${String(suffix).slice(-6).padStart(6, "0")}`);
+  fd.append("nik", String(3200000000000000 + bookingCounter).padStart(16, "0").slice(0, 16));
+  fd.append("whatsapp", `08123456${numericSuffix}`);
   fd.append("institution", `Instansi E2E ${suffix}`);
-  fd.append("groupSize", "25");
+  fd.append("groupSize", String(overrides.groupSize ?? 25));
   fd.append("date", slot.date);
   fd.append("time", slot.time);
   fd.append("agreement", "1");
@@ -189,16 +329,23 @@ function publicBookingPayload(slot, suffix = Date.now()) {
   return fd;
 }
 
-async function createPublicBooking(client, slot, suffix) {
+async function createPublicBooking(client, slot, suffix, overrides = {}) {
   const json = await client.json("/api/public/bookings", {
     method: "POST",
-    formData: publicBookingPayload(slot, suffix),
+    formData: publicBookingPayload(slot, suffix, overrides),
   }, 201);
   expect(json.data?.code?.startsWith("ISTURA-"), "public booking returns ISTURA code");
   expect(json.data.date === slot.date, "public booking returns chosen date");
   expect(json.data.time === slot.time, "public booking returns chosen time");
   expect(json.data.hasDocument === true, "public booking reports uploaded document");
   return json.data;
+}
+
+async function adminBookingByCode(admin, code) {
+  const json = await admin.json(`/api/admin/bookings?search=${encodeURIComponent(code)}`);
+  const booking = json.data.find((entry) => entry.code === code);
+  expect(Boolean(booking), `admin can load booking ${code}`);
+  return booking;
 }
 
 function slotStatus(days, date, time) {
@@ -212,6 +359,7 @@ async function runApiMatrix() {
   const admin = new ApiClient("super-admin");
   const operator = new ApiClient("operator");
   const viewer = new ApiClient("viewer");
+  const viewerEmail = `e2e-viewer-${Date.now()}@example.test`;
 
   const skip = new Set();
 
@@ -239,9 +387,16 @@ async function runApiMatrix() {
     });
     expect(invalid.status === 422, "invalid login returns 422");
     const user = await admin.login("admin@istura.id", ADMIN_PASSWORD);
+    await admin.ensureTwoFactor("admin@istura.id");
     expect(user.role === "super_admin", "super admin role returned");
     await operator.login("operator@istura.id", ADMIN_PASSWORD);
-    await viewer.login("editor@istura.id", ADMIN_PASSWORD);
+    await operator.ensureTwoFactor("operator@istura.id");
+    await admin.json("/api/admin/users", {
+      method: "POST",
+      body: { name: "E2E Viewer", email: viewerEmail, password: TEMP_USER_PASSWORD, role: "viewer", status: "Aktif" },
+    }, 201);
+    await viewer.login(viewerEmail, TEMP_USER_PASSWORD);
+    await viewer.ensureTwoFactor(viewerEmail);
     const me = await admin.json("/api/auth/me");
     expect(me.user.email === "admin@istura.id", "auth/me returns current user");
   });
@@ -316,6 +471,9 @@ async function runApiMatrix() {
     expect(doc.status === 200, "admin can preview real booking document");
     const publicDoc = await anon.request(`/api/admin/bookings/${booking.code}/document`);
     expect([401, 403].includes(publicDoc.status), "unauthenticated document access blocked");
+    const futureComplete = await admin.request(`/api/admin/bookings/${booking.code}/complete`, { method: "POST" });
+    expect(futureComplete.status === 422, "future booking cannot be completed before visit date");
+    makeBookingCompletable(booking.code);
     await admin.json(`/api/admin/bookings/${booking.code}/complete`, { method: "POST" });
     const completed = await admin.json(`/api/admin/bookings?search=${booking.code}`);
     expect(completed.data[0].status === "Completed", "booking can be completed");
@@ -343,16 +501,70 @@ async function runApiMatrix() {
     expect(promoted.data.date === target.date && promoted.data.time === target.time, "accepted reschedule moves to proposed slot");
   });
 
+  await scenario("admin manual kloter adjustments cover participant increase and decrease", async () => {
+    const schedule = await anon.json("/api/public/schedule");
+    const increaseBase = firstAvailable(schedule.data, skip);
+    const increaseExtra = firstAvailable(schedule.data, skip);
+    const increaseBooking = await createPublicBooking(new ApiClient("segments-increase"), increaseBase, "segments-increase", { groupSize: 70 });
+    const increaseWithoutNote = await admin.request(`/api/admin/bookings/${increaseBooking.code}/segments`, {
+      method: "POST",
+      body: {
+        groupSize: 120,
+        segments: [
+          { date: increaseBase.date, time: increaseBase.time, groupSize: 60 },
+          { date: increaseExtra.date, time: increaseExtra.time, groupSize: 60 },
+        ],
+      },
+    });
+    expect(increaseWithoutNote.status === 422, "participant increase requires admin note");
+    const increased = await admin.json(`/api/admin/bookings/${increaseBooking.code}/segments`, {
+      method: "POST",
+      body: {
+        groupSize: 120,
+        note: "E2E peserta bertambah.",
+        segments: [
+          { date: increaseBase.date, time: increaseBase.time, groupSize: 60 },
+          { date: increaseExtra.date, time: increaseExtra.time, groupSize: 60 },
+        ],
+      },
+    });
+    expect(increased.data.groupSize === 120, "participant increase updates booking group size");
+    expect(increased.data.kloterCount === 2, "participant increase can split into two kloters");
+
+    const fresh = await anon.json("/api/public/schedule");
+    const decreaseBase = firstAvailableRun(fresh.data, 2, skip);
+    const decreaseBooking = await createPublicBooking(new ApiClient("segments-decrease"), decreaseBase, "segments-decrease", { groupSize: 120 });
+    const decreaseWithoutNote = await admin.request(`/api/admin/bookings/${decreaseBooking.code}/segments`, {
+      method: "POST",
+      body: {
+        groupSize: 70,
+        segments: [{ date: decreaseBooking.date, time: decreaseBooking.time, groupSize: 70 }],
+      },
+    });
+    expect(decreaseWithoutNote.status === 422, "participant decrease requires admin note");
+    const decreased = await admin.json(`/api/admin/bookings/${decreaseBooking.code}/segments`, {
+      method: "POST",
+      body: {
+        groupSize: 70,
+        note: "E2E peserta berkurang.",
+        segments: [{ date: decreaseBooking.date, time: decreaseBooking.time, groupSize: 70 }],
+      },
+    });
+    expect(decreased.data.groupSize === 70, "participant decrease updates booking group size");
+    expect(decreased.data.kloterCount === 1, "participant decrease can collapse to one kloter");
+  });
+
   await scenario("feedback API handles valid, duplicate, invalid token, and pre-complete access", async () => {
     const feedbackSlot = await nextAvailable(anon, skip);
     const booking = await createPublicBooking(new ApiClient("feedback-booking"), feedbackSlot, "feedback");
-    const beforeComplete = await anon.json(`/api/public/feedback/${booking.code}?token=${encodeURIComponent(booking.feedbackToken)}`);
+    const adminBooking = await adminBookingByCode(admin, booking.code);
+    const beforeComplete = await anon.json(`/api/public/feedback/${booking.code}?token=${encodeURIComponent(adminBooking.feedbackToken)}`);
     expect(beforeComplete.booking.code === booking.code, "feedback GET exposes booking context");
     expect(beforeComplete.booking.status === "Pending", "feedback GET exposes pre-complete status");
     const premature = await anon.request(`/api/public/feedback/${booking.code}`, {
       method: "POST",
       body: {
-        token: booking.feedbackToken,
+        token: adminBooking.feedbackToken,
         rating: 5,
         bookingEase: 5,
         service: 5,
@@ -364,9 +576,11 @@ async function runApiMatrix() {
       },
     });
     expect(premature.status === 422, "pre-complete feedback submit rejected");
+    await admin.json(`/api/admin/bookings/${booking.code}/accept`, { method: "POST" });
+    makeBookingCompletable(booking.code);
     await admin.json(`/api/admin/bookings/${booking.code}/complete`, { method: "POST" });
     const validPayload = {
-      token: booking.feedbackToken,
+      token: adminBooking.feedbackToken,
       rating: 5,
       bookingEase: 4,
       service: 5,
@@ -515,12 +729,16 @@ async function runBrowserFlows() {
   const publicApi = new ApiClient("browser-setup-public");
   const adminApi = new ApiClient("browser-setup-admin");
   await adminApi.login("admin@istura.id", ADMIN_PASSWORD);
+  await adminApi.ensureTwoFactor("admin@istura.id");
   const schedule = await publicApi.json("/api/public/schedule");
   const skip = new Set();
   firstAvailable(schedule.data, skip);
   const feedbackSlot = await nextAvailable(publicApi, skip);
   const feedbackBooking = await createPublicBooking(publicApi, feedbackSlot, "browser-feedback");
+  await adminApi.json(`/api/admin/bookings/${feedbackBooking.code}/accept`, { method: "POST" });
+  makeBookingCompletable(feedbackBooking.code);
   await adminApi.json(`/api/admin/bookings/${feedbackBooking.code}/complete`, { method: "POST" });
+  const feedbackAdminBooking = await adminBookingByCode(adminApi, feedbackBooking.code);
 
   const browser = await chromium.launch({ headless: true });
   const pageErrors = [];
@@ -569,11 +787,12 @@ async function runBrowserFlows() {
     await page.getByLabel(/Email/i).fill("admin@istura.id");
     await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /^Masuk$/i }).click();
-    await expectLocator(page.getByText(/Dashboard/i).first(), "admin dashboard visible");
-    await page.getByRole("button", { name: "Booking", exact: true }).click();
+    await completeBrowserTwoFactorIfPresent(page, "admin@istura.id");
+    await expectLocator(page.locator(".admin-shell-menu").first(), "admin shell menu visible");
+    await clickAdminMenu(page, "Booking");
     await expectLocator(page.getByRole("heading", { name: /Booking Permohonan/i }), "admin booking page visible");
     await page.getByPlaceholder(/Cari kode/i).fill("ISTURA");
-    await page.getByRole("button", { name: "Jadwal Kunjungan", exact: true }).click();
+    await clickAdminMenu(page, "Jadwal Kunjungan");
     await expectLocator(page.getByRole("heading", { name: /Jadwal Kunjungan/i }), "admin schedule page visible");
     await context.close();
   });
@@ -581,7 +800,7 @@ async function runBrowserFlows() {
   await scenario("browser direct feedback link opens completed booking form", async () => {
     const context = await browser.newContext({ baseURL: BASE_URL });
     const page = await context.newPage();
-    await page.goto(`/feedback/${feedbackBooking.code}?token=${encodeURIComponent(feedbackBooking.feedbackToken)}`, { waitUntil: "networkidle" });
+    await page.goto(`/feedback/${feedbackBooking.code}?token=${encodeURIComponent(feedbackAdminBooking.feedbackToken)}`, { waitUntil: "networkidle" });
     await expectLocator(page.getByRole("heading", { name: /Penilaian Inti/i }), "direct feedback link shows form");
     await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
     await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
@@ -598,10 +817,46 @@ async function runBrowserFlows() {
   await browser.close();
 
   await scenario("browser run has no fatal console errors or server errors", async () => {
-    const ignored = pageErrors.filter((entry) => !entry.includes("ResizeObserver loop"));
+    const ignored = pageErrors.filter((entry) => {
+      return !entry.includes("ResizeObserver loop")
+        && !entry.includes("Permissions policy violation: compute-pressure");
+    });
     expect(ignored.length === 0, `browser console/page errors: ${ignored.join(" | ")}`);
     expect(failedResponses.length === 0, `server error responses: ${failedResponses.join(" | ")}`);
   });
+}
+
+async function completeBrowserTwoFactorIfPresent(page, email) {
+  await page.waitForFunction(() => {
+    return Boolean(document.querySelector(".admin-shell-menu"))
+      || Boolean(document.querySelector('input[autocomplete="one-time-code"]'))
+      || document.body.innerText.includes("Aktifkan Verifikasi 2 Langkah")
+      || document.body.innerText.includes("Verifikasi Dua Langkah");
+  }, null, { timeout: 10_000 });
+
+  const adminMenuVisible = await page.locator(".admin-shell-menu").first().isVisible().catch(() => false);
+  if (adminMenuVisible) return;
+
+  const otpInput = page.locator('input[autocomplete="one-time-code"]').first();
+  await otpInput.waitFor({ state: "visible", timeout: 10_000 });
+
+  let secret = totpSecrets.get(email) ?? envSecretForEmail(email);
+  if (!secret) {
+    const secretText = await page.locator("code").first().textContent({ timeout: 2_000 }).catch(() => null);
+    secret = secretText?.trim();
+  }
+  if (!secret) throw new Error(`Browser 2FA requires TOTP secret for ${email}`);
+
+  totpSecrets.set(email, secret);
+  await otpInput.fill(currentTotp(secret));
+  const verifyButton = page.getByRole("button", { name: /Verifikasi|Konfirmasi & Aktifkan/i }).first();
+  await verifyButton.click();
+
+  const recoveryButton = page.getByRole("button", { name: /Saya sudah menyimpan/i }).first();
+  const needsRecoveryConfirm = await recoveryButton.isVisible({ timeout: 2_000 }).catch(() => false);
+  if (needsRecoveryConfirm) await recoveryButton.click();
+
+  await page.locator(".admin-shell-menu").first().waitFor({ state: "visible", timeout: 10_000 });
 }
 
 async function expectLocator(locator, label) {
@@ -610,6 +865,40 @@ async function expectLocator(locator, label) {
     await locator.waitFor({ state: "visible", timeout: 10_000 });
   } catch (error) {
     throw new Error(`${label} not visible: ${error.message}`);
+  }
+}
+
+async function clickWithRetry(locator, label, attempts = 4) {
+  assertions += 1;
+  let lastError;
+  for (let index = 0; index < attempts; index += 1) {
+    try {
+      await locator.click({ timeout: 8_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  }
+  throw new Error(`${label} click failed: ${lastError?.message ?? "unknown error"}`);
+}
+
+async function clickAdminMenu(page, label) {
+  assertions += 1;
+  try {
+    await page.waitForFunction((text) => {
+      return [...document.querySelectorAll("button.admin-shell-menu-item")]
+        .some((button) => button.textContent?.trim() === text);
+    }, label, { timeout: 10_000 });
+    await page.evaluate((text) => {
+      const button = [...document.querySelectorAll("button.admin-shell-menu-item")]
+        .find((entry) => entry.textContent?.trim() === text);
+      if (!(button instanceof HTMLButtonElement)) throw new Error(`Menu ${text} tidak ditemukan.`);
+      button.click();
+    }, label);
+  } catch (error) {
+    const body = await page.locator("body").innerText().catch(() => "");
+    throw new Error(`admin menu ${label} click failed: ${error.message}; body=${body.slice(0, 500)}`);
   }
 }
 

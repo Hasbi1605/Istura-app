@@ -1350,6 +1350,116 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('User salah input jumlah peserta, admin koreksi manual.', $log->payload['note']);
     }
 
+    public function test_admin_manual_segments_can_increase_booking_group_size_with_note(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-04';
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-INCREASESIZE',
+            'date' => $date,
+            'time' => '08.00',
+            'group_size' => 70,
+            'status' => 'Accepted',
+        ]);
+
+        $payload = [
+            'groupSize' => 120,
+            'segments' => [
+                ['date' => $date, 'time' => '08.00', 'groupSize' => 60],
+                ['date' => $date, 'time' => '09.00', 'groupSize' => 60],
+            ],
+        ];
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('note');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + [
+            'note' => 'Jumlah peserta bertambah setelah konfirmasi ulang.',
+        ])->assertOk()
+            ->assertJsonPath('data.groupSize', 120)
+            ->assertJsonPath('data.kloterCount', 2)
+            ->assertJsonPath('data.segments.0.groupSize', 60)
+            ->assertJsonPath('data.segments.1.groupSize', 60)
+            ->assertJsonPath('data.note', 'Jumlah peserta bertambah setelah konfirmasi ulang.');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'group_size' => 120,
+            'note' => 'Jumlah peserta bertambah setelah konfirmasi ulang.',
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 1,
+            'time' => '08.00',
+            'group_size' => 60,
+            'active_slot_key' => "{$date}|08.00",
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 2,
+            'time' => '09.00',
+            'group_size' => 60,
+            'active_slot_key' => "{$date}|09.00",
+        ]);
+
+        $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
+        $this->assertSame(70, $log->payload['old_group_size']);
+        $this->assertSame(120, $log->payload['new_group_size']);
+        $this->assertSame('Jumlah peserta bertambah setelah konfirmasi ulang.', $log->payload['note']);
+    }
+
+    public function test_admin_manual_segments_can_decrease_booking_group_size_with_note(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-04';
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-DECREASESIZE',
+            'date' => $date,
+            'time' => '10.00',
+            'group_size' => 120,
+            'status' => 'Accepted',
+        ]);
+
+        $payload = [
+            'groupSize' => 70,
+            'segments' => [
+                ['date' => $date, 'time' => '10.00', 'groupSize' => 70],
+            ],
+        ];
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('note');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + [
+            'note' => 'Jumlah peserta berkurang setelah konfirmasi ulang.',
+        ])->assertOk()
+            ->assertJsonPath('data.groupSize', 70)
+            ->assertJsonPath('data.kloterCount', 1)
+            ->assertJsonPath('data.segments.0.groupSize', 70)
+            ->assertJsonPath('data.note', 'Jumlah peserta berkurang setelah konfirmasi ulang.');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'group_size' => 70,
+            'note' => 'Jumlah peserta berkurang setelah konfirmasi ulang.',
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 1,
+            'time' => '10.00',
+            'group_size' => 70,
+            'active_slot_key' => "{$date}|10.00",
+        ]);
+        $this->assertSame(1, BookingSlot::where('booking_id', $booking->id)->count());
+
+        $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
+        $this->assertSame(120, $log->payload['old_group_size']);
+        $this->assertSame(70, $log->payload['new_group_size']);
+        $this->assertSame('Jumlah peserta berkurang setelah konfirmasi ulang.', $log->payload['note']);
+    }
+
     public function test_admin_manual_segments_require_explicit_overbook_for_occupied_slot(): void
     {
         $this->actingAsAdmin();
