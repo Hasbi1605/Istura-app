@@ -772,30 +772,36 @@ class ScheduleSyncTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_admin_booking_payload_masks_nik_unless_super_admin_reads_detail(): void
+    public function test_admin_booking_payload_exposes_full_nik_only_on_admin_paths(): void
     {
         $this->actingAsAdmin();
         $booking = $this->createBooking([
             'code' => 'ISTURA-2026-NIK1',
             'nik' => '3374123456789012',
+            'status' => 'Pending',
         ]);
 
         $this->getJson('/api/admin/bookings')
             ->assertOk()
             ->assertJsonPath('data.0.code', $booking->code)
-            ->assertJsonMissingPath('data.0.nik')
+            ->assertJsonPath('data.0.nik', '3374123456789012')
             ->assertJsonPath('data.0.nikMasked', '3374********9012');
 
         $this->getJson("/api/admin/bookings/{$booking->code}")
             ->assertOk()
-            ->assertJsonMissingPath('data.nik')
+            ->assertJsonPath('data.nik', '3374123456789012')
+            ->assertJsonPath('data.nikMasked', '3374********9012');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/accept")
+            ->assertOk()
+            ->assertJsonPath('data.nik', '3374123456789012')
             ->assertJsonPath('data.nikMasked', '3374********9012');
 
         Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'two_factor_confirmed_at' => now()]));
 
         $this->getJson('/api/admin/bookings')
             ->assertOk()
-            ->assertJsonMissingPath('data.0.nik')
+            ->assertJsonPath('data.0.nik', '3374123456789012')
             ->assertJsonPath('data.0.nikMasked', '3374********9012');
 
         $this->getJson("/api/admin/bookings/{$booking->code}")

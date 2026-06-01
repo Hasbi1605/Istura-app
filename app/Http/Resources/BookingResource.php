@@ -88,10 +88,8 @@ class BookingResource extends JsonResource
 
     private function shouldExposeNik(Request $request): bool
     {
-        return (bool) $request->user()?->isSuperAdmin()
-            && $request->isMethod('GET')
-            && $request->is('api/admin/bookings/*')
-            && ! $request->is('api/admin/bookings/*/*');
+        return (bool) $request->user()?->isAdmin()
+            && $request->is('api/admin/bookings', 'api/admin/bookings/*');
     }
 
     private function shouldExposeFeedbackToken(Request $request): bool
