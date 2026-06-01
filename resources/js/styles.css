@@ -10739,7 +10739,7 @@ a {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 0;
   padding: 16px 8px;
   background: #dca828;
   color: #2b2b2b;
@@ -10748,17 +10748,21 @@ a {
 
 .poster-day-name {
   font-family: "Playfair Display", Georgia, serif;
-  font-size: 1.28rem;
+  font-size: 1.34rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  line-height: 1.1;
 }
 
 .poster-day-num {
   font-family: "Playfair Display", Georgia, serif;
-  font-size: 3.6rem;
+  font-size: 4.6rem;
   font-weight: 900;
   line-height: 1;
+  /* Tarik angka mendekati nama hari: font Playfair punya ruang ascender besar
+     di ukuran besar, sehingga tanpa ini gap terlihat terlalu jauh. */
+  margin-top: -6px;
 }
 
 .poster-day-entries {
@@ -10813,8 +10817,8 @@ a {
   background: transparent;
   border: 1px dashed transparent;
   font-family: "Playfair Display", Georgia, serif;
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: 1.26rem;
+  font-weight: 600;
 }
 
 .poster-entry-agenda {
@@ -10889,8 +10893,8 @@ a {
   background: transparent;
   border: 1px dashed transparent;
   font-family: "Playfair Display", Georgia, serif;
-  font-size: 1.2rem;
-  font-weight: 400;
+  font-size: 1.26rem;
+  font-weight: 500;
   text-align: left;
 }
 
