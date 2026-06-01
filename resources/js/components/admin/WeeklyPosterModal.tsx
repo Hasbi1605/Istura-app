@@ -5,8 +5,18 @@
 // Alur: data ditarik otomatis dari booking → admin bisa edit teks/jam/jumlah
 // inline pada preview → klik "Unduh Gambar" → PNG terunduh. Pengiriman ke WA
 // dilakukan admin secara manual (tempel gambar ke grup).
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Loader2, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Loader2,
+  Maximize2,
+  Minus,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import type { Booking } from "../../domain/types";
 import { addDays, monthNames } from "../../lib/date";
 import {
@@ -17,6 +27,13 @@ import {
 } from "../../domain/weeklyPoster";
 import { ASSETS } from "../../lib/assets";
 import { exportPosterToPng, fetchImageAsDataUrl } from "../../exportWeeklyPoster";
+
+// Lebar asli canvas poster (px). PNG diekspor pada lebar ini supaya tajam &
+// deterministik; preview di layar di-scale agar muat di modal.
+const POSTER_WIDTH = 1024;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 1.5;
+const ZOOM_STEP = 0.1;
 
 export function WeeklyPosterModal({
   bookings,
@@ -33,6 +50,16 @@ export function WeeklyPosterModal({
   const [error, setError] = useState<string | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const posterRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  // Zoom preview. `fitZoom` = skala "Sesuaikan" yang dihitung dari lebar area
+  // yang tersedia; `zoom` = skala aktif (bisa diubah manual via +/-).
+  const [zoom, setZoom] = useState(0.5);
+  const [fitZoom, setFitZoom] = useState(0.5);
+  const [autoFit, setAutoFit] = useState(true);
+  // Tinggi natural canvas (sebelum scale). Dipakai untuk memesan ruang pada
+  // wrapper karena CSS transform tidak memengaruhi layout flow.
+  const [naturalHeight, setNaturalHeight] = useState(0);
 
   // Rebuild model setiap kali minggu berubah. Edit manual admin di-reset ke
   // data asli saat pindah minggu (perilaku yang diharapkan).
@@ -60,6 +87,43 @@ export function WeeklyPosterModal({
   }, [onClose, busy]);
 
   const rowCount = model ? posterRowCount(model) : 0;
+
+  // Hitung skala "fit" dari lebar area preview yang tersedia. Dipanggil saat
+  // mount, resize window, ganti minggu (tinggi berubah), dan saat model siap.
+  useLayoutEffect(() => {
+    const recompute = () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      // Sisakan sedikit padding supaya poster tidak menempel ke tepi.
+      const available = stage.clientWidth - 32;
+      const next = Math.max(ZOOM_MIN, Math.min(1, available / POSTER_WIDTH));
+      setFitZoom(next);
+      setZoom((prev) => (autoFit ? next : prev));
+      // offsetHeight = tinggi layout (tidak terpengaruh transform scale),
+      // jadi ini tinggi natural canvas pada 1024px.
+      if (posterRef.current) {
+        setNaturalHeight(posterRef.current.offsetHeight);
+      }
+    };
+    recompute();
+    window.addEventListener("resize", recompute);
+    return () => window.removeEventListener("resize", recompute);
+  }, [autoFit, rowCount, model]);
+
+  const effectiveZoom = autoFit ? fitZoom : zoom;
+
+  const zoomIn = () => {
+    setAutoFit(false);
+    setZoom((prev) => Math.min(ZOOM_MAX, Number((prev + ZOOM_STEP).toFixed(2))));
+  };
+  const zoomOut = () => {
+    setAutoFit(false);
+    setZoom((prev) => Math.max(ZOOM_MIN, Number((prev - ZOOM_STEP).toFixed(2))));
+  };
+  const zoomFit = () => {
+    setAutoFit(true);
+    setZoom(fitZoom);
+  };
 
   // Textarea agenda auto-tinggi supaya teks multi-baris tidak terpotong, baik
   // di preview maupun di PNG hasil ekspor.
@@ -255,9 +319,59 @@ export function WeeklyPosterModal({
           </span>
         </div>
 
-        <div className="poster-preview-scroll">
+        {rowCount > 0 && (
+          <div className="poster-zoom-bar">
+            <button
+              type="button"
+              className="poster-zoom-btn"
+              onClick={zoomOut}
+              disabled={busy || effectiveZoom <= ZOOM_MIN}
+              aria-label="Perkecil"
+              title="Perkecil"
+            >
+              <Minus size={14} aria-hidden="true" />
+            </button>
+            <span className="poster-zoom-value">{Math.round(effectiveZoom * 100)}%</span>
+            <button
+              type="button"
+              className="poster-zoom-btn"
+              onClick={zoomIn}
+              disabled={busy || effectiveZoom >= ZOOM_MAX}
+              aria-label="Perbesar"
+              title="Perbesar"
+            >
+              <Plus size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={`poster-zoom-fit${autoFit ? " is-active" : ""}`}
+              onClick={zoomFit}
+              disabled={busy}
+              title="Sesuaikan ke lebar"
+            >
+              <Maximize2 size={13} aria-hidden="true" />
+              Sesuaikan
+            </button>
+          </div>
+        )}
+
+        <div className="poster-preview-scroll" ref={stageRef}>
           {model && rowCount > 0 ? (
-            <div className="poster-canvas" ref={posterRef}>
+            <div
+              className="poster-scaler"
+              style={{
+                width: POSTER_WIDTH * effectiveZoom,
+                height: naturalHeight ? naturalHeight * effectiveZoom : undefined,
+              }}
+            >
+              <div
+                className="poster-canvas"
+                ref={posterRef}
+                style={{
+                  transform: `scale(${effectiveZoom})`,
+                  transformOrigin: "top left",
+                }}
+              >
               <div className="poster-pattern" aria-hidden="true" />
               <div className="poster-inner">
                 <div className="poster-logo">
@@ -369,6 +483,7 @@ export function WeeklyPosterModal({
                   ))}
                 </div>
               </div>
+            </div>
             </div>
           ) : (
             <div className="poster-empty">

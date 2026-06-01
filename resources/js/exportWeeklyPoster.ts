@@ -24,28 +24,43 @@ export async function exportPosterToPng(
 ): Promise<PosterImageResult> {
   const { toPng } = await import("html-to-image");
 
-  const dataUrl = await toPng(node, {
-    pixelRatio: PIXEL_RATIO,
-    cacheBust: true,
-    // Background eksplisit supaya tidak transparan kalau elemen tidak menutup
-    // penuh (PNG transparan akan jelek di WA).
-    backgroundColor: "#3a3a3c",
-    // Sembunyikan kontrol edit (tombol tambah/hapus baris) dari hasil gambar.
-    filter: (domNode) => {
-      if (domNode instanceof HTMLElement && domNode.dataset.exportHide !== undefined) {
-        return false;
-      }
-      return true;
-    },
-  });
+  // Preview menampilkan poster dengan CSS transform (zoom). Untuk ekspor kita
+  // butuh resolusi penuh 1024px, jadi transform dinetralkan sementara saat
+  // snapshot lalu dikembalikan.
+  const prevTransform = node.style.transform;
+  const prevTransformOrigin = node.style.transformOrigin;
+  node.style.transform = "none";
+  node.style.transformOrigin = "top left";
 
-  const filename = `${slugify(options.filenameBase)}.png`;
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = dataUrl;
-  link.click();
+  try {
+    const dataUrl = await toPng(node, {
+      pixelRatio: PIXEL_RATIO,
+      cacheBust: true,
+      width: node.offsetWidth,
+      height: node.offsetHeight,
+      // Background eksplisit supaya tidak transparan kalau elemen tidak menutup
+      // penuh (PNG transparan akan jelek di WA).
+      backgroundColor: "#3a3a3c",
+      // Sembunyikan kontrol edit (tombol tambah/hapus baris) dari hasil gambar.
+      filter: (domNode) => {
+        if (domNode instanceof HTMLElement && domNode.dataset.exportHide !== undefined) {
+          return false;
+        }
+        return true;
+      },
+    });
 
-  return { filename };
+    const filename = `${slugify(options.filenameBase)}.png`;
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+
+    return { filename };
+  } finally {
+    node.style.transform = prevTransform;
+    node.style.transformOrigin = prevTransformOrigin;
+  }
 }
 
 // Convert an asset URL to a data URL so the logo embeds reliably into the

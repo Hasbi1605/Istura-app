@@ -10488,14 +10488,96 @@ a {
   font-weight: 700;
 }
 
+/* Zoom controls untuk preview poster. */
+.poster-zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.poster-zoom-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--navy);
+  background: rgba(16, 24, 47, 0.04);
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.poster-zoom-btn:hover:not(:disabled),
+.poster-zoom-btn:focus-visible:not(:disabled) {
+  outline: none;
+  background: rgba(16, 24, 47, 0.09);
+}
+
+.poster-zoom-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.poster-zoom-value {
+  min-width: 46px;
+  text-align: center;
+  color: var(--navy);
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.poster-zoom-fit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  color: rgba(16, 24, 47, 0.7);
+  background: transparent;
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 7px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.poster-zoom-fit:hover:not(:disabled),
+.poster-zoom-fit:focus-visible:not(:disabled) {
+  outline: none;
+  color: var(--navy);
+  background: rgba(16, 24, 47, 0.05);
+}
+
+.poster-zoom-fit.is-active {
+  color: var(--navy);
+  background: rgba(255, 244, 209, 0.7);
+  border-color: rgba(196, 146, 18, 0.5);
+}
+
 .poster-preview-scroll {
   margin-top: 14px;
   padding: 16px;
   overflow: auto;
+  max-height: 60vh;
   background: rgba(16, 24, 47, 0.06);
   border-radius: 12px;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
+}
+
+/* Wrapper yang "memesan" ruang sebesar poster setelah di-scale, supaya
+   container bisa di-scroll. Lebar & tinggi di-set inline dari JS
+   (POSTER_WIDTH * zoom / naturalHeight * zoom). Canvas di dalamnya diposisikan
+   absolut + transform scale(origin top-left) sehingga footprint visual sama
+   dengan ukuran wrapper. */
+.poster-scaler {
+  position: relative;
+  flex-shrink: 0;
 }
 
 .poster-empty {
@@ -10517,7 +10599,9 @@ a {
 /* Fixed pixel width so the exported image is deterministic & crisp.    */
 
 .poster-canvas {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 1024px;
   flex-shrink: 0;
   padding: 0;
