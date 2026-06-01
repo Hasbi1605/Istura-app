@@ -10611,18 +10611,19 @@ a {
   font-family: "Playfair Display", Georgia, "Times New Roman", serif;
 }
 
-/* Motif lingkaran saling tumpang-tindih (overlapping circles) meniru
-   background poster manual. Dua layer ring identik, layer kedua digeser
-   setengah tile sehingga lingkaran saling mengunci. */
+/* Motif lingkaran saling tumpang-tindih (overlapping circles / pola kelopak)
+   meniru background poster manual. Dua layer cincin identik; layer kedua
+   digeser setengah tile secara diagonal sehingga lingkaran saling memotong
+   dan membentuk kelopak. */
 .poster-pattern {
   position: absolute;
   inset: 0;
   background-color: #434244;
   background-image:
-    radial-gradient(circle, transparent 0 25px, rgba(255, 255, 255, 0.06) 25px 27px, transparent 27px),
-    radial-gradient(circle, transparent 0 25px, rgba(255, 255, 255, 0.06) 25px 27px, transparent 27px);
-  background-size: 54px 54px, 54px 54px;
-  background-position: 0 0, 27px 27px;
+    radial-gradient(circle at center, transparent 0 33px, rgba(255, 255, 255, 0.08) 33px 35px, transparent 35px),
+    radial-gradient(circle at center, transparent 0 33px, rgba(255, 255, 255, 0.08) 33px 35px, transparent 35px);
+  background-size: 70px 70px, 70px 70px;
+  background-position: 0 0, 35px 35px;
   pointer-events: none;
 }
 
@@ -10761,27 +10762,53 @@ a {
 }
 
 .poster-day-entries {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: #e9e4d9;
   border-radius: 2px;
+  overflow: hidden;
 }
 
-/* 3 kolom: jam | agenda | jumlah. Lebar kolom tepi tetap supaya garis
-   pemisah vertikal lurus & menyambung antar baris. */
+/* Garis pemisah vertikal digambar pada container (bukan per-baris) sehingga
+   selalu setinggi penuh blok krem — termasuk untuk hari yang hanya punya satu
+   jadwal. Posisi mengikuti batas kolom grid (188px dari kiri, 168px dari
+   kanan). */
+.poster-day-entries::before,
+.poster-day-entries::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: rgba(43, 43, 43, 0.32);
+  pointer-events: none;
+}
+
+.poster-day-entries::before {
+  left: 188px;
+}
+
+.poster-day-entries::after {
+  right: 168px;
+}
+
+/* 3 kolom: jam | agenda | jumlah. Setiap baris tumbuh mengisi tinggi blok
+   (flex: 1) dan kontennya ditengahkan vertikal, meniru poster asli di mana
+   hari berisi 1 jadwal tampil center. */
 .poster-entry {
   display: grid;
   grid-template-columns: 188px 1fr 168px;
-  align-items: start;
+  align-items: center;
+  flex: 1 0 auto;
   gap: 0;
-  padding: 0;
+  padding: 14px 0;
   color: #2b2b2b;
 }
 
 .poster-entry-time {
   width: 100%;
-  padding: 16px 14px 16px 22px;
-  align-self: stretch;
+  padding: 2px 14px 2px 22px;
   color: #2b2b2b;
   background: transparent;
   border: 1px dashed transparent;
@@ -10793,10 +10820,9 @@ a {
 .poster-entry-agenda {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 8px;
-  padding: 16px 18px;
-  align-self: stretch;
-  border-left: 1.5px solid rgba(43, 43, 43, 0.32);
+  padding: 2px 18px;
 }
 
 .poster-bullet {
@@ -10858,12 +10884,10 @@ a {
 
 .poster-entry-people {
   width: 100%;
-  padding: 16px 18px;
-  align-self: stretch;
+  padding: 2px 18px;
   color: #2b2b2b;
   background: transparent;
   border: 1px dashed transparent;
-  border-left: 1.5px solid rgba(43, 43, 43, 0.32);
   font-family: "Playfair Display", Georgia, serif;
   font-size: 1.2rem;
   font-weight: 400;
@@ -10871,13 +10895,8 @@ a {
 }
 
 /* Editable fields: garis putus-putus halus saat fokus/hover supaya admin
-   tahu teks bisa diubah, tapi tidak ikut terlihat di PNG hasil ekspor.
-   Border-left pemisah kolom dijaga tetap solid agar tidak hilang saat hover. */
+   tahu teks bisa diubah, tapi tidak ikut terlihat di PNG hasil ekspor. */
 .poster-editable:hover {
-  border-color: rgba(42, 42, 44, 0.25);
-}
-
-.poster-entry-agenda .poster-bullet-text.poster-editable:hover {
   border-color: rgba(42, 42, 44, 0.25);
 }
 
@@ -10886,19 +10905,10 @@ a {
   border-color: rgba(244, 241, 234, 0.4);
 }
 
-.poster-entry-agenda.poster-editable:hover,
-.poster-entry-people.poster-editable:hover {
-  border-left-color: rgba(43, 43, 43, 0.32);
-}
-
 .poster-editable:focus {
   outline: none;
   border-color: var(--gold);
   border-style: dashed;
-}
-
-.poster-entry-people.poster-editable:focus {
-  border-left-color: rgba(43, 43, 43, 0.32);
 }
 
 .poster-month-input.poster-editable:focus {
