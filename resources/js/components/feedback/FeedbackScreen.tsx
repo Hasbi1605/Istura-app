@@ -83,9 +83,12 @@ export function FeedbackScreen({
 	feedbacks: Feedback[];
 	access: { code: string; token: string } | null;
 	loading?: boolean;
-	onFeedbackCreate: (feedback: Feedback) => void;
+  onFeedbackCreate: (feedback: Feedback) => void;
   onNavigationLockChange?: (locked: boolean) => void;
 }) {
+  const accessCode = access?.code ?? "";
+  const accessToken = access?.token ?? "";
+
   // Resolve booking only from explicit URL access.
   const localAccessBooking = access
     ? bookings.find(
@@ -126,7 +129,7 @@ export function FeedbackScreen({
   }, [navigationLocked, onNavigationLockChange]);
 
   useEffect(() => {
-    if (!access) {
+    if (!accessCode || !accessToken) {
       setRemoteBooking(null);
       setRemoteFeedback(null);
       setAccessError("");
@@ -140,7 +143,7 @@ export function FeedbackScreen({
     setAccessError("");
     setAccessLoading(true);
 
-    fetchPublicFeedback(access.code, access.token)
+    fetchPublicFeedback(accessCode, accessToken)
       .then((response) => {
         if (cancelled) return;
         setRemoteBooking({
@@ -148,7 +151,7 @@ export function FeedbackScreen({
           institution: response.booking.institution,
           dateLabel: response.booking.dateLabel,
           status: response.booking.status,
-          feedbackToken: access.token,
+          feedbackToken: accessToken,
         });
         setRemoteFeedback(response.data ? apiFeedbackToLocal(response.data) : null);
       })
@@ -168,7 +171,7 @@ export function FeedbackScreen({
     return () => {
       cancelled = true;
     };
-  }, [access]);
+  }, [accessCode, accessToken]);
 
   // Restore draft from localStorage
   useEffect(() => {

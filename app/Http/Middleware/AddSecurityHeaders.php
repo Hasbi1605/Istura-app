@@ -35,6 +35,7 @@ class AddSecurityHeaders
     {
         $scriptSrc = "'self'";
         $connectSrc = "'self'";
+        $fontSrc = "'self' data: https://fonts.gstatic.com";
 
         foreach ($this->reverbClientWebSocketUrls() as $reverbClientUrl) {
             $connectSrc .= " {$reverbClientUrl}";
@@ -44,6 +45,7 @@ class AddSecurityHeaders
         if ($viteDevServerUrl) {
             $scriptSrc .= " 'unsafe-inline' {$viteDevServerUrl}";
             $connectSrc .= " {$viteDevServerUrl} ".$this->toWebSocketUrl($viteDevServerUrl);
+            $fontSrc .= " {$viteDevServerUrl}";
         }
 
         $frameAncestors = $this->allowsSameOriginDocumentPreview($request) ? "'self'" : "'none'";
@@ -53,7 +55,7 @@ class AddSecurityHeaders
             "script-src {$scriptSrc}",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "img-src 'self' data: https:",
-            "font-src 'self' data: https://fonts.gstatic.com",
+            "font-src {$fontSrc}",
             "connect-src {$connectSrc}",
             "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://www.google.com https://maps.google.com https://www.google.com/maps",
             "frame-ancestors {$frameAncestors}",
