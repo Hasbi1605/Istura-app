@@ -15,7 +15,13 @@
     "id": "Reschedule",
     "label": "Tawaran reschedule",
     "description": "Dikirim saat admin menawarkan jadwal alternatif.",
-    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\ud83d\udd01 *Usulan Reschedule Kunjungan*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* dengan kode *{kode}* perlu penyesuaian jadwal.\n\nJumlah rombongan:\n*{rombongan}*\n\nJadwal usulan:\n{jam}\n\nCatatan admin:\n*{catatan}*\n\nMohon konfirmasi melalui WhatsApp ini apakah jadwal tersebut dapat diikuti.\n\nSalam hangat,\nAdmin ISTURA"
+    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\ud83d\udd01 *Usulan Reschedule Kunjungan*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* dengan kode *{kode}* perlu penyesuaian jadwal.\n\nJumlah rombongan:\n*{rombongan}*\n\nTanggal usulan:\n*{tanggal_usulan}*\n\nJadwal usulan:\n{jam}\n\nCatatan admin:\n*{catatan}*\n\nMohon konfirmasi melalui WhatsApp ini apakah jadwal tersebut dapat diikuti.\n\nSalam hangat,\nAdmin ISTURA"
+  },
+  {
+    "id": "Pending",
+    "label": "Reschedule dibatalkan",
+    "description": "Dikirim saat usulan reschedule dibatalkan dan booking kembali menunggu konfirmasi.",
+    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n*Status Booking Masih Menunggu Konfirmasi*\n\nYth. *{nama}*,\nusulan perubahan jadwal untuk booking dari *{instansi}* dengan kode *{kode}* belum dilanjutkan.\n\nStatus booking saat ini masih *menunggu konfirmasi admin*.\n\nTanggal kunjungan awal:\n*{tanggal_awal}*\n\nJadwal awal:\n{jam}\n\nCatatan admin:\n*{catatan}*\n\nAdmin ISTURA akan mengirim konfirmasi lanjutan setelah jadwal final ditetapkan.\n\nSalam hangat,\nAdmin ISTURA"
   },
   {
     "id": "Completed",

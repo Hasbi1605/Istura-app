@@ -40,6 +40,35 @@ export function fillWaTemplate(template: string, vars: Record<string, string>): 
   );
 }
 
+function fallbackTemplateFor(status: BookingStatus): string | null {
+  if (status !== "Pending") return null;
+
+  return [
+    "Halo Sobat ISTURA \u{1F44B}",
+    "",
+    "*Status Booking Masih Menunggu Konfirmasi*",
+    "",
+    "Yth. *{nama}*,",
+    "usulan perubahan jadwal untuk booking dari *{instansi}* dengan kode *{kode}* belum dilanjutkan.",
+    "",
+    "Status booking saat ini masih *menunggu konfirmasi admin*.",
+    "",
+    "Tanggal kunjungan awal:",
+    "*{tanggal_awal}*",
+    "",
+    "Jadwal awal:",
+    "{jam}",
+    "",
+    "Catatan admin:",
+    "*{catatan}*",
+    "",
+    "Admin ISTURA akan mengirim konfirmasi lanjutan setelah jadwal final ditetapkan.",
+    "",
+    "Salam hangat,",
+    "Admin ISTURA",
+  ].join("\n");
+}
+
 function publicAppOrigin(): string {
   const configured =
     import.meta.env.VITE_PUBLIC_APP_URL ??
@@ -76,17 +105,24 @@ export function buildWhatsappMessage(
   note?: string,
 ): string {
   const template = activeWaTemplates.find((entry) => entry.id === status);
-  if (!template) return `Informasi booking ${booking.code}`;
+  const templateText = template?.template ?? fallbackTemplateFor(status);
+  if (!templateText) return `Informasi booking ${booking.code}`;
   const link = feedbackLinkFor(booking);
   const segments = status === "Reschedule" && booking.proposedSegments?.length
     ? booking.proposedSegments
     : bookingSegments(booking);
   const jam = formatVisitTimeForWhatsapp(segments, booking.time);
-  return fillWaTemplate(template.template, {
+  const tanggalAwal = booking.dateLabel;
+  const tanggalUsulan = booking.proposedDateLabel ?? booking.dateLabel;
+  const tanggalEfektif = status === "Reschedule" ? tanggalUsulan : tanggalAwal;
+
+  return fillWaTemplate(templateText, {
     nama: booking.contactName,
     instansi: booking.institution,
     kode: booking.code,
-    tanggal: booking.dateLabel,
+    tanggal: tanggalEfektif,
+    tanggal_awal: tanggalAwal,
+    tanggal_usulan: tanggalUsulan,
     rombongan: formatGroupSizeForWhatsapp(booking, segments),
     jam,
     catatan: note ?? "",

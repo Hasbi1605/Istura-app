@@ -14,12 +14,11 @@ import { ApiError, ValidationError } from "../../api/client";
 import { ButtonSpinner, InlineSpinner, TableSkeleton } from "../ui/LoadingStates";
 import { Pagination } from "../ui/Pagination";
 
-type UserRole = "super_admin" | "admin" | "viewer";
+type UserRole = "super_admin" | "admin";
 
 const ROLE_OPTIONS: Array<{ value: UserRole; label: string }> = [
   { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Admin" },
-  { value: "viewer", label: "Viewer" },
 ];
 
 type UserDraft = {
@@ -86,7 +85,7 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
       name: user.name,
       email: user.email,
       password: "",
-      role: user.role as UserRole,
+      role: user.role === "super_admin" ? "super_admin" : "admin",
       status: user.status,
     });
   };

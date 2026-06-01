@@ -59,6 +59,18 @@ setActiveWaTemplates(INITIAL_WA_TEMPLATES);
 
 const ALLOW_DEMO_FALLBACK = import.meta.env.DEV || import.meta.env.VITE_ALLOW_DEMO_FALLBACK === "true";
 
+function mergeWaTemplatesWithDefaults(templates: WaTemplate[]): WaTemplate[] {
+  if (templates.length === 0) return [];
+
+  const byId = new Map(templates.map((template) => [template.id, template]));
+  const knownIds = new Set(INITIAL_WA_TEMPLATES.map((template) => template.id));
+
+  return [
+    ...INITIAL_WA_TEMPLATES.map((template) => byId.get(template.id) ?? template),
+    ...templates.filter((template) => !knownIds.has(template.id)),
+  ];
+}
+
 async function canFetchAdminData() {
   try {
     const { enabled } = await twoFactorStatus();
@@ -171,7 +183,9 @@ export function useIsturaData(): IsturaData {
     readCmsCollection("istura-contacts", ALLOW_DEMO_FALLBACK ? INITIAL_FOOTER_CONTACTS : []),
   );
   const [waTemplates, setWaTemplates] = useState<WaTemplate[]>(() =>
-    readCmsCollection("istura-wa-templates", ALLOW_DEMO_FALLBACK ? INITIAL_WA_TEMPLATES : []),
+    mergeWaTemplatesWithDefaults(
+      readCmsCollection("istura-wa-templates", ALLOW_DEMO_FALLBACK ? INITIAL_WA_TEMPLATES : []),
+    ),
   );
 
   // Hero & letter CMS content (read-only on public side, edited via admin).
@@ -270,7 +284,7 @@ export function useIsturaData(): IsturaData {
 		markCmsSync(setCmsSync, "waTemplates", "saving");
 		void updateAdminWaTemplates(
       waTemplates.map((t) => ({
-        id: t.id as "Accepted" | "Rejected" | "Reschedule" | "Completed",
+        id: t.id,
         label: t.label,
         description: t.description,
         template: t.template,
@@ -346,12 +360,12 @@ export function useIsturaData(): IsturaData {
         }
 
         if (data.waTemplates.length > 0) {
-          const nextWaTemplates = data.waTemplates.map((it) => ({
+          const nextWaTemplates = mergeWaTemplatesWithDefaults(data.waTemplates.map((it) => ({
               id: it.id as BookingStatus,
               label: it.label,
               description: it.description,
               template: it.template,
-            }));
+            })));
           waBaselineRef.current = JSON.stringify(nextWaTemplates);
           setWaTemplates(nextWaTemplates);
         } else if (!ALLOW_DEMO_FALLBACK) {

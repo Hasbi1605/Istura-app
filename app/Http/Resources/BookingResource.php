@@ -28,6 +28,7 @@ class BookingResource extends JsonResource
             'segments' => $this->segments(),
             'date' => $this->date?->toDateString(),
             'dateLabel' => $this->date_label,
+            'reportDate' => $this->reportDate(),
             'time' => $this->time,
             'status' => $this->status,
             'documentName' => $this->document_original_name,
@@ -45,6 +46,23 @@ class BookingResource extends JsonResource
             'proposedSegments' => $this->proposedSegments(),
             'proposedAt' => $this->proposed_at ? IndonesianDate::submittedAt($this->proposed_at) : null,
         ];
+    }
+
+    private function reportDate(): ?string
+    {
+        if ($this->status === 'Rejected') {
+            return ($this->rejected_at ?? $this->submitted_at)?->copy()->timezone('Asia/Jakarta')->toDateString();
+        }
+
+        if ($this->status === 'Reschedule' && $this->proposed_date) {
+            return $this->proposed_date->toDateString();
+        }
+
+        if ($this->date) {
+            return $this->date->toDateString();
+        }
+
+        return $this->submitted_at?->copy()->timezone('Asia/Jakarta')->toDateString();
     }
 
     private function segments(): array

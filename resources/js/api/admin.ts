@@ -38,7 +38,7 @@ export type AdminUserInput = {
   name: string;
   email: string;
   password?: string;
-  role: "super_admin" | "admin" | "viewer";
+  role: "super_admin" | "admin";
   status?: "Aktif" | "Nonaktif";
 };
 

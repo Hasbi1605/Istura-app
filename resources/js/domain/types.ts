@@ -65,6 +65,7 @@ export type Booking = {
   segments?: BookingSegment[];
   date: string;
   dateLabel: string;
+  reportDate?: string;
   time: string;
   status: BookingStatus;
   documentName: string;

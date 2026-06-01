@@ -77,6 +77,7 @@ function apiBookingToLocal(b: ApiBooking): Booking {
     segments: b.segments,
     date: b.date,
     dateLabel: b.dateLabel,
+    reportDate: b.reportDate ?? undefined,
     time: b.time,
     status: b.status,
     documentName: b.documentName,

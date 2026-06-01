@@ -16,7 +16,7 @@ class UpdateWaTemplatesRequest extends FormRequest
     {
         return [
             'items' => ['required', 'array'],
-            'items.*.id' => ['required', Rule::in(['Accepted', 'Rejected', 'Reschedule', 'Completed'])],
+            'items.*.id' => ['required', Rule::in(['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed'])],
             'items.*.label' => ['required', 'string', 'max:120'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.template' => ['required', 'string'],

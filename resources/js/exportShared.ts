@@ -62,6 +62,7 @@ export const formatNowLabel = (): string => {
 
 export type BookingReportDateInput = {
   status?: string;
+  reportDate?: string | null;
   date?: string | null;
   proposedDate?: string | null;
   submittedAt?: string | null;
@@ -74,6 +75,9 @@ export type FeedbackReportDateInput = {
 };
 
 export const bookingReportDate = (booking: BookingReportDateInput): Date => {
+  const explicitReportDate = safeDateKey(booking.reportDate);
+  if (explicitReportDate.getTime() > 0) return explicitReportDate;
+
   if (booking.status === "Rejected") {
     const rejected = parseSubmittedAt(booking.rejectedAt ?? "");
     if (rejected.getTime() > 0) return rejected;

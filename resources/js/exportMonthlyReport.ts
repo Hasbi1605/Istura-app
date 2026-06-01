@@ -38,6 +38,7 @@ export type ReportBooking = {
   groupSize: number;
   date: string;
   dateLabel: string;
+  reportDate?: string | null;
   time: string;
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
   submittedAt: string | null;

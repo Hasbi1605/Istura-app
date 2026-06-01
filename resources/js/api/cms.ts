@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { SiteContent } from "../domain/types";
+import type { BookingStatus, SiteContent } from "../domain/types";
 import type { ApiVisitDay } from "./schedule";
 
 export type ApiFaq = {
@@ -19,7 +19,7 @@ export type ApiContact = {
 };
 
 export type ApiWaTemplate = {
-  id: "Accepted" | "Rejected" | "Reschedule" | "Completed";
+  id: BookingStatus;
   label: string;
   description: string;
   template: string;

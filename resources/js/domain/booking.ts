@@ -190,6 +190,13 @@ export const sortBookings = (list: Booking[], sort: BookingSort): Booking[] => {
   return items;
 };
 
+export const reportDateKeyForBooking = (booking: Booking): string => {
+  if (booking.reportDate) return booking.reportDate;
+  if (booking.status === "Reschedule" && booking.proposedDate) return booking.proposedDate;
+
+  return booking.date;
+};
+
 export const inDateRange = (
   booking: Booking,
   range: BookingDateRange,
@@ -197,7 +204,7 @@ export const inDateRange = (
   customTo: string,
 ): boolean => {
   if (range === "all") return true;
-  const visit = parseDateKey(booking.date);
+  const visit = parseDateKey(reportDateKeyForBooking(booking));
   visit.setHours(0, 0, 0, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);

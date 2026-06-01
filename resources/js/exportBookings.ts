@@ -39,6 +39,7 @@ export type BookingExportInput = {
   segments?: { order: number; time: string; groupSize: number }[];
   date: string;        // YYYY-MM-DD (visit date)
   dateLabel: string;   // human-readable visit date
+  reportDate?: string | null;
   time: string;        // HH.MM
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
   documentName: string;
@@ -46,6 +47,7 @@ export type BookingExportInput = {
   note?: string;
   completedAt?: string;
   rejectedAt?: string;
+  proposedDate?: string | null;
 };
 
 export type ExportScope = "all" | "completed" | "rejected";

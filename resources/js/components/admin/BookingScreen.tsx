@@ -326,7 +326,8 @@ export function AdminScreen({
 			const note = booking.note ?? "User menolak usulan reschedule, jadwal awal tetap berlaku.";
 			const updated = await apiCancelRescheduleBooking(booking.code, note);
 			const localBooking = await syncBookingFromApi(updated);
-			openWhatsApp(localBooking, createWhatsappMessage(localBooking, "Accepted", note));
+			const messageStatus = localBooking.status === "Pending" ? "Pending" : "Accepted";
+			openWhatsApp(localBooking, createWhatsappMessage(localBooking, messageStatus, note));
 		});
 	};
 

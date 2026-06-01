@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 
 class Booking extends Model
 {
@@ -72,9 +73,32 @@ class Booking extends Model
 
     public function scopeForRange($query, ?string $from, ?string $to)
     {
-        return $query
-            ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('date', '<=', $to));
+        if (! $from && ! $to) {
+            return $query;
+        }
+
+        return $query->where(function ($outer) use ($from, $to) {
+            $outer
+                ->where(function ($q) use ($from, $to) {
+                    $q->where('status', 'Rejected');
+                    $this->applyReportDateBounds($q, 'COALESCE(rejected_at, submitted_at)', $from, $to);
+                })
+                ->orWhere(function ($q) use ($from, $to) {
+                    $q->where('status', 'Reschedule');
+                    $this->applyReportDateBounds($q, 'COALESCE(proposed_date, date)', $from, $to);
+                })
+                ->orWhere(function ($q) use ($from, $to) {
+                    $q->whereNotIn('status', ['Rejected', 'Reschedule']);
+                    $this->applyReportDateBounds($q, 'date', $from, $to);
+                });
+        });
+    }
+
+    private function applyReportDateBounds($query, string $expression, ?string $from, ?string $to): void
+    {
+        $query
+            ->when($from, fn ($q) => $q->whereDate(DB::raw($expression), '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate(DB::raw($expression), '<=', $to));
     }
 
     public function isActiveForSchedule(): bool

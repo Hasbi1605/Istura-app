@@ -46,12 +46,53 @@ class BookingReportingDateTest extends TestCase
             'note' => 'Kuota tidak tersedia.',
         ])->assertOk()
             ->assertJsonPath('data.status', 'Rejected')
+            ->assertJsonPath('data.reportDate', '2026-06-01')
             ->assertJsonPath('data.rejectedAt', '1 Juni 2026, 10.00 WIB');
 
         $this->assertSame(
             '2026-06-01 10:00:00',
             $booking->fresh()->rejected_at?->timezone('Asia/Jakarta')->toDateTimeString(),
         );
+
+        $this->getJson('/api/admin/bookings?from=2026-06-01&to=2026-06-01')
+            ->assertOk()
+            ->assertJsonPath('data.0.code', $booking->code);
+
+        $this->getJson('/api/admin/bookings?from=2026-06-10&to=2026-06-10')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_rescheduled_booking_exposes_proposed_date_for_report_periods(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'two_factor_confirmed_at' => now(),
+        ]);
+        Sanctum::actingAs($admin);
+
+        $booking = $this->createBooking([
+            'status' => 'Accepted',
+            'date' => '2026-06-10',
+            'time' => '08.00',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-06-15',
+            'proposedTime' => '09.00',
+            'note' => 'Tawarkan jadwal baru.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule')
+            ->assertJsonPath('data.reportDate', '2026-06-15')
+            ->assertJsonPath('data.proposedDate', '2026-06-15');
+
+        $this->getJson('/api/admin/bookings?from=2026-06-15&to=2026-06-15')
+            ->assertOk()
+            ->assertJsonPath('data.0.code', $booking->code);
+
+        $this->getJson('/api/admin/bookings?from=2026-06-10&to=2026-06-10')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     private function createBooking(array $overrides = []): Booking

@@ -375,6 +375,8 @@ export function AdminWaTemplates({
         <code> {"{instansi}"} </code>
         <code> {"{kode}"} </code>
         <code> {"{tanggal}"} </code>
+        <code> {"{tanggal_awal}"} </code>
+        <code> {"{tanggal_usulan}"} </code>
         <code> {"{rombongan}"} </code>
         <code> {"{jam}"} </code>
         <code> {"{catatan}"} </code>

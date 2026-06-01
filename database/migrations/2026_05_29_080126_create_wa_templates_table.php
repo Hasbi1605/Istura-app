@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('wa_templates', function (Blueprint $table) {
             $table->id();
-            $table->enum('status_key', ['Accepted', 'Rejected', 'Reschedule', 'Completed'])->unique();
+            $table->enum('status_key', ['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed'])->unique();
             $table->string('label');
             $table->string('description');
             $table->text('template');

@@ -587,6 +587,28 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_save_pending_whatsapp_template(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->putJson('/api/admin/cms/wa-templates', [
+            'items' => [
+                [
+                    'id' => 'Pending',
+                    'label' => 'Reschedule dibatalkan',
+                    'description' => 'Dikirim saat booking kembali menunggu konfirmasi.',
+                    'template' => 'Booking {kode} masih menunggu konfirmasi admin.',
+                ],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('data.0.id', 'Pending');
+
+        $this->assertDatabaseHas('wa_templates', [
+            'status_key' => 'Pending',
+            'template' => 'Booking {kode} masih menunggu konfirmasi admin.',
+        ]);
+    }
+
     public function test_admin_cms_rejects_unsafe_public_urls(): void
     {
         $this->actingAsAdmin();

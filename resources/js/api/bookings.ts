@@ -22,6 +22,7 @@ export type ApiBooking = {
   segments?: ApiBookingSegment[];
   date: string;
   dateLabel: string;
+  reportDate?: string | null;
   time: string;
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
   documentName: string;
