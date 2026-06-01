@@ -18,6 +18,8 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
+        "@fontsource/montserrat": "5.2.6",
+        "@fontsource/playfair-display": "5.2.6",
         "@gsap/react": "2.1",
         "exceljs": "4.4",
         "gsap": "3.13",

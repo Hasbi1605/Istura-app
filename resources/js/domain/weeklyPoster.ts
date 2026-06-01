@@ -77,7 +77,7 @@ export function buildWeeklyPoster(bookings: Booking[], weekStart: Date): PosterM
       .sort((a, b) => a.time.localeCompare(b.time))
       .map((booking) => ({
         id: booking.code,
-        time: booking.time,
+        time: `${booking.time} WIB`,
         agenda: [booking.institution],
         people: `${booking.groupSize} Orang`,
       }));
