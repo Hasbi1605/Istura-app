@@ -14,10 +14,10 @@ import type ExcelJS from "exceljs";
 import {
   RANGE_FILENAME,
   THEME,
+  feedbackReportDate,
   formatDateKey,
   formatNowLabel,
   isWithinRangeByDate,
-  parseSubmittedAt,
   resolveRange,
 } from "./exportShared";
 import type { ExportRange } from "./exportShared";
@@ -43,8 +43,7 @@ export type FeedbackExportInput = {
   institution?: string;
   contactName?: string;
   dateLabel?: string; // human label of the visit date
-  dateKey?: string;   // YYYY-MM-DD of the visit date, used as a fallback when
-                      // submittedAt is missing.
+  dateKey?: string;   // YYYY-MM-DD of the visit date, preferred for reports.
 };
 
 // Threshold consistent with the in-app chip filter on AdminFeedbackList:
@@ -75,21 +74,7 @@ const SCOPE_LABEL: Record<FeedbackExportScope, string> = {
 
 // ---------- helpers ----------
 
-// Resolve the timestamp used for date-range filtering and sort order.
-// Prefer submittedAt (when the visitor pressed submit) and fall back to the
-// visit date when submittedAt is missing — that way legacy entries still
-// show up in the right bucket.
-const dateForFiltering = (f: FeedbackExportInput): Date => {
-  if (f.submittedAt) {
-    const parsed = parseSubmittedAt(f.submittedAt);
-    if (parsed.getTime() > 0) return parsed;
-  }
-  if (f.dateKey) {
-    const [y, m, d] = f.dateKey.split("-").map(Number);
-    return new Date(y, (m ?? 1) - 1, d ?? 1);
-  }
-  return new Date(0);
-};
+const dateForFiltering = (f: FeedbackExportInput): Date => feedbackReportDate(f);
 
 const isWithin = (f: FeedbackExportInput, from: Date, to: Date): boolean =>
   isWithinRangeByDate(dateForFiltering(f), from, to);

@@ -75,6 +75,7 @@ export type Booking = {
   note?: string;
   feedbackToken: string;
   completedAt?: string;
+  rejectedAt?: string;
   // Reschedule lifecycle: when admin proposes a new slot we keep the original
   // date/time as-is and stash the proposed alternative so the WhatsApp reply
   // from the visitor can be confirmed by the admin in a follow-up step.

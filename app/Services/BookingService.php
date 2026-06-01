@@ -312,6 +312,7 @@ class BookingService
                     $booking->proposed_segments = null;
                     $booking->proposed_at = null;
                     $booking->reschedule_previous_status = null;
+                    $booking->rejected_at = now();
                     $booking->slots()->where('kind', BookingSlot::KIND_PROPOSED)->delete();
                 }
 

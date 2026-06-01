@@ -16,6 +16,12 @@ export const parseDateKey = (key: string): Date => {
   return new Date(year, (month ?? 1) - 1, day ?? 1);
 };
 
+const safeDateKey = (key?: string | null): Date => {
+  if (!key) return new Date(0);
+  const parsed = parseDateKey(key);
+  return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+};
+
 // Mirror the in-page parser so sorting in Excel matches what admin sees in
 // the list. Returns epoch 0 for unparseable input so legacy rows still sort
 // deterministically (oldest-last).
@@ -52,6 +58,42 @@ export const formatNowLabel = (): string => {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${formatLongLabel(now)}, ${pad(now.getHours())}.${pad(now.getMinutes())} WIB`;
+};
+
+export type BookingReportDateInput = {
+  status?: string;
+  date?: string | null;
+  proposedDate?: string | null;
+  submittedAt?: string | null;
+  rejectedAt?: string | null;
+};
+
+export type FeedbackReportDateInput = {
+  submittedAt?: string | null;
+  dateKey?: string | null;
+};
+
+export const bookingReportDate = (booking: BookingReportDateInput): Date => {
+  if (booking.status === "Rejected") {
+    const rejected = parseSubmittedAt(booking.rejectedAt ?? "");
+    if (rejected.getTime() > 0) return rejected;
+    return parseSubmittedAt(booking.submittedAt ?? "");
+  }
+
+  const visitDate = booking.status === "Reschedule" && booking.proposedDate
+    ? booking.proposedDate
+    : booking.date;
+  const parsedVisitDate = safeDateKey(visitDate);
+  if (parsedVisitDate.getTime() > 0) return parsedVisitDate;
+
+  return parseSubmittedAt(booking.submittedAt ?? "");
+};
+
+export const feedbackReportDate = (feedback: FeedbackReportDateInput): Date => {
+  const visitDate = safeDateKey(feedback.dateKey);
+  if (visitDate.getTime() > 0) return visitDate;
+
+  return parseSubmittedAt(feedback.submittedAt ?? "");
 };
 
 export const RANGE_FILENAME: Record<ExportRange, string> = {

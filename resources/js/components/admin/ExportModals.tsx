@@ -2,8 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, Loader2, X } from "lucide-react";
 import type { Booking, Feedback } from "../../domain/types";
-import { parseDateKey } from "../../lib/date";
-import { parseSubmittedAt } from "../../domain/booking";
+import {
+  bookingReportDate,
+  feedbackReportDate,
+  isWithinRangeByDate,
+  parseDateKey,
+  resolveRange,
+} from "../../exportShared";
 import { ASSETS } from "../../lib/assets";
 import { exportBookingsToZip } from "../../exportBookings";
 import type { ExportRange, ExportScope } from "../../exportBookings";
@@ -50,36 +55,8 @@ export function BookingExportModal({
       if (scope === "completed") return b.status === "Completed";
       return b.status === "Rejected";
     });
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let from: Date;
-    let to: Date;
-    if (range === "week") {
-      const offsetToMonday = (today.getDay() + 6) % 7;
-      from = new Date(today);
-      from.setDate(today.getDate() - offsetToMonday);
-      to = new Date(from);
-      to.setDate(from.getDate() + 6);
-    } else if (range === "month") {
-      from = new Date(today.getFullYear(), today.getMonth(), 1);
-      to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    } else if (range === "year") {
-      from = new Date(today.getFullYear(), 0, 1);
-      to = new Date(today.getFullYear(), 11, 31);
-    } else {
-      from = customFrom ? parseDateKey(customFrom) : new Date(0);
-      to = customTo ? parseDateKey(customTo) : new Date(8640000000000000);
-    }
-    return scoped.filter((b) => {
-      // Mirror exportBookingsToZip: filter pakai tanggal pengajuan
-      // (submittedAt), bukan tanggal kunjungan, supaya laporan konsisten
-      // dengan urutan sortir + masuk akal untuk Rejected.
-      const submitted = parseSubmittedAt(b.submittedAt);
-      if (submitted.getTime() === 0) return false;
-      const d = new Date(submitted);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime() >= from.getTime() && d.getTime() <= to.getTime();
-    }).length;
+    const { from, to } = resolveRange(range, customFrom, customTo);
+    return scoped.filter((b) => isWithinRangeByDate(bookingReportDate(b), from, to)).length;
   }, [bookings, scope, range, customFrom, customTo]);
 
   const customRangeInvalid =
@@ -247,7 +224,7 @@ export function BookingExportModal({
           {previewCount > 0 ? (
             <p>
               <strong>{previewCount}</strong> baris akan diekspor, diurutkan dari
-              tanggal pengajuan terbaru ke terlama.
+              tanggal laporan terbaru ke terlama.
             </p>
           ) : (
             <p className="admin-modal-preview-error">
@@ -351,43 +328,8 @@ export function FeedbackExportModal({
       if (scope === "positive") return f.rating >= 4;
       return f.rating <= 3;
     });
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let from: Date;
-    let to: Date;
-    if (range === "week") {
-      const offsetToMonday = (today.getDay() + 6) % 7;
-      from = new Date(today);
-      from.setDate(today.getDate() - offsetToMonday);
-      to = new Date(from);
-      to.setDate(from.getDate() + 6);
-    } else if (range === "month") {
-      from = new Date(today.getFullYear(), today.getMonth(), 1);
-      to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    } else if (range === "year") {
-      from = new Date(today.getFullYear(), 0, 1);
-      to = new Date(today.getFullYear(), 11, 31);
-    } else {
-      from = customFrom ? parseDateKey(customFrom) : new Date(0);
-      to = customTo ? parseDateKey(customTo) : new Date(8640000000000000);
-    }
-    return scoped.filter((f) => {
-      // Prefer submittedAt; fallback ke tanggal kunjungan kalau kosong.
-      let candidate: Date;
-      if (f.submittedAt) {
-        candidate = parseSubmittedAt(f.submittedAt);
-        if (candidate.getTime() === 0 && f.dateKey) {
-          candidate = parseDateKey(f.dateKey);
-        }
-      } else if (f.dateKey) {
-        candidate = parseDateKey(f.dateKey);
-      } else {
-        return false;
-      }
-      const d = new Date(candidate);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime() >= from.getTime() && d.getTime() <= to.getTime();
-    }).length;
+    const { from, to } = resolveRange(range, customFrom, customTo);
+    return scoped.filter((f) => isWithinRangeByDate(feedbackReportDate(f), from, to)).length;
   }, [enriched, scope, range, customFrom, customTo]);
 
   const customRangeInvalid =
@@ -619,8 +561,7 @@ export function MonthlyReportModal({
   }, [onClose, busy]);
 
   // Hitung perkiraan jumlah baris secara client-side. Logika harus identik
-  // dengan exportMonthlyReport (resolveQuarter + isWithinRangeByDate by
-  // submittedAt) supaya angkanya jujur.
+  // dengan exportMonthlyReport supaya angkanya jujur.
   const preview = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -646,15 +587,11 @@ export function MonthlyReportModal({
       from = customFrom ? parseDateKey(customFrom) : new Date(0);
       to = customTo ? parseDateKey(customTo) : new Date(8640000000000000);
     }
-    const inWindow = (d: Date) => {
-      if (d.getTime() === 0) return false;
-      const x = new Date(d);
-      x.setHours(0, 0, 0, 0);
-      return x.getTime() >= from.getTime() && x.getTime() <= to.getTime();
-    };
-    const bookingCount = bookings.filter((b) => inWindow(parseSubmittedAt(b.submittedAt))).length;
+    const inWindow = (d: Date) => isWithinRangeByDate(d, from, to);
+    const bookingCount = bookings.filter((b) => inWindow(bookingReportDate(b))).length;
+    const bookingDateByCode = new Map(bookings.map((booking) => [booking.code, booking.date]));
     const feedbackCount = feedbacks.filter((f) =>
-      inWindow(parseSubmittedAt(f.submittedAt ?? "")),
+      inWindow(feedbackReportDate({ ...f, dateKey: bookingDateByCode.get(f.code) })),
     ).length;
     return { bookingCount, feedbackCount };
   }, [bookings, feedbacks, range, customFrom, customTo]);

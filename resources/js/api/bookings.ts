@@ -32,6 +32,7 @@ export type ApiBooking = {
   note?: string | null;
   feedbackToken?: string;
   completedAt?: string | null;
+  rejectedAt?: string | null;
   proposedDate?: string | null;
   proposedDateLabel?: string | null;
   proposedTime?: string | null;

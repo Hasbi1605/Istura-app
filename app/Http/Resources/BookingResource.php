@@ -38,6 +38,7 @@ class BookingResource extends JsonResource
             'note' => $this->note,
             'feedbackToken' => $this->when($this->shouldExposeFeedbackToken($request), fn () => $this->feedback_token),
             'completedAt' => $this->completed_at ? IndonesianDate::submittedAt($this->completed_at) : null,
+            'rejectedAt' => $this->rejected_at ? IndonesianDate::submittedAt($this->rejected_at) : null,
             'proposedDate' => $this->proposed_date?->toDateString(),
             'proposedDateLabel' => $this->proposed_date_label,
             'proposedTime' => $this->proposed_time,

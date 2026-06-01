@@ -13,6 +13,7 @@ import type ExcelJS from "exceljs";
 import {
   RANGE_FILENAME,
   THEME,
+  bookingReportDate,
   formatDateKey,
   formatLongLabel,
   formatNowLabel,
@@ -43,6 +44,7 @@ export type BookingExportInput = {
   submittedAt: string | null; // "23 Mei 2026, 14.12 WIB"
   note?: string;
   completedAt?: string;
+  rejectedAt?: string;
 };
 
 export type ExportScope = "all" | "completed" | "rejected";
@@ -73,11 +75,7 @@ export type ExportResult = {
 // ---------- date helpers ----------
 
 const isWithin = (booking: BookingExportInput, from: Date, to: Date): boolean => {
-  // Filter periode menggunakan tanggal pengajuan (submittedAt). Pertimbangan:
-  // - Konsisten dengan urutan sortir laporan (newest submitted first).
-  // - Natural untuk laporan: "permohonan yang masuk bulan Mei".
-  // - Untuk Rejected, tanggal kunjungan tidak relevan karena tidak terjadi.
-  return isWithinRangeByDate(parseSubmittedAt(booking.submittedAt ?? ""), from, to);
+  return isWithinRangeByDate(bookingReportDate(booking), from, to);
 };
 
 // ---------- filename + path helpers ----------
@@ -128,14 +126,11 @@ const COLUMNS: Column[] = [
   {
     header: "Tanggal Selesai / Tolak",
     width: 24,
-    // Completed punya completedAt eksplisit. Rejected belum punya field
-    // dedicated, jadi pakai submittedAt sebagai proxy "tanggal keputusan".
-    // Ini didokumentasikan di header sheet.
     value: (b) =>
       b.status === "Completed"
         ? b.completedAt ?? ""
         : b.status === "Rejected"
-          ? b.submittedAt
+          ? b.rejectedAt ?? b.submittedAt
           : "",
   },
   { header: "Catatan", width: 40, value: (b) => b.note ?? "" },
@@ -302,11 +297,12 @@ export const exportBookingsToZip = async (
   const { from, to, label: periodLabel } = resolveRange(range, customFrom, customTo);
   const filtered = scoped.filter((b) => isWithin(b, from, to));
 
-  // 3. Sort by tanggal pengajuan, terbaru → terlama --------------------
+  // 3. Sort by tanggal laporan, terbaru → terlama ----------------------
   filtered.sort(
     (a, b) =>
+      bookingReportDate(b).getTime() - bookingReportDate(a).getTime() ||
       parseSubmittedAt(b.submittedAt ?? "").getTime() -
-      parseSubmittedAt(a.submittedAt ?? "").getTime(),
+        parseSubmittedAt(a.submittedAt ?? "").getTime(),
   );
 
   // 4. Build workbook --------------------------------------------------

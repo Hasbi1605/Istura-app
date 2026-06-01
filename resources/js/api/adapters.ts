@@ -29,6 +29,7 @@ export function apiBookingToLocal(b: ApiBooking): Booking {
     note: b.note ?? undefined,
     feedbackToken: b.feedbackToken ?? "",
     completedAt: b.completedAt ?? undefined,
+    rejectedAt: b.rejectedAt ?? undefined,
     proposedDate: b.proposedDate ?? undefined,
     proposedDateLabel: b.proposedDateLabel ?? undefined,
     proposedTime: b.proposedTime ?? undefined,

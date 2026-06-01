@@ -10,13 +10,14 @@
 
 import {
   THEME,
+  bookingReportDate,
+  feedbackReportDate,
   formatDateKey,
   formatLongLabel,
   formatNowLabel,
   isWithinRangeByDate,
   monthNamesId,
   parseDateKey,
-  parseSubmittedAt,
   resolveRange,
 } from "./exportShared";
 import type { ExportRange } from "./exportShared";
@@ -40,6 +41,8 @@ export type ReportBooking = {
   status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
   submittedAt: string | null;
   completedAt?: string;
+  rejectedAt?: string;
+  proposedDate?: string | null;
   note?: string;
 };
 
@@ -54,6 +57,7 @@ export type ReportFeedback = {
   comment: string;
   allowPublish: boolean;
   submittedAt?: string;
+  dateKey?: string;
 };
 
 export type MonthlyReportOptions = {
@@ -117,17 +121,12 @@ const resolvePeriod = (
   return resolveRange(range as ExportRange, customFrom, customTo);
 };
 
-// Date used for filtering booking/feedback into the period. Mirrors the
-// rationale from the Excel exports (use submittedAt; fallback when absent).
-const bookingFilterDate = (b: ReportBooking): Date => parseSubmittedAt(b.submittedAt ?? "");
+const bookingFilterDate = (b: ReportBooking): Date => bookingReportDate(b);
 
-const feedbackFilterDate = (f: ReportFeedback): Date => {
-  if (f.submittedAt) {
-    const parsed = parseSubmittedAt(f.submittedAt);
-    if (parsed.getTime() > 0) return parsed;
-  }
-  return new Date(0);
-};
+const feedbackFilterDate = (
+  f: ReportFeedback,
+  bookingDateByCode: Map<string, string>,
+): Date => feedbackReportDate({ ...f, dateKey: f.dateKey ?? bookingDateByCode.get(f.code) });
 
 // Average + round to one decimal. 0 for empty input (not NaN).
 const avg1 = (values: number[]): number => {
@@ -199,13 +198,14 @@ export const exportMonthlyReport = async (
 
   // 1. Resolve period --------------------------------------------------
   const period = resolvePeriod(range, customFrom, customTo);
+  const bookingDateByCode = new Map(bookings.map((booking) => [booking.code, booking.date]));
 
   // 2. Filter bookings & feedbacks ------------------------------------
   const periodBookings = bookings.filter((b) =>
     isWithinRangeByDate(bookingFilterDate(b), period.from, period.to),
   );
   const periodFeedbacks = feedbacks.filter((f) =>
-    isWithinRangeByDate(feedbackFilterDate(f), period.from, period.to),
+    isWithinRangeByDate(feedbackFilterDate(f, bookingDateByCode), period.from, period.to),
   );
 
   // 3. Compute KPIs ---------------------------------------------------
@@ -247,7 +247,11 @@ export const exportMonthlyReport = async (
   // Selected positive quotes: rating 5 + allowPublish + non-empty comment.
   const positiveQuotes = periodFeedbacks
     .filter((f) => f.rating === 5 && f.allowPublish && f.comment.trim().length > 0)
-    .sort((a, b) => feedbackFilterDate(b).getTime() - feedbackFilterDate(a).getTime())
+    .sort(
+      (a, b) =>
+        feedbackFilterDate(b, bookingDateByCode).getTime() -
+        feedbackFilterDate(a, bookingDateByCode).getTime(),
+    )
     .slice(0, 3);
 
   // Tindak lanjut: rating <= 2.

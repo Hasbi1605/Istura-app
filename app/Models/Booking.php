@@ -30,6 +30,7 @@ class Booking extends Model
         'date' => 'date',
         'submitted_at' => 'datetime',
         'completed_at' => 'datetime',
+        'rejected_at' => 'datetime',
         'proposed_date' => 'date',
         'proposed_segments' => 'array',
         'proposed_at' => 'datetime',
