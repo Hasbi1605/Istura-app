@@ -49,7 +49,12 @@ jobs:
             "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$DEPLOY_PATH"
-          php artisan down || true
+          # Pre-render halaman pemeliharaan ber-branding (errors::503) sehingga
+          # public/index.php menyajikannya SEBELUM autoloader/vendor dimuat —
+          # aman walau aset/vendor sedang dibangun ulang. --retry mengirim
+          # header Retry-After. Fallback ke down polos jika view belum ada
+          # (mis. deploy pertama yang memperkenalkan halaman ini).
+          php artisan down --render="errors::503" --retry=15 || php artisan down || true
           REMOTE
 
       - name: Sync files to server
@@ -75,6 +80,8 @@ jobs:
             --exclude='storage/framework/sessions/' \
             --exclude='storage/framework/testing/' \
             --exclude='storage/framework/views/' \
+            --exclude='storage/framework/down' \
+            --exclude='storage/framework/maintenance.php' \
             --exclude='storage/logs/' \
             ./ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
 
