@@ -20,6 +20,7 @@ import {
   parseDateKey,
   resolveRange,
 } from "./exportShared";
+import { BOOKING_STATUS_LABELS } from "./domain/booking";
 import type { ExportRange } from "./exportShared";
 
 export type { ExportRange } from "./exportShared";
@@ -319,11 +320,11 @@ export const exportMonthlyReport = async (
     logoDataUrl,
     kpis: { total, completed: completed.length, totalVisitors, overallAvg },
     statusBreakdown: [
-      { label: "Pending", count: pending.length, color: COLOR.muted },
-      { label: "Accepted", count: accepted.length, color: "#3B82F6" },
-      { label: "Reschedule", count: reschedule.length, color: COLOR.gold },
-      { label: "Completed", count: completed.length, color: COLOR.positive },
-      { label: "Rejected", count: rejected.length, color: COLOR.attention },
+      { label: BOOKING_STATUS_LABELS.Pending, count: pending.length, color: COLOR.muted },
+      { label: BOOKING_STATUS_LABELS.Accepted, count: accepted.length, color: "#3B82F6" },
+      { label: BOOKING_STATUS_LABELS.Reschedule, count: reschedule.length, color: COLOR.gold },
+      { label: BOOKING_STATUS_LABELS.Completed, count: completed.length, color: COLOR.positive },
+      { label: BOOKING_STATUS_LABELS.Rejected, count: rejected.length, color: COLOR.attention },
     ],
     pct,
     feedbackCount: periodFeedbacks.length,

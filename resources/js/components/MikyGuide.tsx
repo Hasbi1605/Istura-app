@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useReducedMotion, useTypewriter } from "../hooks";
 
 export function MikyGuide({
@@ -20,12 +20,18 @@ export function MikyGuide({
   imageSrc: string;
 }) {
   const reduced = useReducedMotion();
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const [imageReady, setImageReady] = useState(false);
   const typed = useTypewriter(message, 22, !reduced, imageReady);
   const showStepper = typeof step === "number" && typeof totalSteps === "number" && totalSteps > 1;
 
   useEffect(() => {
+    const image = imageRef.current;
     setImageReady(false);
+
+    if (image?.complete) {
+      setImageReady(true);
+    }
   }, [imageSrc]);
 
   return (
@@ -65,6 +71,7 @@ export function MikyGuide({
 
       <div className="miky-guide-figure">
         <img
+          ref={imageRef}
           key={imageSrc}
           className="miky-guide-img"
           src={imageSrc}

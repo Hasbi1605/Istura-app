@@ -10,6 +10,7 @@
 // bundle stays lean for users who never trigger an export.
 
 import type ExcelJS from "exceljs";
+import { BOOKING_STATUS_LABELS } from "./domain/booking";
 import {
   RANGE_FILENAME,
   THEME,
@@ -82,8 +83,8 @@ const isWithin = (booking: BookingExportInput, from: Date, to: Date): boolean =>
 
 const SCOPE_LABEL: Record<ExportScope, string> = {
   all: "Semua",
-  completed: "Completed",
-  rejected: "Rejected",
+  completed: BOOKING_STATUS_LABELS.Completed,
+  rejected: BOOKING_STATUS_LABELS.Rejected,
 };
 
 // Strip characters that misbehave in Windows/macOS filenames so the surat
@@ -115,7 +116,7 @@ const COLUMNS: Column[] = [
   { header: "No", width: 5, value: () => "" }, // filled later (row index)
   { header: "Kode", width: 22, value: (b) => b.code },
   { header: "Tanggal Pengajuan", width: 24, value: (b) => b.submittedAt },
-  { header: "Status", width: 12, value: (b) => b.status },
+  { header: "Status", width: 18, value: (b) => BOOKING_STATUS_LABELS[b.status] },
   { header: "Contact Person", width: 22, value: (b) => b.contactName },
   { header: "NIK", width: 20, value: (b) => b.nik },
   { header: "WhatsApp", width: 16, value: (b) => b.whatsapp },
