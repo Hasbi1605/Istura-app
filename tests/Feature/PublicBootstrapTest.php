@@ -44,8 +44,9 @@ class PublicBootstrapTest extends TestCase
             ]);
 
         $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
-        $this->assertStringContainsString('max-age=60', $response->headers->get('Cache-Control'));
-        $this->assertStringContainsString('stale-while-revalidate=300', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=0', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('must-revalidate', $response->headers->get('Cache-Control'));
     }
 
     public function test_public_schedule_response_is_publicly_cacheable(): void
@@ -54,6 +55,7 @@ class PublicBootstrapTest extends TestCase
 
         $response->assertOk();
         $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
-        $this->assertStringContainsString('max-age=60', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=0', $response->headers->get('Cache-Control'));
     }
 }

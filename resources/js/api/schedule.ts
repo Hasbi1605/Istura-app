@@ -20,7 +20,9 @@ export const fetchPublicSchedule = (from?: string, to?: string): Promise<ApiVisi
   if (from) search.set("from", from);
   if (to) search.set("to", to);
   const qs = search.toString();
-  return api<{ data: ApiVisitDay[] }>(`/api/public/schedule${qs ? `?${qs}` : ""}`).then((r) => r.data);
+  return api<{ data: ApiVisitDay[] }>(`/api/public/schedule${qs ? `?${qs}` : ""}`, { cache: "no-cache" }).then(
+    (r) => r.data,
+  );
 };
 
 export const upsertScheduleSlot = (date: string, time: string, status: string, note?: string) =>

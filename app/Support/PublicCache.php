@@ -12,9 +12,9 @@ class PublicCache
 
     public const CMS_BROWSER_TTL = 300;
 
-    public const SCHEDULE_BROWSER_TTL = 60;
+    public const SCHEDULE_BROWSER_TTL = 0;
 
-    public const BOOTSTRAP_BROWSER_TTL = 60;
+    public const BOOTSTRAP_BROWSER_TTL = 0;
 
     public const STALE_WHILE_REVALIDATE = 300;
 
@@ -24,6 +24,12 @@ class PublicCache
      */
     public static function publicHeaders(int $maxAge): array
     {
+        if ($maxAge <= 0) {
+            return [
+                'Cache-Control' => 'public, no-cache, max-age=0, s-maxage=0, must-revalidate',
+            ];
+        }
+
         return [
             'Cache-Control' => sprintf(
                 'public, max-age=%d, s-maxage=%d, stale-while-revalidate=%d',

@@ -74,7 +74,7 @@ export type ApiPublicBootstrap = {
 };
 
 export const fetchPublicBootstrap = () =>
-  api<{ data: ApiPublicBootstrap }>("/api/public/bootstrap").then((r) => r.data);
+  api<{ data: ApiPublicBootstrap }>("/api/public/bootstrap", { cache: "no-cache" }).then((r) => r.data);
 
 export const fetchPublicHero = () => api<{ data: ApiHero }>("/api/public/hero").then((r) => r.data);
 export const fetchPublicLetter = () =>

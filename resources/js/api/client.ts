@@ -86,6 +86,7 @@ type RequestOptions = {
   formData?: FormData;
   signal?: AbortSignal;
   credentials?: RequestCredentials;
+  cache?: RequestCache;
 };
 
 type PaginatedResponse<T> = {
@@ -153,6 +154,7 @@ async function apiRequest<T = unknown>(path: string, options: RequestOptions, re
     headers,
     body,
     credentials: options.credentials ?? (method === "GET" && path.startsWith("/api/public/") ? "omit" : "include"),
+    cache: options.cache,
     signal: options.signal,
   });
 

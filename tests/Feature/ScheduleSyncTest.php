@@ -55,15 +55,20 @@ class ScheduleSyncTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_realtime_events_are_queued_after_commit_and_rescued(): void
+    public function test_realtime_events_are_broadcast_after_commit_and_rescued(): void
     {
-        foreach ([BookingCreated::class, BookingStatusChanged::class, FeedbackSubmitted::class, ScheduleUpdated::class] as $eventClass) {
+        foreach ([BookingCreated::class, BookingStatusChanged::class, FeedbackSubmitted::class] as $eventClass) {
             $interfaces = class_implements($eventClass) ?: [];
 
             $this->assertContains(ShouldBroadcast::class, $interfaces);
             $this->assertContains(ShouldRescue::class, $interfaces);
             $this->assertNotContains(ShouldBroadcastNow::class, $interfaces);
         }
+
+        $scheduleInterfaces = class_implements(ScheduleUpdated::class) ?: [];
+        $this->assertContains(ShouldBroadcast::class, $scheduleInterfaces);
+        $this->assertContains(ShouldBroadcastNow::class, $scheduleInterfaces);
+        $this->assertContains(ShouldRescue::class, $scheduleInterfaces);
 
         $this->assertTrue((new BookingCreated(new Booking))->afterCommit);
         $this->assertTrue((new BookingStatusChanged(new Booking, 'Pending'))->afterCommit);
