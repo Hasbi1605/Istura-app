@@ -15,8 +15,11 @@ const slugify = (value: string): string =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "agenda";
 
-// Pixel ratio tetap 2x supaya teks poster tajam saat dibuka di HP.
-const PIXEL_RATIO = 2;
+// Pixel ratio 3x → poster ~3072px lebar. Resolusi tinggi ini penting karena
+// WhatsApp mengompres & menurunkan ulang foto; sumber yang lebih tajam membuat
+// hasil setelah kompresi WA jauh lebih bersih. Untuk benar-benar HD, kirim
+// gambar di WA sebagai "Dokumen", bukan lewat "Foto/Galeri".
+const PIXEL_RATIO = 3;
 
 export async function exportPosterToPng(
   node: HTMLElement,
@@ -49,8 +52,8 @@ export async function exportPosterToPng(
       width: node.offsetWidth,
       height: node.offsetHeight,
       // Background eksplisit supaya tidak transparan kalau elemen tidak menutup
-      // penuh (PNG transparan akan jelek di WA).
-      backgroundColor: "#3a3a3c",
+      // penuh (PNG transparan akan jelek di WA). Samakan dengan warna kanvas.
+      backgroundColor: "#434244",
       // Sembunyikan kontrol edit (tombol tambah/hapus baris) dari hasil gambar.
       filter: (domNode) => {
         if (domNode instanceof HTMLElement && domNode.dataset.exportHide !== undefined) {
