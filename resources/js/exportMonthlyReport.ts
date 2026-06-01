@@ -154,23 +154,72 @@ const truncate = (text: string, max: number): string => {
   return text.slice(0, max - 1).trimEnd() + "…";
 };
 
-// Convert URL-fetched image to data URL. pdfmake can ingest data URLs
-// directly when image is registered in the document images map.
+const PDF_GENERATION_TIMEOUT_MS = 30000;
+
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+const canUseDataUrlInPdf = (dataUrl: string): boolean =>
+  /^data:image\/(png|jpe?g);base64,/i.test(dataUrl);
+
+const rasterImageDataUrlToPngDataUrl = async (dataUrl: string): Promise<string | null> => {
+  try {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Report logo failed to load"));
+      image.src = dataUrl;
+    });
+
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+    if (!width || !height) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+};
+
+// Convert URL-fetched image to a pdfmake-safe data URL. Browser UI uses WebP
+// assets, but pdfmake accepts PNG/JPEG only for embedded images.
 const fetchImageAsDataUrl = async (url: string): Promise<string | null> => {
   try {
     const response = await fetch(url);
     if (!response.ok) return null;
     const blob = await response.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    const dataUrl = await blobToDataUrl(blob);
+    if (canUseDataUrlInPdf(dataUrl)) return dataUrl;
+    return await rasterImageDataUrlToPngDataUrl(dataUrl);
   } catch {
     return null;
   }
 };
+
+const createPdfBlob = (
+  pdfDoc: { getBlob: (callback: (blob: Blob) => void) => void },
+): Promise<Blob> =>
+  new Promise<Blob>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error("PDF generation timed out"));
+    }, PDF_GENERATION_TIMEOUT_MS);
+
+    pdfDoc.getBlob((blob) => {
+      window.clearTimeout(timeout);
+      resolve(blob);
+    });
+  });
 
 // ---------- styles & color tokens ----------
 
@@ -305,9 +354,7 @@ export const exportMonthlyReport = async (
 
   const filename = `ISTURA-Laporan-${RANGE_TITLE_LABEL[range]}-${formatDateKey(new Date()).replace(/-/g, "")}.pdf`;
 
-  const pdfBlob = await new Promise<Blob>((resolve) => {
-    pdfMake.createPdf(docDefinition).getBlob((blob) => resolve(blob));
-  });
+  const pdfBlob = await createPdfBlob(pdfMake.createPdf(docDefinition));
   const url = URL.createObjectURL(pdfBlob);
   const link = document.createElement("a");
   link.href = url;
