@@ -147,10 +147,10 @@ export function AdminFeedbackList({
             type="button"
             className="booking-export-button"
             onClick={() => setShowExportModal(true)}
-            title="Export ringkasan & detail feedback ke Excel"
+            title="Ekspor ringkasan & detail feedback ke Excel"
           >
             <FileSpreadsheet size={14} aria-hidden="true" />
-            Export
+            Ekspor
           </button>
         </div>
       </div>
@@ -160,10 +160,10 @@ export function AdminFeedbackList({
           <StatCardSkeleton />
         ) : (
           <>
-            <StatCard label="Total Feedback" value={feedbacks.length} />
+            <StatCard label="Total Masukan" value={feedbacks.length} />
             <StatCard label="Rating Rata-rata" value={averageRating} />
             <StatCard label="Perlu Perhatian" value={needsAttention} />
-            <StatCard label="Response Rate" value={`${responseRate}%`} />
+            <StatCard label="Tingkat Respons" value={`${responseRate}%`} />
           </>
         )}
       </div>

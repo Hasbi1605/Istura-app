@@ -294,7 +294,7 @@ export const exportMonthlyReport = async (
   // directly on the module object depending on bundler shim.
   const pdfMakeAny = pdfMakeModule as unknown as Record<string, unknown>;
   const pdfMake = (pdfMakeAny.default ?? pdfMakeAny) as {
-    createPdf: (def: unknown) => { download: (name: string) => void };
+    createPdf: (def: unknown) => { getBlob: (callback: (blob: Blob) => void) => void };
     vfs?: Record<string, string>;
   };
   const vfsAny = vfsModule as unknown as Record<string, unknown>;
@@ -305,7 +305,18 @@ export const exportMonthlyReport = async (
 
   const filename = `ISTURA-Laporan-${RANGE_TITLE_LABEL[range]}-${formatDateKey(new Date()).replace(/-/g, "")}.pdf`;
 
-  pdfMake.createPdf(docDefinition).download(filename);
+  const pdfBlob = await new Promise<Blob>((resolve) => {
+    pdfMake.createPdf(docDefinition).getBlob((blob) => resolve(blob));
+  });
+  const url = URL.createObjectURL(pdfBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 
   return {
     filename,
