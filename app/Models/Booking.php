@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class Booking extends Model
 {
-    public const STATUSES = ['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed'];
+    public const STATUSES = ['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed', 'Expired'];
 
     public const ACTIVE_STATUSES = ['Pending', 'Accepted', 'Reschedule'];
 
@@ -32,6 +33,7 @@ class Booking extends Model
         'submitted_at' => 'datetime',
         'completed_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'expired_at' => 'datetime',
         'proposed_date' => 'date',
         'proposed_segments' => 'array',
         'proposed_at' => 'datetime',
@@ -88,7 +90,11 @@ class Booking extends Model
                     $this->applyReportDateBounds($q, 'COALESCE(proposed_date, date)', $from, $to);
                 })
                 ->orWhere(function ($q) use ($from, $to) {
-                    $q->whereNotIn('status', ['Rejected', 'Reschedule']);
+                    $q->where('status', 'Expired');
+                    $this->applyReportDateBounds($q, 'COALESCE(expired_at, date)', $from, $to);
+                })
+                ->orWhere(function ($q) use ($from, $to) {
+                    $q->whereNotIn('status', ['Rejected', 'Reschedule', 'Expired']);
                     $this->applyReportDateBounds($q, 'date', $from, $to);
                 });
         });
@@ -104,6 +110,27 @@ class Booking extends Model
     public function isActiveForSchedule(): bool
     {
         return in_array($this->status, self::ACTIVE_STATUSES, true);
+    }
+
+    public function visitStartsAt(): ?Carbon
+    {
+        if (! $this->date || ! $this->time) {
+            return null;
+        }
+
+        return Carbon::createFromFormat(
+            'Y-m-d H.i',
+            $this->date->copy()->timezone('Asia/Jakarta')->toDateString().' '.$this->time,
+            'Asia/Jakarta',
+        );
+    }
+
+    public function hasVisitStarted(?Carbon $now = null): bool
+    {
+        $visitStartsAt = $this->visitStartsAt();
+
+        return $visitStartsAt !== null
+            && $visitStartsAt->lte(($now ?? now('Asia/Jakarta'))->copy()->timezone('Asia/Jakarta'));
     }
 
     private function slotKey(DateTimeInterface|string|null $date, ?string $time): ?string

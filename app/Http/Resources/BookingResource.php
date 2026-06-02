@@ -40,6 +40,7 @@ class BookingResource extends JsonResource
             'feedbackToken' => $this->when($this->shouldExposeFeedbackToken($request), fn () => $this->feedback_token),
             'completedAt' => $this->completed_at ? IndonesianDate::submittedAt($this->completed_at) : null,
             'rejectedAt' => $this->rejected_at ? IndonesianDate::submittedAt($this->rejected_at) : null,
+            'expiredAt' => $this->expired_at ? IndonesianDate::submittedAt($this->expired_at) : null,
             'proposedDate' => $this->proposed_date?->toDateString(),
             'proposedDateLabel' => $this->proposed_date_label,
             'proposedTime' => $this->proposed_time,
@@ -56,6 +57,10 @@ class BookingResource extends JsonResource
 
         if ($this->status === 'Reschedule' && $this->proposed_date) {
             return $this->proposed_date->toDateString();
+        }
+
+        if ($this->status === 'Expired') {
+            return ($this->expired_at ?? $this->date)?->copy()->timezone('Asia/Jakarta')->toDateString();
         }
 
         if ($this->date) {

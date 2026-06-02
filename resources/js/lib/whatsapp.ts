@@ -41,6 +41,28 @@ export function fillWaTemplate(template: string, vars: Record<string, string>): 
 }
 
 function fallbackTemplateFor(status: BookingStatus): string | null {
+  if (status === "Expired") {
+    return [
+      "Halo Sobat ISTURA \u{1F44B}",
+      "",
+      "*Booking Kedaluwarsa*",
+      "",
+      "Yth. *{nama}*,",
+      "permohonan kunjungan dari *{instansi}* dengan kode *{kode}* belum sempat dikonfirmasi hingga jadwal yang diajukan terlewat.",
+      "",
+      "Tanggal kunjungan awal:",
+      "*{tanggal_awal}*",
+      "",
+      "Jadwal awal:",
+      "{jam}",
+      "",
+      "Silakan menunggu tawaran jadwal baru dari admin atau melakukan booking ulang sesuai slot yang tersedia.",
+      "",
+      "Salam hangat,",
+      "Admin ISTURA",
+    ].join("\n");
+  }
+
   if (status !== "Pending") return null;
 
   return [

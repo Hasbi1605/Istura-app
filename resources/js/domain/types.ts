@@ -28,7 +28,7 @@ export type AdminTab =
   | "audit";
 
 export type VisitStatus = "Available" | "Held" | "Booked" | "Closed" | "Reschedule Hold";
-export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
+export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed" | "Expired";
 export type AdminAction = "accept" | "reject" | "reschedule";
 
 export type Slot = {
@@ -77,6 +77,7 @@ export type Booking = {
   feedbackToken: string;
   completedAt?: string;
   rejectedAt?: string;
+  expiredAt?: string;
   // Reschedule lifecycle: when admin proposes a new slot we keep the original
   // date/time as-is and stash the proposed alternative so the WhatsApp reply
   // from the visitor can be confirmed by the admin in a follow-up step.

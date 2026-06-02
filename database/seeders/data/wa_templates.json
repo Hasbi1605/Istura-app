@@ -24,6 +24,12 @@
     "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n*Status Booking Masih Menunggu Konfirmasi*\n\nYth. *{nama}*,\nusulan perubahan jadwal untuk booking dari *{instansi}* dengan kode *{kode}* belum dilanjutkan.\n\nStatus booking saat ini masih *menunggu konfirmasi admin*.\n\nTanggal kunjungan awal:\n*{tanggal_awal}*\n\nJadwal awal:\n{jam}\n\nCatatan admin:\n*{catatan}*\n\nAdmin ISTURA akan mengirim konfirmasi lanjutan setelah jadwal final ditetapkan.\n\nSalam hangat,\nAdmin ISTURA"
   },
   {
+    "id": "Expired",
+    "label": "Booking kedaluwarsa",
+    "description": "Dikirim saat jadwal pending sudah terlewat tanpa keputusan admin.",
+    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n*Booking Kedaluwarsa*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* dengan kode *{kode}* belum sempat dikonfirmasi hingga jadwal yang diajukan terlewat.\n\nTanggal kunjungan awal:\n*{tanggal_awal}*\n\nJadwal awal:\n{jam}\n\nSilakan menunggu tawaran jadwal baru dari admin atau melakukan booking ulang sesuai slot yang tersedia.\n\nSalam hangat,\nAdmin ISTURA"
+  },
+  {
     "id": "Completed",
     "label": "Tandai selesai & permintaan feedback",
     "description": "Dikirim setelah kunjungan selesai. {link} adalah tautan feedback unik.",

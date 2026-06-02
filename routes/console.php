@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 // Pangkas riwayat aktivitas lama agar tabel audit tetap ringan.
 Schedule::command('audit:prune')->dailyAt('03:00');
+Schedule::command('bookings:expire-pending')->everyFiveMinutes();

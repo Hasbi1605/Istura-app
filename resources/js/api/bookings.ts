@@ -24,7 +24,7 @@ export type ApiBooking = {
   dateLabel: string;
   reportDate?: string | null;
   time: string;
-  status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
+  status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed" | "Expired";
   documentName: string;
   hasDocument?: boolean;
   submittedAt: string | null;
@@ -34,6 +34,7 @@ export type ApiBooking = {
   feedbackToken?: string;
   completedAt?: string | null;
   rejectedAt?: string | null;
+  expiredAt?: string | null;
   proposedDate?: string | null;
   proposedDateLabel?: string | null;
   proposedTime?: string | null;

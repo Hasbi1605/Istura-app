@@ -167,6 +167,7 @@ export function AdminScreen({
       Reschedule: 0,
       Completed: 0,
       Rejected: 0,
+      Expired: 0,
     };
     bookings.forEach((booking) => {
       byStatus[booking.status] += 1;
@@ -216,10 +217,6 @@ export function AdminScreen({
   const completedThisWeek = bookings.filter(
     (booking) => booking.status === "Completed" && parseDateKey(booking.date) >= startOfWeek,
   ).length;
-  const totalThisWeek = bookings.filter(
-    (booking) => parseDateKey(booking.date) >= startOfWeek,
-  ).length;
-
   const replaceBooking = (booking: Booking) => {
     onBookingsChange(
       bookings.map((item) => (item.code === booking.code ? booking : item)),
@@ -342,7 +339,7 @@ export function AdminScreen({
 	const handleAction = (action: AdminAction, booking: Booking, note: string, proposed?: string) => {
 		const labelMap: Record<AdminAction, string> = {
 			accept: "Menyetujui booking...",
-			reject: "Menolak booking...",
+			reject: booking.status === "Expired" ? "Menutup kasus..." : "Menolak booking...",
 			reschedule: "Menyimpan reschedule...",
 		};
 		void runBookingAction(booking, labelMap[action], async () => {
@@ -447,9 +444,9 @@ export function AdminScreen({
 			) : (
 				<>
 					<StatCard label="Menunggu" value={counts.byStatus.Pending} />
+					<StatCard label="Kedaluwarsa" value={counts.byStatus.Expired} />
 					<StatCard label="Disetujui" value={counts.byStatus.Accepted} />
 					<StatCard label="Selesai minggu ini" value={completedThisWeek} />
-					<StatCard label="Total minggu ini" value={totalThisWeek} />
 				</>
 			)}
 		</div>
@@ -958,6 +955,7 @@ export function BookingDetailPanel({
         {bookingSegments(booking).length > 1 && (
           <KloterDetailList segments={bookingSegments(booking)} />
         )}
+        {booking.expiredAt && <DetailItem label="Kedaluwarsa" value={booking.expiredAt} />}
         {booking.note && <DetailItem label="Catatan admin" value={booking.note} />}
         <DocumentDetailItem
           label="Surat"
@@ -1122,6 +1120,16 @@ export function BookingActions({
             title="Batalkan booking dan minta user booking ulang"
           >
             Batalkan booking
+          </button>
+        </>
+      )}
+      {booking.status === "Expired" && (
+        <>
+          <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
+            Tawarkan jadwal baru
+          </button>
+          <button className="button button-danger" type="button" onClick={onReject} disabled={busy}>
+            Tutup kasus
           </button>
         </>
       )}
@@ -1367,6 +1375,7 @@ export function BookingSlideOver({
           {bookingSegments(booking).length > 1 && (
             <KloterDetailList segments={bookingSegments(booking)} />
           )}
+          {booking.expiredAt && <DetailItem label="Kedaluwarsa" value={booking.expiredAt} />}
           {booking.note && <DetailItem label="Catatan admin" value={booking.note} />}
           <DocumentDetailItem
             label="Surat"
@@ -1430,7 +1439,7 @@ export function AdminActionModal({
   const proposed = currentDay && selectedTime ? `${currentDay.label}, ${selectedTime} WIB` : "";
   const titleMap = {
     accept: "Setujui booking",
-    reject: "Tolak booking",
+    reject: modal.booking.status === "Expired" ? "Tutup kasus" : "Tolak booking",
     reschedule: "Tawarkan jadwal lain",
   };
   const needsNote = modal.action !== "accept";

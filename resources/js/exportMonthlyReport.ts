@@ -40,10 +40,11 @@ export type ReportBooking = {
   dateLabel: string;
   reportDate?: string | null;
   time: string;
-  status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
+  status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed" | "Expired";
   submittedAt: string | null;
   completedAt?: string;
   rejectedAt?: string;
+  expiredAt?: string;
   proposedDate?: string | null;
   note?: string;
 };
@@ -266,6 +267,7 @@ export const exportMonthlyReport = async (
   const rejected = periodBookings.filter((b) => b.status === "Rejected");
   const reschedule = periodBookings.filter((b) => b.status === "Reschedule");
   const pending = periodBookings.filter((b) => b.status === "Pending");
+  const expired = periodBookings.filter((b) => b.status === "Expired");
   const totalVisitors = completed.reduce((sum, b) => sum + (b.groupSize ?? 0), 0);
 
   const pct = (count: number) => (total === 0 ? 0 : Math.round((count / total) * 1000) / 10);
@@ -324,6 +326,7 @@ export const exportMonthlyReport = async (
       { label: BOOKING_STATUS_LABELS.Pending, count: pending.length, color: COLOR.muted },
       { label: BOOKING_STATUS_LABELS.Accepted, count: accepted.length, color: "#3B82F6" },
       { label: BOOKING_STATUS_LABELS.Reschedule, count: reschedule.length, color: COLOR.gold },
+      { label: BOOKING_STATUS_LABELS.Expired, count: expired.length, color: COLOR.muted },
       { label: BOOKING_STATUS_LABELS.Completed, count: completed.length, color: COLOR.positive },
       { label: BOOKING_STATUS_LABELS.Rejected, count: rejected.length, color: COLOR.attention },
     ],

@@ -3744,6 +3744,12 @@ a {
   border-color: rgba(161, 61, 54, 0.28);
 }
 
+.status-expired {
+  color: rgba(16, 24, 47, 0.72);
+  background: rgba(95, 100, 119, 0.12);
+  border-color: rgba(95, 100, 119, 0.28);
+}
+
 /* Reschedule moves to indigo so it cannot be confused with the green family
    used by Accepted/Completed. */
 .status-reschedule {
@@ -9303,6 +9309,12 @@ a {
   background: var(--red);
   color: var(--white);
   border-color: var(--red);
+}
+
+.booking-chip.booking-chip--expired.is-active {
+  background: rgba(95, 100, 119, 0.92);
+  color: var(--white);
+  border-color: rgba(95, 100, 119, 0.92);
 }
 
 .booking-chip.booking-chip--reschedule.is-active {

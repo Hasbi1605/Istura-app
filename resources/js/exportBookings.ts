@@ -41,12 +41,13 @@ export type BookingExportInput = {
   dateLabel: string;   // human-readable visit date
   reportDate?: string | null;
   time: string;        // HH.MM
-  status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed";
+  status: "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed" | "Expired";
   documentName: string;
   submittedAt: string | null; // "23 Mei 2026, 14.12 WIB"
   note?: string;
   completedAt?: string;
   rejectedAt?: string;
+  expiredAt?: string;
   proposedDate?: string | null;
 };
 
@@ -127,13 +128,15 @@ const COLUMNS: Column[] = [
   { header: "Tanggal Kunjungan", width: 26, value: (b) => b.dateLabel },
   { header: "Jam", width: 36, value: (b) => b.segments && b.segments.length > 1 ? b.segments.map((s) => `K${s.order} ${s.time} (${s.groupSize})`).join("; ") : b.time },
   {
-    header: "Tanggal Selesai / Tolak",
+    header: "Tanggal Selesai / Tolak / Kedaluwarsa",
     width: 24,
     value: (b) =>
       b.status === "Completed"
         ? b.completedAt ?? ""
         : b.status === "Rejected"
           ? b.rejectedAt ?? b.submittedAt
+          : b.status === "Expired"
+            ? b.expiredAt ?? b.submittedAt
           : "",
   },
   { header: "Catatan", width: 40, value: (b) => b.note ?? "" },
@@ -243,7 +246,9 @@ const buildWorkbook = async (
             ? "FFE2EBFF"
             : booking.status === "Reschedule"
               ? "FFFCEFCD"
-              : "FFEDEFF3";
+              : booking.status === "Expired"
+                ? "FFE5E7EB"
+                : "FFEDEFF3";
     statusCell.fill = {
       type: "pattern",
       pattern: "solid",

@@ -20,7 +20,7 @@ return new class extends Migration
             $table->date('date');
             $table->string('date_label'); // "Jumat, 29 Mei 2026"
             $table->string('time', 5); // "09.00"
-            $table->enum('status', ['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed'])
+            $table->enum('status', ['Pending', 'Accepted', 'Rejected', 'Reschedule', 'Completed', 'Expired'])
                 ->default('Pending')
                 ->index();
             $table->string('document_path')->nullable();

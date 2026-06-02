@@ -67,6 +67,7 @@ export type BookingReportDateInput = {
   proposedDate?: string | null;
   submittedAt?: string | null;
   rejectedAt?: string | null;
+  expiredAt?: string | null;
 };
 
 export type FeedbackReportDateInput = {
@@ -82,6 +83,12 @@ export const bookingReportDate = (booking: BookingReportDateInput): Date => {
     const rejected = parseSubmittedAt(booking.rejectedAt ?? "");
     if (rejected.getTime() > 0) return rejected;
     return parseSubmittedAt(booking.submittedAt ?? "");
+  }
+
+  if (booking.status === "Expired") {
+    const expired = parseSubmittedAt(booking.expiredAt ?? "");
+    if (expired.getTime() > 0) return expired;
+    return safeDateKey(booking.date);
   }
 
   const visitDate = booking.status === "Reschedule" && booking.proposedDate

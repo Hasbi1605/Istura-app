@@ -9,6 +9,7 @@ export const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
   { value: "Pending", label: "Menunggu" },
   { value: "Accepted", label: "Disetujui" },
   { value: "Reschedule", label: "Penjadwalan ulang" },
+  { value: "Expired", label: "Kedaluwarsa" },
   { value: "Completed", label: "Selesai" },
   { value: "Rejected", label: "Ditolak" },
 ];
@@ -19,6 +20,7 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   Rejected: "Ditolak",
   Reschedule: "Penjadwalan ulang",
   Completed: "Selesai",
+  Expired: "Kedaluwarsa",
 };
 
 // "Butuh tindakan" surfaces work-in-progress bookings the admin still owns.
@@ -150,8 +152,9 @@ export const SMART_BUCKET_ORDER: Record<BookingStatus, number> = {
   Pending: 0,
   Accepted: 1,
   Reschedule: 2,
-  Completed: 3,
-  Rejected: 4,
+  Expired: 3,
+  Completed: 4,
+  Rejected: 5,
 };
 
 export const sortBookings = (list: Booking[], sort: BookingSort): Booking[] => {
@@ -169,6 +172,10 @@ export const sortBookings = (list: Booking[], sort: BookingSort): Booking[] => {
       if (a.status === "Completed") {
         return parseSubmittedAt(b.completedAt ?? b.submittedAt).getTime() -
           parseSubmittedAt(a.completedAt ?? a.submittedAt).getTime();
+      }
+      if (a.status === "Expired") {
+        return parseSubmittedAt(b.expiredAt ?? b.submittedAt).getTime() -
+          parseSubmittedAt(a.expiredAt ?? a.submittedAt).getTime();
       }
       return parseSubmittedAt(b.submittedAt).getTime() - parseSubmittedAt(a.submittedAt).getTime();
     });
