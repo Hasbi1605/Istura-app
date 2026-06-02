@@ -11,8 +11,14 @@ class EnsureAdminSessionFresh
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user() || ! $request->hasSession()) {
+        if (! $request->user()) {
             return $next($request);
+        }
+
+        if (! $request->hasSession()) {
+            return response()->json([
+                'message' => 'Sesi admin diperlukan. Silakan login kembali.',
+            ], 401);
         }
 
         $startedAt = (int) $request->session()->get('admin_session_started_at', 0);

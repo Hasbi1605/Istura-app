@@ -27,9 +27,12 @@ class EnsureTwoFactorVerified
             ], 403);
         }
 
-        // If no session available (e.g. token-based auth in tests), skip session check
+        // Admin 2FA is session-scoped. Session-less tokens must not bypass it.
         if (! $request->hasSession()) {
-            return $next($request);
+            return response()->json([
+                'message' => 'Verifikasi 2FA memerlukan sesi admin.',
+                'two_factor_required' => true,
+            ], 403);
         }
 
         // Already verified this session

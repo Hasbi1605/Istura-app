@@ -165,6 +165,65 @@ class TwoFactorSecurityTest extends TestCase
         $this->assertTrue(json_decode($response->getContent(), true)['two_factor_required']);
     }
 
+    public function test_session_less_admin_bearer_token_cannot_enter_admin_routes(): void
+    {
+        config(['sanctum.stateful' => []]);
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+        $token = $admin->createToken('test-admin-token')->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/admin/dashboard')
+            ->assertUnauthorized()
+            ->assertJson([
+                'message' => 'Sesi admin diperlukan. Silakan login kembali.',
+            ]);
+    }
+
+    public function test_session_less_authenticated_request_cannot_bypass_two_factor_middleware(): void
+    {
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+        $request = Request::create('/api/admin/dashboard', 'GET');
+        $request->setUserResolver(fn () => $admin);
+
+        $response = app(EnsureTwoFactorVerified::class)->handle(
+            $request,
+            fn () => response()->json(['ok' => true]),
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertTrue(json_decode($response->getContent(), true)['two_factor_required']);
+    }
+
+    public function test_trusted_device_can_enter_admin_without_current_two_factor_session(): void
+    {
+        $service = app(TwoFactorService::class);
+        $admin = $this->createConfirmedAdmin($service);
+        $token = Str::random(64);
+
+        TrustedDevice::create([
+            'user_id' => $admin->id,
+            'device_hash' => $service->hashTrustedDeviceToken($token),
+            'device_name' => 'Chrome',
+            'trusted_until' => now()->addDays(30),
+        ]);
+
+        $request = Request::create('/api/admin/dashboard', 'GET', [], [
+            TwoFactorService::TRUSTED_DEVICE_COOKIE => $token,
+        ], [], [
+            'HTTP_USER_AGENT' => 'Chrome',
+        ]);
+        $request->setUserResolver(fn () => $admin);
+        $request->setLaravelSession(app('session.store'));
+
+        $response = app(EnsureTwoFactorVerified::class)->handle(
+            $request,
+            fn () => response()->json(['ok' => true]),
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($request->session()->get('two_factor_verified'));
+    }
+
     public function test_password_only_session_cannot_disable_two_factor(): void
     {
         $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
@@ -258,6 +317,23 @@ class TwoFactorSecurityTest extends TestCase
             'Sesi admin sudah melewati batas waktu maksimum. Silakan login kembali.',
             json_decode($response->getContent(), true)['message'],
         );
+    }
+
+    public function test_admin_session_within_absolute_lifetime_can_continue(): void
+    {
+        config(['session.admin_absolute_lifetime' => 120]);
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+        $request = Request::create('/api/admin/dashboard', 'GET');
+        $request->setUserResolver(fn () => $admin);
+        $request->setLaravelSession(app('session.store'));
+        $request->session()->put('admin_session_started_at', now()->subMinutes(90)->timestamp);
+
+        $response = app(EnsureAdminSessionFresh::class)->handle(
+            $request,
+            fn () => response()->json(['ok' => true]),
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
     }
 
     public function test_cli_can_reset_two_factor_for_emergency_recovery(): void

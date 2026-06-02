@@ -31,7 +31,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use Laravel\Sanctum\Sanctum;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
@@ -755,7 +754,10 @@ class ScheduleSyncTest extends TestCase
             'document_original_name' => 'real-surat.pdf',
         ]);
 
-        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_VIEWER]));
+        $this->actingAsAdminSession(User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'two_factor_confirmed_at' => now(),
+        ]));
 
         $this->getJson('/api/admin/dashboard')->assertForbidden();
         $this->getJson('/api/admin/bookings')->assertForbidden();
@@ -767,7 +769,10 @@ class ScheduleSyncTest extends TestCase
 
     public function test_super_admin_user_management_writes_audit_log(): void
     {
-        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'two_factor_confirmed_at' => now()]));
+        $this->actingAsAdminSession(User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'two_factor_confirmed_at' => now(),
+        ]));
 
         $created = $this->postJson('/api/admin/users', [
             'name' => 'Audit User',
@@ -804,7 +809,7 @@ class ScheduleSyncTest extends TestCase
     public function test_super_admin_cannot_disable_or_demote_self(): void
     {
         $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'two_factor_confirmed_at' => now()]);
-        Sanctum::actingAs($superAdmin);
+        $this->actingAsAdminSession($superAdmin);
 
         $this->putJson("/api/admin/users/{$superAdmin->id}", [
             'role' => User::ROLE_ADMIN,
@@ -894,7 +899,10 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('data.nik', '3374123456789012')
             ->assertJsonPath('data.nikMasked', '3374********9012');
 
-        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'two_factor_confirmed_at' => now()]));
+        $this->actingAsAdminSession(User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'two_factor_confirmed_at' => now(),
+        ]));
 
         $this->getJson('/api/admin/bookings')
             ->assertOk()
@@ -1127,7 +1135,10 @@ class ScheduleSyncTest extends TestCase
             'custom' => false,
         ]);
 
-        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_VIEWER]));
+        $this->actingAsAdminSession(User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'two_factor_confirmed_at' => now(),
+        ]));
 
         $this->postJson('/api/admin/schedule/slot', [
             'date' => '2026-06-01',
@@ -1172,9 +1183,10 @@ class ScheduleSyncTest extends TestCase
 
     public function test_inactive_existing_admin_session_cannot_access_admin_api(): void
     {
-        Sanctum::actingAs(User::factory()->create([
+        $this->actingAsAdminSession(User::factory()->create([
             'role' => User::ROLE_ADMIN,
             'email_verified_at' => null,
+            'two_factor_confirmed_at' => now(),
         ]));
 
         $this->getJson('/api/admin/bookings')->assertForbidden();
@@ -1189,6 +1201,8 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking(['code' => 'ISTURA-2026-2FA']);
 
         $this->actingAs($admin);
+        $this->withHeader('Origin', 'http://localhost');
+        $this->withSession(['admin_session_started_at' => now()->timestamp]);
 
         $this->postJson('/api/auth/two-factor/confirm', ['code' => $code])
             ->assertOk()
@@ -1995,9 +2009,20 @@ class ScheduleSyncTest extends TestCase
             'role' => User::ROLE_ADMIN,
             'two_factor_confirmed_at' => now(),
         ]);
-        Sanctum::actingAs($admin);
 
-        return $admin;
+        return $this->actingAsAdminSession($admin);
+    }
+
+    private function actingAsAdminSession(User $user): User
+    {
+        $this->actingAs($user);
+        $this->withHeader('Origin', 'http://localhost');
+        $this->withSession([
+            'admin_session_started_at' => now()->timestamp,
+            'two_factor_verified' => true,
+        ]);
+
+        return $user;
     }
 
     private function publicBookingPayload(array $overrides = []): array

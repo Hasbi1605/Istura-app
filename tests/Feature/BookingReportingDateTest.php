@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Services\ScheduleService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class BookingReportingDateTest extends TestCase
@@ -34,7 +33,7 @@ class BookingReportingDateTest extends TestCase
             'role' => User::ROLE_ADMIN,
             'two_factor_confirmed_at' => now(),
         ]);
-        Sanctum::actingAs($admin);
+        $this->actingAsVerifiedAdminSession($admin);
 
         $booking = $this->createBooking([
             'status' => 'Pending',
@@ -69,7 +68,7 @@ class BookingReportingDateTest extends TestCase
             'role' => User::ROLE_ADMIN,
             'two_factor_confirmed_at' => now(),
         ]);
-        Sanctum::actingAs($admin);
+        $this->actingAsVerifiedAdminSession($admin);
 
         $booking = $this->createBooking([
             'status' => 'Accepted',
@@ -121,5 +120,15 @@ class BookingReportingDateTest extends TestCase
         $booking->save();
 
         return $booking->fresh();
+    }
+
+    private function actingAsVerifiedAdminSession(User $admin): void
+    {
+        $this->actingAs($admin);
+        $this->withHeader('Origin', 'http://localhost');
+        $this->withSession([
+            'admin_session_started_at' => now()->timestamp,
+            'two_factor_verified' => true,
+        ]);
     }
 }
