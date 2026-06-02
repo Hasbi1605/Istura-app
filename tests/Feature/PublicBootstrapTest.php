@@ -54,8 +54,30 @@ class PublicBootstrapTest extends TestCase
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01');
 
         $response->assertOk();
-        $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
-        $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
-        $this->assertStringContainsString('max-age=0', $response->headers->get('Cache-Control'));
+        $cacheControl = $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('public', $cacheControl);
+        $this->assertStringContainsString('max-age=60', $cacheControl);
+        $this->assertStringContainsString('s-maxage=60', $cacheControl);
+        $this->assertStringContainsString('stale-while-revalidate=300', $cacheControl);
+        $this->assertStringNotContainsString('no-cache', $cacheControl);
+    }
+
+    public function test_public_schedule_has_dedicated_rate_limit(): void
+    {
+        $url = '/api/public/schedule?from=2026-06-01&to=2026-06-01';
+
+        for ($i = 0; $i < 120; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.77'])
+                ->getJson($url)
+                ->assertOk();
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.77'])
+            ->getJson($url)
+            ->assertTooManyRequests();
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.78'])
+            ->getJson($url)
+            ->assertOk();
     }
 }

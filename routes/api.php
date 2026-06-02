@@ -24,7 +24,7 @@ Route::prefix('public')->group(function () {
     Route::get('bootstrap', [ContentController::class, 'bootstrap']);
     Route::get('faqs', [ContentController::class, 'faqs']);
     Route::get('contacts', [ContentController::class, 'contacts']);
-    Route::get('schedule', [ContentController::class, 'schedule']);
+    Route::get('schedule', [ContentController::class, 'schedule'])->middleware('throttle:public-schedule');
     Route::get('hero', [ContentController::class, 'hero']);
     Route::get('letter', [ContentController::class, 'letter']);
     Route::get('site-content', [ContentController::class, 'siteContent']);

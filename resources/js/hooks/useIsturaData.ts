@@ -37,6 +37,7 @@ import {
 } from "../api/cms";
 import { apiBookingToLocal, apiFeedbackToLocal, apiVisitDayToLocal } from "../api/adapters";
 import { ApiError, onAdminAuthFailure, resetCsrf } from "../api/client";
+import type { RealtimeConnectionStatus } from "../realtime/echo";
 
 export type FeedbackAccess = { code: string; token: string } | null;
 
@@ -58,6 +59,21 @@ const DEFAULT_LETTER: ApiLetter = {
 setActiveWaTemplates(INITIAL_WA_TEMPLATES);
 
 const ALLOW_DEMO_FALLBACK = import.meta.env.DEV || import.meta.env.VITE_ALLOW_DEMO_FALLBACK === "true";
+const PUBLIC_SCHEDULE_FALLBACK_INITIAL_JITTER_MS = 10_000;
+const PUBLIC_SCHEDULE_FALLBACK_BASE_INTERVAL_MS = 45_000;
+const PUBLIC_SCHEDULE_FALLBACK_MAX_INTERVAL_MS = 180_000;
+const PUBLIC_SCHEDULE_FALLBACK_JITTER_MS = 15_000;
+const PUBLIC_SCHEDULE_FALLBACK_FOCUS_MIN_MS = 30_000;
+const PUBLIC_SCHEDULE_FALLBACK_STATUSES = new Set<RealtimeConnectionStatus>([
+  "disabled",
+  "unavailable",
+  "failed",
+  "disconnected",
+]);
+
+function shouldUsePublicScheduleFallback(status: RealtimeConnectionStatus): boolean {
+  return import.meta.env.VITE_REVERB_ENABLED !== "true" || PUBLIC_SCHEDULE_FALLBACK_STATUSES.has(status);
+}
 
 function mergeWaTemplatesWithDefaults(templates: WaTemplate[]): WaTemplate[] {
   if (templates.length === 0) return [];
@@ -207,9 +223,27 @@ export function useIsturaData(): IsturaData {
   // ini hanya snapshot di memori untuk render cepat.
   const [adminSession, setAdminSession] = useState<AdminSession | null>(() => readAdminSession());
   const [adminTab, setAdminTab] = useState<AdminTab>("dashboard");
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>(
+    import.meta.env.VITE_REVERB_ENABLED === "true" ? "idle" : "disabled",
+  );
   // Komunikasi antar tab admin: misal Jadwal Kunjungan ingin mengarahkan
   // admin ke booking tertentu di tab Booking.
   const [bookingFocusCode, setBookingFocusCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+
+    void import("../realtime/echo").then(({ subscribeRealtimeStatus }) => {
+      if (!active) return;
+      unsubscribe = subscribeRealtimeStatus(setRealtimeStatus);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, []);
 
   useEffect(() => onAdminAuthFailure(() => {
     clearAdminSession();
@@ -537,41 +571,68 @@ export function useIsturaData(): IsturaData {
   // Fallback agar public tetap auto-sync saat WebSocket/Reverb belum tersambung
   // atau service realtime production sedang restart.
   useEffect(() => {
-    if (adminSession || loading.public) return;
+    if (adminSession || loading.public || !shouldUsePublicScheduleFallback(realtimeStatus)) return;
 
     let active = true;
     let inFlight = false;
+    let failureCount = 0;
+    let lastRefreshAt = 0;
+    let timeoutId: number | undefined;
 
-    const refreshPublicSchedule = () => {
-      if (inFlight || document.visibilityState === "hidden") return;
+    const nextDelay = () => {
+      const backoffDelay = Math.min(
+        PUBLIC_SCHEDULE_FALLBACK_MAX_INTERVAL_MS,
+        PUBLIC_SCHEDULE_FALLBACK_BASE_INTERVAL_MS * 2 ** Math.min(failureCount, 2),
+      );
+      return backoffDelay + Math.floor(Math.random() * PUBLIC_SCHEDULE_FALLBACK_JITTER_MS);
+    };
+
+    const queueNextRefresh = (delay: number) => {
+      if (!active) return;
+      timeoutId = window.setTimeout(() => refreshPublicSchedule("timer"), delay);
+    };
+
+    const refreshPublicSchedule = (reason: "timer" | "focus" | "visibility") => {
+      if (inFlight || document.visibilityState === "hidden") {
+        if (reason === "timer") queueNextRefresh(nextDelay());
+        return;
+      }
+
+      if (reason !== "timer" && Date.now() - lastRefreshAt < PUBLIC_SCHEDULE_FALLBACK_FOCUS_MIN_MS) return;
+
       inFlight = true;
+      lastRefreshAt = Date.now();
       fetchPublicSchedule()
         .then((days) => {
           if (!active) return;
+          failureCount = 0;
           setSchedules(days.map(apiVisitDayToLocal));
         })
-        .catch(() => {})
+        .catch(() => {
+          failureCount = Math.min(failureCount + 1, 3);
+        })
         .finally(() => {
           inFlight = false;
+          if (active && reason === "timer") queueNextRefresh(nextDelay());
         });
     };
 
-    const intervalId = window.setInterval(refreshPublicSchedule, 10_000);
+    queueNextRefresh(Math.floor(Math.random() * PUBLIC_SCHEDULE_FALLBACK_INITIAL_JITTER_MS));
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") refreshPublicSchedule();
+      if (document.visibilityState === "visible") refreshPublicSchedule("visibility");
     };
-    const handleFocus = () => refreshPublicSchedule();
+    const handleFocus = () => refreshPublicSchedule("focus");
 
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", handleFocus);
 
     return () => {
       active = false;
-      window.clearInterval(intervalId);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [adminSession, loading.public]);
+  }, [adminSession, loading.public, realtimeStatus]);
 
   // Realtime: subscribe ke channel admin.bookings ketika admin login.
   useEffect(() => {
