@@ -12,7 +12,7 @@ class PublicCache
 
     public const CMS_BROWSER_TTL = 300;
 
-    public const SCHEDULE_BROWSER_TTL = 60;
+    public const SCHEDULE_BROWSER_TTL = 0;
 
     public const BOOTSTRAP_BROWSER_TTL = 0;
 

@@ -88,17 +88,18 @@ class PublicBootstrapTest extends TestCase
         $this->assertSame(['2026-08-01'], collect($response->json('data'))->pluck('date')->all());
     }
 
-    public function test_public_schedule_response_is_publicly_cacheable(): void
+    public function test_public_schedule_response_bypasses_browser_cache(): void
     {
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01');
 
         $response->assertOk();
         $cacheControl = $response->headers->get('Cache-Control');
         $this->assertStringContainsString('public', $cacheControl);
-        $this->assertStringContainsString('max-age=60', $cacheControl);
-        $this->assertStringContainsString('s-maxage=60', $cacheControl);
-        $this->assertStringContainsString('stale-while-revalidate=300', $cacheControl);
-        $this->assertStringNotContainsString('no-cache', $cacheControl);
+        $this->assertStringContainsString('no-cache', $cacheControl);
+        $this->assertStringContainsString('max-age=0', $cacheControl);
+        $this->assertStringContainsString('s-maxage=0', $cacheControl);
+        $this->assertStringContainsString('must-revalidate', $cacheControl);
+        $this->assertStringNotContainsString('stale-while-revalidate', $cacheControl);
     }
 
     public function test_public_schedule_has_dedicated_rate_limit(): void

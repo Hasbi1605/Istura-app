@@ -368,11 +368,7 @@ class ScheduleSyncTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'Completed');
 
-        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
-            ->assertOk()
-            ->json('data');
-
-        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '08.00')['status']);
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor($date, '08.00'));
         $this->assertDatabaseHas('bookings', [
             'code' => $booking->code,
             'status' => 'Completed',
@@ -1891,6 +1887,51 @@ class ScheduleSyncTest extends TestCase
         ])->assertOk();
 
         Event::assertDispatchedTimes(ScheduleUpdated::class, 3);
+    }
+
+    public function test_public_booking_broadcasts_public_schedule_update(): void
+    {
+        Storage::fake('local');
+        Event::fake([ScheduleUpdated::class]);
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-04',
+            'time' => '10.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertCreated();
+
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) => $event->from === '2026-06-04' && $event->to === '2026-06-04'
+        );
+    }
+
+    public function test_booking_status_changes_broadcast_public_schedule_update_for_old_and_proposed_dates(): void
+    {
+        $this->actingAsAdmin();
+        $booking = $this->createBooking([
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        Event::fake([ScheduleUpdated::class]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-06-04',
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jadwal baru.',
+        ])->assertOk();
+
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) => $event->from === '2026-06-01' && $event->to === '2026-06-04'
+        );
+
+        Event::fake([ScheduleUpdated::class]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reject", [
+            'note' => 'User menolak jadwal baru.',
+        ])->assertOk();
+
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $event) => $event->from === '2026-06-01' && $event->to === '2026-06-04'
+        );
     }
 
     public function test_public_feedback_stays_single_per_booking(): void

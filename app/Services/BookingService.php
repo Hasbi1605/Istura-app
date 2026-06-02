@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Events\BookingCreated;
 use App\Events\BookingStatusChanged;
+use App\Events\ScheduleUpdated;
 use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\User;
@@ -63,7 +64,7 @@ class BookingService
 
                 $this->logAudit(null, "Booking baru {$booking->code} dari {$booking->institution}", $booking);
 
-                $this->broadcastAfterCommit(fn () => BookingCreated::dispatch($booking->fresh()->load('slots')));
+                $this->broadcastAfterCommit(fn () => BookingCreated::dispatch($booking->fresh()->load('slots')), $booking);
 
                 return $booking->fresh()->load('slots');
             });
@@ -133,7 +134,7 @@ class BookingService
                         $this->logAudit(null, "Menandai kedaluwarsa booking {$booking->code}", $booking, [
                             'expired_at' => $booking->expired_at?->toDateTimeString(),
                         ]);
-                        $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, 'expire'));
+                        $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, 'expire'), $booking);
 
                         $expired++;
                     });
@@ -172,6 +173,7 @@ class BookingService
                 ->whereKey($booking->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $affectedScheduleDates = $this->scheduleDatesForBooking($booking);
 
             if ($booking->status !== 'Reschedule') {
                 throw ValidationException::withMessages([
@@ -194,7 +196,7 @@ class BookingService
             $this->syncBookingSlotKeys($booking);
 
             $this->logAudit($actor, "Membatalkan usulan reschedule booking {$booking->code}", $booking);
-            $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), 'Reschedule', 'reschedule-cancel'));
+            $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), 'Reschedule', 'reschedule-cancel'), $booking, $affectedScheduleDates);
 
             return $booking->fresh()->load('slots');
         });
@@ -219,6 +221,7 @@ class BookingService
                 ->whereKey($booking->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $affectedScheduleDates = $this->scheduleDatesForBooking($booking);
 
             if (! in_array($booking->status, ['Pending', 'Accepted', 'Reschedule'], true)) {
                 throw ValidationException::withMessages([
@@ -283,7 +286,7 @@ class BookingService
                 'new_group_size' => $targetGroupSize,
                 'note' => $note,
             ]);
-            $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments'));
+            $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments'), $booking, $affectedScheduleDates);
 
             return $booking->fresh()->load('slots');
         });
@@ -314,6 +317,7 @@ class BookingService
                     ->whereKey($booking->id)
                     ->lockForUpdate()
                     ->firstOrFail();
+                $affectedScheduleDates = $this->scheduleDatesForBooking($booking);
 
                 if ($preparedProposal !== null) {
                     $booking->proposed_date = $preparedProposal['proposed_date'];
@@ -399,7 +403,7 @@ class BookingService
                 };
                 $this->logAudit($actor, "{$verb} booking {$booking->code}", $booking);
 
-                $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, $action));
+                $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, $action), $booking, $affectedScheduleDates);
 
                 return $booking->fresh()->load('slots');
             });
@@ -429,14 +433,69 @@ class BookingService
         }
     }
 
-    private function broadcastAfterCommit(callable $callback): void
+    /**
+     * @param  array<int, string>  $affectedScheduleDates
+     */
+    private function broadcastAfterCommit(callable $callback, Booking $booking, array $affectedScheduleDates = []): void
     {
         PublicCache::bumpScheduleVersion();
 
-        DB::afterCommit(function () use ($callback) {
+        DB::afterCommit(function () use ($callback, $booking, $affectedScheduleDates) {
             PublicCache::bumpScheduleVersion();
             rescue($callback);
+            rescue(function () use ($booking, $affectedScheduleDates) {
+                $this->broadcastScheduleUpdated($booking->fresh(['slots']) ?? $booking, $affectedScheduleDates);
+            });
         });
+    }
+
+    /**
+     * @param  array<int, string>  $additionalDates
+     */
+    private function broadcastScheduleUpdated(Booking $booking, array $additionalDates = []): void
+    {
+        $dates = collect($additionalDates)
+            ->merge($this->scheduleDatesForBooking($booking))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($dates->isEmpty()) {
+            return;
+        }
+
+        ScheduleUpdated::dispatch($dates->first(), $dates->last());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function scheduleDatesForBooking(Booking $booking): array
+    {
+        $dates = collect();
+
+        if ($booking->date) {
+            $dates->push($booking->date->toDateString());
+        }
+
+        if ($booking->proposed_date) {
+            $dates->push($booking->proposed_date->toDateString());
+        }
+
+        collect($booking->proposed_segments ?? [])
+            ->pluck('date')
+            ->each(fn (?string $date) => $dates->push($date));
+
+        $slots = $booking->relationLoaded('slots') ? $booking->slots : $booking->slots()->get();
+        $slots->each(fn (BookingSlot $slot) => $dates->push($slot->date?->toDateString()));
+
+        return $dates
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     private function assertPendingBookingCanBeAccepted(Booking $booking): void
