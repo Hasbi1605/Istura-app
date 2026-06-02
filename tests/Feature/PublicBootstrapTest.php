@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Booking;
+use App\Services\ScheduleService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -9,6 +11,8 @@ use Tests\TestCase;
 class PublicBootstrapTest extends TestCase
 {
     use RefreshDatabase;
+
+    private int $bookingSequence = 9100;
 
     protected function setUp(): void
     {
@@ -79,5 +83,67 @@ class PublicBootstrapTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.78'])
             ->getJson($url)
             ->assertOk();
+    }
+
+    public function test_public_schedule_omits_admin_booking_density_fields(): void
+    {
+        $date = '2026-06-04';
+        $time = '08.00';
+
+        $this->createBooking(['date' => $date, 'time' => $time, 'status' => 'Accepted']);
+        $this->createBooking(['date' => $date, 'time' => $time, 'status' => 'Accepted']);
+
+        $response = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk();
+
+        $slot = collect($response->json('data.0.slots'))->firstWhere('time', $time);
+
+        $this->assertIsArray($slot);
+        $this->assertSame('Booked', $slot['status']);
+        $this->assertArrayNotHasKey('bookingCount', $slot);
+        $this->assertArrayNotHasKey('overbooked', $slot);
+    }
+
+    public function test_public_bootstrap_schedule_omits_admin_booking_density_fields(): void
+    {
+        $date = '2026-06-04';
+        $time = '08.00';
+
+        $this->createBooking(['date' => $date, 'time' => $time, 'status' => 'Accepted']);
+        $this->createBooking(['date' => $date, 'time' => $time, 'status' => 'Accepted']);
+
+        $response = $this->getJson("/api/public/bootstrap?from={$date}&to={$date}")
+            ->assertOk();
+
+        $slot = collect($response->json('data.schedule.0.slots'))->firstWhere('time', $time);
+
+        $this->assertIsArray($slot);
+        $this->assertSame('Booked', $slot['status']);
+        $this->assertArrayNotHasKey('bookingCount', $slot);
+        $this->assertArrayNotHasKey('overbooked', $slot);
+    }
+
+    private function createBooking(array $overrides = []): Booking
+    {
+        $date = $overrides['date'] ?? '2026-06-04';
+        $dateObject = Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
+        $booking = new Booking;
+        $booking->code = $overrides['code'] ?? 'ISTURA-2026-'.(++$this->bookingSequence);
+        $booking->contact_name = $overrides['contact_name'] ?? 'Rina Prasetya';
+        $booking->nik = $overrides['nik'] ?? '1234567890123456';
+        $booking->whatsapp = $overrides['whatsapp'] ?? '081234567890';
+        $booking->institution = $overrides['institution'] ?? 'SMA Nusantara';
+        $booking->group_size = $overrides['group_size'] ?? 25;
+        $booking->date = $dateObject;
+        $booking->date_label = $overrides['date_label'] ?? app(ScheduleService::class)->formatLongDate($dateObject);
+        $booking->time = $overrides['time'] ?? '08.00';
+        $booking->status = $overrides['status'] ?? 'Accepted';
+        $booking->document_path = $overrides['document_path'] ?? null;
+        $booking->document_original_name = $overrides['document_original_name'] ?? 'surat.pdf';
+        $booking->feedback_token = $overrides['feedback_token'] ?? 'fb_'.bin2hex(random_bytes(8));
+        $booking->submitted_at = $overrides['submitted_at'] ?? now();
+        $booking->save();
+
+        return $booking->fresh();
     }
 }

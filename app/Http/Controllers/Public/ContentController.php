@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ScheduleRangeRequest;
 use App\Http\Resources\FaqResource;
 use App\Http\Resources\FooterContactResource;
-use App\Http\Resources\VisitDayResource;
+use App\Http\Resources\PublicVisitDayResource;
 use App\Http\Resources\WaTemplateResource;
 use App\Models\Faq;
 use App\Models\FooterContact;
@@ -100,7 +100,7 @@ class ContentController extends Controller
         return PublicCache::rememberSchedule(
             $from->toDateString(),
             $to->toDateString(),
-            fn () => collect($service->buildHorizon($from, $to))->map(fn ($d) => (new VisitDayResource($d))->resolve())->all(),
+            fn () => collect($service->buildHorizon($from, $to))->map(fn ($d) => (new PublicVisitDayResource($d))->resolve())->all(),
         );
     }
 
