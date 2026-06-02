@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -24,6 +24,23 @@ import { MonthlyReportModal } from "./ExportModals";
 import { WeeklyPosterModal } from "./WeeklyPosterModal";
 import { InlineSpinner, SectionSkeleton, StatCardSkeleton } from "../ui/LoadingStates";
 
+const AGENDA_SLOT_DURATION_MINUTES = 60;
+const AGENDA_CLOCK_REFRESH_MS = 60_000;
+
+type AgendaVisualPhase = "upcoming" | "ongoing" | "completed" | "reschedule";
+
+const visitDateTime = (dateKey: string, time: string): Date | null => {
+  const match = time.match(/^(\d{2})\.(\d{2})$/);
+  if (!match) return null;
+
+  const date = parseDateKey(dateKey);
+  date.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return date;
+};
+
+const addMinutes = (date: Date, minutes: number) =>
+  new Date(date.getTime() + minutes * 60_000);
+
 export function AdminDashboard({
   bookings,
 	feedbacks,
@@ -39,7 +56,17 @@ export function AdminDashboard({
 }) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showPosterModal, setShowPosterModal] = useState(false);
-  const today = startOfDay(new Date());
+  const [agendaNow, setAgendaNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(
+      () => setAgendaNow(new Date()),
+      AGENDA_CLOCK_REFRESH_MS,
+    );
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const today = startOfDay(agendaNow);
   const todayKey = formatDateKey(today);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -200,6 +227,20 @@ export function AdminDashboard({
       : fullDayNames[activeDayDate.getDay()].toLowerCase();
 
   const selectedDayVisits = weekVisits.filter((visit) => visit.displayDate === activeDayKey);
+
+  const getAgendaVisualPhase = (item: WeekVisit): AgendaVisualPhase => {
+    if (item.status === "Completed") return "completed";
+    if (item.status === "Reschedule") return "reschedule";
+
+    const segmentStarts = (item.segments?.length ? item.segments : [item])
+      .map((segment) => visitDateTime(segment.date, segment.time))
+      .filter((date): date is Date => date !== null);
+    const isOngoing = segmentStarts.some(
+      (start) => agendaNow >= start && agendaNow < addMinutes(start, AGENDA_SLOT_DURATION_MINUTES),
+    );
+
+    return isOngoing ? "ongoing" : "upcoming";
+  };
 
   // Rentang minggu untuk header card, mis. "24 – 30 Mei 2026". Tetap ramah
   // saat minggu menjorok ke bulan / tahun berbeda.
@@ -432,24 +473,35 @@ export function AdminDashboard({
               </p>
             ) : (
               <ul className="admin-agenda-list">
-                {selectedDayVisits.map((item) => (
-                  <li
-                    key={item.code}
-                    className={`admin-agenda-item${activeDayInfo.isToday ? " is-today" : ""}`}
-                  >
-                    <span className="admin-agenda-tag">
-                      <Clock3 size={14} aria-hidden="true" />
-                      <strong>{item.displayTime} WIB</strong>
-                    </span>
-                    <div className="admin-agenda-meta">
-                      <strong>{item.institution}</strong>
-                      <small>
-                        {item.code} · {item.groupSize} orang
-                      </small>
-                    </div>
-                    <StatusBadge status={item.status} />
-                  </li>
-                ))}
+                {selectedDayVisits.map((item) => {
+                  const visualPhase = getAgendaVisualPhase(item);
+                  const itemClassName = [
+                    "admin-agenda-item",
+                    `admin-agenda-item--${visualPhase}`,
+                    activeDayInfo.isToday ? "is-today" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  return (
+                    <li
+                      key={item.code}
+                      className={itemClassName}
+                    >
+                      <span className="admin-agenda-tag">
+                        <Clock3 size={14} aria-hidden="true" />
+                        <strong>{item.displayTime} WIB</strong>
+                      </span>
+                      <div className="admin-agenda-meta">
+                        <strong>{item.institution}</strong>
+                        <small>
+                          {item.code} · {item.groupSize} orang
+                        </small>
+                      </div>
+                      <StatusBadge status={item.status} />
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

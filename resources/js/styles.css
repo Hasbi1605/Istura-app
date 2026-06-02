@@ -4759,6 +4759,26 @@ a {
   border-color: rgba(196, 146, 18, 0.35);
 }
 
+.admin-agenda-item--upcoming {
+  background: rgba(255, 244, 209, 0.55);
+  border-color: rgba(196, 146, 18, 0.35);
+}
+
+.admin-agenda-item--ongoing {
+  background: rgba(45, 118, 84, 0.09);
+  border-color: rgba(45, 118, 84, 0.28);
+}
+
+.admin-agenda-item--completed {
+  background: rgba(16, 24, 47, 0.035);
+  border-color: rgba(16, 24, 47, 0.14);
+}
+
+.admin-agenda-item--reschedule {
+  background: rgba(75, 95, 196, 0.07);
+  border-color: rgba(75, 95, 196, 0.24);
+}
+
 .admin-agenda-tag {
   display: inline-flex;
   align-items: center;
@@ -4781,6 +4801,18 @@ a {
 
 .admin-agenda-item.is-today .admin-agenda-tag strong {
   color: #8a5a00;
+}
+
+.admin-agenda-item--ongoing .admin-agenda-tag strong {
+  color: #1f5f3f;
+}
+
+.admin-agenda-item--completed .admin-agenda-tag strong {
+  color: rgba(16, 24, 47, 0.72);
+}
+
+.admin-agenda-item--reschedule .admin-agenda-tag strong {
+  color: #2f3d8a;
 }
 
 .admin-agenda-meta {
