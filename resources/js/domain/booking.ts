@@ -138,6 +138,13 @@ export const parseSubmittedAt = (value: string | null): Date => {
   );
 };
 
+const bookingScheduleSortKey = (booking: Booking): string =>
+  `${booking.date}T${booking.time}`;
+
+export const comparePendingBookings = (a: Booking, b: Booking): number =>
+  bookingScheduleSortKey(a).localeCompare(bookingScheduleSortKey(b)) ||
+  parseSubmittedAt(a.submittedAt).getTime() - parseSubmittedAt(b.submittedAt).getTime();
+
 // Lower = surfaced higher in "smart" sort.
 export const SMART_BUCKET_ORDER: Record<BookingStatus, number> = {
   Pending: 0,
@@ -154,7 +161,7 @@ export const sortBookings = (list: Booking[], sort: BookingSort): Booking[] => {
       const bucketDiff = SMART_BUCKET_ORDER[a.status] - SMART_BUCKET_ORDER[b.status];
       if (bucketDiff !== 0) return bucketDiff;
       if (a.status === "Pending") {
-        return parseSubmittedAt(a.submittedAt).getTime() - parseSubmittedAt(b.submittedAt).getTime();
+        return comparePendingBookings(a, b);
       }
       if (a.status === "Accepted" || a.status === "Reschedule") {
         return a.date.localeCompare(b.date);

@@ -17,7 +17,7 @@ import {
   parseDateKey,
   startOfDay,
 } from "../../lib/date";
-import { bookingTimeSummary, parseSubmittedAt } from "../../domain/booking";
+import { bookingTimeSummary, parseSubmittedAt, sortBookings } from "../../domain/booking";
 import { StatCard } from "../ui/StatCard";
 import { StatusBadge } from "../ui/StatusBadge";
 import { MonthlyReportModal } from "./ExportModals";
@@ -45,7 +45,10 @@ export function AdminDashboard({
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowKey = formatDateKey(tomorrow);
 
-  const pendingBookings = bookings.filter((booking) => booking.status === "Pending");
+  const pendingBookings = sortBookings(
+    bookings.filter((booking) => booking.status === "Pending"),
+    "smart",
+  );
   const acceptedBookings = bookings.filter((booking) => booking.status === "Accepted");
   const rescheduleBookings = bookings.filter((booking) => booking.status === "Reschedule");
 
