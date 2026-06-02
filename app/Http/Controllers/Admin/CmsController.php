@@ -24,6 +24,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class CmsController extends Controller
@@ -243,53 +244,128 @@ class CmsController extends Controller
 
     private function storeOptimizedLetterImage(UploadedFile $image): string
     {
+        $realPath = $this->validatedLetterImagePath($image);
+
         if (! function_exists('imagecreatefromstring') || ! function_exists('imagewebp')) {
-            return $image->store('letter', 'public');
+            throw ValidationException::withMessages([
+                'image' => 'Server belum mendukung konversi gambar contoh surat ke WebP.',
+            ]);
         }
 
-        $sourceBytes = file_get_contents($image->getRealPath());
+        $sourceBytes = file_get_contents($realPath);
         if ($sourceBytes === false) {
-            return $image->store('letter', 'public');
+            throw ValidationException::withMessages([
+                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+            ]);
         }
 
         $source = @imagecreatefromstring($sourceBytes);
-        if (! $source) {
-            return $image->store('letter', 'public');
+        if (! $source instanceof \GdImage) {
+            throw ValidationException::withMessages([
+                'image' => 'Gambar contoh surat tidak dapat diproses.',
+            ]);
         }
 
-        $sourceWidth = imagesx($source);
-        $sourceHeight = imagesy($source);
-        $scale = min(1, 1400 / max(1, $sourceWidth), 1800 / max(1, $sourceHeight));
-        $targetWidth = max(1, (int) round($sourceWidth * $scale));
-        $targetHeight = max(1, (int) round($sourceHeight * $scale));
-        $target = imagecreatetruecolor($targetWidth, $targetHeight);
+        $target = null;
+        $tmpPath = null;
 
-        $white = imagecolorallocate($target, 255, 255, 255);
-        imagefill($target, 0, 0, $white);
-        imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
+        try {
+            $sourceWidth = imagesx($source);
+            $sourceHeight = imagesy($source);
+            $scale = min(1, 1400 / max(1, $sourceWidth), 1800 / max(1, $sourceHeight));
+            $targetWidth = max(1, (int) round($sourceWidth * $scale));
+            $targetHeight = max(1, (int) round($sourceHeight * $scale));
+            $target = imagecreatetruecolor($targetWidth, $targetHeight);
+            if (! $target instanceof \GdImage) {
+                throw ValidationException::withMessages([
+                    'image' => 'Gambar contoh surat tidak dapat diproses.',
+                ]);
+            }
 
-        $tmpPath = tempnam(sys_get_temp_dir(), 'istura-letter-');
-        if (! $tmpPath || ! imagewebp($target, $tmpPath, 82)) {
+            $white = imagecolorallocate($target, 255, 255, 255);
+            if ($white === false || ! imagefill($target, 0, 0, $white)) {
+                throw ValidationException::withMessages([
+                    'image' => 'Gambar contoh surat tidak dapat diproses.',
+                ]);
+            }
+
+            if (! imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight)) {
+                throw ValidationException::withMessages([
+                    'image' => 'Gambar contoh surat tidak dapat diproses.',
+                ]);
+            }
+
+            $tmpPath = tempnam(sys_get_temp_dir(), 'istura-letter-');
+            if (! is_string($tmpPath) || ! imagewebp($target, $tmpPath, 82)) {
+                throw ValidationException::withMessages([
+                    'image' => 'Gambar contoh surat gagal dikonversi ke WebP.',
+                ]);
+            }
+
+            $optimizedBytes = file_get_contents($tmpPath);
+            if ($optimizedBytes === false) {
+                throw ValidationException::withMessages([
+                    'image' => 'Gambar contoh surat gagal dikonversi ke WebP.',
+                ]);
+            }
+
+            $path = 'letter/'.Str::uuid().'.webp';
+            if (! Storage::disk('public')->put($path, $optimizedBytes)) {
+                throw ValidationException::withMessages([
+                    'image' => 'Gambar contoh surat gagal disimpan.',
+                ]);
+            }
+
+            return $path;
+        } finally {
             imagedestroy($source);
-            imagedestroy($target);
 
-            return $image->store('letter', 'public');
+            if ($target instanceof \GdImage) {
+                imagedestroy($target);
+            }
+
+            if (is_string($tmpPath)) {
+                @unlink($tmpPath);
+            }
+        }
+    }
+
+    private function validatedLetterImagePath(UploadedFile $image): string
+    {
+        $realPath = $image->getRealPath();
+        if (! is_string($realPath) || $realPath === '') {
+            throw ValidationException::withMessages([
+                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+            ]);
         }
 
-        imagedestroy($source);
-        imagedestroy($target);
-
-        $path = 'letter/'.Str::uuid().'.webp';
-        $optimizedBytes = file_get_contents($tmpPath);
-        if ($optimizedBytes === false) {
-            @unlink($tmpPath);
-
-            return $image->store('letter', 'public');
+        $dimensions = @getimagesize($realPath);
+        if (! is_array($dimensions)) {
+            throw ValidationException::withMessages([
+                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+            ]);
         }
 
-        Storage::disk('public')->put($path, $optimizedBytes);
-        @unlink($tmpPath);
+        $width = (int) ($dimensions[0] ?? 0);
+        $height = (int) ($dimensions[1] ?? 0);
+        if ($width < 1 || $height < 1) {
+            throw ValidationException::withMessages([
+                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+            ]);
+        }
 
-        return $path;
+        if ($width > UpdateLetterRequest::LETTER_IMAGE_MAX_WIDTH || $height > UpdateLetterRequest::LETTER_IMAGE_MAX_HEIGHT) {
+            throw ValidationException::withMessages([
+                'image' => 'Dimensi gambar contoh surat terlalu besar.',
+            ]);
+        }
+
+        if ($height > intdiv(UpdateLetterRequest::LETTER_IMAGE_MAX_PIXELS, max(1, $width))) {
+            throw ValidationException::withMessages([
+                'image' => 'Total piksel gambar contoh surat terlalu besar.',
+            ]);
+        }
+
+        return $realPath;
     }
 }

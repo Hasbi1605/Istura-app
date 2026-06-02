@@ -3,9 +3,17 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\Validator;
 
 class UpdateLetterRequest extends FormRequest
 {
+    public const LETTER_IMAGE_MAX_WIDTH = 2800;
+
+    public const LETTER_IMAGE_MAX_HEIGHT = 3600;
+
+    public const LETTER_IMAGE_MAX_PIXELS = self::LETTER_IMAGE_MAX_WIDTH * self::LETTER_IMAGE_MAX_HEIGHT;
+
     public function authorize(): bool
     {
         return $this->user()?->isAdmin() ?? false;
@@ -16,7 +24,49 @@ class UpdateLetterRequest extends FormRequest
         return [
             'checklist' => ['required', 'array', 'min:1'],
             'checklist.*' => ['required', 'string', 'max:255'],
-            'image' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'image' => [
+                'sometimes',
+                'file',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+                'dimensions:max_width='.self::LETTER_IMAGE_MAX_WIDTH.',max_height='.self::LETTER_IMAGE_MAX_HEIGHT,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $image = $this->file('image');
+                if (! $image instanceof UploadedFile || ! $image->isValid()) {
+                    return;
+                }
+
+                $realPath = $image->getRealPath();
+                if (! is_string($realPath) || $realPath === '') {
+                    $validator->errors()->add('image', 'Gambar contoh surat tidak dapat dibaca.');
+
+                    return;
+                }
+
+                $dimensions = @getimagesize($realPath);
+                if (! is_array($dimensions)) {
+                    $validator->errors()->add('image', 'Gambar contoh surat tidak dapat dibaca.');
+
+                    return;
+                }
+
+                $width = (int) ($dimensions[0] ?? 0);
+                $height = (int) ($dimensions[1] ?? 0);
+                if ($width < 1 || $height < 1 || $height > intdiv(self::LETTER_IMAGE_MAX_PIXELS, max(1, $width))) {
+                    $validator->errors()->add('image', 'Total piksel gambar contoh surat terlalu besar.');
+                }
+            },
         ];
     }
 }
