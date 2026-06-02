@@ -1,10 +1,11 @@
 import { api, resetCsrf } from "./client";
+import type { AdminRole } from "./admin";
 
 export type AuthUser = {
   id: number;
   name: string;
   email: string;
-  role: "super_admin" | "admin" | "viewer";
+  role: AdminRole;
   roleLabel: string;
   status: "Aktif" | "Nonaktif";
   lastLogin: string | null;

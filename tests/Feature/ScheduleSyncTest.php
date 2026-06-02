@@ -744,18 +744,19 @@ class ScheduleSyncTest extends TestCase
         $this->assertStringContainsString("object-src 'none'", $csp);
     }
 
-    public function test_viewer_cannot_read_sensitive_admin_endpoints(): void
+    public function test_inactive_admin_cannot_read_sensitive_admin_endpoints(): void
     {
         Storage::fake('local');
         Storage::disk('local')->put('booking-letters/real-surat.pdf', '%PDF-1.4 real file');
         $booking = $this->createBooking([
-            'code' => 'ISTURA-2026-VIEWER',
+            'code' => 'ISTURA-2026-INACTIVE',
             'document_path' => 'booking-letters/real-surat.pdf',
             'document_original_name' => 'real-surat.pdf',
         ]);
 
         $this->actingAsAdminSession(User::factory()->create([
-            'role' => User::ROLE_VIEWER,
+            'role' => User::ROLE_ADMIN,
+            'email_verified_at' => null,
             'two_factor_confirmed_at' => now(),
         ]));
 
@@ -778,7 +779,7 @@ class ScheduleSyncTest extends TestCase
             'name' => 'Audit User',
             'email' => 'audit-user@example.test',
             'password' => 'audit-user-password-123!',
-            'role' => User::ROLE_VIEWER,
+            'role' => User::ROLE_ADMIN,
             'status' => 'Aktif',
         ])->assertCreated();
 
@@ -786,6 +787,30 @@ class ScheduleSyncTest extends TestCase
             'action' => 'Membuat pengguna admin audit-user@example.test',
             'target_id' => (string) $created->json('data.id'),
         ]);
+    }
+
+    public function test_super_admin_user_management_rejects_unsupported_roles(): void
+    {
+        $this->actingAsAdminSession(User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'two_factor_confirmed_at' => now(),
+        ]));
+
+        $this->postJson('/api/admin/users', [
+            'name' => 'Unsupported Role',
+            'email' => 'unsupported-role@example.test',
+            'password' => 'unsupported-role-password-123!',
+            'role' => 'guest',
+            'status' => 'Aktif',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('role');
+
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $this->putJson("/api/admin/users/{$admin->id}", [
+            'role' => 'guest',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('role');
     }
 
     public function test_user_seeder_sets_admin_role_and_active_status_without_mass_assignment(): void
@@ -801,9 +826,20 @@ class ScheduleSyncTest extends TestCase
         $this->assertNotNull($admin);
         $this->assertTrue($admin->isActive());
         $this->assertTrue(Hash::check('seed-password-123!', $admin->password));
+        $this->assertSame(
+            [User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN],
+            User::query()->pluck('role')->unique()->sort()->values()->all(),
+        );
 
         putenv('SEED_ADMIN_PASSWORD');
         unset($_ENV['SEED_ADMIN_PASSWORD'], $_SERVER['SEED_ADMIN_PASSWORD']);
+    }
+
+    public function test_users_default_to_admin_role(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertSame(User::ROLE_ADMIN, $user->fresh()->role);
     }
 
     public function test_super_admin_cannot_disable_or_demote_self(): void
@@ -1126,7 +1162,7 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
-    public function test_viewer_cannot_mutate_schedule_or_cms(): void
+    public function test_inactive_admin_cannot_mutate_schedule_or_cms(): void
     {
         ScheduleOverride::create([
             'date' => '2026-06-01',
@@ -1136,7 +1172,8 @@ class ScheduleSyncTest extends TestCase
         ]);
 
         $this->actingAsAdminSession(User::factory()->create([
-            'role' => User::ROLE_VIEWER,
+            'role' => User::ROLE_ADMIN,
+            'email_verified_at' => null,
             'two_factor_confirmed_at' => now(),
         ]));
 

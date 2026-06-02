@@ -19,7 +19,6 @@ class UserResource extends JsonResource
             'roleLabel' => match ($this->role) {
                 User::ROLE_SUPER_ADMIN => 'Super Admin',
                 User::ROLE_ADMIN => 'Admin',
-                default => 'Viewer',
             },
             'status' => $this->email_verified_at ? 'Aktif' : 'Nonaktif',
             'lastLogin' => $this->last_login_at ? IndonesianDate::submittedAt($this->last_login_at) : null,

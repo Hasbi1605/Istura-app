@@ -30,7 +30,7 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:160', 'unique:users,email'],
             'password' => ['required', 'string', 'min:12', 'max:255'],
-            'role' => ['required', Rule::in([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_VIEWER])],
+            'role' => ['required', Rule::in([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN])],
             'status' => ['sometimes', Rule::in(['Aktif', 'Nonaktif'])],
         ]);
 
@@ -60,7 +60,7 @@ class UserController extends Controller
             'name' => ['sometimes', 'string', 'max:120'],
             'email' => ['sometimes', 'email', 'max:160', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['sometimes', 'nullable', 'string', 'min:12', 'max:255'],
-            'role' => ['sometimes', Rule::in([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_VIEWER])],
+            'role' => ['sometimes', Rule::in([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN])],
             'status' => ['sometimes', Rule::in(['Aktif', 'Nonaktif'])],
         ]);
 

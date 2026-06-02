@@ -1,10 +1,12 @@
 import { api } from "./client";
 
+export type AdminRole = "super_admin" | "admin";
+
 export type ApiAdminUser = {
   id: number;
   name: string;
   email: string;
-  role: string;
+  role: AdminRole;
   roleLabel: string;
   status: "Aktif" | "Nonaktif";
   lastLogin: string | null;
@@ -38,7 +40,7 @@ export type AdminUserInput = {
   name: string;
   email: string;
   password?: string;
-  role: "super_admin" | "admin";
+  role: AdminRole;
   status?: "Aktif" | "Nonaktif";
 };
 

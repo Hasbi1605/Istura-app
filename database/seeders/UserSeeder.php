@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use InvalidArgumentException;
 
 class UserSeeder extends Seeder
 {
@@ -34,8 +35,8 @@ class UserSeeder extends Seeder
     {
         return match ($label) {
             'Super Admin' => User::ROLE_SUPER_ADMIN,
-            'Admin', 'Operator' => User::ROLE_ADMIN,
-            default => User::ROLE_VIEWER,
+            'Admin' => User::ROLE_ADMIN,
+            default => throw new InvalidArgumentException("Role seed tidak dikenal: {$label}"),
         };
     }
 }

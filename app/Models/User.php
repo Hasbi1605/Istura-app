@@ -24,8 +24,6 @@ class User extends Authenticatable
 
     public const ROLE_ADMIN = 'admin';
 
-    public const ROLE_VIEWER = 'viewer';
-
     /**
      * Get the attributes that should be cast.
      *

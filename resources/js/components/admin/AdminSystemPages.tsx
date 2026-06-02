@@ -7,6 +7,7 @@ import {
   fetchAdminAuditLogs,
   fetchAdminUsers,
   updateAdminUser,
+  type AdminRole,
   type ApiAdminUser,
   type ApiAuditLog,
 } from "../../api/admin";
@@ -14,9 +15,7 @@ import { ApiError, ValidationError } from "../../api/client";
 import { ButtonSpinner, InlineSpinner, TableSkeleton } from "../ui/LoadingStates";
 import { Pagination } from "../ui/Pagination";
 
-type UserRole = "super_admin" | "admin";
-
-const ROLE_OPTIONS: Array<{ value: UserRole; label: string }> = [
+const ROLE_OPTIONS: Array<{ value: AdminRole; label: string }> = [
   { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Admin" },
 ];
@@ -26,7 +25,7 @@ type UserDraft = {
   name: string;
   email: string;
   password: string;
-  role: UserRole;
+  role: AdminRole;
   status: "Aktif" | "Nonaktif";
 };
 
@@ -85,7 +84,7 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
       name: user.name,
       email: user.email,
       password: "",
-      role: user.role === "super_admin" ? "super_admin" : "admin",
+      role: user.role,
       status: user.status,
     });
   };
@@ -200,7 +199,7 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
                 <select
                   value={draft?.role ?? "admin"}
                   onChange={(event) =>
-                    setDraft((d) => (d ? { ...d, role: event.target.value as UserRole } : d))
+                    setDraft((d) => (d ? { ...d, role: event.target.value as AdminRole } : d))
                   }
                 >
                   {ROLE_OPTIONS.map((opt) => (

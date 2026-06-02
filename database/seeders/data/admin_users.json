@@ -9,14 +9,14 @@
   {
     "name": "Operator Booking",
     "email": "operator@istura.id",
-    "role": "Operator",
+    "role": "Admin",
     "status": "Aktif",
     "lastLogin": "Kemarin, 16:24"
   },
   {
     "name": "Editor Konten",
     "email": "editor@istura.id",
-    "role": "Editor",
+    "role": "Admin",
     "status": "Nonaktif",
     "lastLogin": "12 Mei 2026"
   }
