@@ -67,17 +67,17 @@ export async function twoFactorVerify(code: string, trustDevice: boolean): Promi
   });
 }
 
-export async function twoFactorDisable(password: string): Promise<void> {
+export async function twoFactorDisable(password: string, code: string): Promise<void> {
   await api("/api/auth/two-factor/disable", {
     method: "POST",
-    body: { password },
+    body: { password, code },
   });
 }
 
-export async function twoFactorRegenerateCodes(password: string): Promise<TwoFactorConfirmResponse> {
+export async function twoFactorRegenerateCodes(password: string, code: string): Promise<TwoFactorConfirmResponse> {
   return api<TwoFactorConfirmResponse>("/api/auth/two-factor/recovery-codes", {
     method: "POST",
-    body: { password },
+    body: { password, code },
   });
 }
 

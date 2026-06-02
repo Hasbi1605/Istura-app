@@ -136,21 +136,23 @@ class TwoFactorController extends Controller
     }
 
     /**
-     * Disable 2FA (requires current password).
+     * Disable 2FA (requires current password and fresh 2FA proof).
      */
     public function disable(Request $request): JsonResponse
     {
         $request->validate([
             'password' => ['required', 'string'],
+            'code' => ['required', 'string'],
         ]);
 
         $user = $request->user();
 
-        if (! Hash::check($request->input('password'), $user->password)) {
-            throw ValidationException::withMessages([
-                'password' => ['Password tidak cocok.'],
-            ]);
+        if (! $user->two_factor_confirmed_at) {
+            return response()->json(['message' => '2FA belum aktif.'], 422);
         }
+
+        $this->ensureCurrentPassword($request, $user);
+        $this->ensureFreshTwoFactorProof($request, $user);
 
         $user->forceFill([
             'two_factor_secret' => null,
@@ -161,8 +163,10 @@ class TwoFactorController extends Controller
         $this->twoFactor->revokeAllDevices($user);
         $forgetTrustedDeviceCookie = $this->twoFactor->forgetTrustedDeviceCookie();
 
-        // Clear 2FA session flag
-        $request->session()->forget('two_factor_verified');
+        // Clear 2FA session flag when the request uses browser session auth.
+        if ($request->hasSession()) {
+            $request->session()->forget('two_factor_verified');
+        }
 
         AuditLogger::record($user, 'Menonaktifkan Two-Factor Authentication', User::class, $user->id);
 
@@ -183,12 +187,13 @@ class TwoFactorController extends Controller
     }
 
     /**
-     * Regenerate recovery codes.
+     * Regenerate recovery codes (requires current password and fresh 2FA proof).
      */
     public function regenerateRecoveryCodes(Request $request): JsonResponse
     {
         $request->validate([
             'password' => ['required', 'string'],
+            'code' => ['required', 'string'],
         ]);
 
         $user = $request->user();
@@ -197,11 +202,8 @@ class TwoFactorController extends Controller
             return response()->json(['message' => '2FA belum aktif.'], 422);
         }
 
-        if (! Hash::check($request->input('password'), $user->password)) {
-            throw ValidationException::withMessages([
-                'password' => ['Password tidak cocok.'],
-            ]);
-        }
+        $this->ensureCurrentPassword($request, $user);
+        $this->ensureFreshTwoFactorProof($request, $user);
 
         $recoveryCodes = $this->twoFactor->generateRecoveryCodes();
         $user->forceFill([
@@ -231,5 +233,37 @@ class TwoFactorController extends Controller
             && ! $this->twoFactor->isDeviceTrusted($user, $request);
 
         return response()->json(['requires_2fa' => $requires2fa]);
+    }
+
+    private function ensureCurrentPassword(Request $request, User $user): void
+    {
+        if (! Hash::check($request->input('password'), $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Password tidak cocok.'],
+            ]);
+        }
+    }
+
+    private function ensureFreshTwoFactorProof(Request $request, User $user): void
+    {
+        if (! $user->two_factor_secret) {
+            throw ValidationException::withMessages([
+                'code' => ['2FA belum aktif.'],
+            ]);
+        }
+
+        $code = $request->input('code');
+        $secret = decrypt($user->two_factor_secret);
+        $valid = $this->twoFactor->verify($secret, $code);
+
+        if (! $valid) {
+            $valid = $this->twoFactor->useRecoveryCode($user, $code);
+        }
+
+        if (! $valid) {
+            throw ValidationException::withMessages([
+                'code' => ['Kode verifikasi tidak valid.'],
+            ]);
+        }
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\EnsureAdminSessionFresh;
+use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Services\TwoFactorService;
@@ -134,6 +135,108 @@ class TwoFactorSecurityTest extends TestCase
             'code' => '000000',
             'trust_device' => false,
         ])->assertStatus(429);
+    }
+
+    public function test_password_only_session_cannot_regenerate_recovery_codes_or_enter_admin(): void
+    {
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+        $storedCodes = $admin->two_factor_recovery_codes;
+
+        $this->actingAs($admin);
+
+        $this->postJson('/api/auth/two-factor/recovery-codes', [
+            'password' => 'password',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('code')
+            ->assertJsonMissingPath('recovery_codes');
+
+        $this->assertSame($storedCodes, $admin->fresh()->two_factor_recovery_codes);
+
+        $request = Request::create('/api/admin/dashboard', 'GET');
+        $request->setUserResolver(fn () => $admin);
+        $request->setLaravelSession(app('session.store'));
+
+        $response = app(EnsureTwoFactorVerified::class)->handle(
+            $request,
+            fn () => response()->json(['ok' => true]),
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertTrue(json_decode($response->getContent(), true)['two_factor_required']);
+    }
+
+    public function test_password_only_session_cannot_disable_two_factor(): void
+    {
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+
+        $this->actingAs($admin);
+
+        $this->postJson('/api/auth/two-factor/disable', [
+            'password' => 'password',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('code');
+
+        $this->postJson('/api/auth/two-factor/disable', [
+            'password' => 'password',
+            'code' => '000000',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('code');
+
+        $admin->refresh();
+
+        $this->assertNotNull($admin->two_factor_secret);
+        $this->assertNotNull($admin->two_factor_recovery_codes);
+        $this->assertNotNull($admin->two_factor_confirmed_at);
+    }
+
+    public function test_recovery_code_regeneration_requires_fresh_two_factor_proof(): void
+    {
+        $service = app(TwoFactorService::class);
+        $admin = $this->createConfirmedAdmin($service);
+        $code = (new Google2FA)->getCurrentOtp(decrypt($admin->two_factor_secret));
+
+        $this->actingAs($admin);
+
+        $response = $this->postJson('/api/auth/two-factor/recovery-codes', [
+            'password' => 'password',
+            'code' => $code,
+        ])->assertOk()
+            ->assertJsonCount(8, 'recovery_codes');
+
+        $firstRecoveryCode = $response->json('recovery_codes.0');
+        $storedCodes = json_decode(decrypt($admin->fresh()->two_factor_recovery_codes), true);
+
+        $this->assertCount(8, $storedCodes);
+        $this->assertNotContains($firstRecoveryCode, $storedCodes);
+        $this->assertTrue(Hash::check($firstRecoveryCode, $storedCodes[0]));
+    }
+
+    public function test_disabling_two_factor_requires_fresh_two_factor_proof(): void
+    {
+        $service = app(TwoFactorService::class);
+        $admin = $this->createConfirmedAdmin($service);
+        $code = (new Google2FA)->getCurrentOtp(decrypt($admin->two_factor_secret));
+
+        TrustedDevice::create([
+            'user_id' => $admin->id,
+            'device_hash' => $service->hashTrustedDeviceToken(Str::random(64)),
+            'device_name' => 'Chrome',
+            'trusted_until' => now()->addDays(30),
+        ]);
+
+        $this->actingAs($admin);
+
+        $this->postJson('/api/auth/two-factor/disable', [
+            'password' => 'password',
+            'code' => $code,
+        ])->assertOk();
+
+        $admin->refresh();
+
+        $this->assertNull($admin->two_factor_secret);
+        $this->assertNull($admin->two_factor_recovery_codes);
+        $this->assertNull($admin->two_factor_confirmed_at);
+        $this->assertDatabaseCount('trusted_devices', 0);
     }
 
     public function test_admin_session_absolute_lifetime_forces_relogin(): void
