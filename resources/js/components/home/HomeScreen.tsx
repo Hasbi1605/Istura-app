@@ -17,6 +17,7 @@ import type { LucideIcon } from "lucide-react";
 import type { FaqItem, FooterContact, LandingIconKey, Screen, SiteContent, VisitDay } from "../../domain/types";
 import type { ApiHero, ApiLetter } from "../../api/cms";
 import {
+  addDays,
   addMonths,
   calendarWeekdays,
   createCalendarDays,
@@ -24,6 +25,7 @@ import {
   formatLongDate,
   formatMonthTitle,
   getPublicDateStatus,
+  jakartaToday,
   isSameMonth,
   isWithinRange,
   legendStatuses,
@@ -31,7 +33,6 @@ import {
   publicSlotStatusLabel,
   publicSlotStatusToClass,
   publicStatusMeta,
-  startOfDay,
   startOfMonth,
 } from "../../lib/date";
 import { ASSETS } from "../../lib/assets";
@@ -144,9 +145,10 @@ export function HomeScreen({
 	loading?: boolean;
 	onNavigate: (screen: Screen) => void;
 }) {
-  const [today] = useState(() => startOfDay(new Date()));
+  const [today] = useState(jakartaToday);
+  const minPublicDate = useMemo(() => addDays(today, 1), [today]);
   const maxScheduleDate = addMonths(today, 2);
-  const minMonth = startOfMonth(today);
+  const minMonth = startOfMonth(minPublicDate);
   const maxMonth = startOfMonth(maxScheduleDate);
   const [visibleMonth, setVisibleMonth] = useState(() => minMonth);
   const scheduleByKey = useMemo(
@@ -158,12 +160,12 @@ export function HomeScreen({
     [schedules],
   );
   const lastScheduleSyncRef = useRef("");
-  const [selectedDateKey, setSelectedDateKey] = useState(() => formatDateKey(today));
-  const calendarDays = createCalendarDays(visibleMonth, today, maxScheduleDate, scheduleByKey);
+  const [selectedDateKey, setSelectedDateKey] = useState(() => formatDateKey(minPublicDate));
+  const calendarDays = createCalendarDays(visibleMonth, minPublicDate, maxScheduleDate, scheduleByKey);
   const selectedDate = parseDateKey(selectedDateKey);
   const selectedStatus = getPublicDateStatus(
     selectedDate,
-    today,
+    minPublicDate,
     maxScheduleDate,
     startOfMonth(selectedDate),
     scheduleByKey,
@@ -178,18 +180,18 @@ export function HomeScreen({
     lastScheduleSyncRef.current = scheduleSignature;
 
     const selectedIsAvailable = Boolean(selectedDay && hasAvailableSlot(selectedDay));
-    if (selectedIsAvailable && isInsideScheduleWindow(selectedDateKey, today, maxScheduleDate)) {
+    if (selectedIsAvailable && isInsideScheduleWindow(selectedDateKey, minPublicDate, maxScheduleDate)) {
       return;
     }
 
     const nextDateKey =
-      firstAvailableDateKey(schedules, today, maxScheduleDate) ??
-      firstScheduleDateKey(schedules, today, maxScheduleDate, visibleMonth) ??
-      formatDateKey(today);
+      firstAvailableDateKey(schedules, minPublicDate, maxScheduleDate) ??
+      firstScheduleDateKey(schedules, minPublicDate, maxScheduleDate, visibleMonth) ??
+      formatDateKey(minPublicDate);
 
     setSelectedDateKey(nextDateKey);
     setVisibleMonth(startOfMonth(parseDateKey(nextDateKey)));
-  }, [maxScheduleDate, scheduleSignature, schedules, selectedDateKey, selectedDay, today, visibleMonth]);
+  }, [maxScheduleDate, minPublicDate, scheduleSignature, schedules, selectedDateKey, selectedDay, visibleMonth]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -214,9 +216,9 @@ export function HomeScreen({
 
     setVisibleMonth(nextMonth);
     setSelectedDateKey(
-      firstAvailableDateKey(schedules, today, maxScheduleDate, nextMonth) ??
-        firstScheduleDateKey(schedules, today, maxScheduleDate, nextMonth) ??
-        fallbackDateKeyForMonth(nextMonth, today, maxScheduleDate),
+      firstAvailableDateKey(schedules, minPublicDate, maxScheduleDate, nextMonth) ??
+        firstScheduleDateKey(schedules, minPublicDate, maxScheduleDate, nextMonth) ??
+        fallbackDateKeyForMonth(nextMonth, minPublicDate, maxScheduleDate),
     );
   };
 

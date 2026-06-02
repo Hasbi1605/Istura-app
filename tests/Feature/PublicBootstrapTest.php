@@ -53,6 +53,41 @@ class PublicBootstrapTest extends TestCase
         $this->assertStringContainsString('must-revalidate', $response->headers->get('Cache-Control'));
     }
 
+    public function test_public_bootstrap_schedule_starts_from_earliest_bookable_date(): void
+    {
+        $response = $this->getJson('/api/public/bootstrap')
+            ->assertOk();
+
+        $dates = collect($response->json('data.schedule'))->pluck('date');
+
+        $this->assertSame('2026-06-02', $dates->first());
+        $this->assertFalse($dates->contains('2026-06-01'));
+    }
+
+    public function test_public_schedule_clamps_requested_start_to_earliest_bookable_date(): void
+    {
+        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-03')
+            ->assertOk();
+
+        $this->assertSame(['2026-06-02', '2026-06-03'], collect($response->json('data'))->pluck('date')->all());
+    }
+
+    public function test_public_schedule_returns_empty_when_requested_range_is_only_today(): void
+    {
+        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01')
+            ->assertOk();
+
+        $this->assertSame([], $response->json('data'));
+    }
+
+    public function test_public_schedule_clamps_requested_end_to_latest_bookable_date(): void
+    {
+        $response = $this->getJson('/api/public/schedule?from=2026-08-01&to=2026-08-03')
+            ->assertOk();
+
+        $this->assertSame(['2026-08-01'], collect($response->json('data'))->pluck('date')->all());
+    }
+
     public function test_public_schedule_response_is_publicly_cacheable(): void
     {
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01');

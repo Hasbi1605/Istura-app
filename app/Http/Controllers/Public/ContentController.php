@@ -97,6 +97,10 @@ class ContentController extends Controller
 
     private function scheduleData(Carbon $from, Carbon $to, ScheduleService $service): array
     {
+        if ($from->gt($to)) {
+            return [];
+        }
+
         return PublicCache::rememberSchedule(
             $from->toDateString(),
             $to->toDateString(),
@@ -143,7 +147,22 @@ class ContentController extends Controller
      */
     private function scheduleRange(ScheduleRangeRequest $request): array
     {
-        return [$request->startDate(), $request->endDate()];
+        $today = Carbon::today('Asia/Jakarta');
+        $earliestBookableDate = $today->copy()->addDay()->startOfDay();
+        $latestBookableDate = $today->copy()->addMonths(2)->startOfDay();
+        $from = $request->validated('from') ? $request->startDate() : $earliestBookableDate->copy();
+
+        if ($from->lt($earliestBookableDate)) {
+            $from = $earliestBookableDate->copy();
+        }
+
+        $to = $request->validated('to') ? $request->endDate() : $latestBookableDate;
+
+        if ($to->gt($latestBookableDate)) {
+            $to = $latestBookableDate->copy();
+        }
+
+        return [$from, $to];
     }
 
     private function publicJson(array $payload, int $browserTtl): JsonResponse
