@@ -9451,7 +9451,8 @@ a {
     gap: 12px;
   }
 
-  .letter-preview {
+  .letter-preview,
+  .rules-preview {
     min-height: auto;
     padding: 16px;
   }
