@@ -429,6 +429,83 @@ class ScheduleSyncTest extends TestCase
         $this->assertNotContains('12.00', $times);
     }
 
+    public function test_public_schedule_hides_lunch_break_even_when_legacy_data_exists(): void
+    {
+        $date = '2026-06-04';
+
+        $this->createBooking([
+            'date' => $date,
+            'time' => '12.00',
+            'status' => 'Accepted',
+        ]);
+        ScheduleOverride::create([
+            'date' => $date,
+            'time' => '12.00',
+            'status' => 'Available',
+            'custom' => true,
+        ]);
+
+        $response = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk();
+
+        $times = collect($response->json('data.0.slots'))->pluck('time')->all();
+
+        $this->assertNotContains('12.00', $times);
+    }
+
+    public function test_cleanup_lunch_break_command_removes_test_data_at_noon(): void
+    {
+        $lunchBooking = $this->createBooking([
+            'code' => 'ISTURA-2026-LUNCH',
+            'date' => '2026-06-04',
+            'time' => '12.00',
+            'status' => 'Pending',
+        ]);
+        $splitBooking = $this->createBooking([
+            'code' => 'ISTURA-2026-SPLIT-LUNCH',
+            'date' => '2026-06-04',
+            'time' => '11.00',
+            'status' => 'Pending',
+        ]);
+        $keptBooking = $this->createBooking([
+            'code' => 'ISTURA-2026-KEEP',
+            'date' => '2026-06-04',
+            'time' => '13.00',
+            'status' => 'Pending',
+        ]);
+
+        BookingSlot::create([
+            'booking_id' => $splitBooking->id,
+            'kind' => BookingSlot::KIND_ACTIVE,
+            'slot_order' => 2,
+            'date' => '2026-06-04',
+            'date_label' => $splitBooking->date_label,
+            'time' => '12.00',
+            'group_size' => 80,
+            'active_slot_key' => '2026-06-04|12.00',
+        ]);
+        ScheduleOverride::create([
+            'date' => '2026-06-04',
+            'time' => '12.00',
+            'status' => 'Available',
+            'custom' => true,
+        ]);
+        DB::table('booking_slot_locks')->insert([
+            ['slot_key' => '2026-06-04|12.00', 'created_at' => now(), 'updated_at' => now()],
+            ['slot_key' => '2026-06-04|13.00', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $this->artisan('schedule:cleanup-lunch-break --force')->assertSuccessful();
+
+        $this->assertDatabaseMissing('bookings', ['id' => $lunchBooking->id]);
+        $this->assertDatabaseMissing('bookings', ['id' => $splitBooking->id]);
+        $this->assertDatabaseHas('bookings', ['id' => $keptBooking->id]);
+        $this->assertDatabaseMissing('booking_slots', ['time' => '12.00']);
+        $this->assertDatabaseMissing('schedule_overrides', ['time' => '12.00']);
+        $this->assertDatabaseMissing('booking_slot_locks', ['slot_key' => '2026-06-04|12.00']);
+        $this->assertDatabaseHas('booking_slot_locks', ['slot_key' => '2026-06-04|13.00']);
+    }
+
     public function test_available_override_does_not_let_public_overbook_active_slot(): void
     {
         Storage::fake('local');
@@ -1447,6 +1524,18 @@ class ScheduleSyncTest extends TestCase
         ]), ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('whatsapp');
+    }
+
+    public function test_public_booking_rejects_lunch_break_time(): void
+    {
+        Storage::fake('local');
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-04',
+            'time' => '12.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('time');
     }
 
     public function test_public_booking_rejects_contact_name_with_digits_or_symbols(): void

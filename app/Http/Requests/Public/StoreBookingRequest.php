@@ -5,6 +5,7 @@ namespace App\Http\Requests\Public;
 use App\Rules\VisitTime;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreBookingRequest extends FormRequest
 {
@@ -30,7 +31,7 @@ class StoreBookingRequest extends FormRequest
                 'after_or_equal:'.$earliestDate,
                 'before_or_equal:'.$today->copy()->addMonths(2)->toDateString(),
             ],
-            'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
+            'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime, Rule::notIn(['12.00'])],
             'document' => ['required', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:5120'],
             'agreement' => ['required', 'accepted'],
         ];
@@ -45,6 +46,7 @@ class StoreBookingRequest extends FormRequest
             'whatsapp.regex' => 'Nomor WhatsApp harus aktif, contoh 08xxxxxxxxxx.',
             'agreement.accepted' => 'Persetujuan wajib dicentang.',
             'date.after_or_equal' => 'Tanggal kunjungan paling cepat H-2.',
+            'time.not_in' => 'Jam 12.00 tidak tersedia karena waktu istirahat. Silakan pilih jam layanan lain.',
             'groupSize.max' => 'Jumlah rombongan maksimal 480 orang per hari kunjungan.',
             'document.mimes' => 'Surat permohonan harus berformat PDF, PNG, atau JPG.',
             'document.max' => 'Ukuran surat maksimal 5 MB.',
