@@ -5612,11 +5612,9 @@ a {
   top: 70px;
   display: grid;
   gap: 8px;
-  max-height: calc(100vh - 90px);
   min-width: 0;
   padding: 2px;
   margin: -2px;
-  overflow-y: auto;
 }
 
 .admin-wa-template-card {
@@ -5717,10 +5715,14 @@ a {
 }
 
 .admin-wa-editor-panel {
+  position: sticky;
+  top: 70px;
   display: grid;
   gap: 12px;
   min-width: 0;
+  max-height: calc(100vh - 90px);
   padding: 16px;
+  overflow-y: auto;
   background: var(--white);
   border: 1px solid rgba(16, 24, 47, 0.06);
   border-radius: 12px;
