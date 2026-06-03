@@ -3759,6 +3759,8 @@ a {
 }
 
 .admin-shell {
+  --admin-topbar-height: 56px;
+
   position: relative;
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
@@ -3942,7 +3944,9 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 56px;
+  height: var(--admin-topbar-height);
+  min-height: var(--admin-topbar-height);
+  flex: 0 0 var(--admin-topbar-height);
   padding: 0 24px;
   background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid rgba(16, 24, 47, 0.06);
@@ -4096,13 +4100,11 @@ a {
 
 .admin-shell-content .booking-split-detail {
   position: sticky;
-  top: 70px;
+  top: calc(var(--admin-topbar-height) + 14px);
   align-self: start;
   min-width: 0;
-  /* Bound the panel so very tall details (e.g. long komentar) get an internal
-     scrollbar instead of pushing the whole page. 70px clears the sticky
-     topbar and a small breathing gap. */
-  max-height: calc(100vh - 90px);
+  /* Bound tall details to the viewport while clearing the sticky topbar. */
+  max-height: calc(100vh - (var(--admin-topbar-height) + 34px));
   overflow-y: auto;
 }
 
@@ -10523,10 +10525,13 @@ a {
 
 @media (max-width: 768px) {
   /* Topbar lebih ramping & padding konten lebih hemat */
+  .admin-shell {
+    --admin-topbar-height: 52px;
+  }
+
   .admin-shell-topbar {
     padding: 0 14px;
     gap: 8px;
-    height: 52px;
   }
 
   .admin-shell-content {
