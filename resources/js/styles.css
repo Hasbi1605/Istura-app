@@ -899,8 +899,10 @@ a {
 
 .calendar-day {
   display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
   min-height: 66px;
-  place-items: center;
   color: var(--navy);
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(16, 24, 47, 0.06);
@@ -912,6 +914,22 @@ a {
     background 180ms ease,
     border-color 180ms ease,
     color 180ms ease;
+}
+
+.calendar-day-number {
+  display: block;
+  line-height: 1;
+}
+
+.calendar-day-note {
+  max-width: 100%;
+  color: inherit;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .calendar-day:not(:disabled):hover,
@@ -2835,7 +2853,13 @@ a {
 
 .availability-layout--inline .calendar-day {
   min-height: 48px;
+  padding: 4px 2px;
   font-size: 1rem;
+}
+
+.availability-layout--inline .calendar-day-note {
+  font-size: 0.48rem;
+  line-height: 1;
 }
 
 .availability-layout--inline .calendar-weekdays {
@@ -6536,6 +6560,19 @@ a {
   font-weight: 800;
   font-size: 1.05rem;
   line-height: 1;
+}
+
+.admin-schedule-cal-note {
+  display: block;
+  max-width: 100%;
+  margin-top: 4px;
+  color: inherit;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .admin-schedule-cal-legend {

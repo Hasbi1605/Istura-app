@@ -132,6 +132,14 @@ function closureReasonLabel(day?: VisitDay): string | null {
   return day?.closureReason?.label ?? day?.holiday?.label ?? null;
 }
 
+function closureReasonBadge(day?: VisitDay): string | null {
+  const type = day?.closureReason?.type ?? day?.holiday?.type;
+  if (type === "national_holiday") return "Libur Nasional";
+  if (type === "collective_leave") return "Cuti Bersama";
+  if (type === "operational_closed") return "Libur";
+  return null;
+}
+
 function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
   return slot.closureReason?.label ?? closureReasonLabel(day);
 }
@@ -890,6 +898,7 @@ function SchedulePicker({
             {calendarDays.map((day) => {
               const dayData = scheduleByKey.get(day.key);
               const dayClosureLabel = closureReasonLabel(dayData);
+              const dayClosureBadge = closureReasonBadge(dayData);
               const isClickable = day.status === "available" || (day.status === "closed" && Boolean(dayClosureLabel));
               const ariaLabel = dayData
                 ? `${dayData.label}, ${day.status === "available" ? publicStatusMeta.available.label : dayClosureLabel ?? publicStatusMeta[day.status].label}`
@@ -908,7 +917,8 @@ function SchedulePicker({
                   aria-label={ariaLabel}
                   title={dayClosureLabel ?? undefined}
                 >
-                  {day.date.getDate()}
+                  <span className="calendar-day-number">{day.date.getDate()}</span>
+                  {dayClosureBadge && <small className="calendar-day-note">{dayClosureBadge}</small>}
                 </button>
               );
             })}

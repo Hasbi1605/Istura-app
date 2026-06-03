@@ -30,6 +30,14 @@ function closureReasonLabel(day?: VisitDay): string | null {
   return day?.closureReason?.label ?? day?.holiday?.label ?? null;
 }
 
+function closureReasonBadge(day?: VisitDay): string | null {
+  const type = day?.closureReason?.type ?? day?.holiday?.type;
+  if (type === "national_holiday") return "Libur Nasional";
+  if (type === "collective_leave") return "Cuti Bersama";
+  if (type === "operational_closed") return "Libur";
+  return null;
+}
+
 function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
   return slot.closureReason?.label ?? closureReasonLabel(day);
 }
@@ -533,6 +541,7 @@ export function AdminScheduleManager({
               const isDefaultOff = isDefaultHoliday(cell.date);
               const isNationalHoliday = Boolean(day?.holiday);
               const dayClosureLabel = closureReasonLabel(day);
+              const dayClosureBadge = closureReasonBadge(day);
               const fullyClosed = totalSlots > 0 && closedSlots === totalSlots;
 
               const summaryClass = !inMonth
@@ -574,6 +583,7 @@ export function AdminScheduleManager({
                   }
                 >
                   <span className="admin-schedule-cal-num">{cell.date.getDate()}</span>
+                  {dayClosureBadge && <small className="admin-schedule-cal-note">{dayClosureBadge}</small>}
                 </button>
               );
             })}
