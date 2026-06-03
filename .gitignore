@@ -6,6 +6,7 @@
 .phpactor.json
 .phpunit.result.cache
 /.codex
+/.agents/
 /.cursor/
 /.idea
 /.nova
@@ -13,6 +14,7 @@
 /.vscode
 /.zed
 /auth.json
+/GEMINI.md
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json
@@ -29,3 +31,5 @@ Thumbs.db
 /output
 /.playwright-cli
 /referensidesain
+__pycache__/
+*.py[cod]
