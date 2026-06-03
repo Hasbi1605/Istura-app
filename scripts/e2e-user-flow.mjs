@@ -277,7 +277,7 @@ async function scenario(name, fn) {
 function firstAvailable(days, skip = new Set()) {
   const earliestBookingDate = new Date();
   earliestBookingDate.setHours(0, 0, 0, 0);
-  earliestBookingDate.setDate(earliestBookingDate.getDate() + 1);
+  earliestBookingDate.setDate(earliestBookingDate.getDate() + 2);
   for (const day of days) {
     if (new Date(`${day.date}T00:00:00`) < earliestBookingDate) continue;
     for (const slot of day.slots) {
@@ -294,7 +294,7 @@ function firstAvailable(days, skip = new Set()) {
 function firstAvailableRun(days, length, skip = new Set()) {
   const earliestBookingDate = new Date();
   earliestBookingDate.setHours(0, 0, 0, 0);
-  earliestBookingDate.setDate(earliestBookingDate.getDate() + 1);
+  earliestBookingDate.setDate(earliestBookingDate.getDate() + 2);
   for (const day of days) {
     if (new Date(`${day.date}T00:00:00`) < earliestBookingDate) continue;
     for (let index = 0; index <= day.slots.length - length; index += 1) {

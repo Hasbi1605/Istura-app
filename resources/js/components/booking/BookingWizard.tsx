@@ -210,7 +210,7 @@ export function BookingWizard({
   // menampilkan nama file.
   const documentFileRef = useRef<File | null>(null);
   const [today] = useState(jakartaToday);
-  const minBookingDate = addDays(today, 1);
+  const minBookingDate = addDays(today, 2);
   const minBookingDateKey = formatDateKey(minBookingDate);
   const initialDate = firstAvailableScheduleDate(schedules, minBookingDateKey);
   const [form, setForm] = useState<BookingForm>(() =>
@@ -302,7 +302,7 @@ export function BookingWizard({
     if (step === 3) {
       if (!form.date || !form.time) nextErrors.time = "Pilih tanggal dan jam kunjungan.";
       if (form.date && form.date < minBookingDateKey) {
-        nextErrors.time = "Tanggal kunjungan paling cepat besok.";
+        nextErrors.time = "Tanggal kunjungan paling cepat H-2.";
       }
       if (selectedSlot && selectedSlot.status !== "Available") {
         nextErrors.time = "Jadwal ini baru saja tidak tersedia. Pilih slot lain.";

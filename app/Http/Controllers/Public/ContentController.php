@@ -148,7 +148,7 @@ class ContentController extends Controller
     private function scheduleRange(ScheduleRangeRequest $request): array
     {
         $today = Carbon::today('Asia/Jakarta');
-        $earliestBookableDate = $today->copy()->addDay()->startOfDay();
+        $earliestBookableDate = $today->copy()->addDays(2)->startOfDay();
         $latestBookableDate = $today->copy()->addMonths(2)->startOfDay();
         $from = $request->validated('from') ? $request->startDate() : $earliestBookableDate->copy();
 

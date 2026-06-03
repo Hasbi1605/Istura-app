@@ -60,8 +60,9 @@ class PublicBootstrapTest extends TestCase
 
         $dates = collect($response->json('data.schedule'))->pluck('date');
 
-        $this->assertSame('2026-06-02', $dates->first());
+        $this->assertSame('2026-06-03', $dates->first());
         $this->assertFalse($dates->contains('2026-06-01'));
+        $this->assertFalse($dates->contains('2026-06-02'));
     }
 
     public function test_public_schedule_clamps_requested_start_to_earliest_bookable_date(): void
@@ -69,7 +70,7 @@ class PublicBootstrapTest extends TestCase
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-03')
             ->assertOk();
 
-        $this->assertSame(['2026-06-02', '2026-06-03'], collect($response->json('data'))->pluck('date')->all());
+        $this->assertSame(['2026-06-03'], collect($response->json('data'))->pluck('date')->all());
     }
 
     public function test_public_schedule_returns_empty_when_requested_range_is_only_today(): void

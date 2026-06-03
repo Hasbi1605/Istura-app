@@ -16,7 +16,7 @@ class StoreBookingRequest extends FormRequest
     public function rules(): array
     {
         $today = Carbon::today('Asia/Jakarta');
-        $earliestDate = $today->copy()->addDay()->toDateString();
+        $earliestDate = $today->copy()->addDays(2)->toDateString();
 
         return [
             'contactName' => ['required', 'string', 'max:120', 'regex:/^[\p{L}][\p{L}\s.\'-]*$/u'],
@@ -44,7 +44,7 @@ class StoreBookingRequest extends FormRequest
             'institution.regex' => 'Asal instansi hanya boleh berisi huruf, angka, spasi, titik, koma, apostrof, tanda hubung, garis miring, ampersand, atau kurung.',
             'whatsapp.regex' => 'Nomor WhatsApp harus aktif, contoh 08xxxxxxxxxx.',
             'agreement.accepted' => 'Persetujuan wajib dicentang.',
-            'date.after_or_equal' => 'Tanggal kunjungan paling cepat besok.',
+            'date.after_or_equal' => 'Tanggal kunjungan paling cepat H-2.',
             'groupSize.max' => 'Jumlah rombongan maksimal 560 orang per hari kunjungan.',
             'document.mimes' => 'Surat permohonan harus berformat PDF, PNG, atau JPG.',
             'document.max' => 'Ukuran surat maksimal 5 MB.',

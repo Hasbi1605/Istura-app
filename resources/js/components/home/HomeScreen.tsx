@@ -146,7 +146,7 @@ export function HomeScreen({
 	onNavigate: (screen: Screen) => void;
 }) {
   const [today] = useState(jakartaToday);
-  const minPublicDate = useMemo(() => addDays(today, 1), [today]);
+  const minPublicDate = useMemo(() => addDays(today, 2), [today]);
   const maxScheduleDate = addMonths(today, 2);
   const minMonth = startOfMonth(minPublicDate);
   const maxMonth = startOfMonth(maxScheduleDate);

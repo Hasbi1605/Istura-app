@@ -1265,7 +1265,7 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('confirmed_at', $confirmedAt->toIso8601String());
     }
 
-    public function test_public_booking_allows_h1_to_h4_and_rejects_same_day(): void
+    public function test_public_booking_allows_h2_to_h4_and_rejects_h1(): void
     {
         Storage::fake('local');
 
@@ -1276,12 +1276,26 @@ class ScheduleSyncTest extends TestCase
             'custom' => false,
         ]);
 
+        ScheduleOverride::create([
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Available',
+            'custom' => false,
+        ]);
+
         $this->post('/api/public/bookings', $this->publicBookingPayload([
             'date' => '2026-05-31',
             'time' => '08.00',
         ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date');
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-01',
+            'time' => '08.00',
+        ]), ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.leadTimeDays', 1)
+            ->assertJsonPath('data.leadTimeDays', 2)
             ->assertJsonPath('data.isShortNotice', true);
 
         $this->post('/api/public/bookings', $this->publicBookingPayload([
