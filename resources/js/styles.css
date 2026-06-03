@@ -5712,7 +5712,7 @@ a {
 }
 
 .admin-wa-template-preview {
-  color: rgba(16, 24, 47, 0.48);
+  color: rgba(16, 24, 47, 0.55);
   -webkit-line-clamp: 1;
 }
 
@@ -5811,6 +5811,24 @@ a {
   box-shadow: 0 0 0 3px rgba(196, 146, 18, 0.15);
 }
 
+.admin-wa-textarea::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.admin-wa-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-wa-textarea::-webkit-scrollbar-thumb {
+  background-color: rgba(16, 24, 47, 0.15);
+  border-radius: 10px;
+}
+
+.admin-wa-textarea::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(16, 24, 47, 0.25);
+}
+
 .admin-wa-variable-panel {
   display: grid;
   gap: 8px;
@@ -5851,6 +5869,7 @@ a {
   padding: 12px;
   background: rgba(16, 24, 47, 0.025);
   border: 1px solid rgba(16, 24, 47, 0.06);
+  border-left: 3px solid #25d366;
   border-radius: 10px;
 }
 

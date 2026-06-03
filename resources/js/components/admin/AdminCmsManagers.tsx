@@ -500,19 +500,11 @@ export function AdminWaTemplates({
               {selectedDirty && <strong>Belum disimpan</strong>}
             </div>
 
-            <label className="admin-wa-editor-label" htmlFor="wa-template-editor">
-              Isi pesan
-            </label>
-            <textarea
-              id="wa-template-editor"
-              ref={editorRef}
-              className="admin-wa-textarea"
-              value={selectedDraft.template}
-              onChange={(event) => updateTemplate(selectedDraft.id, event.target.value)}
-            />
-
             <div className="admin-wa-variable-panel" aria-label="Variabel pesan">
-              <span>Variabel</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Variabel</span>
+                <span style={{ fontWeight: 'normal', fontSize: '0.72rem', color: 'rgba(16, 24, 47, 0.45)' }}>Klik untuk menyisipkan ke pesan</span>
+              </div>
               <div>
                 {WA_TEMPLATE_VARIABLES.map((variable) => (
                   <button
@@ -527,6 +519,17 @@ export function AdminWaTemplates({
                 ))}
               </div>
             </div>
+
+            <label className="admin-wa-editor-label" htmlFor="wa-template-editor">
+              Isi pesan
+            </label>
+            <textarea
+              id="wa-template-editor"
+              ref={editorRef}
+              className="admin-wa-textarea"
+              value={selectedDraft.template}
+              onChange={(event) => updateTemplate(selectedDraft.id, event.target.value)}
+            />
 
             <div className="admin-wa-preview" aria-label="Preview pesan WhatsApp">
               <span>Preview singkat</span>
