@@ -403,6 +403,8 @@ export function HomeScreen({
 
       <LetterExampleSection content={siteContent.letterSection} letter={letter} onNavigate={onNavigate} />
 
+      <RulesSection content={siteContent.rulesSection} onNavigate={onNavigate} />
+
       <section className="chapter">
         <HorizontalAccordion content={siteContent.activities} />
       </section>
@@ -564,6 +566,70 @@ function LetterExampleSection({
           <div className="upload-note">
             <UploadCloud size={22} aria-hidden="true" />
             <span>{content.uploadNote}</span>
+          </div>
+          <button className="button button-primary" type="button" onClick={() => onNavigate("booking")}>
+            {content.buttonLabel}
+            <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function RulesSection({
+  content,
+  onNavigate,
+}: {
+  content: SiteContent["rulesSection"];
+  onNavigate: (screen: Screen) => void;
+}) {
+  return (
+    <section className="chapter rules-chapter" id="peraturan" aria-labelledby="rules-title">
+      <div className="section-heading compact rules-heading">
+        <div>
+          <h2 id="rules-title">{content.title}</h2>
+        </div>
+        <p>{content.description}</p>
+      </div>
+
+      <div className="rules-layout scale-fade">
+        <div className="rules-notepad-container">
+          <article className="rules-notepad" aria-label="Daftar peraturan kunjungan resmi">
+            <div className="notepad-rings" aria-hidden="true">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className="notepad-ring">
+                  <span className="ring-wire" />
+                  <span className="ring-hole" />
+                </div>
+              ))}
+            </div>
+            
+            <div className="notepad-paper">
+              <span className="section-kicker rules-kicker-red">{content.rulesKicker}</span>
+              <h3 className="notepad-title">{content.rulesTitle}</h3>
+              <ol className="notepad-list">
+                {content.rulesList.map((item, idx) => (
+                  <li key={idx} className="notepad-item">
+                    <span className="notepad-num">{idx + 1}.</span>
+                    <span className="notepad-text">{item}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="dwarapala-decor" aria-hidden="true" />
+          </article>
+        </div>
+
+        <aside className="rules-notes">
+          <span className="section-kicker">Aturan Utama</span>
+          <h3>Kepatuhan Protokol</h3>
+          <p>
+            Setiap rombongan diwajibkan untuk menaati peraturan di atas demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.
+          </p>
+          <div className="upload-note">
+            <FileCheck2 size={22} aria-hidden="true" />
+            <span>Koordinator bertanggung jawab penuh atas seluruh anggota rombongan.</span>
           </div>
           <button className="button button-primary" type="button" onClick={() => onNavigate("booking")}>
             {content.buttonLabel}

@@ -61,6 +61,15 @@ class UpdateSiteContentRequest extends FormRequest
             'activities.items.*.body' => ['required', 'string', 'max:255'],
             'activities.items.*.image' => ['required', 'string', 'max:500', SafePublicUrl::image()],
 
+            'rulesSection' => ['required', 'array'],
+            'rulesSection.title' => ['required', 'string', 'max:160'],
+            'rulesSection.description' => ['required', 'string', 'max:255'],
+            'rulesSection.rulesKicker' => ['required', 'string', 'max:80'],
+            'rulesSection.rulesTitle' => ['required', 'string', 'max:120'],
+            'rulesSection.rulesList' => ['required', 'array', 'min:1', 'max:15'],
+            'rulesSection.rulesList.*' => ['required', 'string', 'max:255'],
+            'rulesSection.buttonLabel' => ['required', 'string', 'max:60'],
+
             'letterSection' => ['required', 'array'],
             'letterSection.title' => ['required', 'string', 'max:160'],
             'letterSection.description' => ['required', 'string', 'max:255'],

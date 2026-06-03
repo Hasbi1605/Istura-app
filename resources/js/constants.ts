@@ -275,6 +275,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       { label: "Beranda", target: "home" },
       { label: "Cek Jadwal", target: "#panduan" },
       { label: "Contoh Surat", target: "#contoh-surat" },
+      { label: "Peraturan", target: "#peraturan" },
       { label: "FAQ", target: "#faq" },
     ],
   },
@@ -342,6 +343,24 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     title: "Hal apa saja yang akan kamu lakukan di Istana.",
     description: "Empat momen kunjungan diringkas menjadi panel visual yang mudah dipindai.",
     items: accordionItems,
+  },
+  rulesSection: {
+    title: "Aturan & Tata Tertib Kunjungan ISTURA.",
+    description:
+      "Mohon patuhi seluruh peraturan di bawah ini agar kunjungan Anda di Istana Kepresidenan Yogyakarta berjalan dengan tertib, aman, dan nyaman.",
+    rulesKicker: "Tata tertib fisik",
+    rulesTitle: "Peraturan Kunjungan Istana Kepresidenan Yogyakarta",
+    rulesList: [
+      "Berpakaian sopan, rapi, bersepatu",
+      "Dilarang menggunakan kaos oblong, celana jeans, dan celana pendek",
+      "Dilarang membawa makanan & minuman",
+      "Dilarang parkir dalam Istana",
+      "HP dan kamera profesional dititipkan koordinator kunjungan",
+      "Dilarang mengambil gambar di dalam museum dan area dalam gedung induk",
+      "Kunjungan akan didokumentasikan pihak istana dan link akan dikirimkan melalui koordinator kunjungan",
+      "Dimohon mengisi kuisoner dan penilaian",
+    ],
+    buttonLabel: "Mulai Booking",
   },
   letterSection: {
     title: "Contoh surat permohonan ISTURA.",

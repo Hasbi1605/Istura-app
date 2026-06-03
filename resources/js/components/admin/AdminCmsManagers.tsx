@@ -1079,6 +1079,45 @@ export function AdminLandingManager({
     }));
   };
 
+  const updateRulesSection = (field: keyof SiteContent["rulesSection"], value: string) => {
+    setDraft((current) => ({
+      ...current,
+      rulesSection: { ...current.rulesSection, [field]: value },
+    }));
+  };
+
+  const updateRulesListItem = (index: number, value: string) => {
+    setDraft((current) => ({
+      ...current,
+      rulesSection: {
+        ...current.rulesSection,
+        rulesList: current.rulesSection.rulesList.map((item, idx) =>
+          idx === index ? value : item,
+        ),
+      },
+    }));
+  };
+
+  const addRulesListItem = () => {
+    setDraft((current) => ({
+      ...current,
+      rulesSection: {
+        ...current.rulesSection,
+        rulesList: [...current.rulesSection.rulesList, "Peraturan baru"],
+      },
+    }));
+  };
+
+  const removeRulesListItem = (index: number) => {
+    setDraft((current) => ({
+      ...current,
+      rulesSection: {
+        ...current.rulesSection,
+        rulesList: current.rulesSection.rulesList.filter((_, idx) => idx !== index),
+      },
+    }));
+  };
+
   const updateFaqSection = (field: keyof SiteContent["faq"], value: string) => {
     setDraft((current) => ({ ...current, faq: { ...current.faq, [field]: value } }));
   };
@@ -1411,6 +1450,64 @@ export function AdminLandingManager({
               <span>Tombol</span>
               <input value={draft.letterSection.buttonLabel} onChange={(event) => updateLetterSection("buttonLabel", event.target.value)} />
             </label>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <AdminLandingSectionHead title="Peraturan Kunjungan" />
+        <div className="admin-cms-form">
+          <label className="form-field">
+            <span>Judul section</span>
+            <input value={draft.rulesSection.title} onChange={(event) => updateRulesSection("title", event.target.value)} />
+          </label>
+          <label className="form-field">
+            <span>Deskripsi</span>
+            <textarea rows={2} value={draft.rulesSection.description} onChange={(event) => updateRulesSection("description", event.target.value)} />
+          </label>
+          <div className="admin-cms-link">
+            <label className="form-field">
+              <span>Kicker tata tertib</span>
+              <input value={draft.rulesSection.rulesKicker} onChange={(event) => updateRulesSection("rulesKicker", event.target.value)} />
+            </label>
+            <label className="form-field">
+              <span>Judul tata tertib</span>
+              <input value={draft.rulesSection.rulesTitle} onChange={(event) => updateRulesSection("rulesTitle", event.target.value)} />
+            </label>
+          </div>
+          <label className="form-field">
+            <span>Tombol CTA</span>
+            <input value={draft.rulesSection.buttonLabel} onChange={(event) => updateRulesSection("buttonLabel", event.target.value)} />
+          </label>
+          
+          <header className="admin-card-head" style={{ paddingLeft: 0, paddingRight: 0, marginTop: "24px" }}>
+            <div>
+              <h2>Poin Peraturan</h2>
+              <p>Daftar aturan yang ditampilkan di notepad. Satu peraturan per baris.</p>
+            </div>
+            <button type="button" className="admin-card-link" onClick={addRulesListItem}>
+              Tambah Aturan
+            </button>
+          </header>
+          
+          <div className="admin-landing-list">
+            {draft.rulesSection.rulesList.map((item, index) => (
+              <div className="admin-landing-inline-row" key={index}>
+                <label className="form-field">
+                  <span>Aturan {index + 1}</span>
+                  <input value={item} onChange={(event) => updateRulesListItem(index, event.target.value)} />
+                </label>
+                <button
+                  type="button"
+                  className="admin-icon-btn admin-icon-btn--danger"
+                  onClick={() => removeRulesListItem(index)}
+                  disabled={draft.rulesSection.rulesList.length <= 1}
+                  aria-label={`Hapus aturan ${index + 1}`}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </section>

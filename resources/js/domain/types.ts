@@ -202,6 +202,14 @@ export type SiteContent = {
     description: string;
     items: LandingActivity[];
   };
+  rulesSection: {
+    title: string;
+    description: string;
+    rulesKicker: string;
+    rulesTitle: string;
+    rulesList: string[];
+    buttonLabel: string;
+  };
   letterSection: {
     title: string;
     description: string;
