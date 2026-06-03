@@ -395,13 +395,13 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
 };
 
 export const HERO_MESSAGES: Array<{ text: string; image: string }> = [
-  { text: "Halo! Aku MIKY (Museum Istana Kepresidenan Yogyakarta). Aku bantu pandu booking kunjunganmu.", image: ASSETS.mikyStep1 },
+  { text: "Halo! Aku MIKY, pemandu virtual Istana Kepresidenan Yogyakarta. Aku bantu pandu booking-mu ya.", image: ASSETS.mikyStep1 },
   { text: "Mau cek slot dulu? Klik Cek Jadwal ya.", image: ASSETS.mikyStep4 },
   { text: "Sudah siap? Yuk klik Mulai Booking.", image: ASSETS.mikyHero3 },
 ];
 
 export const HERO_MESSAGES_MOBILE: Array<{ text: string; image: string }> = [
-  { text: "Halo! Aku MIKY (Museum Istana Kepresidenan Yogyakarta), pemandumu.", image: ASSETS.mikyStep1 },
+  { text: "Halo! Aku MIKY, pemandu Istana Yogyakarta.", image: ASSETS.mikyStep1 },
   { text: "Cek jadwal dulu yuk.", image: ASSETS.mikyStep4 },
   { text: "Siap? Klik Mulai Booking.", image: ASSETS.mikyHero3 },
 ];
