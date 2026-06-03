@@ -494,11 +494,11 @@ export function AdminWaTemplates({
               </button>
             </header>
 
-            <div className="admin-wa-meta" aria-live="polite">
-              <span>{countWaTemplateLines(selectedDraft.template)} baris</span>
-              <span>{selectedDraft.template.length} karakter</span>
-              {selectedDirty && <strong>Belum disimpan</strong>}
-            </div>
+            {selectedDirty && (
+              <div className="admin-wa-meta" aria-live="polite">
+                <strong>Belum disimpan</strong>
+              </div>
+            )}
 
             <div className="admin-wa-variable-panel" aria-label="Variabel pesan">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -531,10 +531,6 @@ export function AdminWaTemplates({
               onChange={(event) => updateTemplate(selectedDraft.id, event.target.value)}
             />
 
-            <div className="admin-wa-preview" aria-label="Preview pesan WhatsApp">
-              <span>Preview singkat</span>
-              <p>{summarizeWaTemplate(selectedDraft.template) || "Template kosong."}</p>
-            </div>
           </section>
         ) : (
           <p className="admin-card-empty">Belum ada template WhatsApp.</p>

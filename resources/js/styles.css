@@ -5717,14 +5717,10 @@ a {
 }
 
 .admin-wa-editor-panel {
-  position: sticky;
-  top: 70px;
   display: grid;
   gap: 12px;
   min-width: 0;
-  max-height: calc(100vh - 90px);
   padding: 16px;
-  overflow-y: auto;
   background: var(--white);
   border: 1px solid rgba(16, 24, 47, 0.06);
   border-radius: 12px;
@@ -5741,7 +5737,6 @@ a {
 
 .admin-wa-editor-head span,
 .admin-wa-variable-panel > span,
-.admin-wa-preview > span,
 .admin-wa-editor-label {
   color: rgba(16, 24, 47, 0.56);
   font-size: 0.76rem;
@@ -5863,22 +5858,7 @@ a {
   border-color: rgba(196, 146, 18, 0.28);
 }
 
-.admin-wa-preview {
-  display: grid;
-  gap: 6px;
-  padding: 12px;
-  background: rgba(16, 24, 47, 0.025);
-  border: 1px solid rgba(16, 24, 47, 0.06);
-  border-left: 3px solid #25d366;
-  border-radius: 10px;
-}
 
-.admin-wa-preview p {
-  margin: 0;
-  color: rgba(16, 24, 47, 0.74);
-  font-size: 0.84rem;
-  line-height: 1.5;
-}
 
 @media (max-width: 980px) {
   .admin-wa-workspace {
