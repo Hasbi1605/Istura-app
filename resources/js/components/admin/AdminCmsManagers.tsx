@@ -21,6 +21,22 @@ const generateId = (prefix: string) =>
 
 const MAX_ADMIN_LETTER_IMAGE_BYTES = 5 * 1024 * 1024;
 
+const MAX_LANDING_QUICK_POINTS = 6;
+const MAX_LANDING_QUICK_POINT_LENGTH = 120;
+
+function normalizeLandingContentForSave(content: SiteContent): SiteContent {
+  return {
+    ...content,
+    quickInfo: {
+      ...content.quickInfo,
+      cards: content.quickInfo.cards.map((card) => ({
+        ...card,
+        points: card.points.map((point) => point.trim()).filter(Boolean),
+      })),
+    },
+  };
+}
+
 export function AdminFaqManager({
 	faqs,
 	syncStatus = "idle",
@@ -816,7 +832,7 @@ export function AdminLandingManager({
       quickInfo: {
         ...current.quickInfo,
         cards: current.quickInfo.cards.map((card, idx) =>
-          idx === index ? { ...card, points: value.split("\n").map((point) => point.trim()).filter(Boolean) } : card,
+          idx === index ? { ...card, points: value.split("\n") } : card,
         ),
       },
     }));
@@ -965,10 +981,35 @@ export function AdminLandingManager({
   };
 
   const save = async () => {
+    const payload = normalizeLandingContentForSave(draft);
+    const emptyPointsIndex = payload.quickInfo.cards.findIndex((card) => card.points.length === 0);
+    if (emptyPointsIndex !== -1) {
+      setError(`Kartu ${emptyPointsIndex + 1} harus punya minimal satu poin.`);
+      return;
+    }
+
+    const tooManyPointsIndex = payload.quickInfo.cards.findIndex(
+      (card) => card.points.length > MAX_LANDING_QUICK_POINTS,
+    );
+    if (tooManyPointsIndex !== -1) {
+      setError(`Kartu ${tooManyPointsIndex + 1} maksimal ${MAX_LANDING_QUICK_POINTS} poin.`);
+      return;
+    }
+
+    const tooLongPointIndex = payload.quickInfo.cards.findIndex((card) =>
+      card.points.some((point) => point.length > MAX_LANDING_QUICK_POINT_LENGTH),
+    );
+    if (tooLongPointIndex !== -1) {
+      setError(
+        `Kartu ${tooLongPointIndex + 1} punya poin lebih dari ${MAX_LANDING_QUICK_POINT_LENGTH} karakter.`,
+      );
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
-      const data = await updateAdminSiteContent(draft);
+      const data = await updateAdminSiteContent(payload);
       setDraft(data);
       onChange?.(data);
       setSavedAt(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
@@ -985,6 +1026,20 @@ export function AdminLandingManager({
     }
   };
 
+  const hasUnsavedChanges =
+    JSON.stringify(normalizeLandingContentForSave(draft)) !==
+    JSON.stringify(normalizeLandingContentForSave(content));
+  const saveStatus = saving
+    ? "Menyimpan perubahan..."
+    : error
+      ? error
+      : hasUnsavedChanges
+        ? "Ada perubahan belum disimpan."
+        : savedAt
+          ? `Tersimpan pukul ${savedAt}.`
+          : null;
+  const saveStatusClass = saving ? "saving" : error ? "error" : hasUnsavedChanges ? "dirty" : "saved";
+
   return (
     <div className="admin-cms-page admin-landing-page">
       <div className="admin-heading">
@@ -992,9 +1047,20 @@ export function AdminLandingManager({
           <h1>Landing Page</h1>
           <p>Navbar, section utama, video, CTA, dan footer publik.</p>
         </div>
-        <button type="button" className="button button-primary" onClick={save} disabled={saving}>
-          {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
-        </button>
+        <div className="admin-landing-save-actions">
+          {saveStatus && (
+            <small
+              className={`admin-save-status admin-save-status--${saveStatusClass}`}
+              role="status"
+              aria-live="polite"
+            >
+              {saveStatus}
+            </small>
+          )}
+          <button type="button" className="button button-primary" onClick={save} disabled={saving}>
+            {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
+          </button>
+        </div>
       </div>
 
       <section className="admin-card">
