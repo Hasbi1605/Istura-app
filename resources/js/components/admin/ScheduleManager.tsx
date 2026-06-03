@@ -16,7 +16,6 @@ import {
   startOfDay,
   startOfMonth,
 } from "../../lib/date";
-import { VISIT_TIME_SLOTS } from "../../domain/schedule";
 import {
   deleteScheduleSlot,
   fetchAdminSchedule,
@@ -826,7 +825,7 @@ export function AdminScheduleManager({
                       <small className="admin-schedule-add-error">{customError}</small>
                     )}
                     <small className="admin-schedule-add-hint">
-                      Jam default {VISIT_TIME_SLOTS[0]}-{VISIT_TIME_SLOTS[VISIT_TIME_SLOTS.length - 1]}.
+                      Jam default 08.00-11.00 dan 13.00-14.00.
                       Tambahkan jam khusus jika ada keperluan di luar jam tersebut.
                     </small>
                   </form>

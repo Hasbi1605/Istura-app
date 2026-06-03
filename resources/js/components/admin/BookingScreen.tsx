@@ -43,9 +43,9 @@ import {
   canFitConsecutiveSlots,
   bookingLeadTimeLabel,
   isShortNoticeBooking,
+  ADMIN_MAX_BOOKING_GROUP_SIZE,
   BOOKING_STATUS_CHIPS,
   BOOKING_STATUS_LABELS,
-  MAX_BOOKING_GROUP_SIZE,
   SLOT_CAPACITY,
   PAGE_SIZE_BOOKING_SPLIT,
   PAGE_SIZE_BOOKING_TABLE,
@@ -1547,7 +1547,7 @@ export function AdminActionModal({
             {currentDay && (
               <>
                 <div className="segment-slot-picker-head">
-                  <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot berurutan)` : ""}</span>
+                  <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
                 </div>
                 <div className="segment-slot-grid">
                   {currentDay.slots.map((slot) => {
@@ -1738,7 +1738,7 @@ export function SegmentOverrideModal({
     const value = Number(row.groupSize);
     return sum + (Number.isFinite(value) ? value : 0);
   }, 0);
-  const validTotal = Number.isInteger(total) && total >= 1 && total <= MAX_BOOKING_GROUP_SIZE;
+  const validTotal = Number.isInteger(total) && total >= 1 && total <= ADMIN_MAX_BOOKING_GROUP_SIZE;
   const groupSizeChanged = validTotal && total !== booking.groupSize;
   const hasChanges = groupSizeChanged ||
     normalizedRows.length !== initialSegments.length ||
@@ -1753,7 +1753,7 @@ export function SegmentOverrideModal({
   const validationMessages = [
     normalizedRows.length < 1 ? "Minimal harus ada 1 kloter." : "",
     dateOptions.length === 0 ? "Data jadwal belum dimuat. Muat ulang halaman jika daftar tanggal kosong." : "",
-    !validTotal ? `Total peserta harus 1-${MAX_BOOKING_GROUP_SIZE}.` : "",
+    !validTotal ? `Total peserta harus 1-${ADMIN_MAX_BOOKING_GROUP_SIZE}.` : "",
     overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
     showRiskNoteWarning ? "Catatan admin wajib untuk perubahan berisiko ini." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
@@ -1790,7 +1790,7 @@ export function SegmentOverrideModal({
   const splitRowsFor = (groupSize = String(total || booking.groupSize)): SegmentDraftRow[] => {
     const numericGroupSize = Number(groupSize);
     const sizeForSplit = Number.isInteger(numericGroupSize) && numericGroupSize >= 1 ? numericGroupSize : booking.groupSize;
-    const sizes = splitGroupSizes(Math.min(sizeForSplit, MAX_BOOKING_GROUP_SIZE));
+    const sizes = splitGroupSizes(Math.min(sizeForSplit, ADMIN_MAX_BOOKING_GROUP_SIZE));
     const usedTimes = new Set<string>();
     const ownTimes = initialSegments.map((segment) => segment.time);
 

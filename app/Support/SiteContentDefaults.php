@@ -33,7 +33,7 @@ class SiteContentDefaults
                         'iconKey' => 'clock',
                         'title' => 'Jam Kunjungan',
                         'body' => 'Kunjungan dibuka pada hari kerja sesuai jadwal layanan ISTURA.',
-                        'points' => ['Senin - Kamis', '08.00 - 14.00 WIB'],
+                        'points' => ['Senin - Kamis', '08.00 - 11.00 & 13.00 - 14.00 WIB', 'Istirahat 12.00 - 13.00'],
                     ],
                     [
                         'iconKey' => 'file-check',
@@ -149,7 +149,7 @@ class SiteContentDefaults
                 'logoAlt' => 'Gedung Agung',
                 'scheduleLabel' => 'Jadwal buka',
                 'scheduleDays' => 'Senin - Kamis',
-                'scheduleHours' => '08.00 - 14.00 WIB',
+                'scheduleHours' => '08.00 - 11.00 & 13.00 - 14.00 WIB (istirahat 12.00 - 13.00)',
                 'mapUrl' => 'https://maps.app.goo.gl/iuAhnPB1SkJLMaX9A',
                 'mapEmbedUrl' => 'https://www.google.com/maps?q=Gedung+Agung+Yogyakarta&output=embed',
                 'address' => 'Jl. Jend. Ahmad Yani, Ngupasan, Kec. Gondomanan, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55122',

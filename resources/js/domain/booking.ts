@@ -3,7 +3,8 @@ import { monthNames, parseDateKey } from "../lib/date";
 import type { Booking, BookingDateRange, BookingSegment, BookingSort, BookingStatus, VisitDay } from "./types";
 
 export const SLOT_CAPACITY = 80;
-export const MAX_BOOKING_GROUP_SIZE = 560;
+export const PUBLIC_MAX_BOOKING_GROUP_SIZE = 480;
+export const ADMIN_MAX_BOOKING_GROUP_SIZE = 560;
 
 export const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
   { value: "Pending", label: "Menunggu" },

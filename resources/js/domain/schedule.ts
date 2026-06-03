@@ -10,11 +10,11 @@ import {
 } from "../lib/date";
 import type { Booking, VisitDay, VisitStatus } from "./types";
 
-export const VISIT_TIME_SLOTS = ["08.00", "09.00", "10.00", "11.00", "12.00", "13.00", "14.00"];
+export const VISIT_TIME_SLOTS = ["08.00", "09.00", "10.00", "11.00", "13.00", "14.00"];
 
 export function buildScheduleHorizon(today: Date): VisitDay[] {
   // Generate every calendar day for the next 2 months. Default operating
-  // days (Senin-Kamis) buka 08.00-14.00 WIB; default libur
+  // days (Senin-Kamis) buka 08.00-11.00 dan 13.00-14.00 WIB; default libur
   // (Jumat/Sabtu/Minggu) tetap dibuat tapi semua slotnya Closed sehingga
   // admin bisa membukanya kapan saja jika perlu.
   const start = startOfDay(today);

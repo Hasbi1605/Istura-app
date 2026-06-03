@@ -12,13 +12,14 @@ use Illuminate\Support\Collection;
 /**
  * Port of buildScheduleHorizon + applyBookingsToSchedule from App.tsx.
  *
- * Default operasional Senin–Kamis 08.00–14.00 WIB; Jumat/Sabtu/Minggu Closed.
+ * Default operasional Senin–Kamis 08.00–11.00 dan 13.00–14.00 WIB;
+ * Jumat/Sabtu/Minggu Closed.
  * Override admin disimpan di schedule_overrides; default lainnya dihitung saat
  * runtime supaya tidak perlu pre-generate seluruh kalender.
  */
 class ScheduleService
 {
-    public const TIME_SLOTS = ['08.00', '09.00', '10.00', '11.00', '12.00', '13.00', '14.00'];
+    public const TIME_SLOTS = ['08.00', '09.00', '10.00', '11.00', '13.00', '14.00'];
 
     private const ID_MONTHS = [
         1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',

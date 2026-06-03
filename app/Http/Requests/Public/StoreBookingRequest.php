@@ -23,7 +23,7 @@ class StoreBookingRequest extends FormRequest
             'nik' => ['required', 'string', 'regex:/^\d{16}$/'],
             'whatsapp' => ['required', 'string', 'max:32', 'regex:/^(08|628)\d{8,13}$/'],
             'institution' => ['required', 'string', 'max:200', 'regex:/^(?=.*[\p{L}\d])[\p{L}\d\s.,\'()\/&-]+$/u'],
-            'groupSize' => ['required', 'integer', 'min:1', 'max:560'],
+            'groupSize' => ['required', 'integer', 'min:1', 'max:480'],
             'date' => [
                 'required',
                 'date_format:Y-m-d',
@@ -45,7 +45,7 @@ class StoreBookingRequest extends FormRequest
             'whatsapp.regex' => 'Nomor WhatsApp harus aktif, contoh 08xxxxxxxxxx.',
             'agreement.accepted' => 'Persetujuan wajib dicentang.',
             'date.after_or_equal' => 'Tanggal kunjungan paling cepat H-2.',
-            'groupSize.max' => 'Jumlah rombongan maksimal 560 orang per hari kunjungan.',
+            'groupSize.max' => 'Jumlah rombongan maksimal 480 orang per hari kunjungan.',
             'document.mimes' => 'Surat permohonan harus berformat PDF, PNG, atau JPG.',
             'document.max' => 'Ukuran surat maksimal 5 MB.',
         ];

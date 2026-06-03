@@ -747,7 +747,7 @@ class BookingService
     private function throwUnavailableConsecutiveSlots(int $requiredSlots): never
     {
         throw ValidationException::withMessages([
-            'time' => ["Rombongan ini membutuhkan {$requiredSlots} slot berurutan. Pilih jam mulai lain yang masih tersedia."],
+            'time' => ["Rombongan ini membutuhkan {$requiredSlots} slot layanan tersedia. Pilih jam mulai lain yang masih tersedia."],
         ]);
     }
 

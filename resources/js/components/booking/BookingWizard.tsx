@@ -23,8 +23,8 @@ import type {
 import {
   canFitConsecutiveSlots,
   hasConsecutiveAvailableSlots,
-  MAX_BOOKING_GROUP_SIZE,
   previewSegmentsForSelection,
+  PUBLIC_MAX_BOOKING_GROUP_SIZE,
   requiredSlotCount,
   SLOT_CAPACITY,
   splitGroupSizes,
@@ -97,7 +97,7 @@ function apiBookingToLocal(b: ApiBooking): Booking {
 }
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-const GROUP_SIZE_INPUT_MAX_LENGTH = String(MAX_BOOKING_GROUP_SIZE).length;
+const GROUP_SIZE_INPUT_MAX_LENGTH = String(PUBLIC_MAX_BOOKING_GROUP_SIZE).length;
 const PERSON_NAME_PATTERN = /^[\p{L}][\p{L}\s.'-]*$/u;
 const PERSON_NAME_DISALLOWED_PATTERN = /[^\p{L}\s.'-]/gu;
 const INSTITUTION_PATTERN = /^(?=.*[\p{L}\d])[\p{L}\d\s.,'()/&-]+$/u;
@@ -294,8 +294,8 @@ export function BookingWizard({
       const groupSize = Number(form.groupSize);
       if (!groupSize || groupSize < 1) {
         nextErrors.groupSize = "Jumlah rombongan harus lebih dari 0.";
-      } else if (groupSize > MAX_BOOKING_GROUP_SIZE) {
-        nextErrors.groupSize = `Jumlah rombongan maksimal ${MAX_BOOKING_GROUP_SIZE} orang per hari kunjungan.`;
+      } else if (groupSize > PUBLIC_MAX_BOOKING_GROUP_SIZE) {
+        nextErrors.groupSize = `Jumlah rombongan maksimal ${PUBLIC_MAX_BOOKING_GROUP_SIZE} orang per hari kunjungan.`;
       }
     }
 
@@ -308,7 +308,7 @@ export function BookingWizard({
         nextErrors.time = "Jadwal ini baru saja tidak tersedia. Pilih slot lain.";
       }
       if (form.date && form.time && !canFitConsecutiveSlots(selectedDay, form.time, neededSlots)) {
-        nextErrors.time = `Rombongan ini membutuhkan ${neededSlots} slot berurutan. Pilih jam mulai lain.`;
+        nextErrors.time = `Rombongan ini membutuhkan ${neededSlots} slot layanan tersedia. Pilih jam mulai lain.`;
       }
     }
 
@@ -344,7 +344,7 @@ export function BookingWizard({
 
     if (!day || !slot || slot.status !== "Available" || !canFitConsecutiveSlots(day, slot.time, neededSlots)) {
       setErrors({
-        submit: "Mohon maaf, slot berurutan untuk jumlah rombongan ini tidak tersedia. Silakan pilih jam mulai lain.",
+        submit: "Mohon maaf, slot layanan untuk jumlah rombongan ini tidak tersedia. Silakan pilih jam mulai lain.",
       });
       setStep(3);
       return;
@@ -526,7 +526,7 @@ export function BookingWizard({
                     onChange={(value) => setField("groupSize", normalizeGroupSizeInput(value))}
                   />
                 </div>
-                {groupSizeNumber > SLOT_CAPACITY && groupSizeNumber <= MAX_BOOKING_GROUP_SIZE && (
+                {groupSizeNumber > SLOT_CAPACITY && groupSizeNumber <= PUBLIC_MAX_BOOKING_GROUP_SIZE && (
                   <KloterBreakdown
                     total={groupSizeNumber}
                     breakdown={groupBreakdown}
@@ -911,7 +911,7 @@ function SchedulePicker({
                 const isAutoSelected = requiredSlots > 1 && Boolean(selectedOrder);
                 const availableLabel = requiredSlots > 1 ? "Pilih jam mulai" : publicSlotStatusLabel[slot.status];
                 const disabledLabel = slot.status === "Available" && !isClickable
-                  ? `Butuh ${requiredSlots} slot berurutan`
+                  ? `Butuh ${requiredSlots} slot layanan`
                   : publicSlotStatusLabel[slot.status];
                 return (
                   <button

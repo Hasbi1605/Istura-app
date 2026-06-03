@@ -128,11 +128,11 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking([
             'code' => 'ISTURA-2026-EXPIRE',
             'date' => '2026-06-01',
-            'time' => '12.00',
+            'time' => '11.00',
             'status' => 'Pending',
         ]);
 
-        $this->assertSame('Held', app(ScheduleService::class)->slotStatusFor('2026-06-01', '12.00'));
+        $this->assertSame('Held', app(ScheduleService::class)->slotStatusFor('2026-06-01', '11.00'));
 
         $this->artisan('bookings:expire-pending')->assertSuccessful();
 
@@ -140,7 +140,7 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Expired', $booking->status);
         $this->assertNotNull($booking->expired_at);
         $this->assertNull($booking->active_slot_key);
-        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-01', '12.00'));
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-01', '11.00'));
         $this->assertDatabaseHas('audit_logs', [
             'action' => "Menandai kedaluwarsa booking {$booking->code}",
         ]);
@@ -154,7 +154,7 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking([
             'code' => 'ISTURA-2026-LATE',
             'date' => '2026-06-01',
-            'time' => '12.00',
+            'time' => '11.00',
             'status' => 'Pending',
         ]);
 
@@ -176,9 +176,9 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking([
             'code' => 'ISTURA-2026-RECOVER',
             'date' => '2026-06-01',
-            'time' => '12.00',
+            'time' => '11.00',
             'status' => 'Expired',
-            'expired_at' => Carbon::parse('2026-06-01 12:00:00', 'Asia/Jakarta'),
+            'expired_at' => Carbon::parse('2026-06-01 11:00:00', 'Asia/Jakarta'),
         ]);
 
         $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
@@ -317,6 +317,19 @@ class ScheduleSyncTest extends TestCase
         $response->assertOk();
         $this->assertSame('Closed', $this->slotFromResponse($response->json('data'), $date, '08.00')['status']);
         $this->assertSame('Booked', $this->slotFromResponse($response->json('data'), $date, '09.00')['status']);
+    }
+
+    public function test_public_schedule_omits_lunch_break_from_default_slots(): void
+    {
+        $date = '2026-06-04';
+
+        $response = $this->getJson("/api/public/schedule?from={$date}&to={$date}")
+            ->assertOk();
+
+        $times = collect($response->json('data.0.slots'))->pluck('time')->all();
+
+        $this->assertSame(['08.00', '09.00', '10.00', '11.00', '13.00', '14.00'], $times);
+        $this->assertNotContains('12.00', $times);
     }
 
     public function test_available_override_does_not_let_public_overbook_active_slot(): void
@@ -1319,7 +1332,7 @@ class ScheduleSyncTest extends TestCase
 
         $this->post('/api/public/bookings', $this->publicBookingPayload([
             'date' => '2026-06-04',
-            'groupSize' => 561,
+            'groupSize' => 481,
         ]), ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('groupSize');
@@ -1392,7 +1405,7 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('data.kloterCount', 2)
             ->assertJsonPath('data.segments.0.time', '11.00')
             ->assertJsonPath('data.segments.0.groupSize', 80)
-            ->assertJsonPath('data.segments.1.time', '12.00')
+            ->assertJsonPath('data.segments.1.time', '13.00')
             ->assertJsonPath('data.segments.1.groupSize', 80);
 
         $code = $response->json('data.code');
@@ -1408,9 +1421,9 @@ class ScheduleSyncTest extends TestCase
         $this->assertDatabaseHas('booking_slots', [
             'booking_id' => $booking->id,
             'slot_order' => 2,
-            'time' => '12.00',
+            'time' => '13.00',
             'group_size' => 80,
-            'active_slot_key' => '2026-06-04|12.00',
+            'active_slot_key' => '2026-06-04|13.00',
         ]);
 
         $schedule = $this->getJson('/api/public/schedule?from=2026-06-04&to=2026-06-04')
@@ -1418,8 +1431,9 @@ class ScheduleSyncTest extends TestCase
             ->json('data');
 
         $this->assertSame('Held', $this->slotFromResponse($schedule, '2026-06-04', '11.00')['status']);
-        $this->assertSame('Held', $this->slotFromResponse($schedule, '2026-06-04', '12.00')['status']);
-        $this->assertSame('Available', $this->slotFromResponse($schedule, '2026-06-04', '13.00')['status']);
+        $this->assertNull(collect($schedule[0]['slots'])->firstWhere('time', '12.00'));
+        $this->assertSame('Held', $this->slotFromResponse($schedule, '2026-06-04', '13.00')['status']);
+        $this->assertSame('Available', $this->slotFromResponse($schedule, '2026-06-04', '14.00')['status']);
     }
 
     public function test_admin_can_merge_large_group_kloters_manually(): void
@@ -1768,7 +1782,7 @@ class ScheduleSyncTest extends TestCase
 
         ScheduleOverride::create([
             'date' => '2026-06-04',
-            'time' => '12.00',
+            'time' => '13.00',
             'status' => 'Closed',
             'custom' => false,
         ]);
@@ -1993,12 +2007,14 @@ class ScheduleSyncTest extends TestCase
             'feedback_token' => 'fb_rate_limit_token',
         ]);
 
+        $defaultTimes = ['08.00', '09.00', '10.00', '11.00', '13.00', '14.00'];
+
         for ($i = 0; $i < 11; $i++) {
             $this->withHeader('Accept', 'application/json')
                 ->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
                 ->post('/api/public/bookings', $this->publicBookingPayload([
                     'contactName' => '',
-                    'time' => sprintf('%02d.00', 8 + ($i % 7)),
+                    'time' => $defaultTimes[$i % count($defaultTimes)],
                 ]))
                 ->assertStatus(422);
         }

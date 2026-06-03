@@ -141,7 +141,7 @@ export const quickInfoCards: Array<{
     icon: Clock3,
     title: "Jam Kunjungan",
     body: "Kunjungan dibuka pada hari kerja sesuai jadwal layanan ISTURA.",
-    points: ["Senin - Kamis", "08.00 - 14.00 WIB"],
+    points: ["Senin - Kamis", "08.00 - 11.00 & 13.00 - 14.00 WIB", "Istirahat 12.00 - 13.00"],
   },
   {
     icon: FileCheck2,
@@ -288,7 +288,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
         iconKey: "clock",
         title: "Jam Kunjungan",
         body: "Kunjungan dibuka pada hari kerja sesuai jadwal layanan ISTURA.",
-        points: ["Senin - Kamis", "08.00 - 14.00 WIB"],
+        points: ["Senin - Kamis", "08.00 - 11.00 & 13.00 - 14.00 WIB", "Istirahat 12.00 - 13.00"],
       },
       {
         iconKey: "file-check",
@@ -385,7 +385,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     logoAlt: "Gedung Agung",
     scheduleLabel: "Jadwal buka",
     scheduleDays: "Senin - Kamis",
-    scheduleHours: "08.00 - 14.00 WIB",
+    scheduleHours: "08.00 - 11.00 & 13.00 - 14.00 WIB (istirahat 12.00 - 13.00)",
     mapUrl: "https://maps.app.goo.gl/iuAhnPB1SkJLMaX9A",
     mapEmbedUrl: "https://www.google.com/maps?q=Gedung+Agung+Yogyakarta&output=embed",
     address:
@@ -395,13 +395,13 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
 };
 
 export const HERO_MESSAGES: Array<{ text: string; image: string }> = [
-  { text: "Halo! Aku MIKY. Aku bantu pandu booking kunjunganmu.", image: ASSETS.mikyStep1 },
+  { text: "Halo! Aku MIKY (Museum Istana Kepresidenan Yogyakarta). Aku bantu pandu booking kunjunganmu.", image: ASSETS.mikyStep1 },
   { text: "Mau cek slot dulu? Klik Cek Jadwal ya.", image: ASSETS.mikyStep4 },
   { text: "Sudah siap? Yuk klik Mulai Booking.", image: ASSETS.mikyHero3 },
 ];
 
 export const HERO_MESSAGES_MOBILE: Array<{ text: string; image: string }> = [
-  { text: "Halo! Aku MIKY, pemandumu.", image: ASSETS.mikyStep1 },
+  { text: "Halo! Aku MIKY (Museum Istana Kepresidenan Yogyakarta), pemandumu.", image: ASSETS.mikyStep1 },
   { text: "Cek jadwal dulu yuk.", image: ASSETS.mikyStep4 },
   { text: "Siap? Klik Mulai Booking.", image: ASSETS.mikyHero3 },
 ];
