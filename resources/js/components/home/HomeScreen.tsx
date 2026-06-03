@@ -597,7 +597,7 @@ function RulesSection({
         <article className="rules-preview" aria-label="Gambar peraturan kunjungan resmi">
           <img
             className="rules-example-image"
-            src="/assets/peraturan-kunjungan.png"
+            src="/assets/peraturan-kunjungan.webp"
             alt="Peraturan Kunjungan Istana Kepresidenan Yogyakarta"
             loading="lazy"
             decoding="async"
