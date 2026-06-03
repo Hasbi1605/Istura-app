@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, PenLine, UploadCloud, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, MessageCircle, PenLine, RotateCcw, Save, UploadCloud, X } from "lucide-react";
 import type { CmsSyncStatus, FaqItem, FooterContact, LandingIconKey, SiteContent, WaTemplate } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
 import { INITIAL_WA_TEMPLATES, LANDING_ICON_OPTIONS, letterChecklist, storyWords } from "../../constants";
@@ -23,6 +23,32 @@ const MAX_ADMIN_LETTER_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const MAX_LANDING_QUICK_POINTS = 6;
 const MAX_LANDING_QUICK_POINT_LENGTH = 120;
+const WA_TEMPLATE_VARIABLES = [
+  "{nama}",
+  "{instansi}",
+  "{kode}",
+  "{tanggal}",
+  "{tanggal_awal}",
+  "{tanggal_usulan}",
+  "{rombongan}",
+  "{jam}",
+  "{catatan}",
+  "{link}",
+];
+
+function summarizeWaTemplate(template: string) {
+  return template
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(" ");
+}
+
+function countWaTemplateLines(template: string) {
+  if (!template) return 0;
+  return template.split(/\r?\n/).length;
+}
 
 function normalizeLandingContentForSave(content: SiteContent): SiteContent {
   return {
@@ -336,28 +362,62 @@ export function AdminWaTemplates({
 	onChange: (next: WaTemplate[]) => void;
 }) {
   const [drafts, setDrafts] = useState<WaTemplate[]>(templates);
+  const [selectedId, setSelectedId] = useState<WaTemplate["id"]>(
+    templates[0]?.id ?? INITIAL_WA_TEMPLATES[0].id,
+  );
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     setDrafts(templates);
+    setSelectedId((current) =>
+      templates.some((template) => template.id === current)
+        ? current
+        : templates[0]?.id ?? INITIAL_WA_TEMPLATES[0].id,
+    );
   }, [templates]);
 
-  const isDirty = drafts.some(
-    (draft, idx) => draft.template !== templates[idx]?.template,
+  const savedById = new Map(templates.map((template) => [template.id, template]));
+  const dirtyIds = new Set(
+    drafts
+      .filter((draft) => draft.template !== savedById.get(draft.id)?.template)
+      .map((draft) => draft.id),
   );
+  const isDirty = dirtyIds.size > 0;
+  const selectedDraft = drafts.find((draft) => draft.id === selectedId) ?? drafts[0];
+  const selectedDirty = selectedDraft ? dirtyIds.has(selectedDraft.id) : false;
 
-  const updateField = (index: number, value: string) => {
+  const updateTemplate = (id: WaTemplate["id"], value: string) => {
     setDrafts((current) =>
-      current.map((item, idx) => (idx === index ? { ...item, template: value } : item)),
+      current.map((item) => (item.id === id ? { ...item, template: value } : item)),
     );
   };
 
-  const reset = (index: number) => {
-    const original = INITIAL_WA_TEMPLATES.find((entry) => entry.id === drafts[index].id);
+  const reset = (id: WaTemplate["id"]) => {
+    const original = INITIAL_WA_TEMPLATES.find((entry) => entry.id === id);
     if (!original) return;
     setDrafts((current) =>
-      current.map((item, idx) => (idx === index ? { ...item, template: original.template } : item)),
+      current.map((item) => (item.id === id ? { ...item, template: original.template } : item)),
     );
+  };
+
+  const insertVariable = (variable: string) => {
+    if (!selectedDraft) return;
+    const textarea = editorRef.current;
+    const value = selectedDraft.template;
+    const start = textarea?.selectionStart ?? value.length;
+    const end = textarea?.selectionEnd ?? value.length;
+    const needsLeadingSpace = start > 0 && Boolean(value[start - 1]) && !/\s/.test(value[start - 1]);
+    const needsTrailingSpace = Boolean(value[end]) && !/\s/.test(value[end]);
+    const inserted = `${needsLeadingSpace ? " " : ""}${variable}${needsTrailingSpace ? " " : ""}`;
+
+    updateTemplate(selectedDraft.id, `${value.slice(0, start)}${inserted}${value.slice(end)}`);
+
+    requestAnimationFrame(() => {
+      const nextCursor = start + inserted.length;
+      editorRef.current?.focus();
+      editorRef.current?.setSelectionRange(nextCursor, nextCursor);
+    });
   };
 
   const save = () => {
@@ -381,49 +441,101 @@ export function AdminWaTemplates({
           onClick={save}
 			disabled={!isDirty || syncStatus === "saving"}
 		>
-			{syncStatus === "saving" ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
+			{syncStatus === "saving" ? <ButtonSpinner label="Menyimpan..." /> : <><Save size={16} aria-hidden="true" /> Simpan perubahan</>}
 		</button>
       </div>
 
-      <div className="admin-info-note">
-        Variabel yang bisa dipakai:
-        <code> {"{nama}"} </code>
-        <code> {"{instansi}"} </code>
-        <code> {"{kode}"} </code>
-        <code> {"{tanggal}"} </code>
-        <code> {"{tanggal_awal}"} </code>
-        <code> {"{tanggal_usulan}"} </code>
-        <code> {"{rombongan}"} </code>
-        <code> {"{jam}"} </code>
-        <code> {"{catatan}"} </code>
-        <code> {"{link}"} </code>
-        <span> akan otomatis diisi saat pesan dikirim.</span>
-      </div>
+      <div className="admin-wa-workspace">
+        <aside className="admin-wa-template-list" aria-label="Daftar template WhatsApp">
+          {drafts.map((draft) => {
+            const isSelected = selectedDraft?.id === draft.id;
+            const isTemplateDirty = dirtyIds.has(draft.id);
+            return (
+              <button
+                key={draft.id}
+                type="button"
+                className={`admin-wa-template-card${isSelected ? " is-selected" : ""}`}
+                aria-pressed={isSelected}
+                onClick={() => setSelectedId(draft.id)}
+              >
+                <span className="admin-wa-template-icon" aria-hidden="true">
+                  <MessageCircle size={18} />
+                </span>
+                <span className="admin-wa-template-copy">
+                  <span className="admin-wa-template-title">
+                    <strong>{draft.label}</strong>
+                    {isTemplateDirty && <em>Diubah</em>}
+                  </span>
+                  <small>{draft.description}</small>
+                  <span className="admin-wa-template-preview">
+                    {summarizeWaTemplate(draft.template) || "Template kosong."}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </aside>
 
-      <div className="admin-cms-list">
-        {drafts.map((draft, index) => (
-          <article key={draft.id} className="admin-card admin-wa-card">
-            <header className="admin-card-head">
+        {selectedDraft ? (
+          <section className="admin-wa-editor-panel" aria-labelledby="wa-template-title">
+            <header className="admin-wa-editor-head">
               <div>
-                <h2>{draft.label}</h2>
-                <p>{draft.description}</p>
+                <span>Template aktif</span>
+                <h2 id="wa-template-title">{selectedDraft.label}</h2>
+                <p>{selectedDraft.description}</p>
               </div>
               <button
                 type="button"
-                className="admin-card-link"
-                onClick={() => reset(index)}
+                className="admin-card-link admin-wa-reset"
+                onClick={() => reset(selectedDraft.id)}
               >
+                <RotateCcw size={14} aria-hidden="true" />
                 Pulihkan default
               </button>
             </header>
+
+            <div className="admin-wa-meta" aria-live="polite">
+              <span>{countWaTemplateLines(selectedDraft.template)} baris</span>
+              <span>{selectedDraft.template.length} karakter</span>
+              {selectedDirty && <strong>Belum disimpan</strong>}
+            </div>
+
+            <label className="admin-wa-editor-label" htmlFor="wa-template-editor">
+              Isi pesan
+            </label>
             <textarea
+              id="wa-template-editor"
+              ref={editorRef}
               className="admin-wa-textarea"
-              rows={5}
-              value={draft.template}
-              onChange={(event) => updateField(index, event.target.value)}
+              value={selectedDraft.template}
+              onChange={(event) => updateTemplate(selectedDraft.id, event.target.value)}
             />
-          </article>
-        ))}
+
+            <div className="admin-wa-variable-panel" aria-label="Variabel pesan">
+              <span>Variabel</span>
+              <div>
+                {WA_TEMPLATE_VARIABLES.map((variable) => (
+                  <button
+                    key={variable}
+                    type="button"
+                    className="admin-wa-variable-chip"
+                    title={`Sisipkan ${variable}`}
+                    onClick={() => insertVariable(variable)}
+                  >
+                    {variable}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="admin-wa-preview" aria-label="Preview pesan WhatsApp">
+              <span>Preview singkat</span>
+              <p>{summarizeWaTemplate(selectedDraft.template) || "Template kosong."}</p>
+            </div>
+          </section>
+        ) : (
+          <p className="admin-card-empty">Belum ada template WhatsApp.</p>
+        )}
       </div>
 
       {savedAt && (
