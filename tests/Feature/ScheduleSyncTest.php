@@ -382,6 +382,65 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame(9, Cache::get('public:schedule:version'));
     }
 
+    public function test_public_schedule_auto_syncs_missing_holiday_year_before_using_cached_available_response(): void
+    {
+        config(['services.indonesian_holidays.auto_sync' => false]);
+
+        $firstResponse = $this->getJson('/api/public/schedule?from=2026-06-16&to=2026-06-16')
+            ->assertOk();
+        $this->assertSame('Available', $this->slotFromResponse($firstResponse->json('data'), '2026-06-16', '08.00')['status']);
+
+        config([
+            'services.indonesian_holidays.auto_sync' => true,
+            'services.indonesian_holidays.auto_sync_in_tests' => true,
+        ]);
+        Http::fake([
+            config('services.indonesian_holidays.url') => Http::response([
+                '2026-06-16' => ['summary' => 'Satu Muharam / Tahun Baru Hijriah (belum pasti)'],
+                'info' => ['updated' => '20260522 17:05:28'],
+            ]),
+        ]);
+
+        $secondResponse = $this->getJson('/api/public/schedule?from=2026-06-16&to=2026-06-16')
+            ->assertOk();
+
+        $slot = $this->slotFromResponse($secondResponse->json('data'), '2026-06-16', '08.00');
+        $this->assertSame('Closed', $slot['status']);
+        $this->assertSame('Libur Nasional: Satu Muharam / Tahun Baru Hijriah (belum pasti)', $secondResponse->json('data.0.closureReason.label'));
+        $this->assertDatabaseHas('national_holidays', [
+            'date' => '2026-06-16',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+        ]);
+    }
+
+    public function test_public_booking_auto_syncs_missing_holiday_year_before_accepting_request(): void
+    {
+        Storage::fake('local');
+        config([
+            'services.indonesian_holidays.auto_sync' => true,
+            'services.indonesian_holidays.auto_sync_in_tests' => true,
+        ]);
+        Http::fake([
+            config('services.indonesian_holidays.url') => Http::response([
+                '2026-06-16' => ['summary' => 'Satu Muharam / Tahun Baru Hijriah (belum pasti)'],
+                'info' => ['updated' => '20260522 17:05:28'],
+            ]),
+        ]);
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-16',
+            'time' => '08.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('time');
+
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertDatabaseHas('national_holidays', [
+            'date' => '2026-06-16',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+        ]);
+    }
+
     public function test_public_booking_rejects_synced_national_holiday(): void
     {
         Storage::fake('local');

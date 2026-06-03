@@ -6,9 +6,13 @@ use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\NationalHoliday;
 use App\Models\ScheduleOverride;
+use App\Support\PublicCache;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 /**
  * Port of buildScheduleHorizon + applyBookingsToSchedule from App.tsx.
@@ -21,6 +25,8 @@ use Illuminate\Support\Collection;
 class ScheduleService
 {
     public const TIME_SLOTS = ['08.00', '09.00', '10.00', '11.00', '13.00', '14.00'];
+
+    public function __construct(private readonly NationalHolidaySyncService $holidaySync) {}
 
     private const ID_MONTHS = [
         1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
@@ -40,6 +46,8 @@ class ScheduleService
     {
         $from = ($from ?? Carbon::today('Asia/Jakarta'))->copy()->startOfDay();
         $to = ($to ?? $from->copy()->addMonths(2))->copy()->endOfDay();
+
+        $this->ensureHolidayDataForRange($from, $to);
 
         $overrides = ScheduleOverride::whereDate('date', '>=', $from->toDateString())
             ->whereDate('date', '<=', $to->toDateString())
@@ -112,6 +120,83 @@ class ScheduleService
     public function formatLongDate(Carbon $date): string
     {
         return self::ID_DAYS[$date->dayOfWeek].', '.$date->day.' '.self::ID_MONTHS[$date->month].' '.$date->year;
+    }
+
+    public function ensureHolidayDataForDate(Carbon $date): void
+    {
+        $this->ensureHolidayDataForRange($date, $date);
+    }
+
+    public function ensureHolidayDataForRange(Carbon $from, Carbon $to): void
+    {
+        if (! (bool) config('services.indonesian_holidays.auto_sync', true)) {
+            return;
+        }
+
+        if (app()->environment('testing') && ! (bool) config('services.indonesian_holidays.auto_sync_in_tests', false)) {
+            return;
+        }
+
+        $years = $this->yearsForRange($from, $to);
+        $yearsToSync = $this->holidayYearsNeedingSync($years);
+        if ($yearsToSync === []) {
+            return;
+        }
+
+        $attemptKey = 'national-holidays:auto-sync:attempt:'.implode('-', $yearsToSync);
+        if (! Cache::add($attemptKey, true, now()->addMinutes((int) config('services.indonesian_holidays.auto_sync_retry_minutes', 5)))) {
+            return;
+        }
+
+        $lock = Cache::lock('national-holidays:auto-sync:lock:'.implode('-', $years), (int) config('services.indonesian_holidays.timeout', 10) + 10);
+
+        try {
+            $lock->block(3);
+        } catch (LockTimeoutException) {
+            return;
+        }
+
+        try {
+            $yearsToSync = $this->holidayYearsNeedingSync($years);
+            if ($yearsToSync === []) {
+                return;
+            }
+
+            $this->holidaySync->sync($yearsToSync);
+            PublicCache::bumpScheduleVersion();
+        } catch (Throwable $exception) {
+            report($exception);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function yearsForRange(Carbon $from, Carbon $to): array
+    {
+        return range($from->year, $to->year);
+    }
+
+    /**
+     * @param  array<int, int>  $years
+     * @return array<int, int>
+     */
+    private function holidayYearsNeedingSync(array $years): array
+    {
+        $freshAfter = now('Asia/Jakarta')->subHours((int) config('services.indonesian_holidays.auto_sync_fresh_hours', 12));
+
+        return collect($years)
+            ->filter(function (int $year) use ($freshAfter): bool {
+                $lastSyncedAt = NationalHoliday::where('source', NationalHolidaySyncService::SOURCE)
+                    ->where('year', $year)
+                    ->max('synced_at');
+
+                return ! $lastSyncedAt || Carbon::parse($lastSyncedAt, 'Asia/Jakarta')->lt($freshAfter);
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -221,6 +306,7 @@ class ScheduleService
         $date = $date instanceof Carbon
             ? $date->copy()->startOfDay()
             : Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
+        $this->ensureHolidayDataForDate($date);
         $dateKey = $date->toDateString();
 
         $override = ScheduleOverride::whereDate('date', $dateKey)
@@ -277,6 +363,7 @@ class ScheduleService
         $date = $date instanceof Carbon
             ? $date->copy()->startOfDay()
             : Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
+        $this->ensureHolidayDataForDate($date);
         $dateKey = $date->toDateString();
         $times = collect($times)->unique()->values();
 

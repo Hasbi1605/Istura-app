@@ -25,6 +25,9 @@ return [
     'indonesian_holidays' => [
         'url' => env('INDONESIAN_HOLIDAYS_URL', 'https://raw.githubusercontent.com/guangrei/APIHariLibur_V2/main/holidays.json'),
         'timeout' => env('INDONESIAN_HOLIDAYS_TIMEOUT', 10),
+        'auto_sync' => env('INDONESIAN_HOLIDAYS_AUTO_SYNC', true),
+        'auto_sync_fresh_hours' => env('INDONESIAN_HOLIDAYS_AUTO_SYNC_FRESH_HOURS', 12),
+        'auto_sync_retry_minutes' => env('INDONESIAN_HOLIDAYS_AUTO_SYNC_RETRY_MINUTES', 5),
     ],
 
     'ses' => [

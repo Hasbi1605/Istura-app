@@ -101,6 +101,8 @@ class ContentController extends Controller
             return [];
         }
 
+        $service->ensureHolidayDataForRange($from, $to);
+
         return PublicCache::rememberSchedule(
             $from->toDateString(),
             $to->toDateString(),

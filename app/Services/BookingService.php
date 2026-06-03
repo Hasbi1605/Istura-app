@@ -34,6 +34,7 @@ class BookingService
     public function createFromPublic(array $data, UploadedFile $document): Booking
     {
         $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'Asia/Jakarta')->startOfDay();
+        $this->schedule->ensureHolidayDataForDate($date);
         $documentPath = null;
 
         try {
