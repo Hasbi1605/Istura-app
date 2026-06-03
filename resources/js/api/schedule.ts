@@ -1,10 +1,20 @@
 import { api } from "./client";
+import type { ClosureReason, NationalHolidayInfo } from "../domain/types";
 
 export type ApiVisitDay = {
   date: string;
   label: string;
   short: string;
-  slots: { time: string; status: string; custom: boolean; bookingCount?: number; overbooked?: boolean }[];
+  closureReason?: ClosureReason | null;
+  holiday?: NationalHolidayInfo | null;
+  slots: {
+    time: string;
+    status: string;
+    custom: boolean;
+    bookingCount?: number;
+    overbooked?: boolean;
+    closureReason?: ClosureReason | null;
+  }[];
 };
 
 export const fetchAdminSchedule = (from?: string, to?: string): Promise<ApiVisitDay[]> => {

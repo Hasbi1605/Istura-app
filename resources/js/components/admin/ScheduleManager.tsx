@@ -26,6 +26,14 @@ import { apiVisitDayToLocal } from "../../api/adapters";
 import { StatCard } from "../ui/StatCard";
 import { InlineSpinner, SectionSkeleton, StatCardSkeleton } from "../ui/LoadingStates";
 
+function closureReasonLabel(day?: VisitDay): string | null {
+  return day?.closureReason?.label ?? day?.holiday?.label ?? null;
+}
+
+function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
+  return slot.closureReason?.label ?? closureReasonLabel(day);
+}
+
 export function AdminScheduleManager({
 	schedules,
 	bookings,
@@ -523,6 +531,8 @@ export function AdminScheduleManager({
               // kerja yang sengaja ditutup admin agar admin tahu itu libur
               // default yang bisa dibuka kapan saja.
               const isDefaultOff = isDefaultHoliday(cell.date);
+              const isNationalHoliday = Boolean(day?.holiday);
+              const dayClosureLabel = closureReasonLabel(day);
               const fullyClosed = totalSlots > 0 && closedSlots === totalSlots;
 
               const summaryClass = !inMonth
@@ -532,7 +542,7 @@ export function AdminScheduleManager({
                   : !day
                     ? "is-past"
                     : fullyClosed
-                      ? isDefaultOff
+                      ? isDefaultOff || isNationalHoliday
                         ? "is-holiday"
                         : "is-closed"
                       : openSlots === 0
@@ -556,8 +566,8 @@ export function AdminScheduleManager({
                       ? `${formatLongDate(cell.date)}${
                           isPast
                             ? ", sudah lewat"
-                            : isDefaultOff && fullyClosed
-                              ? ", libur default, klik untuk membuka"
+                            : dayClosureLabel && fullyClosed
+                              ? `, ${dayClosureLabel}, klik untuk membuka`
                               : `, ${openSlots} slot tersedia`
                         }`
                       : ""
@@ -572,7 +582,7 @@ export function AdminScheduleManager({
             <span><i className="swatch is-open" /> Buka</span>
             <span><i className="swatch is-full" /> Penuh</span>
             <span><i className="swatch is-closed" /> Tutup</span>
-            <span><i className="swatch is-holiday" /> Libur default</span>
+            <span><i className="swatch is-holiday" /> Libur nasional/default</span>
           </div>
         </div>
 
@@ -580,6 +590,7 @@ export function AdminScheduleManager({
           {selectedDay && dayKpi ? (
             (() => {
               const totalSlots = selectedDay.slots.length;
+              const selectedClosureLabel = closureReasonLabel(selectedDay);
               const fullyClosed = totalSlots > 0 && dayKpi.closed === totalSlots;
               const fullyOpen =
                 totalSlots > 0 && dayKpi.available + dayKpi.booked + dayKpi.held === totalSlots;
@@ -609,6 +620,9 @@ export function AdminScheduleManager({
                           ));
                         })()}
                       </div>
+                      {selectedClosureLabel && (
+                        <small className="admin-schedule-day-reason">{selectedClosureLabel}</small>
+                      )}
                     </div>
                     <div
                       className="admin-schedule-day-bulk admin-schedule-segment"
@@ -642,6 +656,7 @@ export function AdminScheduleManager({
                       const past = isSlotPast(selectedDay.date, slot.time);
                       const disabled = locked || past;
                       const isOpen = slot.status === "Available" && !past;
+                      const closedLabel = slotClosureLabel(slot, selectedDay);
                       const statusClass = past
                         ? "is-past"
                         : slot.status === "Available"
@@ -656,7 +671,7 @@ export function AdminScheduleManager({
                         : slot.status === "Available"
                           ? "Tersedia"
                           : slot.status === "Closed"
-                            ? "Ditutup"
+                            ? closedLabel ?? "Ditutup"
                             : slot.overbooked
                               ? `Terisi (${slot.bookingCount})`
                               : slot.status === "Booked"

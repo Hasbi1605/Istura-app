@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\Feedback;
+use App\Models\NationalHoliday;
 use App\Models\ScheduleOverride;
 use App\Models\User;
 use App\Services\BookingService;
@@ -29,6 +30,7 @@ use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use PragmaRX\Google2FA\Google2FA;
@@ -317,6 +319,101 @@ class ScheduleSyncTest extends TestCase
         $response->assertOk();
         $this->assertSame('Closed', $this->slotFromResponse($response->json('data'), $date, '08.00')['status']);
         $this->assertSame('Booked', $this->slotFromResponse($response->json('data'), $date, '09.00')['status']);
+    }
+
+    public function test_indonesian_holiday_sync_closes_public_schedule_with_reason(): void
+    {
+        Http::fake([
+            config('services.indonesian_holidays.url') => Http::response([
+                '2026-03-20' => ['summary' => 'Cuti Bersama Idul Fitri'],
+                '2026-06-01' => ['summary' => 'Hari Lahir Pancasila'],
+                '2026-08-25' => ['summary' => 'Maulid Nabi Muhammad (belum pasti)'],
+                'info' => ['updated' => '20260522 17:05:28'],
+            ]),
+        ]);
+
+        $this->artisan('holidays:sync-id', ['--year' => [2026]])
+            ->assertSuccessful();
+
+        $holiday = NationalHoliday::whereDate('date', '2026-06-01')->firstOrFail();
+        $this->assertSame('Hari Lahir Pancasila', $holiday->name);
+        $this->assertSame(NationalHoliday::TYPE_NATIONAL_HOLIDAY, $holiday->type);
+        $this->assertFalse($holiday->tentative);
+
+        $collectiveLeave = NationalHoliday::whereDate('date', '2026-03-20')->firstOrFail();
+        $this->assertSame('Cuti Bersama Idul Fitri', $collectiveLeave->name);
+        $this->assertSame(NationalHoliday::TYPE_COLLECTIVE_LEAVE, $collectiveLeave->type);
+
+        $tentative = NationalHoliday::whereDate('date', '2026-08-25')->firstOrFail();
+        $this->assertSame('Maulid Nabi Muhammad', $tentative->name);
+        $this->assertTrue($tentative->tentative);
+
+        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01')
+            ->assertOk();
+
+        $slot = $this->slotFromResponse($response->json('data'), '2026-06-01', '08.00');
+        $this->assertSame('Closed', $slot['status']);
+        $this->assertSame('Libur Nasional: Hari Lahir Pancasila', $response->json('data.0.closureReason.label'));
+        $this->assertSame('Libur Nasional: Hari Lahir Pancasila', $slot['closureReason']['label']);
+        $this->assertArrayNotHasKey('bookingCount', $slot);
+        $this->assertArrayNotHasKey('overbooked', $slot);
+    }
+
+    public function test_public_booking_rejects_synced_national_holiday(): void
+    {
+        Storage::fake('local');
+        NationalHoliday::create([
+            'date' => '2026-06-01',
+            'year' => 2026,
+            'name' => 'Hari Lahir Pancasila',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+            'tentative' => false,
+            'source' => 'test',
+            'source_url' => 'https://example.test/holidays.json',
+            'synced_at' => now(),
+            'checksum' => hash('sha256', '2026-06-01'),
+        ]);
+
+        $this->assertSame('Closed', app(ScheduleService::class)->slotStatusFor('2026-06-01', '08.00'));
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-01',
+            'time' => '08.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('time');
+
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
+    public function test_admin_available_override_can_open_synced_national_holiday(): void
+    {
+        NationalHoliday::create([
+            'date' => '2026-06-01',
+            'year' => 2026,
+            'name' => 'Hari Lahir Pancasila',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+            'tentative' => false,
+            'source' => 'test',
+            'source_url' => 'https://example.test/holidays.json',
+            'synced_at' => now(),
+            'checksum' => hash('sha256', '2026-06-01'),
+        ]);
+
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'status' => 'Available',
+        ])->assertOk();
+
+        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01')
+            ->assertOk();
+
+        $slot = $this->slotFromResponse($response->json('data'), '2026-06-01', '08.00');
+        $this->assertSame('Available', $slot['status']);
+        $this->assertNull($slot['closureReason']);
     }
 
     public function test_public_schedule_omits_lunch_break_from_default_slots(): void

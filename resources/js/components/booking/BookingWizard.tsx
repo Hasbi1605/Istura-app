@@ -18,6 +18,7 @@ import type {
   FooterContact,
   PublicDateStatus,
   Screen,
+  Slot,
   VisitDay,
 } from "../../domain/types";
 import {
@@ -125,6 +126,14 @@ function preloadImage(src: string): Promise<void> {
   imagePreloadCache.set(src, promise);
 
   return promise;
+}
+
+function closureReasonLabel(day?: VisitDay): string | null {
+  return day?.closureReason?.label ?? day?.holiday?.label ?? null;
+}
+
+function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
+  return slot.closureReason?.label ?? closureReasonLabel(day);
 }
 
 function getWhatsappContact(contacts: FooterContact[]) {
@@ -817,6 +826,7 @@ function SchedulePicker({
   }));
 
   const selectedDay = scheduleByKey.get(selectedDate);
+  const selectedClosureLabel = closureReasonLabel(selectedDay);
   const selectedSlotOrders = new Map<string, number>();
   if (requiredSlots > 1 && selectedDay && selectedTime) {
     const startIndex = selectedDay.slots.findIndex((slot) => slot.time === selectedTime);
@@ -878,7 +888,12 @@ function SchedulePicker({
 
           <div className="calendar-grid">
             {calendarDays.map((day) => {
-              const isClickable = day.status === "available";
+              const dayData = scheduleByKey.get(day.key);
+              const dayClosureLabel = closureReasonLabel(dayData);
+              const isClickable = day.status === "available" || (day.status === "closed" && Boolean(dayClosureLabel));
+              const ariaLabel = dayData
+                ? `${dayData.label}, ${day.status === "available" ? publicStatusMeta.available.label : dayClosureLabel ?? publicStatusMeta[day.status].label}`
+                : publicStatusMeta[day.status].label;
               return (
                 <button
                   className={`calendar-day is-${day.status}${selectedDate === day.key ? " is-selected" : ""}`}
@@ -890,6 +905,8 @@ function SchedulePicker({
                     onTimeChange("");
                   }}
                   aria-pressed={selectedDate === day.key}
+                  aria-label={ariaLabel}
+                  title={dayClosureLabel ?? undefined}
                 >
                   {day.date.getDate()}
                 </button>
@@ -901,17 +918,21 @@ function SchedulePicker({
         <section className="time-card" aria-label="Pilihan jam kunjungan">
           <h3>Pilih Jam Kunjungan</h3>
           <p>{selectedDay?.label ?? "Pilih tanggal terlebih dahulu"}</p>
+          {selectedClosureLabel && <p className="time-card-note">{selectedClosureLabel}</p>}
           <div className="time-list time-list--hourly">
             {selectedDay ? (
               selectedDay.slots.map((slot) => {
                 const isClickable = canFitConsecutiveSlots(selectedDay, slot.time, requiredSlots);
                 const klass = slot.status === "Available" && !isClickable ? "full" : publicSlotStatusToClass(slot.status);
+                const closedLabel = slotClosureLabel(slot, selectedDay);
                 const selectedOrder = selectedSlotOrders.get(slot.time);
                 const isSelected = selectedTime === slot.time;
                 const isAutoSelected = requiredSlots > 1 && Boolean(selectedOrder);
                 const availableLabel = requiredSlots > 1 ? "Pilih jam mulai" : publicSlotStatusLabel[slot.status];
                 const disabledLabel = slot.status === "Available" && !isClickable
                   ? `Butuh ${requiredSlots} slot layanan`
+                  : slot.status === "Closed" && closedLabel
+                    ? closedLabel
                   : publicSlotStatusLabel[slot.status];
                 return (
                   <button

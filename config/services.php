@@ -22,6 +22,11 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'indonesian_holidays' => [
+        'url' => env('INDONESIAN_HOLIDAYS_URL', 'https://raw.githubusercontent.com/guangrei/APIHariLibur_V2/main/holidays.json'),
+        'timeout' => env('INDONESIAN_HOLIDAYS_TIMEOUT', 10),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

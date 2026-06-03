@@ -45,12 +45,15 @@ export function apiVisitDayToLocal(day: ApiVisitDay): VisitDay {
     date: day.date,
     label: day.label,
     short: day.short,
+    closureReason: day.closureReason ?? undefined,
+    holiday: day.holiday ?? undefined,
     slots: day.slots.map((slot) => ({
       time: slot.time,
       status: slot.status as VisitStatus,
       custom: slot.custom,
       bookingCount: slot.bookingCount,
       overbooked: slot.overbooked,
+      closureReason: slot.closureReason ?? undefined,
     })),
   };
 }

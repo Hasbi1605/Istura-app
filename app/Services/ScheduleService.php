@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\BookingSlot;
+use App\Models\NationalHoliday;
 use App\Models\ScheduleOverride;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -12,10 +13,10 @@ use Illuminate\Support\Collection;
 /**
  * Port of buildScheduleHorizon + applyBookingsToSchedule from App.tsx.
  *
- * Default operasional Senin–Kamis 08.00–11.00 dan 13.00–14.00 WIB;
- * Jumat/Sabtu/Minggu Closed.
- * Override admin disimpan di schedule_overrides; default lainnya dihitung saat
- * runtime supaya tidak perlu pre-generate seluruh kalender.
+ * Default operasional Senin-Kamis 08.00-11.00 dan 13.00-14.00 WIB;
+ * Jumat/Sabtu/Minggu serta tanggal merah nasional Closed. Override admin
+ * disimpan di schedule_overrides; default lainnya dihitung saat runtime supaya
+ * tidak perlu pre-generate seluruh kalender.
  */
 class ScheduleService
 {
@@ -33,7 +34,7 @@ class ScheduleService
     ];
 
     /**
-     * @return array<int, array{date:string,label:string,short:string,slots:array<int, array{time:string,status:string,custom:bool}>}>
+     * @return array<int, array{date:string,label:string,short:string,closureReason:?array,holiday:?array,slots:array<int, array{time:string,status:string,custom:bool,closureReason:?array}>}>
      */
     public function buildHorizon(?Carbon $from = null, ?Carbon $to = null): array
     {
@@ -44,6 +45,11 @@ class ScheduleService
             ->whereDate('date', '<=', $to->toDateString())
             ->get()
             ->groupBy(fn ($o) => $o->date->toDateString());
+
+        $nationalHolidays = NationalHoliday::whereDate('date', '>=', $from->toDateString())
+            ->whereDate('date', '<=', $to->toDateString())
+            ->get()
+            ->keyBy(fn (NationalHoliday $holiday) => $holiday->date->toDateString());
 
         $bookings = Booking::whereDate('date', '>=', $from->toDateString())
             ->whereDate('date', '<=', $to->toDateString())
@@ -59,7 +65,9 @@ class ScheduleService
         $days = [];
         foreach (CarbonPeriod::create($from, '1 day', $to) as $cursor) {
             $key = $cursor->toDateString();
-            $closedByDefault = $this->isDefaultHoliday($cursor);
+            $holiday = $nationalHolidays->get($key);
+            $defaultClosure = $this->defaultClosureFor($cursor, $holiday, true);
+            $closedByDefault = $defaultClosure !== null;
             $times = collect(self::TIME_SLOTS)
                 ->merge($overrides->get($key)?->pluck('time') ?? [])
                 ->merge($bookings->get($key)?->pluck('time') ?? [])
@@ -68,15 +76,18 @@ class ScheduleService
                 ->sort()
                 ->values();
 
-            $slots = $times->map(function (string $time) use ($key, $closedByDefault, $overrides, $bookings, $bookingSlots) {
+            $slots = $times->map(function (string $time) use ($key, $closedByDefault, $defaultClosure, $overrides, $bookings, $bookingSlots) {
                 $bookingCount = $this->activeBookingCount($key, $time, $bookings, $bookingSlots);
+                $override = $overrides->get($key)?->firstWhere('time', $time);
+                $status = $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots);
 
                 return [
                     'time' => $time,
-                    'status' => $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots),
+                    'status' => $status,
                     'custom' => ! in_array($time, self::TIME_SLOTS, true),
                     'bookingCount' => $bookingCount,
                     'overbooked' => $bookingCount > 1,
+                    'closureReason' => $this->slotClosureReason($status, $override, $defaultClosure),
                 ];
             })->all();
 
@@ -84,6 +95,8 @@ class ScheduleService
                 'date' => $key,
                 'label' => $this->formatLongDate($cursor),
                 'short' => $cursor->day.' '.substr(self::ID_MONTHS[$cursor->month], 0, 3),
+                'closureReason' => $defaultClosure,
+                'holiday' => $this->holidayPayload($holiday),
                 'slots' => $slots,
             ];
         }
@@ -99,6 +112,93 @@ class ScheduleService
     public function formatLongDate(Carbon $date): string
     {
         return self::ID_DAYS[$date->dayOfWeek].', '.$date->day.' '.self::ID_MONTHS[$date->month].' '.$date->year;
+    }
+
+    /**
+     * @return array{type:string,name:string,label:string,tentative:bool}|null
+     */
+    private function defaultClosureFor(Carbon $date, ?NationalHoliday $holiday = null, bool $holidayLoaded = false): ?array
+    {
+        if (! $holidayLoaded) {
+            $holiday = NationalHoliday::whereDate('date', $date->toDateString())->first();
+        }
+
+        if ($holiday) {
+            return [
+                'type' => $holiday->type,
+                'name' => $holiday->name,
+                'label' => $this->holidayClosureLabel($holiday),
+                'tentative' => $holiday->tentative,
+            ];
+        }
+
+        if ($this->isDefaultHoliday($date)) {
+            return [
+                'type' => 'operational_closed',
+                'name' => 'Libur operasional',
+                'label' => 'Libur operasional',
+                'tentative' => false,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{type:string,name:string,label:string,tentative:bool,source:string,sourceUrl:string}|null
+     */
+    private function holidayPayload(?NationalHoliday $holiday): ?array
+    {
+        if (! $holiday) {
+            return null;
+        }
+
+        return [
+            'type' => $holiday->type,
+            'name' => $holiday->name,
+            'label' => $this->holidayClosureLabel($holiday),
+            'tentative' => $holiday->tentative,
+            'source' => $holiday->source,
+            'sourceUrl' => $holiday->source_url,
+        ];
+    }
+
+    private function holidayClosureLabel(NationalHoliday $holiday): string
+    {
+        $prefix = $holiday->type === NationalHoliday::TYPE_COLLECTIVE_LEAVE
+            ? 'Cuti Bersama'
+            : 'Libur Nasional';
+        $name = $holiday->type === NationalHoliday::TYPE_COLLECTIVE_LEAVE
+            ? trim((string) preg_replace('/^Cuti Bersama\s*/i', '', $holiday->name))
+            : $holiday->name;
+
+        return $prefix.': '.$name.($holiday->tentative ? ' (belum pasti)' : '');
+    }
+
+    /**
+     * @param  array{type:string,name:string,label:string,tentative:bool}|null  $defaultClosure
+     * @return array{type:string,name:string,label:string,tentative:bool}|null
+     */
+    private function slotClosureReason(string $status, ?ScheduleOverride $override, ?array $defaultClosure): ?array
+    {
+        if ($status !== 'Closed') {
+            return null;
+        }
+
+        if ($defaultClosure) {
+            return $defaultClosure;
+        }
+
+        if ($override?->status === 'Closed') {
+            return [
+                'type' => 'manual_closed',
+                'name' => 'Ditutup admin',
+                'label' => 'Ditutup admin',
+                'tentative' => false,
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -165,7 +265,7 @@ class ScheduleService
             return 'Closed';
         }
 
-        return $this->isDefaultHoliday($date) ? 'Closed' : 'Available';
+        return $this->defaultClosureFor($date) !== null ? 'Closed' : 'Available';
     }
 
     /**
@@ -184,7 +284,7 @@ class ScheduleService
             return [];
         }
 
-        $defaultStatus = $this->isDefaultHoliday($date) ? 'Closed' : 'Available';
+        $defaultStatus = $this->defaultClosureFor($date) !== null ? 'Closed' : 'Available';
         $statuses = $times
             ->mapWithKeys(fn (string $time): array => [
                 $time => in_array($time, self::TIME_SLOTS, true) ? $defaultStatus : 'Closed',

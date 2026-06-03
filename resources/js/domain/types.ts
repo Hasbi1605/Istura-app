@@ -31,18 +31,33 @@ export type VisitStatus = "Available" | "Held" | "Booked" | "Closed" | "Reschedu
 export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed" | "Expired";
 export type AdminAction = "accept" | "reject" | "reschedule";
 
+export type ClosureReason = {
+  type: string;
+  name: string;
+  label: string;
+  tentative?: boolean;
+};
+
+export type NationalHolidayInfo = ClosureReason & {
+  source?: string;
+  sourceUrl?: string;
+};
+
 export type Slot = {
   time: string;
   status: VisitStatus;
   custom?: boolean;
   bookingCount?: number;
   overbooked?: boolean;
+  closureReason?: ClosureReason | null;
 };
 
 export type VisitDay = {
   date: string;
   label: string;
   short: string;
+  closureReason?: ClosureReason | null;
+  holiday?: NationalHolidayInfo | null;
   slots: Slot[];
 };
 
