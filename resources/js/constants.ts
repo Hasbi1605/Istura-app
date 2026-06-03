@@ -214,7 +214,7 @@ export const INITIAL_FAQ_ITEMS: FaqItem[] = [
     id: "faq-format-surat",
     question: "Format surat permohonan seperti apa?",
     answer:
-      "Gunakan surat resmi berkop instansi, mencantumkan tanggal kunjungan, waktu, jumlah peserta, data koordinator, dan tanda tangan penanggung jawab.",
+      "Bagi instansi/organisasi resmi, wajib menggunakan surat berkop resmi. Untuk pendaftar individu atau kelompok biasa, tetap wajib melampirkan surat permohonan kunjungan bertanda tangan koordinator (tidak harus berkop resmi). Semua surat wajib mencantumkan tanggal kunjungan, waktu, jumlah peserta, data koordinator, dan tanda tangan penanggung jawab.",
     link: { label: "Lihat contoh surat", href: "#contoh-surat" },
   },
   {
