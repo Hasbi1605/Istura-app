@@ -27,6 +27,7 @@ use Illuminate\Contracts\Broadcasting\ShouldRescue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
@@ -357,6 +358,28 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Libur Nasional: Hari Lahir Pancasila', $slot['closureReason']['label']);
         $this->assertArrayNotHasKey('bookingCount', $slot);
         $this->assertArrayNotHasKey('overbooked', $slot);
+    }
+
+    public function test_indonesian_holiday_sync_refreshes_schedule_cache_even_without_data_changes(): void
+    {
+        Cache::forever('public:schedule:version', 7);
+        Http::fake([
+            config('services.indonesian_holidays.url') => Http::response([
+                '2026-06-16' => ['summary' => 'Satu Muharam / Tahun Baru Hijriah (belum pasti)'],
+                'info' => ['updated' => '20260522 17:05:28'],
+            ]),
+        ]);
+
+        $this->artisan('holidays:sync-id', ['--year' => [2026]])
+            ->assertSuccessful();
+
+        $this->assertSame(8, Cache::get('public:schedule:version'));
+
+        $this->artisan('holidays:sync-id', ['--year' => [2026]])
+            ->expectsOutput('Tanggal merah sinkron: 0 baru, 0 berubah, 0 dihapus.')
+            ->assertSuccessful();
+
+        $this->assertSame(9, Cache::get('public:schedule:version'));
     }
 
     public function test_public_booking_rejects_synced_national_holiday(): void

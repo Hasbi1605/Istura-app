@@ -26,9 +26,10 @@ class SyncIndonesianHolidays extends Command
             return self::FAILURE;
         }
 
-        if ($result['created'] > 0 || $result['updated'] > 0 || $result['deleted'] > 0) {
-            PublicCache::bumpScheduleVersion();
-        }
+        // Deploys can rerun sync with unchanged holiday rows while public
+        // schedule payloads are still stale, so refresh the cache on every
+        // successful sync.
+        PublicCache::bumpScheduleVersion();
 
         if ($result['created'] > 0 || $result['updated'] > 0 || $result['deleted'] > 0 || $result['conflicts'] !== []) {
             AuditLogger::record(null, 'Sinkronisasi tanggal merah Indonesia', NationalHoliday::class, null, $result);

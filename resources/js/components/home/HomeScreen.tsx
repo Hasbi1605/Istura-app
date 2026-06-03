@@ -14,7 +14,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { FaqItem, FooterContact, LandingIconKey, Screen, SiteContent, VisitDay } from "../../domain/types";
+import type { FaqItem, FooterContact, LandingIconKey, Screen, SiteContent, Slot, VisitDay } from "../../domain/types";
 import type { ApiHero, ApiLetter } from "../../api/cms";
 import {
   addDays,
@@ -46,6 +46,23 @@ import { InlineSpinner, SectionSkeleton } from "../ui/LoadingStates";
 
 const hasAvailableSlot = (day: VisitDay) => day.slots.some((slot) => slot.status === "Available");
 const warmedImages = new Set<string>();
+
+function closureReasonLabel(day?: VisitDay): string | null {
+  return day?.closureReason?.label ?? day?.holiday?.label ?? null;
+}
+
+function closureReasonBadge(day?: VisitDay): string | null {
+  const type = day?.closureReason?.type ?? day?.holiday?.type;
+  if (type === "national_holiday") return "Libur Nasional";
+  if (type === "collective_leave") return "Cuti Bersama";
+  if (type === "operational_closed") return "Libur";
+
+  return null;
+}
+
+function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
+  return slot.closureReason?.label ?? closureReasonLabel(day);
+}
 
 function warmImage(src?: string) {
   if (!src || warmedImages.has(src) || typeof window === "undefined") return;
@@ -172,6 +189,7 @@ export function HomeScreen({
   );
   const selectedStatusMeta = publicStatusMeta[selectedStatus];
   const selectedDay = scheduleByKey.get(selectedDateKey);
+  const selectedClosureLabel = closureReasonLabel(selectedDay);
   const canGoPrev = visibleMonth > minMonth;
   const canGoNext = visibleMonth < maxMonth;
 
@@ -295,29 +313,48 @@ export function HomeScreen({
             </div>
 
             <div className="calendar-grid">
-              {calendarDays.map((day) => (
-                <button
-                  className={`calendar-day is-${day.status}${day.key === selectedDateKey ? " is-selected" : ""}`}
-                  type="button"
-                  key={day.key}
-                  disabled={day.status === "outside"}
-                  onClick={() => setSelectedDateKey(day.key)}
-                  aria-label={`${formatLongDate(day.date)}, ${publicStatusMeta[day.status].label}`}
-                  aria-pressed={day.key === selectedDateKey}
-                >
-                  {day.date.getDate()}
-                </button>
-              ))}
+              {calendarDays.map((day) => {
+                const dayData = scheduleByKey.get(day.key);
+                const dayClosureLabel = closureReasonLabel(dayData);
+                const dayClosureBadge = closureReasonBadge(dayData);
+                const statusLabel = day.status === "available"
+                  ? publicStatusMeta.available.label
+                  : dayClosureLabel ?? publicStatusMeta[day.status].label;
+                const ariaLabel = dayData
+                  ? `${dayData.label}, ${statusLabel}`
+                  : `${formatLongDate(day.date)}, ${publicStatusMeta[day.status].label}`;
+
+                return (
+                  <button
+                    className={`calendar-day is-${day.status}${day.key === selectedDateKey ? " is-selected" : ""}`}
+                    type="button"
+                    key={day.key}
+                    disabled={day.status === "outside"}
+                    onClick={() => setSelectedDateKey(day.key)}
+                    aria-label={ariaLabel}
+                    aria-pressed={day.key === selectedDateKey}
+                    title={dayClosureLabel ?? undefined}
+                  >
+                    <span className="calendar-day-number">{day.date.getDate()}</span>
+                    {dayClosureBadge && <small className="calendar-day-note">{dayClosureBadge}</small>}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
           <section className="time-card" aria-label="Pilihan jam kunjungan">
             <h3>Pilih Jam Kunjungan</h3>
             <p>{formatLongDate(selectedDate)}</p>
+            {selectedClosureLabel && <p className="time-card-note">{selectedClosureLabel}</p>}
             <div className="time-list time-list--hourly">
               {selectedDay && selectedDay.slots.length > 0 ? (
                 selectedDay.slots.map((slot) => {
                   const klass = publicSlotStatusToClass(slot.status);
+                  const closedLabel = slotClosureLabel(slot, selectedDay);
+                  const statusLabel = slot.status === "Closed" && closedLabel
+                    ? closedLabel
+                    : publicSlotStatusLabel[slot.status];
                   return (
                     <div
                       className={`time-option is-${klass}`}
@@ -327,7 +364,7 @@ export function HomeScreen({
                       <Clock3 size={20} aria-hidden="true" />
                       <span>
                         <strong>{slot.time} WIB</strong>
-                        <small>{publicSlotStatusLabel[slot.status]}</small>
+                        <small>{statusLabel}</small>
                       </span>
                     </div>
                   );
