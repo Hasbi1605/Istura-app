@@ -594,32 +594,15 @@ function RulesSection({
       </div>
 
       <div className="rules-layout scale-fade">
-        <div className="rules-notepad-container">
-          <article className="rules-notepad" aria-label="Daftar peraturan kunjungan resmi">
-            <div className="notepad-rings" aria-hidden="true">
-              {Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className="notepad-ring">
-                  <span className="ring-wire" />
-                  <span className="ring-hole" />
-                </div>
-              ))}
-            </div>
-            
-            <div className="notepad-paper">
-              <span className="section-kicker rules-kicker-red">{content.rulesKicker}</span>
-              <h3 className="notepad-title">{content.rulesTitle}</h3>
-              <ol className="notepad-list">
-                {content.rulesList.map((item, idx) => (
-                  <li key={idx} className="notepad-item">
-                    <span className="notepad-num">{idx + 1}.</span>
-                    <span className="notepad-text">{item}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div className="dwarapala-decor" aria-hidden="true" />
-          </article>
-        </div>
+        <article className="rules-preview" aria-label="Gambar peraturan kunjungan resmi">
+          <img
+            className="rules-example-image"
+            src="/assets/peraturan-kunjungan.png"
+            alt="Peraturan Kunjungan Istana Kepresidenan Yogyakarta"
+            loading="lazy"
+            decoding="async"
+          />
+        </article>
 
         <aside className="rules-notes">
           <span className="section-kicker">Aturan Utama</span>

@@ -1618,10 +1618,10 @@ a {
   align-items: stretch;
 }
 
-.rules-notepad-container {
+.rules-preview {
   display: grid;
   place-items: center;
-  min-height: 660px;
+  min-height: 620px;
   padding: clamp(22px, 3vw, 34px);
   overflow: hidden;
   background:
@@ -1630,147 +1630,14 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  position: relative;
 }
 
-.rules-notepad {
-  position: relative;
+.rules-example-image {
   width: min(100%, 640px);
-  height: 100%;
-  margin: 0 auto;
+  height: auto;
+  background: var(--white);
   border-radius: 6px;
   box-shadow: 0 30px 70px rgba(5, 8, 16, 0.32);
-  background: var(--white);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Spiral Binder Rings (Atas notepad) */
-.notepad-rings {
-  display: flex;
-  justify-content: space-around;
-  padding: 10px 30px 0;
-  background: #f3f4f6;
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  position: relative;
-  z-index: 10;
-}
-
-.notepad-ring {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  width: 20px;
-  height: 42px;
-}
-
-.ring-wire {
-  width: 8px;
-  height: 28px;
-  background: linear-gradient(90deg, #d1d5db, #f3f4f6, #9ca3af);
-  border-radius: 4px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-  position: absolute;
-  top: -12px;
-  z-index: 2;
-}
-
-.ring-hole {
-  width: 12px;
-  height: 12px;
-  background: #374151;
-  border-radius: 50%;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
-  position: absolute;
-  bottom: 6px;
-  z-index: 1;
-}
-
-/* Kertas Catatan Bergaris */
-.notepad-paper {
-  position: relative;
-  flex: 1;
-  padding: 36px 36px 36px 54px;
-  background:
-    linear-gradient(rgba(16, 24, 47, 0.06) 1px, transparent 1px) 0 0 / 100% 36px,
-    var(--white);
-  line-height: 36px;
-  color: var(--navy);
-}
-
-/* Garis Margin Vertikal Merah Buku */
-.notepad-paper::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 42px;
-  width: 2px;
-  background: rgba(220, 38, 38, 0.28);
-}
-
-.rules-kicker-red {
-  color: #dc2626 !important;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-
-.notepad-title {
-  font-family: var(--font-heading), Georgia, serif;
-  font-size: clamp(1.4rem, 2vw, 1.85rem);
-  color: #b91c1c;
-  font-weight: 800;
-  line-height: 1.2;
-  margin: 4px 0 24px;
-  letter-spacing: -0.01em;
-}
-
-.notepad-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.notepad-item {
-  display: flex;
-  align-items: flex-start;
-  font-size: 0.98rem;
-  font-weight: 700;
-  color: rgba(16, 24, 47, 0.86);
-  margin-bottom: 0;
-  line-height: 1.45;
-  padding: 8px 0;
-  min-height: 36px;
-}
-
-.notepad-num {
-  font-family: monospace, serif;
-  color: #dc2626;
-  font-weight: 800;
-  width: 24px;
-  flex-shrink: 0;
-}
-
-.notepad-text {
-  flex: 1;
-}
-
-/* Ornamen Etnik Siluet Patung Dwarapala di pojok kanan/kiri bawah */
-.dwarapala-decor {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  width: 100px;
-  height: 140px;
-  opacity: 0.08;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 140'%3E%3Cpath fill='%2310182f' d='M50,5 C35,5 30,18 30,28 C30,35 34,42 38,45 C30,48 20,55 20,70 C20,90 32,105 32,125 L32,135 L68,135 L68,125 C68,105 80,90 80,70 C80,55 70,48 62,45 C66,42 70,35 70,28 C70,18 65,5 50,5 Z M35,28 C35,22 42,20 50,20 C58,20 65,22 65,28 C65,34 58,36 50,36 C42,36 35,34 35,28 Z'/%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: bottom right;
-  pointer-events: none;
-  z-index: 5;
 }
 
 .rules-notes {
@@ -1799,37 +1666,8 @@ a {
 }
 
 @media (max-width: 640px) {
-  .rules-notepad-container {
+  .rules-preview {
     padding: 16px;
-  }
-  
-  .notepad-paper {
-    padding: 24px 20px 24px 38px;
-  }
-  
-  .notepad-paper::before {
-    left: 28px;
-  }
-  
-  .notepad-rings {
-    padding: 8px 12px 0;
-  }
-  
-  .notepad-ring {
-    width: 14px;
-    height: 32px;
-  }
-  
-  .ring-wire {
-    width: 6px;
-    height: 22px;
-    top: -8px;
-  }
-  
-  .ring-hole {
-    width: 9px;
-    height: 9px;
-    bottom: 4px;
   }
 }
 
