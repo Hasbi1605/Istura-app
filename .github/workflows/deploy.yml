@@ -109,6 +109,7 @@ jobs:
           npm run build
 
           php artisan migrate --force
+          php artisan holidays:sync-id
           php artisan storage:link || true
           php artisan optimize:clear
           php artisan config:cache
