@@ -469,6 +469,13 @@ export function AdminScreen({
           {BOOKING_STATUS_CHIPS.map((chip) => {
             const count = counts.byStatus[chip.value];
             const isActive = statusFilter === chip.value;
+
+            // Permanent status chips that are always visible
+            const isPermanent = ["Pending", "Accepted", "Rejected"].includes(chip.value);
+            if (!isPermanent && count === 0 && !isActive) {
+              return null;
+            }
+
             return (
               <button
                 key={chip.value}
