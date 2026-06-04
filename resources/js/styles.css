@@ -9492,6 +9492,12 @@ a {
   .calendar-day {
     min-height: 42px;
     font-size: 0.92rem;
+    padding: 4px 2px;
+  }
+
+  .calendar-day-note {
+    font-size: 0.48rem;
+    line-height: 1;
   }
 
   .time-option {
