@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Faq;
+use App\Support\PublicCache;
 use Illuminate\Database\Seeder;
 
 class FaqSeeder extends Seeder
@@ -24,5 +25,7 @@ class FaqSeeder extends Seeder
                 ],
             );
         }
+
+        PublicCache::forgetCms('faqs');
     }
 }
