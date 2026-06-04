@@ -25,6 +25,7 @@
         { "label": "Beranda", "target": "home" },
         { "label": "Cek Jadwal", "target": "#panduan" },
         { "label": "Contoh Surat", "target": "#contoh-surat" },
+        { "label": "Peraturan", "target": "#peraturan" },
         { "label": "FAQ", "target": "#faq" }
       ]
     },
