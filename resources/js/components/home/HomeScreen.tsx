@@ -444,7 +444,7 @@ export function HomeScreen({
 
       <LetterExampleSection content={siteContent.letterSection} letter={letter} onNavigate={onNavigate} />
 
-      <RulesSection content={siteContent.rulesSection} onNavigate={onNavigate} />
+      <RulesSection content={siteContent.rulesSection} letter={letter} onNavigate={onNavigate} />
 
       <section className="chapter">
         <HorizontalAccordion content={siteContent.activities} />
@@ -621,9 +621,11 @@ function LetterExampleSection({
 function RulesSection({
   content,
   onNavigate,
+  letter,
 }: {
   content: SiteContent["rulesSection"];
   onNavigate: (screen: Screen) => void;
+  letter: ApiLetter;
 }) {
   return (
     <section className="chapter rules-chapter" id="peraturan" aria-labelledby="rules-title">
@@ -638,19 +640,24 @@ function RulesSection({
         <article className="rules-preview" aria-label="Gambar peraturan kunjungan resmi">
           <img
             className="rules-example-image"
-            src="/assets/peraturan-kunjungan.webp"
+            src={letter.rulesImage || "/assets/peraturan-kunjungan.webp"}
             alt="Peraturan Kunjungan Istana Kepresidenan Yogyakarta"
             loading="lazy"
             decoding="async"
           />
         </article>
 
-        <aside className="rules-notes">
-          <span className="section-kicker">Aturan Utama</span>
-          <h3>Kepatuhan Protokol</h3>
-          <p>
-            Setiap rombongan diwajibkan untuk menaati peraturan di atas demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.
-          </p>
+        <aside className="rules-notes letter-notes">
+          <span className="section-kicker">{content.rulesKicker || "Aturan Utama"}</span>
+          <h3>{content.rulesTitle || "Kepatuhan Protokol"}</h3>
+          <ul>
+            {(letter.rulesList || content.rulesList || []).map((item) => (
+              <li key={item}>
+                <Check size={18} aria-hidden="true" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
           <div className="upload-note">
             <FileCheck2 size={22} aria-hidden="true" />
             <span>Koordinator bertanggung jawab penuh atas seluruh anggota rombongan.</span>

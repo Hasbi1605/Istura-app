@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, MessageCircle, PenLine, RotateCcw, Save, UploadCloud, X } from "lucide-react";
 import type { CmsSyncStatus, FaqItem, FooterContact, LandingIconKey, SiteContent, WaTemplate } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
-import { INITIAL_WA_TEMPLATES, LANDING_ICON_OPTIONS, letterChecklist, storyWords } from "../../constants";
+import { INITIAL_WA_TEMPLATES, LANDING_ICON_OPTIONS, letterChecklist, storyWords, DEFAULT_SITE_CONTENT } from "../../constants";
 import { ContactIcon } from "../icons/SocialIcons";
 import {
   fetchAdminHero,
@@ -542,31 +542,38 @@ export function AdminWaTemplates({
       )}
     </div>
   );
-}
-
-export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) => void }) {
+}export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) => void }) {
   const [checklist, setChecklist] = useState<string[]>(letterChecklist);
   const [image, setImage] = useState<string>(ASSETS.letterExample);
   const [file, setFile] = useState<File | null>(null);
-	const [preview, setPreview] = useState<string | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const [rulesList, setRulesList] = useState<string[]>(DEFAULT_SITE_CONTENT.rulesSection.rulesList);
+  const [rulesImage, setRulesImage] = useState<string>("/assets/peraturan-kunjungan.webp");
+  const [rulesFile, setRulesFile] = useState<File | null>(null);
+  const [rulesPreview, setRulesPreview] = useState<string | null>(null);
+
+  const [activeSubTab, setActiveSubTab] = useState<"rules" | "letter">("rules");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-	useEffect(() => {
-		let cancelled = false;
-		setLoading(true);
-		fetchAdminLetter()
-			.then((data) => {
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchAdminLetter()
+      .then((data) => {
         if (cancelled) return;
         setChecklist(data.checklist.length ? data.checklist : letterChecklist);
         setImage(data.image || ASSETS.letterExample);
-			})
-			.catch(() => {})
-			.finally(() => {
-				if (!cancelled) setLoading(false);
-			});
+        setRulesList(data.rulesList?.length ? data.rulesList : DEFAULT_SITE_CONTENT.rulesSection.rulesList);
+        setRulesImage(data.rulesImage || "/assets/peraturan-kunjungan.webp");
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -578,13 +585,27 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
     };
   }, [preview]);
 
-  const updateItem = (index: number, value: string) =>
+  useEffect(() => {
+    return () => {
+      if (rulesPreview) URL.revokeObjectURL(rulesPreview);
+    };
+  }, [rulesPreview]);
+
+  const updateChecklistItem = (index: number, value: string) =>
     setChecklist((current) => current.map((item, idx) => (idx === index ? value : item)));
 
-  const addItem = () => setChecklist((current) => [...current, ""]);
+  const addChecklistItem = () => setChecklist((current) => [...current, ""]);
 
-  const removeItem = (index: number) =>
+  const removeChecklistItem = (index: number) =>
     setChecklist((current) => current.filter((_, idx) => idx !== index));
+
+  const updateRulesItem = (index: number, value: string) =>
+    setRulesList((current) => current.map((item, idx) => (idx === index ? value : item)));
+
+  const addRulesItem = () => setRulesList((current) => [...current, ""]);
+
+  const removeRulesItem = (index: number) =>
+    setRulesList((current) => current.filter((_, idx) => idx !== index));
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const next = event.target.files?.[0] ?? null;
@@ -616,21 +637,62 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
     setPreview(URL.createObjectURL(next));
   };
 
-  const save = async () => {
-    const cleaned = checklist.map((item) => item.trim()).filter(Boolean);
-    if (cleaned.length === 0) {
-      setError("Minimal satu poin persyaratan.");
+  const onRulesFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.files?.[0] ?? null;
+    if (!next) {
+      setRulesFile(null);
+      setRulesPreview(null);
       return;
     }
+
+    const isSupportedImage = /\.(jpe?g|png|webp)$/i.test(next.name);
+    if (!isSupportedImage) {
+      event.currentTarget.value = "";
+      setRulesFile(null);
+      setRulesPreview(null);
+      setError("Format gambar harus JPG, PNG, atau WebP.");
+      return;
+    }
+
+    if (next.size > MAX_ADMIN_LETTER_IMAGE_BYTES) {
+      event.currentTarget.value = "";
+      setRulesFile(null);
+      setRulesPreview(null);
+      setError("Ukuran gambar maksimal 5 MB.");
+      return;
+    }
+
+    setError(null);
+    setRulesFile(next);
+    setRulesPreview(URL.createObjectURL(next));
+  };
+
+  const save = async () => {
+    const cleanedChecklist = checklist.map((item) => item.trim()).filter(Boolean);
+    const cleanedRules = rulesList.map((item) => item.trim()).filter(Boolean);
+
+    if (cleanedChecklist.length === 0) {
+      setError("Minimal satu poin persyaratan contoh surat.");
+      return;
+    }
+    if (cleanedRules.length === 0) {
+      setError("Minimal satu poin tata tertib kunjungan.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
-      const data = await updateAdminLetter(cleaned, file);
+      const data = await updateAdminLetter(cleanedChecklist, file, cleanedRules, rulesFile);
       setChecklist(data.checklist);
       setImage(data.image || ASSETS.letterExample);
+      setRulesList(data.rulesList?.length ? data.rulesList : DEFAULT_SITE_CONTENT.rulesSection.rulesList);
+      setRulesImage(data.rulesImage || "/assets/peraturan-kunjungan.webp");
       onChange?.(data);
       setFile(null);
       setPreview(null);
+      setRulesFile(null);
+      setRulesPreview(null);
       setSavedAt(
         new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
       );
@@ -640,7 +702,7 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
       } else if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Gagal menyimpan contoh surat.");
+        setError("Gagal menyimpan ketentuan kunjungan.");
       }
     } finally {
       setSaving(false);
@@ -651,80 +713,163 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
     <div className="admin-cms-page">
       <div className="admin-heading">
         <div>
-          <h1>Contoh Surat Permohonan</h1>
-          <p>Kelola template surat dan persyaratan yang ditampilkan di halaman publik.</p>
+          <h1>Ketentuan Kunjungan</h1>
+          <p>Kelola peraturan tata tertib fisik dan acuan contoh surat permohonan kunjungan.</p>
         </div>
-		<button type="button" className="button button-primary" onClick={save} disabled={saving || loading}>
-			{saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
-		</button>
+        <button type="button" className="button button-primary" onClick={save} disabled={saving || loading}>
+          {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
+        </button>
       </div>
 
-      <section className="admin-card">
-        <header className="admin-card-head">
-          <div>
-            <h2>Template aktif</h2>
-            <p>Berkas yang dilampirkan di halaman publik. Unggah gambar baru untuk mengganti.</p>
-          </div>
-        </header>
-		{loading ? (
-			<SectionSkeleton rows={5} />
-		) : (
-			<div className="admin-letter-preview">
-				<img src={preview ?? image} alt="Pratinjau contoh surat permohonan" />
-			</div>
-		)}
-        <div className="admin-file-field">
-          <span className="admin-file-field-label">Ganti gambar (JPG/PNG/WebP, maks 5 MB)</span>
-          <div className="admin-file-row">
-            <label className="button button-ghost admin-file-button">
-              <UploadCloud size={16} aria-hidden="true" />
-              Pilih gambar
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={onFileChange}
-                className="admin-file-input"
-              />
-            </label>
-            <span className="admin-file-name">
-              {file ? file.name : "Belum ada file dipilih"}
-            </span>
-          </div>
-        </div>
-      </section>
+      <div className="admin-subtabs" style={{ display: "flex", gap: "12px", marginBottom: "24px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
+        <button
+          type="button"
+          className={`button ${activeSubTab === "rules" ? "button-primary" : "button-secondary"}`}
+          onClick={() => setActiveSubTab("rules")}
+          style={{ minHeight: "40px", padding: "0 18px", fontSize: "0.95rem" }}
+        >
+          Tata Tertib Kunjungan
+        </button>
+        <button
+          type="button"
+          className={`button ${activeSubTab === "letter" ? "button-primary" : "button-secondary"}`}
+          onClick={() => setActiveSubTab("letter")}
+          style={{ minHeight: "40px", padding: "0 18px", fontSize: "0.95rem" }}
+        >
+          Contoh Surat Permohonan
+        </button>
+      </div>
 
-      <section className="admin-card">
-        <header className="admin-card-head">
-          <div>
-            <h2>Persyaratan minimal</h2>
-            <p>Daftar yang dipakai untuk panduan surat di halaman publik.</p>
-          </div>
-          <button type="button" className="admin-card-link" onClick={addItem}>
-            Tambah poin
-          </button>
-        </header>
-        <div className="admin-letter-checklist">
-          {checklist.map((item, index) => (
-            <div key={index} className="admin-letter-checklist-row">
-              <label className="form-field">
-                <span>Poin {index + 1}</span>
-                <input value={item} onChange={(event) => updateItem(index, event.target.value)} />
-              </label>
-              <button
-                type="button"
-                className="admin-icon-btn admin-icon-btn--danger"
-                onClick={() => removeItem(index)}
-                aria-label={`Hapus poin ${index + 1}`}
-                disabled={checklist.length <= 1}
-              >
-                <X size={16} aria-hidden="true" />
+      {loading ? (
+        <SectionSkeleton rows={8} />
+      ) : activeSubTab === "rules" ? (
+        <div className="admin-cms-split">
+          <section className="admin-card">
+            <header className="admin-card-head">
+              <div>
+                <h2>Poin Tata Tertib</h2>
+                <p>Daftar peraturan fisik yang ditampilkan di halaman publik.</p>
+              </div>
+              <button type="button" className="admin-card-link" onClick={addRulesItem}>
+                Tambah aturan
               </button>
+            </header>
+            <div className="admin-letter-checklist">
+              {rulesList.map((item, index) => (
+                <div key={index} className="admin-letter-checklist-row">
+                  <label className="form-field">
+                    <span>Aturan {index + 1}</span>
+                    <input value={item} onChange={(event) => updateRulesItem(index, event.target.value)} />
+                  </label>
+                  <button
+                    type="button"
+                    className="admin-icon-btn admin-icon-btn--danger"
+                    onClick={() => removeRulesItem(index)}
+                    aria-label={`Hapus aturan ${index + 1}`}
+                    disabled={rulesList.length <= 1}
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
+          </section>
+
+          <section className="admin-card">
+            <h2>Gambar/Infografis Peraturan</h2>
+            <div className="admin-cms-form">
+              <div className="admin-letter-preview">
+                <img src={rulesPreview ?? rulesImage} alt="Pratinjau infografis tata tertib" />
+              </div>
+              <div className="admin-file-field">
+                <span className="admin-file-field-label">Ganti gambar (JPG/PNG/WebP, maks 5 MB)</span>
+                <div className="admin-file-row">
+                  <label className="button button-ghost admin-file-button">
+                    <UploadCloud size={16} aria-hidden="true" />
+                    Pilih gambar
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={onRulesFileChange}
+                      className="admin-file-input"
+                    />
+                  </label>
+                  <span className="admin-file-name">
+                    {rulesFile ? rulesFile.name : "Belum ada file dipilih"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-        {error && <p className="admin-form-error">{error}</p>}
-        {savedAt && <small className="admin-cms-saved">Tersimpan terakhir pukul {savedAt}.</small>}
-      </section>
+      ) : (
+        <div className="admin-cms-split">
+          <section className="admin-card">
+            <header className="admin-card-head">
+              <div>
+                <h2>Persyaratan minimal</h2>
+                <p>Daftar syarat kelengkapan isi surat permohonan.</p>
+              </div>
+              <button type="button" className="admin-card-link" onClick={addChecklistItem}>
+                Tambah poin
+              </button>
+            </header>
+            <div className="admin-letter-checklist">
+              {checklist.map((item, index) => (
+                <div key={index} className="admin-letter-checklist-row">
+                  <label className="form-field">
+                    <span>Poin {index + 1}</span>
+                    <input value={item} onChange={(event) => updateChecklistItem(index, event.target.value)} />
+                  </label>
+                  <button
+                    type="button"
+                    className="admin-icon-btn admin-icon-btn--danger"
+                    onClick={() => removeChecklistItem(index)}
+                    aria-label={`Hapus poin ${index + 1}`}
+                    disabled={checklist.length <= 1}
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="admin-card">
+            <h2>Gambar Acuan Surat</h2>
+            <div className="admin-cms-form">
+              <div className="admin-letter-preview">
+                <img src={preview ?? image} alt="Pratinjau contoh surat permohonan" />
+              </div>
+              <div className="admin-file-field">
+                <span className="admin-file-field-label">Ganti gambar (JPG/PNG/WebP, maks 5 MB)</span>
+                <div className="admin-file-row">
+                  <label className="button button-ghost admin-file-button">
+                    <UploadCloud size={16} aria-hidden="true" />
+                    Pilih gambar
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={onFileChange}
+                      className="admin-file-input"
+                    />
+                  </label>
+                  <span className="admin-file-name">
+                    {file ? file.name : "Belum ada file dipilih"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {error && <p className="admin-form-error">{error}</p>}
+      {savedAt && (
+        <small className="admin-cms-saved" style={{ display: "block", marginTop: "12px" }}>
+          Tersimpan terakhir pukul {savedAt}.
+        </small>
+      )}
     </div>
   );
 }
@@ -1479,36 +1624,6 @@ export function AdminLandingManager({
             <span>Tombol CTA</span>
             <input value={draft.rulesSection.buttonLabel} onChange={(event) => updateRulesSection("buttonLabel", event.target.value)} />
           </label>
-          
-          <header className="admin-card-head" style={{ paddingLeft: 0, paddingRight: 0, marginTop: "24px" }}>
-            <div>
-              <h2>Poin Peraturan</h2>
-              <p>Daftar aturan yang ditampilkan di notepad. Satu peraturan per baris.</p>
-            </div>
-            <button type="button" className="admin-card-link" onClick={addRulesListItem}>
-              Tambah Aturan
-            </button>
-          </header>
-          
-          <div className="admin-landing-list">
-            {draft.rulesSection.rulesList.map((item, index) => (
-              <div className="admin-landing-inline-row" key={index}>
-                <label className="form-field">
-                  <span>Aturan {index + 1}</span>
-                  <input value={item} onChange={(event) => updateRulesListItem(index, event.target.value)} />
-                </label>
-                <button
-                  type="button"
-                  className="admin-icon-btn admin-icon-btn--danger"
-                  onClick={() => removeRulesListItem(index)}
-                  disabled={draft.rulesSection.rulesList.length <= 1}
-                  aria-label={`Hapus aturan ${index + 1}`}
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 

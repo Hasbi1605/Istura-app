@@ -149,6 +149,17 @@ class CmsController extends Controller
             'Tanggal, waktu, jumlah peserta, nama koordinator, NIK, dan nomor HP.',
             'Tanda tangan kepala instansi atau penanggung jawab.',
         ],
+        'rulesImage' => '/assets/peraturan-kunjungan.webp',
+        'rulesList' => [
+            'Berpakaian sopan, rapi, bersepatu',
+            'Dilarang menggunakan kaos oblong, celana jeans, dan celana pendek',
+            'Dilarang membawa makanan & minuman',
+            'Dilarang parkir dalam Istana',
+            'HP dan kamera profesional dititipkan koordinator kunjungan',
+            'Dilarang mengambil gambar di dalam museum dan area dalam gedung induk',
+            'Kunjungan akan didokumentasikan pihak istana dan link akan dikirimkan melalui koordinator kunjungan',
+            'Dimohon mengisi kuisoner dan penilaian',
+        ],
     ];
 
     public function hero(): JsonResponse
@@ -175,15 +186,25 @@ class CmsController extends Controller
     {
         $current = SiteSetting::read('letter', self::LETTER_DEFAULT);
         $oldImagePath = $this->publicDiskPathFromUrl($current['image'] ?? null);
+        $oldRulesImagePath = $this->publicDiskPathFromUrl($current['rulesImage'] ?? null);
         $newImagePath = null;
+        $newRulesImagePath = null;
+
         $value = [
             'checklist' => array_values($request->validated('checklist')),
             'image' => $current['image'] ?? self::LETTER_DEFAULT['image'],
+            'rulesList' => array_values($request->validated('rulesList')),
+            'rulesImage' => $current['rulesImage'] ?? self::LETTER_DEFAULT['rulesImage'],
         ];
 
         if ($request->hasFile('image')) {
-            $newImagePath = $this->storeOptimizedLetterImage($request->file('image'));
+            $newImagePath = $this->storeOptimizedLetterImage($request->file('image'), 'image');
             $value['image'] = Storage::disk('public')->url($newImagePath);
+        }
+
+        if ($request->hasFile('rulesImage')) {
+            $newRulesImagePath = $this->storeOptimizedLetterImage($request->file('rulesImage'), 'rulesImage');
+            $value['rulesImage'] = Storage::disk('public')->url($newRulesImagePath);
         }
 
         try {
@@ -192,6 +213,9 @@ class CmsController extends Controller
             if ($newImagePath) {
                 Storage::disk('public')->delete($newImagePath);
             }
+            if ($newRulesImagePath) {
+                Storage::disk('public')->delete($newRulesImagePath);
+            }
 
             throw $exception;
         }
@@ -199,10 +223,15 @@ class CmsController extends Controller
         if ($newImagePath && $oldImagePath && $oldImagePath !== $newImagePath) {
             Storage::disk('public')->delete($oldImagePath);
         }
+        if ($newRulesImagePath && $oldRulesImagePath && $oldRulesImagePath !== $newRulesImagePath) {
+            Storage::disk('public')->delete($oldRulesImagePath);
+        }
 
-        AuditLogger::record($request->user(), 'Memperbarui konten contoh surat', SiteSetting::class, 'letter', [
+        AuditLogger::record($request->user(), 'Memperbarui ketentuan kunjungan (surat & tata tertib)', SiteSetting::class, 'letter', [
             'checklist_count' => count($value['checklist']),
+            'rules_count' => count($value['rulesList']),
             'image_updated' => $request->hasFile('image'),
+            'rules_image_updated' => $request->hasFile('rulesImage'),
         ]);
         PublicCache::forgetCms('letter');
 
@@ -242,27 +271,27 @@ class CmsController extends Controller
         return $relativePath !== '' ? $relativePath : null;
     }
 
-    private function storeOptimizedLetterImage(UploadedFile $image): string
+    private function storeOptimizedLetterImage(UploadedFile $image, string $attribute = 'image'): string
     {
-        $realPath = $this->validatedLetterImagePath($image);
+        $realPath = $this->validatedLetterImagePath($image, $attribute);
 
         if (! function_exists('imagecreatefromstring') || ! function_exists('imagewebp')) {
             throw ValidationException::withMessages([
-                'image' => 'Server belum mendukung konversi gambar contoh surat ke WebP.',
+                $attribute => 'Server belum mendukung konversi gambar ke WebP.',
             ]);
         }
 
         $sourceBytes = file_get_contents($realPath);
         if ($sourceBytes === false) {
             throw ValidationException::withMessages([
-                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+                $attribute => 'Gambar tidak dapat dibaca.',
             ]);
         }
 
         $source = @imagecreatefromstring($sourceBytes);
         if (! $source instanceof \GdImage) {
             throw ValidationException::withMessages([
-                'image' => 'Gambar contoh surat tidak dapat diproses.',
+                $attribute => 'Gambar tidak dapat diproses.',
             ]);
         }
 
@@ -278,41 +307,41 @@ class CmsController extends Controller
             $target = imagecreatetruecolor($targetWidth, $targetHeight);
             if (! $target instanceof \GdImage) {
                 throw ValidationException::withMessages([
-                    'image' => 'Gambar contoh surat tidak dapat diproses.',
+                    $attribute => 'Gambar tidak dapat diproses.',
                 ]);
             }
 
             $white = imagecolorallocate($target, 255, 255, 255);
             if ($white === false || ! imagefill($target, 0, 0, $white)) {
                 throw ValidationException::withMessages([
-                    'image' => 'Gambar contoh surat tidak dapat diproses.',
+                    $attribute => 'Gambar tidak dapat diproses.',
                 ]);
             }
 
             if (! imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight)) {
                 throw ValidationException::withMessages([
-                    'image' => 'Gambar contoh surat tidak dapat diproses.',
+                    $attribute => 'Gambar tidak dapat diproses.',
                 ]);
             }
 
             $tmpPath = tempnam(sys_get_temp_dir(), 'istura-letter-');
             if (! is_string($tmpPath) || ! imagewebp($target, $tmpPath, 82)) {
                 throw ValidationException::withMessages([
-                    'image' => 'Gambar contoh surat gagal dikonversi ke WebP.',
+                    $attribute => 'Gambar gagal dikonversi ke WebP.',
                 ]);
             }
 
             $optimizedBytes = file_get_contents($tmpPath);
             if ($optimizedBytes === false) {
                 throw ValidationException::withMessages([
-                    'image' => 'Gambar contoh surat gagal dikonversi ke WebP.',
+                    $attribute => 'Gambar gagal dikonversi ke WebP.',
                 ]);
             }
 
             $path = 'letter/'.Str::uuid().'.webp';
             if (! Storage::disk('public')->put($path, $optimizedBytes)) {
                 throw ValidationException::withMessages([
-                    'image' => 'Gambar contoh surat gagal disimpan.',
+                    $attribute => 'Gambar gagal disimpan.',
                 ]);
             }
 
@@ -330,19 +359,19 @@ class CmsController extends Controller
         }
     }
 
-    private function validatedLetterImagePath(UploadedFile $image): string
+    private function validatedLetterImagePath(UploadedFile $image, string $attribute = 'image'): string
     {
         $realPath = $image->getRealPath();
         if (! is_string($realPath) || $realPath === '') {
             throw ValidationException::withMessages([
-                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+                $attribute => 'Gambar tidak dapat dibaca.',
             ]);
         }
 
         $dimensions = @getimagesize($realPath);
         if (! is_array($dimensions)) {
             throw ValidationException::withMessages([
-                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+                $attribute => 'Gambar tidak dapat dibaca.',
             ]);
         }
 
@@ -350,19 +379,19 @@ class CmsController extends Controller
         $height = (int) ($dimensions[1] ?? 0);
         if ($width < 1 || $height < 1) {
             throw ValidationException::withMessages([
-                'image' => 'Gambar contoh surat tidak dapat dibaca.',
+                $attribute => 'Gambar tidak dapat dibaca.',
             ]);
         }
 
         if ($width > UpdateLetterRequest::LETTER_IMAGE_MAX_WIDTH || $height > UpdateLetterRequest::LETTER_IMAGE_MAX_HEIGHT) {
             throw ValidationException::withMessages([
-                'image' => 'Dimensi gambar contoh surat terlalu besar.',
+                $attribute => 'Dimensi gambar terlalu besar.',
             ]);
         }
 
         if ($height > intdiv(UpdateLetterRequest::LETTER_IMAGE_MAX_PIXELS, max(1, $width))) {
             throw ValidationException::withMessages([
-                'image' => 'Total piksel gambar contoh surat terlalu besar.',
+                $attribute => 'Total piksel gambar terlalu besar.',
             ]);
         }
 

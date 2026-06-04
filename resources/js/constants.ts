@@ -581,7 +581,7 @@ export const ADMIN_MENU: AdminMenuItem[] = [
   { key: "schedule", label: "Jadwal Kunjungan", icon: CalendarDays, status: "ready" },
   { key: "feedback", label: "Feedback", icon: Inbox, status: "ready" },
   { key: "cms-faq", label: "FAQ", icon: MessageSquare, group: "Konten Web", status: "ready" },
-  { key: "cms-letter", label: "Contoh Surat", icon: FileCheck2, group: "Konten Web", status: "ready" },
+  { key: "cms-letter", label: "Ketentuan Kunjungan", icon: ClipboardCheck, group: "Konten Web", status: "ready" },
   { key: "cms-contacts", label: "Kontak Footer", icon: Phone, group: "Konten Web", status: "ready" },
   { key: "cms-hero", label: "Hero & Cerita", icon: ImageIcon, group: "Konten Web", status: "ready" },
   { key: "cms-landing", label: "Landing Page", icon: LayoutDashboard, group: "Konten Web", status: "ready" },

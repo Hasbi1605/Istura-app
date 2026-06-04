@@ -32,6 +32,16 @@ class UpdateLetterRequest extends FormRequest
                 'max:5120',
                 'dimensions:max_width='.self::LETTER_IMAGE_MAX_WIDTH.',max_height='.self::LETTER_IMAGE_MAX_HEIGHT,
             ],
+            'rulesList' => ['required', 'array', 'min:1'],
+            'rulesList.*' => ['required', 'string', 'max:255'],
+            'rulesImage' => [
+                'sometimes',
+                'file',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+                'dimensions:max_width='.self::LETTER_IMAGE_MAX_WIDTH.',max_height='.self::LETTER_IMAGE_MAX_HEIGHT,
+            ],
         ];
     }
 
@@ -42,29 +52,29 @@ class UpdateLetterRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                $image = $this->file('image');
-                if (! $image instanceof UploadedFile || ! $image->isValid()) {
-                    return;
-                }
+                foreach (['image', 'rulesImage'] as $fieldName) {
+                    $image = $this->file($fieldName);
+                    if (! $image instanceof UploadedFile || ! $image->isValid()) {
+                        continue;
+                    }
 
-                $realPath = $image->getRealPath();
-                if (! is_string($realPath) || $realPath === '') {
-                    $validator->errors()->add('image', 'Gambar contoh surat tidak dapat dibaca.');
+                    $realPath = $image->getRealPath();
+                    if (! is_string($realPath) || $realPath === '') {
+                        $validator->errors()->add($fieldName, 'Gambar tidak dapat dibaca.');
+                        continue;
+                    }
 
-                    return;
-                }
+                    $dimensions = @getimagesize($realPath);
+                    if (! is_array($dimensions)) {
+                        $validator->errors()->add($fieldName, 'Gambar tidak dapat dibaca.');
+                        continue;
+                    }
 
-                $dimensions = @getimagesize($realPath);
-                if (! is_array($dimensions)) {
-                    $validator->errors()->add('image', 'Gambar contoh surat tidak dapat dibaca.');
-
-                    return;
-                }
-
-                $width = (int) ($dimensions[0] ?? 0);
-                $height = (int) ($dimensions[1] ?? 0);
-                if ($width < 1 || $height < 1 || $height > intdiv(self::LETTER_IMAGE_MAX_PIXELS, max(1, $width))) {
-                    $validator->errors()->add('image', 'Total piksel gambar contoh surat terlalu besar.');
+                    $width = (int) ($dimensions[0] ?? 0);
+                    $height = (int) ($dimensions[1] ?? 0);
+                    if ($width < 1 || $height < 1 || $height > intdiv(self::LETTER_IMAGE_MAX_PIXELS, max(1, $width))) {
+                        $validator->errors()->add($fieldName, 'Total piksel gambar terlalu besar.');
+                    }
                 }
             },
         ];

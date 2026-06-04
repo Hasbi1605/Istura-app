@@ -61,6 +61,8 @@ export type ApiHero = {
 export type ApiLetter = {
   image: string;
   checklist: string[];
+  rulesImage?: string;
+  rulesList?: string[];
 };
 
 export type ApiPublicBootstrap = {
@@ -88,10 +90,17 @@ export const updateAdminHero = (hero: ApiHero) =>
 
 export const fetchAdminLetter = () =>
   api<{ data: ApiLetter }>("/api/admin/cms/letter").then((r) => r.data);
-export const updateAdminLetter = (checklist: string[], image?: File | null) => {
+export const updateAdminLetter = (
+  checklist: string[],
+  image?: File | null,
+  rulesList?: string[],
+  rulesImage?: File | null,
+) => {
   const formData = new FormData();
   checklist.forEach((item) => formData.append("checklist[]", item));
   if (image) formData.append("image", image);
+  if (rulesList) rulesList.forEach((item) => formData.append("rulesList[]", item));
+  if (rulesImage) formData.append("rulesImage", rulesImage);
   return api<{ data: ApiLetter }>("/api/admin/cms/letter", { method: "POST", formData }).then(
     (r) => r.data,
   );
