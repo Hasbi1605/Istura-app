@@ -14,8 +14,10 @@ use App\Models\NationalHoliday;
 use App\Models\ScheduleOverride;
 use App\Models\User;
 use App\Services\BookingService;
+use App\Services\NationalHolidaySyncService;
 use App\Services\ScheduleService;
 use App\Services\TwoFactorService;
+use App\Support\PublicCache;
 use App\Support\SiteContentDefaults;
 use Carbon\Carbon;
 use Database\Seeders\UserSeeder;
@@ -520,6 +522,18 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame(9, Cache::get('public:schedule:version'));
     }
 
+    public function test_schedule_cache_version_bump_moves_reads_to_new_cache_namespace(): void
+    {
+        $first = PublicCache::rememberSchedule('2026-06-16', '2026-06-16', fn () => ['stale']);
+
+        PublicCache::bumpScheduleVersion();
+        $second = PublicCache::rememberSchedule('2026-06-16', '2026-06-16', fn () => ['fresh']);
+
+        $this->assertSame(['stale'], $first);
+        $this->assertSame(['fresh'], $second);
+        $this->assertSame(2, Cache::get('public:schedule:version'));
+    }
+
     public function test_public_schedule_auto_syncs_missing_holiday_year_before_using_cached_available_response(): void
     {
         config(['services.indonesian_holidays.auto_sync' => false]);
@@ -550,6 +564,38 @@ class ScheduleSyncTest extends TestCase
             'date' => '2026-06-16',
             'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
         ]);
+    }
+
+    public function test_public_schedule_does_not_auto_sync_stale_existing_holiday_year_during_request(): void
+    {
+        config([
+            'services.indonesian_holidays.auto_sync' => true,
+            'services.indonesian_holidays.auto_sync_in_tests' => true,
+        ]);
+        NationalHoliday::create([
+            'date' => '2026-06-16',
+            'year' => 2026,
+            'name' => 'Satu Muharam / Tahun Baru Hijriah',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+            'tentative' => true,
+            'source' => NationalHolidaySyncService::SOURCE,
+            'source_url' => config('services.indonesian_holidays.url'),
+            'synced_at' => now('Asia/Jakarta')->subDay(),
+            'checksum' => hash('sha256', '2026-06-16'),
+        ]);
+        Http::fake([
+            config('services.indonesian_holidays.url') => Http::response([
+                '2026-06-16' => ['summary' => 'Satu Muharam / Tahun Baru Hijriah (belum pasti)'],
+                'info' => ['updated' => '20260522 17:05:28'],
+            ]),
+        ]);
+
+        $response = $this->getJson('/api/public/schedule?from=2026-06-16&to=2026-06-16')
+            ->assertOk();
+
+        $slot = $this->slotFromResponse($response->json('data'), '2026-06-16', '08.00');
+        $this->assertSame('Closed', $slot['status']);
+        Http::assertNothingSent();
     }
 
     public function test_public_booking_auto_syncs_missing_holiday_year_before_accepting_request(): void

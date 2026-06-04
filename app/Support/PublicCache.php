@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Cache;
 
 class PublicCache
 {
+    private const SCHEDULE_VERSION_KEY = 'public:schedule:version';
+
     private const CMS_TTL = 3600;
 
     private const SCHEDULE_TTL = 300;
@@ -54,35 +56,24 @@ class PublicCache
 
     public static function rememberSchedule(string $from, string $to, callable $resolver): mixed
     {
-        $version = Cache::get('public:schedule:version', 1);
+        $version = Cache::get(self::SCHEDULE_VERSION_KEY, 1);
         $key = "public:schedule:v{$version}:{$from}:{$to}";
-
-        self::trackScheduleKey($key);
 
         return Cache::remember($key, self::SCHEDULE_TTL, $resolver);
     }
 
     public static function bumpScheduleVersion(): void
     {
-        foreach (Cache::get('public:schedule:keys', []) as $key) {
-            Cache::forget($key);
-        }
-
-        Cache::forget('public:schedule:keys');
-
-        $version = (int) Cache::get('public:schedule:version', 1);
-
-        Cache::forever('public:schedule:version', $version + 1);
+        self::incrementScheduleVersion();
     }
 
-    private static function trackScheduleKey(string $key): void
+    private static function incrementScheduleVersion(): void
     {
-        $keys = Cache::get('public:schedule:keys', []);
-        if (in_array($key, $keys, true)) {
-            return;
-        }
+        Cache::add(self::SCHEDULE_VERSION_KEY, 1, now()->addYears(10));
 
-        $keys[] = $key;
-        Cache::forever('public:schedule:keys', array_slice($keys, -100));
+        if (Cache::increment(self::SCHEDULE_VERSION_KEY) === false) {
+            $version = (int) Cache::get(self::SCHEDULE_VERSION_KEY, 1);
+            Cache::forever(self::SCHEDULE_VERSION_KEY, $version + 1);
+        }
     }
 }

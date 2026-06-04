@@ -141,7 +141,7 @@ class ScheduleService
         }
 
         $years = $this->yearsForRange($from, $to);
-        $yearsToSync = $this->holidayYearsNeedingSync($years);
+        $yearsToSync = $this->holidayYearsMissingData($years);
         if ($yearsToSync === []) {
             return;
         }
@@ -160,7 +160,7 @@ class ScheduleService
         }
 
         try {
-            $yearsToSync = $this->holidayYearsNeedingSync($years);
+            $yearsToSync = $this->holidayYearsMissingData($years);
             if ($yearsToSync === []) {
                 return;
             }
@@ -186,17 +186,13 @@ class ScheduleService
      * @param  array<int, int>  $years
      * @return array<int, int>
      */
-    private function holidayYearsNeedingSync(array $years): array
+    private function holidayYearsMissingData(array $years): array
     {
-        $freshAfter = now('Asia/Jakarta')->subHours((int) config('services.indonesian_holidays.auto_sync_fresh_hours', 12));
-
         return collect($years)
-            ->filter(function (int $year) use ($freshAfter): bool {
-                $lastSyncedAt = NationalHoliday::where('source', NationalHolidaySyncService::SOURCE)
+            ->filter(function (int $year): bool {
+                return ! NationalHoliday::where('source', NationalHolidaySyncService::SOURCE)
                     ->where('year', $year)
-                    ->max('synced_at');
-
-                return ! $lastSyncedAt || Carbon::parse($lastSyncedAt, 'Asia/Jakarta')->lt($freshAfter);
+                    ->exists();
             })
             ->values()
             ->all();
