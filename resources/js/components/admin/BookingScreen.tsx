@@ -288,9 +288,8 @@ export function AdminScreen({
 		});
 	};
 
-  // Admin proposes a new slot. Original slot is held (Reschedule Hold) so it
-  // is not handed to another visitor while we wait for the user reply on
-  // WhatsApp. Proposed slot is *not* held yet because the user has not agreed.
+  // Admin proposes a new slot. Original and proposed slots are held while we
+  // wait for the user reply on WhatsApp.
 	const handleProposeReschedule = async (
 		booking: Booking,
     proposedDate: string,
@@ -316,11 +315,11 @@ export function AdminScreen({
 		});
 	};
 
-  // User declined the proposed slot. Mark booking as rejected and free the
-  // proposed hold while keeping the original accepted schedule.
+  // User declined the proposed slot. Free the proposed hold and restore the
+  // original booking state.
 	const handleCancelReschedule = (booking: Booking) => {
 		void runBookingAction(booking, "Membatalkan reschedule...", async () => {
-			const note = booking.note ?? "User menolak usulan reschedule, jadwal awal tetap berlaku.";
+			const note = "User menolak usulan reschedule.";
 			const updated = await apiCancelRescheduleBooking(booking.code, note);
 			const localBooking = await syncBookingFromApi(updated);
 			const messageStatus = localBooking.status === "Pending" ? "Pending" : "Accepted";

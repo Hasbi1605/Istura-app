@@ -149,6 +149,112 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_stale_reschedule_restores_original_booking_when_original_slot_is_still_valid(): void
+    {
+        $this->actingAsAdmin();
+
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-RESCHEDULE-RESTORE',
+            'date' => '2026-06-04',
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-06-01',
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jam lebih awal.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule');
+
+        Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00', 'Asia/Jakarta'));
+
+        $this->artisan('bookings:expire-pending')->assertSuccessful();
+
+        $booking->refresh();
+        $this->assertSame('Accepted', $booking->status);
+        $this->assertNull($booking->expired_at);
+        $this->assertNull($booking->proposed_date);
+        $this->assertNull($booking->reschedule_previous_status);
+        $this->assertDatabaseMissing('booking_slots', [
+            'booking_id' => $booking->id,
+            'kind' => BookingSlot::KIND_PROPOSED,
+        ]);
+
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-01', '10.00'));
+
+        $schedule = $this->getJson('/api/public/schedule?from=2026-06-04&to=2026-06-04')
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Booked', $this->slotFromResponse($schedule, '2026-06-04', '09.00')['status']);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => "Menandai kedaluwarsa usulan reschedule booking {$booking->code}",
+        ]);
+    }
+
+    public function test_stale_reschedule_expires_booking_when_original_slot_also_passed(): void
+    {
+        $this->actingAsAdmin();
+
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-RESCHEDULE-EXPIRE',
+            'date' => '2026-06-01',
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-06-01',
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jam 10.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule');
+
+        Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00', 'Asia/Jakarta'));
+
+        $this->artisan('bookings:expire-pending')->assertSuccessful();
+
+        $booking->refresh();
+        $this->assertSame('Expired', $booking->status);
+        $this->assertNotNull($booking->expired_at);
+        $this->assertNull($booking->active_slot_key);
+        $this->assertNull($booking->proposed_date);
+
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-01', '09.00'));
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-01', '10.00'));
+    }
+
+    public function test_stale_reschedule_from_expired_booking_refreshes_expired_timestamp(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-02 09:00:00', 'Asia/Jakarta'));
+        $this->actingAsAdmin();
+
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-RESCHEDULE-EXPIRED-AGAIN',
+            'date' => '2026-06-01',
+            'time' => '09.00',
+            'status' => 'Expired',
+            'expired_at' => Carbon::parse('2026-06-01 09:00:00', 'Asia/Jakarta'),
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-06-04',
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan ulang setelah jadwal awal terlewat.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule');
+
+        Carbon::setTestNow(Carbon::parse('2026-06-04 12:00:00', 'Asia/Jakarta'));
+
+        $this->artisan('bookings:expire-pending')->assertSuccessful();
+
+        $booking->refresh();
+        $this->assertSame('Expired', $booking->status);
+        $this->assertSame('2026-06-04 12:00:00', $booking->expired_at?->timezone('Asia/Jakarta')->toDateTimeString());
+        $this->assertNull($booking->proposed_date);
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-04', '10.00'));
+    }
+
     public function test_admin_cannot_accept_pending_booking_after_visit_start(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00', 'Asia/Jakarta'));
@@ -169,6 +275,38 @@ class ScheduleSyncTest extends TestCase
             'code' => $booking->code,
             'status' => 'Pending',
         ]);
+    }
+
+    public function test_admin_cannot_accept_reschedule_after_proposed_visit_start(): void
+    {
+        $admin = $this->actingAsAdmin();
+
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-LATE-RESCHEDULE',
+            'date' => '2026-06-04',
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-06-01',
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jam 10.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule');
+
+        Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00', 'Asia/Jakarta'));
+        $this->actingAsAdminSession($admin);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/accept")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'status' => 'Reschedule',
+        ]);
+        $this->assertSame('Reschedule Hold', app(ScheduleService::class)->slotStatusFor('2026-06-01', '10.00'));
     }
 
     public function test_admin_can_offer_new_slot_for_expired_booking(): void
@@ -497,6 +635,7 @@ class ScheduleSyncTest extends TestCase
         $slot = $this->slotFromResponse($response->json('data'), '2026-06-01', '08.00');
         $this->assertSame('Available', $slot['status']);
         $this->assertNull($slot['closureReason']);
+        $this->assertNull($response->json('data.0.closureReason'));
     }
 
     public function test_public_schedule_omits_lunch_break_from_default_slots(): void

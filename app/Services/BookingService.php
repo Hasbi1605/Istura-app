@@ -145,6 +145,70 @@ class BookingService
         return $expired;
     }
 
+    public function expireStaleReschedules(?Carbon $now = null): int
+    {
+        $now = ($now ?? now('Asia/Jakarta'))->copy()->timezone('Asia/Jakarta');
+        $today = $now->toDateString();
+        $time = $now->format('H.i');
+        $expired = 0;
+
+        Booking::query()
+            ->where('status', 'Reschedule')
+            ->whereNotNull('proposed_date')
+            ->whereNotNull('proposed_time')
+            ->where(function ($query) use ($today, $time) {
+                $query->whereDate('proposed_date', '<', $today)
+                    ->orWhere(function ($sameDay) use ($today, $time) {
+                        $sameDay->whereDate('proposed_date', $today)
+                            ->where('proposed_time', '<=', $time);
+                    });
+            })
+            ->orderBy('id')
+            ->chunkById(100, function ($bookings) use ($now, &$expired) {
+                foreach ($bookings as $candidate) {
+                    DB::transaction(function () use ($candidate, $now, &$expired) {
+                        $booking = Booking::with('slots')
+                            ->whereKey($candidate->id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (! $booking || $booking->status !== 'Reschedule' || ! $booking->hasProposedVisitStarted($now)) {
+                            return;
+                        }
+
+                        $affectedScheduleDates = $this->scheduleDatesForBooking($booking);
+                        $nextStatus = $this->statusAfterStaleReschedule($booking, $now);
+                        $proposal = [
+                            'proposed_date' => $booking->proposed_date?->toDateString(),
+                            'proposed_time' => $booking->proposed_time,
+                            'restored_status' => $nextStatus,
+                        ];
+
+                        $booking->status = $nextStatus;
+                        if ($nextStatus === 'Expired') {
+                            $booking->expired_at = $now;
+                        }
+                        $booking->proposed_date = null;
+                        $booking->proposed_time = null;
+                        $booking->proposed_date_label = null;
+                        $booking->proposed_segments = null;
+                        $booking->proposed_at = null;
+                        $booking->reschedule_previous_status = null;
+                        $booking->save();
+                        $booking->slots()->where('kind', BookingSlot::KIND_PROPOSED)->delete();
+                        $this->syncBookingSlotKeys($booking);
+
+                        $this->logAudit(null, "Menandai kedaluwarsa usulan reschedule booking {$booking->code}", $booking, $proposal);
+                        $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), 'Reschedule', 'reschedule-expire'), $booking, $affectedScheduleDates);
+
+                        $expired++;
+                    });
+                }
+            });
+
+        return $expired;
+    }
+
     public function reschedule(
         Booking $booking,
         ?User $actor,
@@ -331,7 +395,7 @@ class BookingService
 
                 $previous = $booking->status;
                 if ($action === 'accept') {
-                    $this->assertPendingBookingCanBeAccepted($booking);
+                    $this->assertBookingCanBeAccepted($booking);
                 }
                 $this->assertValidTransition($previous, $newStatus);
                 $replacementSegments = null;
@@ -499,13 +563,32 @@ class BookingService
             ->all();
     }
 
-    private function assertPendingBookingCanBeAccepted(Booking $booking): void
+    private function assertBookingCanBeAccepted(Booking $booking): void
     {
         if ($booking->status === 'Pending' && $booking->hasVisitStarted()) {
             throw ValidationException::withMessages([
                 'status' => ['Jadwal kunjungan sudah terlewat. Tawarkan jadwal baru atau biarkan booking kedaluwarsa.'],
             ]);
         }
+
+        if ($booking->status === 'Reschedule' && $booking->hasProposedVisitStarted()) {
+            throw ValidationException::withMessages([
+                'status' => ['Usulan jadwal kunjungan sudah terlewat. Tawarkan jadwal baru atau batalkan reschedule.'],
+            ]);
+        }
+    }
+
+    private function statusAfterStaleReschedule(Booking $booking, Carbon $now): string
+    {
+        $previous = in_array($booking->reschedule_previous_status, ['Pending', 'Accepted', 'Expired'], true)
+            ? $booking->reschedule_previous_status
+            : 'Accepted';
+
+        if ($previous !== 'Expired' && ! $booking->hasVisitStarted($now)) {
+            return $previous;
+        }
+
+        return 'Expired';
     }
 
     /**

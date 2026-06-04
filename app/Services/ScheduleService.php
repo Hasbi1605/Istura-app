@@ -98,12 +98,15 @@ class ScheduleService
                     'closureReason' => $this->slotClosureReason($status, $override, $defaultClosure),
                 ];
             })->all();
+            $dayClosureReason = collect($slots)->contains(fn (array $slot): bool => $slot['status'] === 'Available')
+                ? null
+                : $defaultClosure;
 
             $days[] = [
                 'date' => $key,
                 'label' => $this->formatLongDate($cursor),
                 'short' => $cursor->day.' '.substr(self::ID_MONTHS[$cursor->month], 0, 3),
-                'closureReason' => $defaultClosure,
+                'closureReason' => $dayClosureReason,
                 'holiday' => $this->holidayPayload($holiday),
                 'slots' => $slots,
             ];

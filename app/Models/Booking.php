@@ -125,9 +125,30 @@ class Booking extends Model
         );
     }
 
+    public function proposedVisitStartsAt(): ?Carbon
+    {
+        if (! $this->proposed_date || ! $this->proposed_time) {
+            return null;
+        }
+
+        return Carbon::createFromFormat(
+            'Y-m-d H.i',
+            $this->proposed_date->copy()->timezone('Asia/Jakarta')->toDateString().' '.$this->proposed_time,
+            'Asia/Jakarta',
+        );
+    }
+
     public function hasVisitStarted(?Carbon $now = null): bool
     {
         $visitStartsAt = $this->visitStartsAt();
+
+        return $visitStartsAt !== null
+            && $visitStartsAt->lte(($now ?? now('Asia/Jakarta'))->copy()->timezone('Asia/Jakarta'));
+    }
+
+    public function hasProposedVisitStarted(?Carbon $now = null): bool
+    {
+        $visitStartsAt = $this->proposedVisitStartsAt();
 
         return $visitStartsAt !== null
             && $visitStartsAt->lte(($now ?? now('Asia/Jakarta'))->copy()->timezone('Asia/Jakarta'));
