@@ -15,8 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['middleware' => ['web', 'admin-access']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(AddSecurityHeaders::class);
@@ -26,6 +29,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin-session' => EnsureAdminSessionFresh::class,
             'super-admin' => EnsureSuperAdmin::class,
             'two-factor' => EnsureTwoFactorVerified::class,
+        ]);
+        $middleware->group('admin-access', [
+            'auth:sanctum',
+            'admin-session',
+            'two-factor',
+            'admin',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

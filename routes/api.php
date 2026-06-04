@@ -62,7 +62,7 @@ Route::prefix('auth')->group(function () {
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
-Route::middleware(['auth:sanctum', 'admin-session', 'two-factor', 'admin'])->prefix('admin')->group(function () {
+Route::middleware('admin-access')->prefix('admin')->group(function () {
     Route::get('dashboard', DashboardController::class);
 
     Route::get('bookings', [AdminBookingController::class, 'index']);

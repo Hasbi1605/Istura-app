@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SiteSetting;
 use App\Models\User;
+use App\Services\TwoFactorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -80,7 +81,7 @@ class AdminCmsLetterImageTest extends TestCase
         $this->withHeader('Origin', 'http://localhost');
         $this->withSession([
             'admin_session_started_at' => now()->timestamp,
-            'two_factor_verified' => true,
+            TwoFactorService::VERIFIED_USER_ID_SESSION_KEY => $admin->id,
         ]);
 
         return $admin;

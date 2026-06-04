@@ -74,9 +74,7 @@ class TwoFactorController extends Controller
             'two_factor_confirmed_at' => now(),
         ])->save();
 
-        if ($request->hasSession()) {
-            $request->session()->put('two_factor_verified', true);
-        }
+        $this->twoFactor->markSessionVerified($user, $request);
 
         AuditLogger::record($user, 'Mengaktifkan Two-Factor Authentication', User::class, $user->id);
 
@@ -119,9 +117,7 @@ class TwoFactorController extends Controller
         }
 
         // Mark session as 2FA verified when the request uses browser session auth.
-        if ($request->hasSession()) {
-            $request->session()->put('two_factor_verified', true);
-        }
+        $this->twoFactor->markSessionVerified($user, $request);
 
         $trustedCookie = null;
 
@@ -164,9 +160,7 @@ class TwoFactorController extends Controller
         $forgetTrustedDeviceCookie = $this->twoFactor->forgetTrustedDeviceCookie();
 
         // Clear 2FA session flag when the request uses browser session auth.
-        if ($request->hasSession()) {
-            $request->session()->forget('two_factor_verified');
-        }
+        $this->twoFactor->clearSessionVerification($request);
 
         AuditLogger::record($user, 'Menonaktifkan Two-Factor Authentication', User::class, $user->id);
 
@@ -229,7 +223,7 @@ class TwoFactorController extends Controller
         }
 
         $requires2fa = $user->two_factor_confirmed_at
-            && ! $request->session()->get('two_factor_verified')
+            && ! $this->twoFactor->isSessionVerified($user, $request)
             && ! $this->twoFactor->isDeviceTrusted($user, $request);
 
         return response()->json(['requires_2fa' => $requires2fa]);

@@ -10,6 +10,7 @@ use App\Services\TwoFactorService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -165,6 +166,82 @@ class TwoFactorSecurityTest extends TestCase
         $this->assertTrue(json_decode($response->getContent(), true)['two_factor_required']);
     }
 
+    public function test_password_only_admin_session_cannot_authorize_private_admin_channel(): void
+    {
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+
+        $this->actingAs($admin)
+            ->withSession(['admin_session_started_at' => now()->timestamp])
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '1234.5678',
+                'channel_name' => 'private-admin.bookings',
+            ])
+            ->assertForbidden()
+            ->assertJson(['two_factor_required' => true]);
+    }
+
+    public function test_expired_admin_session_cannot_authorize_private_admin_channel(): void
+    {
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+
+        $this->actingAs($admin)
+            ->withSession([
+                'admin_session_started_at' => now()->subHours(13)->timestamp,
+                TwoFactorService::VERIFIED_USER_ID_SESSION_KEY => $admin->id,
+            ])
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '1234.5678',
+                'channel_name' => 'private-admin.bookings',
+            ])
+            ->assertUnauthorized()
+            ->assertJson([
+                'message' => 'Sesi admin sudah melewati batas waktu maksimum. Silakan login kembali.',
+            ]);
+    }
+
+    public function test_verified_admin_session_can_authorize_private_admin_channel(): void
+    {
+        $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
+
+        $this->actingAs($admin)
+            ->withSession([
+                'admin_session_started_at' => now()->timestamp,
+                TwoFactorService::VERIFIED_USER_ID_SESSION_KEY => $admin->id,
+            ])
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '1234.5678',
+                'channel_name' => 'private-admin.bookings',
+            ])
+            ->assertOk();
+    }
+
+    public function test_login_principal_change_cannot_reuse_previous_two_factor_proof(): void
+    {
+        $adminA = $this->createConfirmedAdmin(app(TwoFactorService::class));
+        $adminB = $this->createConfirmedAdmin(app(TwoFactorService::class));
+
+        $session = app('session.store');
+        $session->start();
+        $session->put(TwoFactorService::VERIFIED_USER_ID_SESSION_KEY, $adminA->id);
+        $session->put('admin_session_started_at', now()->timestamp);
+
+        Auth::guard('web')->login($adminA);
+        Auth::guard('web')->login($adminB);
+        $this->assertSame($adminB->id, Auth::id());
+
+        $request = Request::create('/api/admin/dashboard', 'GET');
+        $request->setUserResolver(fn () => $adminB);
+        $request->setLaravelSession($session);
+
+        $response = app(EnsureTwoFactorVerified::class)->handle(
+            $request,
+            fn () => response()->json(['ok' => true]),
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertTrue(json_decode($response->getContent(), true)['two_factor_required']);
+    }
+
     public function test_session_less_admin_bearer_token_cannot_enter_admin_routes(): void
     {
         config(['sanctum.stateful' => []]);
@@ -221,7 +298,10 @@ class TwoFactorSecurityTest extends TestCase
         );
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertTrue($request->session()->get('two_factor_verified'));
+        $this->assertSame(
+            $admin->id,
+            $request->session()->get(TwoFactorService::VERIFIED_USER_ID_SESSION_KEY),
+        );
     }
 
     public function test_password_only_session_cannot_disable_two_factor(): void

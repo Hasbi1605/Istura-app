@@ -36,13 +36,13 @@ class EnsureTwoFactorVerified
         }
 
         // Already verified this session
-        if ($request->session()->get('two_factor_verified')) {
+        if ($this->twoFactor->isSessionVerified($user, $request)) {
             return $next($request);
         }
 
         // Device is trusted
         if ($this->twoFactor->isDeviceTrusted($user, $request)) {
-            $request->session()->put('two_factor_verified', true);
+            $this->twoFactor->markSessionVerified($user, $request);
 
             return $next($request);
         }

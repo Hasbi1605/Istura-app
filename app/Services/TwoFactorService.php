@@ -18,6 +18,10 @@ class TwoFactorService
 {
     public const TRUSTED_DEVICE_COOKIE = 'istura_trusted_device';
 
+    public const VERIFIED_USER_ID_SESSION_KEY = 'two_factor_verified_user_id';
+
+    private const LEGACY_VERIFIED_SESSION_KEY = 'two_factor_verified';
+
     private Google2FA $engine;
 
     public function __construct()
@@ -111,6 +115,40 @@ class TwoFactorService
             ->where('device_hash', $this->hashTrustedDeviceToken($token))
             ->where('trusted_until', '>', now())
             ->exists();
+    }
+
+    public function isSessionVerified(User $user, Request $request): bool
+    {
+        if (! $request->hasSession()) {
+            return false;
+        }
+
+        $verifiedUserId = $request->session()->get(self::VERIFIED_USER_ID_SESSION_KEY);
+
+        return $verifiedUserId !== null
+            && (string) $verifiedUserId === (string) $user->getAuthIdentifier();
+    }
+
+    public function markSessionVerified(User $user, Request $request): void
+    {
+        if (! $request->hasSession()) {
+            return;
+        }
+
+        $request->session()->forget(self::LEGACY_VERIFIED_SESSION_KEY);
+        $request->session()->put(self::VERIFIED_USER_ID_SESSION_KEY, $user->getAuthIdentifier());
+    }
+
+    public function clearSessionVerification(Request $request): void
+    {
+        if (! $request->hasSession()) {
+            return;
+        }
+
+        $request->session()->forget([
+            self::VERIFIED_USER_ID_SESSION_KEY,
+            self::LEGACY_VERIFIED_SESSION_KEY,
+        ]);
     }
 
     /**

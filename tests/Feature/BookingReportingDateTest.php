@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Booking;
 use App\Models\User;
 use App\Services\ScheduleService;
+use App\Services\TwoFactorService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -128,7 +129,7 @@ class BookingReportingDateTest extends TestCase
         $this->withHeader('Origin', 'http://localhost');
         $this->withSession([
             'admin_session_started_at' => now()->timestamp,
-            'two_factor_verified' => true,
+            TwoFactorService::VERIFIED_USER_ID_SESSION_KEY => $admin->id,
         ]);
     }
 }

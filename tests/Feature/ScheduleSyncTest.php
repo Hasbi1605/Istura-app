@@ -2535,7 +2535,7 @@ class ScheduleSyncTest extends TestCase
         $this->withHeader('Origin', 'http://localhost');
         $this->withSession([
             'admin_session_started_at' => now()->timestamp,
-            'two_factor_verified' => true,
+            TwoFactorService::VERIFIED_USER_ID_SESSION_KEY => $user->id,
         ]);
 
         return $user;

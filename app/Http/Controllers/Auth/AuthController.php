@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Services\TwoFactorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(private TwoFactorService $twoFactor) {}
+
     /**
      * Maximum failed attempts before progressive delay kicks in.
      */
@@ -53,6 +56,7 @@ class AuthController extends Controller
 
         if ($request->hasSession()) {
             $request->session()->regenerate();
+            $this->twoFactor->clearSessionVerification($request);
             $request->session()->put('admin_session_started_at', now()->timestamp);
         }
 
