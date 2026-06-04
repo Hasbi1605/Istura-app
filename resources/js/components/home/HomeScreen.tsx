@@ -647,18 +647,32 @@ function RulesSection({
           />
         </article>
 
-        <aside className="rules-notes letter-notes">
-          <span className="section-kicker">{content.rulesKicker || "Aturan Utama"}</span>
+        <aside className="rules-notes">
+          <span className="section-kicker">{content.rulesKicker || "Tata Tertib Fisik"}</span>
           <h3>{content.rulesTitle || "Kepatuhan Protokol"}</h3>
-          <ul>
-            {(letter.rulesList || content.rulesList || []).map((item) => (
-              <li key={item}>
-                <Check size={18} aria-hidden="true" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="upload-note">
+
+          <p style={{ marginTop: "16px", marginBottom: "20px", fontSize: "1.05rem", lineHeight: "1.55", color: "var(--muted)", fontWeight: 500 }}>
+            Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.
+          </p>
+
+          <details className="faq-item" style={{ marginTop: "16px", marginBottom: "24px" }}>
+            <summary style={{ fontSize: "1rem", fontWeight: 700 }}>
+              <span>Lihat Detail Tata Tertib Lengkap</span>
+              <ChevronRight size={20} aria-hidden="true" />
+            </summary>
+            <div style={{ padding: "16px 0 8px 0" }}>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: "12px" }}>
+                {(letter.rulesList || content.rulesList || []).map((item) => (
+                  <li key={item} style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "0.95rem", lineHeight: "1.4", fontWeight: 600 }}>
+                    <Check size={16} style={{ color: "var(--gold)", flexShrink: 0, marginTop: "2px" }} aria-hidden="true" />
+                    <span style={{ color: "var(--navy)" }}>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
+
+          <div className="upload-note" style={{ marginBottom: "24px" }}>
             <FileCheck2 size={22} aria-hidden="true" />
             <span>Koordinator bertanggung jawab penuh atas seluruh anggota rombongan.</span>
           </div>
