@@ -20,6 +20,12 @@ const generateId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 const MAX_ADMIN_LETTER_IMAGE_BYTES = 5 * 1024 * 1024;
+type AdminLetterErrorTarget =
+  | "form"
+  | "letter-checklist"
+  | "letter-image"
+  | "rules-description"
+  | "rules-image";
 
 const MAX_LANDING_QUICK_POINTS = 6;
 const MAX_LANDING_QUICK_POINT_LENGTH = 120;
@@ -35,6 +41,15 @@ const WA_TEMPLATE_VARIABLES = [
   "{catatan}",
   "{link}",
 ];
+
+function adminLetterErrorTargetFromField(field?: string): AdminLetterErrorTarget {
+  if (!field) return "form";
+  if (field.startsWith("checklist")) return "letter-checklist";
+  if (field === "image") return "letter-image";
+  if (field === "rulesDescription") return "rules-description";
+  if (field === "rulesImage") return "rules-image";
+  return "form";
+}
 
 function summarizeWaTemplate(template: string) {
   return template
@@ -542,7 +557,9 @@ export function AdminWaTemplates({
       )}
     </div>
   );
-}export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) => void }) {
+}
+
+export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) => void }) {
   const [checklist, setChecklist] = useState<string[]>(letterChecklist);
   const [image, setImage] = useState<string>(ASSETS.letterExample);
   const [file, setFile] = useState<File | null>(null);
@@ -558,6 +575,26 @@ export function AdminWaTemplates({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorTarget, setErrorTarget] = useState<AdminLetterErrorTarget | null>(null);
+
+  const setLetterError = (message: string, target: AdminLetterErrorTarget = "form") => {
+    setError(message);
+    setErrorTarget(target);
+    setSavedAt(null);
+
+    if (target === "rules-description" || target === "rules-image") {
+      setActiveSubTab("rules");
+    } else if (target === "letter-checklist" || target === "letter-image") {
+      setActiveSubTab("letter");
+    }
+  };
+
+  const clearLetterError = (target?: AdminLetterErrorTarget) => {
+    if (!target || errorTarget === target || errorTarget === "form") {
+      setError(null);
+      setErrorTarget(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -591,19 +628,27 @@ export function AdminWaTemplates({
     };
   }, [rulesPreview]);
 
-  const updateChecklistItem = (index: number, value: string) =>
+  const updateChecklistItem = (index: number, value: string) => {
+    clearLetterError("letter-checklist");
     setChecklist((current) => current.map((item, idx) => (idx === index ? value : item)));
+  };
 
-  const addChecklistItem = () => setChecklist((current) => [...current, ""]);
+  const addChecklistItem = () => {
+    clearLetterError("letter-checklist");
+    setChecklist((current) => [...current, ""]);
+  };
 
-  const removeChecklistItem = (index: number) =>
+  const removeChecklistItem = (index: number) => {
+    clearLetterError("letter-checklist");
     setChecklist((current) => current.filter((_, idx) => idx !== index));
+  };
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const next = event.target.files?.[0] ?? null;
     if (!next) {
       setFile(null);
       setPreview(null);
+      clearLetterError("letter-image");
       return;
     }
 
@@ -612,7 +657,7 @@ export function AdminWaTemplates({
       event.currentTarget.value = "";
       setFile(null);
       setPreview(null);
-      setError("Format gambar harus JPG, PNG, atau WebP.");
+      setLetterError("Format gambar harus JPG, PNG, atau WebP.", "letter-image");
       return;
     }
 
@@ -620,11 +665,11 @@ export function AdminWaTemplates({
       event.currentTarget.value = "";
       setFile(null);
       setPreview(null);
-      setError("Ukuran gambar maksimal 5 MB.");
+      setLetterError("Ukuran gambar maksimal 5 MB.", "letter-image");
       return;
     }
 
-    setError(null);
+    clearLetterError("letter-image");
     setFile(next);
     setPreview(URL.createObjectURL(next));
   };
@@ -634,6 +679,7 @@ export function AdminWaTemplates({
     if (!next) {
       setRulesFile(null);
       setRulesPreview(null);
+      clearLetterError("rules-image");
       return;
     }
 
@@ -642,7 +688,7 @@ export function AdminWaTemplates({
       event.currentTarget.value = "";
       setRulesFile(null);
       setRulesPreview(null);
-      setError("Format gambar harus JPG, PNG, atau WebP.");
+      setLetterError("Format gambar harus JPG, PNG, atau WebP.", "rules-image");
       return;
     }
 
@@ -650,11 +696,11 @@ export function AdminWaTemplates({
       event.currentTarget.value = "";
       setRulesFile(null);
       setRulesPreview(null);
-      setError("Ukuran gambar maksimal 5 MB.");
+      setLetterError("Ukuran gambar maksimal 5 MB.", "rules-image");
       return;
     }
 
-    setError(null);
+    clearLetterError("rules-image");
     setRulesFile(next);
     setRulesPreview(URL.createObjectURL(next));
   };
@@ -664,16 +710,17 @@ export function AdminWaTemplates({
     const cleanedDescription = rulesDescription.trim();
 
     if (cleanedChecklist.length === 0) {
-      setError("Minimal satu poin persyaratan contoh surat.");
+      setLetterError("Minimal satu poin persyaratan contoh surat.", "letter-checklist");
       return;
     }
     if (!cleanedDescription) {
-      setError("Deskripsi tata tertib kunjungan tidak boleh kosong.");
+      setLetterError("Deskripsi tata tertib kunjungan tidak boleh kosong.", "rules-description");
       return;
     }
 
     setSaving(true);
     setError(null);
+    setErrorTarget(null);
     try {
       const data = await updateAdminLetter(cleanedChecklist, file, cleanedDescription, rulesFile);
       setChecklist(data.checklist);
@@ -690,16 +737,25 @@ export function AdminWaTemplates({
       );
     } catch (err) {
       if (err instanceof ValidationError) {
-        setError(Object.values(err.errors)[0]?.[0] ?? "Validasi gagal.");
+        const firstError = Object.entries(err.errors)[0];
+        setLetterError(
+          firstError?.[1]?.[0] ?? err.message ?? "Validasi gagal.",
+          adminLetterErrorTargetFromField(firstError?.[0]),
+        );
       } else if (err instanceof ApiError) {
-        setError(err.message);
+        setLetterError(err.message);
       } else {
-        setError("Gagal menyimpan ketentuan kunjungan.");
+        setLetterError("Gagal menyimpan ketentuan kunjungan.");
       }
     } finally {
       setSaving(false);
     }
   };
+
+  const letterChecklistError = errorTarget === "letter-checklist" ? error : null;
+  const letterImageError = errorTarget === "letter-image" ? error : null;
+  const rulesDescriptionError = errorTarget === "rules-description" ? error : null;
+  const rulesImageError = errorTarget === "rules-image" ? error : null;
 
   return (
     <div className="admin-cms-page">
@@ -708,25 +764,36 @@ export function AdminWaTemplates({
           <h1>Ketentuan Kunjungan</h1>
           <p>Kelola peraturan tata tertib fisik dan acuan contoh surat permohonan kunjungan.</p>
         </div>
-        <button type="button" className="button button-primary" onClick={save} disabled={saving || loading}>
-          {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
-        </button>
+        <div className="admin-letter-save-actions">
+          <button type="button" className="button button-primary" onClick={save} disabled={saving || loading}>
+            {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
+          </button>
+          <div className="admin-letter-save-status" aria-live={error ? "assertive" : "polite"} aria-atomic="true">
+            {error ? (
+              <p className="admin-form-error" role="alert">
+                {error}
+              </p>
+            ) : savedAt ? (
+              <small className="admin-cms-saved">Tersimpan terakhir pukul {savedAt}.</small>
+            ) : null}
+          </div>
+        </div>
       </div>
 
-      <div className="admin-subtabs" style={{ display: "flex", gap: "12px", marginBottom: "24px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
+      <div className="admin-subtabs">
         <button
           type="button"
-          className={`button ${activeSubTab === "rules" ? "button-primary" : "button-ghost"}`}
+          className={`button admin-subtab-button ${activeSubTab === "rules" ? "button-primary" : "button-ghost"}`}
           onClick={() => setActiveSubTab("rules")}
-          style={{ minHeight: "40px", padding: "0 18px", fontSize: "0.95rem" }}
+          aria-pressed={activeSubTab === "rules"}
         >
           Tata Tertib Kunjungan
         </button>
         <button
           type="button"
-          className={`button ${activeSubTab === "letter" ? "button-primary" : "button-ghost"}`}
+          className={`button admin-subtab-button ${activeSubTab === "letter" ? "button-primary" : "button-ghost"}`}
           onClick={() => setActiveSubTab("letter")}
-          style={{ minHeight: "40px", padding: "0 18px", fontSize: "0.95rem" }}
+          aria-pressed={activeSubTab === "letter"}
         >
           Contoh Surat Permohonan
         </button>
@@ -749,8 +816,13 @@ export function AdminWaTemplates({
                 <textarea
                   className="textarea"
                   value={rulesDescription}
-                  onChange={(event) => setRulesDescription(event.target.value)}
+                  onChange={(event) => {
+                    setRulesDescription(event.target.value);
+                    clearLetterError("rules-description");
+                  }}
                   rows={8}
+                  aria-invalid={Boolean(rulesDescriptionError)}
+                  aria-describedby={rulesDescriptionError ? "admin-letter-rules-description-error" : undefined}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -759,10 +831,15 @@ export function AdminWaTemplates({
                     fontSize: "0.95rem",
                     lineHeight: "1.5",
                     fontFamily: "inherit",
-                    resize: "vertical"
+                    resize: "vertical",
                   }}
                   placeholder="Masukkan kalimat pengantar tata tertib..."
                 />
+                {rulesDescriptionError && (
+                  <p id="admin-letter-rules-description-error" className="admin-form-error admin-form-error--field">
+                    {rulesDescriptionError}
+                  </p>
+                )}
               </label>
             </div>
           </section>
@@ -790,6 +867,9 @@ export function AdminWaTemplates({
                     {rulesFile ? rulesFile.name : "Belum ada file dipilih"}
                   </span>
                 </div>
+                {rulesImageError && (
+                  <p className="admin-form-error admin-form-error--field">{rulesImageError}</p>
+                )}
               </div>
             </div>
           </section>
@@ -811,7 +891,11 @@ export function AdminWaTemplates({
                 <div key={index} className="admin-letter-checklist-row">
                   <label className="form-field">
                     <span>Poin {index + 1}</span>
-                    <input value={item} onChange={(event) => updateChecklistItem(index, event.target.value)} />
+                    <input
+                      value={item}
+                      onChange={(event) => updateChecklistItem(index, event.target.value)}
+                      aria-invalid={Boolean(letterChecklistError)}
+                    />
                   </label>
                   <button
                     type="button"
@@ -824,6 +908,9 @@ export function AdminWaTemplates({
                   </button>
                 </div>
               ))}
+              {letterChecklistError && (
+                <p className="admin-form-error admin-form-error--field">{letterChecklistError}</p>
+              )}
             </div>
           </section>
 
@@ -850,17 +937,13 @@ export function AdminWaTemplates({
                     {file ? file.name : "Belum ada file dipilih"}
                   </span>
                 </div>
+                {letterImageError && (
+                  <p className="admin-form-error admin-form-error--field">{letterImageError}</p>
+                )}
               </div>
             </div>
           </section>
         </div>
-      )}
-
-      {error && <p className="admin-form-error">{error}</p>}
-      {savedAt && (
-        <small className="admin-cms-saved" style={{ display: "block", marginTop: "12px" }}>
-          Tersimpan terakhir pukul {savedAt}.
-        </small>
       )}
     </div>
   );

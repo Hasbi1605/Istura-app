@@ -6024,6 +6024,47 @@ a {
   gap: 12px;
 }
 
+.admin-letter-save-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  max-width: min(420px, 100%);
+}
+
+.admin-letter-save-status {
+  min-height: 1.1rem;
+  text-align: right;
+}
+
+.admin-letter-save-status .admin-form-error {
+  margin-top: 0;
+}
+
+.admin-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.admin-subtab-button {
+  min-height: 40px;
+  padding: 0 18px;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+  .admin-letter-save-actions {
+    justify-items: stretch;
+    width: 100%;
+    max-width: none;
+  }
+
+  .admin-letter-save-status {
+    text-align: left;
+  }
+}
+
 .admin-cms-link {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
@@ -8078,6 +8119,10 @@ a {
   color: rgba(161, 61, 54, 1);
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.admin-form-error--field {
+  margin-top: 6px;
 }
 
 .admin-audit-list {
