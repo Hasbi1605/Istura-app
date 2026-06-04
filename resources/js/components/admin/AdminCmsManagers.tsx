@@ -724,7 +724,7 @@ export function AdminWaTemplates({
       <div className="admin-subtabs" style={{ display: "flex", gap: "12px", marginBottom: "24px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
         <button
           type="button"
-          className={`button ${activeSubTab === "rules" ? "button-primary" : "button-secondary"}`}
+          className={`button ${activeSubTab === "rules" ? "button-primary" : "button-ghost"}`}
           onClick={() => setActiveSubTab("rules")}
           style={{ minHeight: "40px", padding: "0 18px", fontSize: "0.95rem" }}
         >
@@ -732,7 +732,7 @@ export function AdminWaTemplates({
         </button>
         <button
           type="button"
-          className={`button ${activeSubTab === "letter" ? "button-primary" : "button-secondary"}`}
+          className={`button ${activeSubTab === "letter" ? "button-primary" : "button-ghost"}`}
           onClick={() => setActiveSubTab("letter")}
           style={{ minHeight: "40px", padding: "0 18px", fontSize: "0.95rem" }}
         >
