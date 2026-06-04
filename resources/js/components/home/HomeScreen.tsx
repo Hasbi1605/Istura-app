@@ -648,7 +648,7 @@ function RulesSection({
         </article>
 
         <aside className="rules-notes">
-          <span className="section-kicker">{content.rulesKicker || "Tata Tertib Fisik"}</span>
+          <span className="section-kicker">{content.rulesKicker || "Tata Tertib"}</span>
           <h3>{content.rulesTitle || "Kepatuhan Protokol"}</h3>
 
           <p style={{ marginTop: "16px", marginBottom: "24px", fontSize: "1.05rem", lineHeight: "1.55", color: "var(--muted)", fontWeight: 500 }}>

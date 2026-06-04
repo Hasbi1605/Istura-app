@@ -112,7 +112,7 @@ class SiteContentDefaults
             'rulesSection' => [
                 'title' => 'Aturan & Tata Tertib Kunjungan ISTURA.',
                 'description' => 'Mohon patuhi seluruh peraturan di bawah ini agar kunjungan Anda di Istana Kepresidenan Yogyakarta berjalan dengan tertib, aman, dan nyaman.',
-                'rulesKicker' => 'Tata tertib fisik',
+                'rulesKicker' => 'Tata tertib',
                 'rulesTitle' => 'Peraturan Kunjungan Istana Kepresidenan Yogyakarta',
                 'rulesList' => [
                     'Berpakaian sopan, rapi, bersepatu',
