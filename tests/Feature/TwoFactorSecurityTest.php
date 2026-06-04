@@ -180,6 +180,15 @@ class TwoFactorSecurityTest extends TestCase
             ->assertJson(['two_factor_required' => true]);
     }
 
+    public function test_unauthenticated_private_admin_channel_request_returns_json_unauthorized(): void
+    {
+        $this->postJson('/broadcasting/auth', [
+            'socket_id' => '1234.5678',
+            'channel_name' => 'private-admin.bookings',
+        ])->assertUnauthorized()
+            ->assertJson(['message' => 'Unauthenticated.']);
+    }
+
     public function test_expired_admin_session_cannot_authorize_private_admin_channel(): void
     {
         $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
