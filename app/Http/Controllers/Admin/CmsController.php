@@ -150,6 +150,7 @@ class CmsController extends Controller
             'Tanda tangan kepala instansi atau penanggung jawab.',
         ],
         'rulesImage' => '/assets/peraturan-kunjungan.webp',
+        'rulesDescription' => 'Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.',
         'rulesList' => [
             'Berpakaian sopan, rapi, bersepatu',
             'Dilarang menggunakan kaos oblong, celana jeans, dan celana pendek',
@@ -177,6 +178,8 @@ class CmsController extends Controller
         return $this->hero();
     }
 
+    // ---- Letter & rules --------------------------------------------------
+
     public function letter(): JsonResponse
     {
         return response()->json(['data' => SiteSetting::read('letter', self::LETTER_DEFAULT)]);
@@ -193,8 +196,9 @@ class CmsController extends Controller
         $value = [
             'checklist' => array_values($request->validated('checklist')),
             'image' => $current['image'] ?? self::LETTER_DEFAULT['image'],
-            'rulesList' => array_values($request->validated('rulesList')),
+            'rulesDescription' => $request->validated('rulesDescription'),
             'rulesImage' => $current['rulesImage'] ?? self::LETTER_DEFAULT['rulesImage'],
+            'rulesList' => $current['rulesList'] ?? self::LETTER_DEFAULT['rulesList'],
         ];
 
         if ($request->hasFile('image')) {
@@ -229,7 +233,7 @@ class CmsController extends Controller
 
         AuditLogger::record($request->user(), 'Memperbarui ketentuan kunjungan (surat & tata tertib)', SiteSetting::class, 'letter', [
             'checklist_count' => count($value['checklist']),
-            'rules_count' => count($value['rulesList']),
+            'description_updated' => true,
             'image_updated' => $request->hasFile('image'),
             'rules_image_updated' => $request->hasFile('rulesImage'),
         ]);

@@ -62,6 +62,7 @@ export type ApiLetter = {
   image: string;
   checklist: string[];
   rulesImage?: string;
+  rulesDescription?: string;
   rulesList?: string[];
 };
 
@@ -93,13 +94,13 @@ export const fetchAdminLetter = () =>
 export const updateAdminLetter = (
   checklist: string[],
   image?: File | null,
-  rulesList?: string[],
+  rulesDescription?: string,
   rulesImage?: File | null,
 ) => {
   const formData = new FormData();
   checklist.forEach((item) => formData.append("checklist[]", item));
   if (image) formData.append("image", image);
-  if (rulesList) rulesList.forEach((item) => formData.append("rulesList[]", item));
+  if (rulesDescription) formData.append("rulesDescription", rulesDescription);
   if (rulesImage) formData.append("rulesImage", rulesImage);
   return api<{ data: ApiLetter }>("/api/admin/cms/letter", { method: "POST", formData }).then(
     (r) => r.data,

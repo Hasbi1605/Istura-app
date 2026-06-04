@@ -20,7 +20,7 @@ class AdminCmsLetterImageTest extends TestCase
 
         $this->postJson('/api/admin/cms/letter', [
             'checklist' => ['Kop surat resmi.', 'Tanggal kunjungan jelas.'],
-            'rulesList' => ['Berpakaian rapi.', 'Dilarang membawa senjata.'],
+            'rulesDescription' => 'Teks tata tertib baru yang cukup panjang untuk lulus validasi.',
             'image' => UploadedFile::fake()->image('contoh-surat.png', 1200, 1600)->size(400),
         ])->assertOk()
             ->assertJsonPath('data.checklist.0', 'Kop surat resmi.');
@@ -40,7 +40,7 @@ class AdminCmsLetterImageTest extends TestCase
 
         $this->postJson('/api/admin/cms/letter', [
             'checklist' => ['Kop surat resmi.'],
-            'rulesList' => ['Berpakaian rapi.'],
+            'rulesDescription' => 'Teks tata tertib baru yang cukup panjang untuk lulus validasi.',
             'image' => UploadedFile::fake()->createWithContent(
                 'contoh-surat.svg',
                 '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>',
@@ -58,7 +58,7 @@ class AdminCmsLetterImageTest extends TestCase
 
         $this->postJson('/api/admin/cms/letter', [
             'checklist' => ['Kop surat resmi.'],
-            'rulesList' => ['Berpakaian rapi.'],
+            'rulesDescription' => 'Teks tata tertib baru yang cukup panjang untuk lulus validasi.',
             'image' => UploadedFile::fake()->createWithContent(
                 'contoh-surat.png',
                 $this->pngWithDimensions(12000, 12000),

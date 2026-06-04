@@ -548,7 +548,7 @@ export function AdminWaTemplates({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
-  const [rulesList, setRulesList] = useState<string[]>(DEFAULT_SITE_CONTENT.rulesSection.rulesList);
+  const [rulesDescription, setRulesDescription] = useState<string>("Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.");
   const [rulesImage, setRulesImage] = useState<string>("/assets/peraturan-kunjungan.webp");
   const [rulesFile, setRulesFile] = useState<File | null>(null);
   const [rulesPreview, setRulesPreview] = useState<string | null>(null);
@@ -567,7 +567,7 @@ export function AdminWaTemplates({
         if (cancelled) return;
         setChecklist(data.checklist.length ? data.checklist : letterChecklist);
         setImage(data.image || ASSETS.letterExample);
-        setRulesList(data.rulesList?.length ? data.rulesList : DEFAULT_SITE_CONTENT.rulesSection.rulesList);
+        setRulesDescription(data.rulesDescription || "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.");
         setRulesImage(data.rulesImage || "/assets/peraturan-kunjungan.webp");
       })
       .catch(() => {})
@@ -598,14 +598,6 @@ export function AdminWaTemplates({
 
   const removeChecklistItem = (index: number) =>
     setChecklist((current) => current.filter((_, idx) => idx !== index));
-
-  const updateRulesItem = (index: number, value: string) =>
-    setRulesList((current) => current.map((item, idx) => (idx === index ? value : item)));
-
-  const addRulesItem = () => setRulesList((current) => [...current, ""]);
-
-  const removeRulesItem = (index: number) =>
-    setRulesList((current) => current.filter((_, idx) => idx !== index));
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const next = event.target.files?.[0] ?? null;
@@ -669,24 +661,24 @@ export function AdminWaTemplates({
 
   const save = async () => {
     const cleanedChecklist = checklist.map((item) => item.trim()).filter(Boolean);
-    const cleanedRules = rulesList.map((item) => item.trim()).filter(Boolean);
+    const cleanedDescription = rulesDescription.trim();
 
     if (cleanedChecklist.length === 0) {
       setError("Minimal satu poin persyaratan contoh surat.");
       return;
     }
-    if (cleanedRules.length === 0) {
-      setError("Minimal satu poin tata tertib kunjungan.");
+    if (!cleanedDescription) {
+      setError("Deskripsi tata tertib kunjungan tidak boleh kosong.");
       return;
     }
 
     setSaving(true);
     setError(null);
     try {
-      const data = await updateAdminLetter(cleanedChecklist, file, cleanedRules, rulesFile);
+      const data = await updateAdminLetter(cleanedChecklist, file, cleanedDescription, rulesFile);
       setChecklist(data.checklist);
       setImage(data.image || ASSETS.letterExample);
-      setRulesList(data.rulesList?.length ? data.rulesList : DEFAULT_SITE_CONTENT.rulesSection.rulesList);
+      setRulesDescription(data.rulesDescription || "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.");
       setRulesImage(data.rulesImage || "/assets/peraturan-kunjungan.webp");
       onChange?.(data);
       setFile(null);
@@ -747,31 +739,31 @@ export function AdminWaTemplates({
           <section className="admin-card">
             <header className="admin-card-head">
               <div>
-                <h2>Poin Tata Tertib</h2>
-                <p>Daftar peraturan fisik yang ditampilkan di halaman publik.</p>
+                <h2>Deskripsi Tata Tertib</h2>
+                <p>Teks pengantar/deskripsi tata tertib fisik kunjungan yang ditampilkan di halaman publik.</p>
               </div>
-              <button type="button" className="admin-card-link" onClick={addRulesItem}>
-                Tambah aturan
-              </button>
             </header>
-            <div className="admin-letter-checklist">
-              {rulesList.map((item, index) => (
-                <div key={index} className="admin-letter-checklist-row">
-                  <label className="form-field">
-                    <span>Aturan {index + 1}</span>
-                    <input value={item} onChange={(event) => updateRulesItem(index, event.target.value)} />
-                  </label>
-                  <button
-                    type="button"
-                    className="admin-icon-btn admin-icon-btn--danger"
-                    onClick={() => removeRulesItem(index)}
-                    aria-label={`Hapus aturan ${index + 1}`}
-                    disabled={rulesList.length <= 1}
-                  >
-                    <X size={16} aria-hidden="true" />
-                  </button>
-                </div>
-              ))}
+            <div className="admin-cms-form" style={{ marginTop: "20px" }}>
+              <label className="form-field">
+                <span>Teks Pengantar</span>
+                <textarea
+                  className="textarea"
+                  value={rulesDescription}
+                  onChange={(event) => setRulesDescription(event.target.value)}
+                  rows={8}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--line)",
+                    fontSize: "0.95rem",
+                    lineHeight: "1.5",
+                    fontFamily: "inherit",
+                    resize: "vertical"
+                  }}
+                  placeholder="Masukkan kalimat pengantar tata tertib..."
+                />
+              </label>
             </div>
           </section>
 

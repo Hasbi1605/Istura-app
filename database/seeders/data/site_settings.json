@@ -13,7 +13,9 @@
       "Perihal permohonan kunjungan dan tujuan surat yang jelas.",
       "Tanggal, waktu, jumlah peserta, nama koordinator, NIK, dan nomor HP.",
       "Tanda tangan kepala instansi atau penanggung jawab."
-    ]
+    ],
+    "rulesImage": "/assets/peraturan-kunjungan.webp",
+    "rulesDescription": "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta."
   },
   "site_content": {
     "nav": {

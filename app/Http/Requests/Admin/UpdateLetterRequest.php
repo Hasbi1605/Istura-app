@@ -32,8 +32,7 @@ class UpdateLetterRequest extends FormRequest
                 'max:5120',
                 'dimensions:max_width='.self::LETTER_IMAGE_MAX_WIDTH.',max_height='.self::LETTER_IMAGE_MAX_HEIGHT,
             ],
-            'rulesList' => ['required', 'array', 'min:1'],
-            'rulesList.*' => ['required', 'string', 'max:255'],
+            'rulesDescription' => ['required', 'string', 'max:1000'],
             'rulesImage' => [
                 'sometimes',
                 'file',
