@@ -53,14 +53,18 @@ function closureReasonLabel(day?: VisitDay): string | null {
 
 function closureReasonBadge(day?: VisitDay): string | null {
   const type = day?.closureReason?.type ?? day?.holiday?.type;
-  if (type === "national_holiday") return "Libur Nasional";
-  if (type === "collective_leave") return "Cuti Bersama";
-  if (type === "operational_closed") return "Libur";
+  if (type === "national_holiday" || type === "collective_leave" || type === "operational_closed") {
+    return "Libur";
+  }
 
   return null;
 }
 
 function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
+  const type = slot.closureReason?.type ?? day?.closureReason?.type ?? day?.holiday?.type;
+  if (type === "national_holiday") return "Libur Nasional";
+  if (type === "collective_leave") return "Cuti Bersama";
+  if (type === "operational_closed") return "Ditutup admin";
   return slot.closureReason?.label ?? closureReasonLabel(day);
 }
 
