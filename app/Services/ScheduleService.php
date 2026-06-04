@@ -257,7 +257,7 @@ class ScheduleService
             ? trim((string) preg_replace('/^Cuti Bersama\s*/i', '', $holiday->name))
             : $holiday->name;
 
-        return $prefix.': '.$name.($holiday->tentative ? ' (belum pasti)' : '');
+        return $prefix.': '.$name;
     }
 
     /**

@@ -406,7 +406,8 @@ class ScheduleSyncTest extends TestCase
 
         $slot = $this->slotFromResponse($secondResponse->json('data'), '2026-06-16', '08.00');
         $this->assertSame('Closed', $slot['status']);
-        $this->assertSame('Libur Nasional: Satu Muharam / Tahun Baru Hijriah (belum pasti)', $secondResponse->json('data.0.closureReason.label'));
+        $this->assertSame('Libur Nasional: Satu Muharam / Tahun Baru Hijriah', $secondResponse->json('data.0.closureReason.label'));
+        $this->assertTrue($secondResponse->json('data.0.closureReason.tentative'));
         $this->assertDatabaseHas('national_holidays', [
             'date' => '2026-06-16',
             'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
