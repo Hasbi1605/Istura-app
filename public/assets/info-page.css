@@ -1,0 +1,140 @@
+/* Stylesheet halaman info server-rendered (alur & peraturan kunjungan).
+   Dipisah dari blade agar tidak melanggar CSP (style-src 'self'); inline
+   <style> diblokir oleh policy. File ini disajikan langsung dari /public,
+   jadi tetap tampil walau bundle Vite sedang dibangun ulang saat deploy. */
+
+:root {
+    --navy: #10182f;
+    --navy-2: #172346;
+    --gold: #c49212;
+    --gold-2: #e5bd55;
+    --paper: #fffaf0;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+    min-height: 100vh;
+    padding: 32px 20px 56px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+    color: var(--paper);
+    background:
+        radial-gradient(circle at 20% 12%, rgba(229, 189, 85, 0.08) 0, transparent 42%),
+        radial-gradient(circle at 80% 88%, rgba(229, 189, 85, 0.06) 0, transparent 42%),
+        linear-gradient(160deg, var(--navy), var(--navy-2));
+}
+
+.info-shell {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.info-head {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.info-logo {
+    width: 72px;
+    height: auto;
+    margin: 0 auto 16px;
+    display: block;
+}
+
+.info-title {
+    margin: 0 0 8px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.info-sub {
+    margin: 0 auto;
+    max-width: 480px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.info-figure {
+    margin: 0 0 28px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(229, 189, 85, 0.18);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+}
+
+.info-figure h2 {
+    margin: 4px 4px 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+.info-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    background: #fff;
+}
+
+/* Kartu lokasi + tautan Google Maps */
+.info-location {
+    margin: 0 0 28px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(229, 189, 85, 0.18);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+}
+
+.info-location h2 {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+.info-location p {
+    margin: 0 0 16px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.info-map-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 22px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--navy);
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    border-radius: 999px;
+    box-shadow: 0 12px 24px rgba(196, 146, 18, 0.28);
+    transition: transform 0.15s ease;
+}
+
+.info-map-link:hover { transform: translateY(-1px); }
+
+.info-map-link svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.info-foot {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.4);
+}
