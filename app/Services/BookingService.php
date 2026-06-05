@@ -605,11 +605,30 @@ class BookingService
             && $booking->submitted_at->copy()->timezone('Asia/Jakarta')->lte($now->copy()->subHours($pendingTtlHours));
     }
 
+    private const IDENTITY_LIMIT_MESSAGE = 'Identitas atau nomor WhatsApp ini sudah mencapai batas booking aktif. Tunggu proses selesai atau hubungi admin.';
+
     private function assertIdentityMayBook(string $nik, string $whatsapp, bool $lock = false): void
+    {
+        if (! $this->identityActiveBookingExceeded($nik, $whatsapp, $lock)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'nik' => [self::IDENTITY_LIMIT_MESSAGE],
+            'whatsapp' => [self::IDENTITY_LIMIT_MESSAGE],
+        ]);
+    }
+
+    /**
+     * Read-only check apakah identitas (NIK atau WhatsApp) sudah mencapai batas
+     * booking aktif. Dipakai oleh precheck wizard maupun validasi submit akhir
+     * supaya aturan bisnisnya tetap satu sumber.
+     */
+    public function identityActiveBookingExceeded(string $nik, string $whatsapp, bool $lock = false): bool
     {
         $limit = (int) config('booking.public_active_identity_limit', 2);
         if ($limit <= 0) {
-            return;
+            return false;
         }
 
         $nikHash = Booking::identityHash($nik);
@@ -629,14 +648,7 @@ class BookingService
             $query->lockForUpdate();
         }
 
-        if ($query->count() < $limit) {
-            return;
-        }
-
-        throw ValidationException::withMessages([
-            'nik' => ['Identitas atau nomor WhatsApp ini sudah mencapai batas booking aktif. Tunggu proses selesai atau hubungi admin.'],
-            'whatsapp' => ['Identitas atau nomor WhatsApp ini sudah mencapai batas booking aktif. Tunggu proses selesai atau hubungi admin.'],
-        ]);
+        return $query->count() >= $limit;
     }
 
     private function statusAfterStaleReschedule(Booking $booking, Carbon $now): string

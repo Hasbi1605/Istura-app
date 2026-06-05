@@ -1030,6 +1030,60 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_public_booking_precheck_rejects_identity_at_active_limit(): void
+    {
+        Storage::fake('local');
+        config(['booking.public_active_identity_limit' => 2]);
+
+        $this->createBooking([
+            'code' => 'ISTURA-2026-PRECHK1',
+            'date' => '2026-06-04',
+            'time' => '08.00',
+            'status' => 'Pending',
+            'nik' => '1234567890123456',
+            'whatsapp' => '081234567890',
+        ]);
+        $this->createBooking([
+            'code' => 'ISTURA-2026-PRECHK2',
+            'date' => '2026-06-05',
+            'time' => '08.00',
+            'status' => 'Accepted',
+            'nik' => '1234567890123456',
+            'whatsapp' => '6281234567890',
+        ]);
+
+        $this->post('/api/public/bookings/precheck', [
+            'nik' => '1234567890123456',
+            'whatsapp' => '081234567890',
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['nik', 'whatsapp']);
+
+        $this->assertDatabaseCount('bookings', 2);
+    }
+
+    public function test_public_booking_precheck_allows_identity_below_active_limit(): void
+    {
+        Storage::fake('local');
+        config(['booking.public_active_identity_limit' => 2]);
+
+        $this->createBooking([
+            'code' => 'ISTURA-2026-PRECHK3',
+            'date' => '2026-06-04',
+            'time' => '08.00',
+            'status' => 'Completed',
+            'nik' => '1234567890123456',
+            'whatsapp' => '081234567890',
+        ]);
+
+        $this->post('/api/public/bookings/precheck', [
+            'nik' => '1234567890123456',
+            'whatsapp' => '081234567890',
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.allowed', true);
+    }
+
     public function test_public_booking_codes_start_from_zero_sequence(): void
     {
         Storage::fake('local');

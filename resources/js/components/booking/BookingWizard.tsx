@@ -48,7 +48,7 @@ import {
   startOfMonth,
 } from "../../lib/date";
 import { INITIAL_FOOTER_CONTACTS, wizardSteps } from "../../constants";
-import { submitPublicBooking } from "../../api/bookings";
+import { submitPublicBooking, precheckBookingIdentity } from "../../api/bookings";
 import type { ApiBooking } from "../../api/bookings";
 import { ValidationError } from "../../api/client";
 import {
@@ -226,6 +226,7 @@ export function BookingWizard({
   const [successCode, setSuccessCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [stepTransitioning, setStepTransitioning] = useState(false);
+  const [prechecking, setPrechecking] = useState(false);
   // File asli surat permohonan disimpan di ref, bukan state, supaya tidak
   // memicu re-render dan tetap kompatibel dengan UX existing yang hanya
   // menampilkan nama file.
@@ -351,11 +352,40 @@ export function BookingWizard({
       submitBooking();
       return;
     }
+    if (step === 1) {
+      const passed = await runIdentityPrecheck();
+      if (!passed) return;
+    }
     const nextStep = Math.min(step + 1, wizardSteps.length - 1);
     setStepTransitioning(true);
     await preloadImage(wizardSteps[nextStep].image);
     setStep(nextStep);
     setStepTransitioning(false);
+  };
+
+  // Early warning: tahan transisi dari step Contact Person bila identitas sudah
+  // mencapai batas booking aktif, supaya user tidak mengisi seluruh wizard dulu
+  // baru ditolak saat submit. Server tetap sumber kebenaran limit-nya.
+  const runIdentityPrecheck = async (): Promise<boolean> => {
+    if (prechecking) return false;
+    setPrechecking(true);
+    try {
+      await precheckBookingIdentity({ nik: form.nik.trim(), whatsapp: form.whatsapp.trim() });
+      return true;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        const fieldErrors: Record<string, string> = {};
+        for (const [key, msgs] of Object.entries(err.errors)) {
+          fieldErrors[key] = msgs[0] ?? "Validasi gagal.";
+        }
+        setErrors(fieldErrors);
+      } else {
+        setErrors({ submit: "Tidak dapat memverifikasi data. Coba lagi." });
+      }
+      return false;
+    } finally {
+      setPrechecking(false);
+    }
   };
 
 	const submitBooking = () => {
@@ -640,7 +670,7 @@ export function BookingWizard({
 					<button
 						className="button button-ghost"
 						type="button"
-						disabled={submitting || stepTransitioning}
+						disabled={submitting || stepTransitioning || prechecking}
 						onClick={() => {
                     if (step === 0) {
                       onNavigate("home");
@@ -655,11 +685,13 @@ export function BookingWizard({
 					<button
 						className="button button-primary"
 						type="button"
-						disabled={submitting || stepTransitioning || (step === 3 && scheduleLoading && schedules.length === 0)}
+						disabled={submitting || stepTransitioning || prechecking || (step === 3 && scheduleLoading && schedules.length === 0)}
 						onClick={() => void goNext()}
 					>
 						{stepTransitioning ? (
 							<ButtonSpinner label="Menyiapkan langkah..." />
+						) : prechecking ? (
+							<ButtonSpinner label="Memverifikasi data..." />
 						) : step === 6 && submitting ? (
 							<ButtonSpinner label="Mengirim permohonan..." />
 						) : (

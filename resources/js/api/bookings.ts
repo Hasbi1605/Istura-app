@@ -113,3 +113,9 @@ export const submitPublicBooking = (form: FormData) =>
     method: "POST",
     formData: form,
   }).then((r) => r.data);
+
+export const precheckBookingIdentity = (payload: { nik: string; whatsapp: string }) =>
+  api<{ data: { allowed: boolean } }>("/api/public/bookings/precheck", {
+    method: "POST",
+    body: payload,
+  }).then((r) => r.data);

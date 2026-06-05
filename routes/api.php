@@ -32,6 +32,7 @@ Route::prefix('public')->group(function () {
     Route::get('wa-templates/{status}', [ContentController::class, 'waTemplate']);
 
     Route::middleware('throttle:public-bookings')->group(function () {
+        Route::post('bookings/precheck', [PublicBookingController::class, 'precheck']);
         Route::post('bookings', [PublicBookingController::class, 'store']);
     });
 
