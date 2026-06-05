@@ -105,11 +105,11 @@ export function feedbackLinkFor(booking: Booking): string {
   return `${publicAppOrigin()}/feedback/${encodeURIComponent(booking.code)}?token=${encodeURIComponent(booking.feedbackToken)}`;
 }
 
-// Tautan absolut ke infografis "Alur & Peraturan Kunjungan" (public/assets).
-// Dipakai placeholder {alur} pada template WA agar preview gambar muncul dan
-// URL selalu mengikuti origin aktif (dev/prod), bukan hardcoded.
+// Tautan ke halaman "Alur & Peraturan Kunjungan" (server-rendered, ber-OG-tag)
+// agar WhatsApp menampilkan kartu preview dengan thumbnail. Dipakai placeholder
+// {alur} pada template WA; origin mengikuti environment aktif (dev/prod).
 export function visitFlowImageUrl(): string {
-  return `${publicAppOrigin()}/assets/alur-kunjungan.webp`;
+  return `${publicAppOrigin()}/info/alur-kunjungan`;
 }
 
 function formatVisitTimeForWhatsapp(segments: ReturnType<typeof bookingSegments>, fallbackTime: string): string {
