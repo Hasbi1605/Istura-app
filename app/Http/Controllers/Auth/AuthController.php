@@ -62,8 +62,15 @@ class AuthController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->save();
 
+        if ($user->two_factor_confirmed_at !== null && ! $this->twoFactor->isSessionVerified($user, $request)) {
+            return response()->json([
+                'requires_2fa' => true,
+            ]);
+        }
+
         return response()->json([
             'user' => new UserResource($user),
+            'requires_2fa' => false,
         ]);
     }
 

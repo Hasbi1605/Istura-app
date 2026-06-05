@@ -42,7 +42,7 @@ class FeedbackController extends Controller
         $payload = $request->validated();
 
         try {
-            $feedback = DB::transaction(function () use ($code, $payload) {
+            $feedback = DB::transaction(function () use ($code, $payload, $request) {
                 $booking = Booking::where('code', $code)->lockForUpdate()->first();
 
                 $this->ensureValidFeedbackToken($booking, (string) $payload['token']);
@@ -75,7 +75,7 @@ class FeedbackController extends Controller
                     'booking_code' => $booking->code,
                     'rating' => $feedback->rating,
                     'allow_publish' => $feedback->allow_publish,
-                ]);
+                ], $request);
 
                 return $feedback;
             });

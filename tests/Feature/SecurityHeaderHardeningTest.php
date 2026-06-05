@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -47,6 +48,29 @@ class SecurityHeaderHardeningTest extends TestCase
         $responseBody = $response->getContent();
         $this->assertStringNotContainsString('App\\Models', $responseBody);
         $this->assertStringNotContainsString('WaTemplate', $responseBody);
+    }
+
+    public function test_configured_trusted_proxy_uses_forwarded_client_ip(): void
+    {
+        config(['trustedproxy.proxies' => ['192.0.2.10']]);
+
+        Route::get('/api/test-client-ip', fn (Request $request) => response()->json([
+            'ip' => $request->ip(),
+        ]));
+
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.10'])
+            ->withHeader('X-Forwarded-For', '198.51.100.25')
+            ->getJson('/api/test-client-ip')
+            ->assertOk()
+            ->assertJsonPath('ip', '198.51.100.25');
+
+        $this->flushHeaders();
+
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.11'])
+            ->withHeader('X-Forwarded-For', '198.51.100.25')
+            ->getJson('/api/test-client-ip')
+            ->assertOk()
+            ->assertJsonPath('ip', '192.0.2.11');
     }
 
     public function test_security_txt_is_available_as_static_policy_file(): void

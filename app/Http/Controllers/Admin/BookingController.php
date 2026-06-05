@@ -60,7 +60,7 @@ class BookingController extends Controller
     {
         $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         Gate::authorize('update', $booking);
-        $updated = $this->bookings->accept($booking, $request->user(), $request->input('note'));
+        $updated = $this->bookings->accept($booking, $request->user(), $request->input('note'), $request);
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }
@@ -69,7 +69,7 @@ class BookingController extends Controller
     {
         $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         Gate::authorize('update', $booking);
-        $updated = $this->bookings->reject($booking, $request->user(), $request->input('note'));
+        $updated = $this->bookings->reject($booking, $request->user(), $request->input('note'), $request);
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }
@@ -86,6 +86,7 @@ class BookingController extends Controller
             $payload['proposedDate'],
             $payload['proposedTime'],
             $payload['note'] ?? null,
+            $request,
         );
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
@@ -95,7 +96,7 @@ class BookingController extends Controller
     {
         $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         Gate::authorize('update', $booking);
-        $updated = $this->bookings->cancelReschedule($booking, $request->user(), $request->input('note'));
+        $updated = $this->bookings->cancelReschedule($booking, $request->user(), $request->input('note'), $request);
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }
@@ -104,7 +105,7 @@ class BookingController extends Controller
     {
         $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         Gate::authorize('update', $booking);
-        $updated = $this->bookings->complete($booking, $request->user(), $request->input('note'));
+        $updated = $this->bookings->complete($booking, $request->user(), $request->input('note'), $request);
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }
@@ -120,6 +121,7 @@ class BookingController extends Controller
             $request->validated('groupSize'),
             $request->input('note'),
             $request->boolean('allowOverbook'),
+            $request,
         );
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);

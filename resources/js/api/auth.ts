@@ -12,12 +12,21 @@ export type AuthUser = {
   twoFactorEnabled: boolean;
 };
 
-export async function login(email: string, password: string): Promise<AuthUser> {
-  const res = await api<{ user: AuthUser }>("/api/auth/login", {
+export type LoginResult = {
+  user: AuthUser | null;
+  requires2fa: boolean;
+};
+
+export async function login(email: string, password: string): Promise<LoginResult> {
+  const res = await api<{ user?: AuthUser | null; requires_2fa?: boolean }>("/api/auth/login", {
     method: "POST",
     body: { email, password },
   });
-  return res.user;
+
+  return {
+    user: res.user ?? null,
+    requires2fa: Boolean(res.requires_2fa),
+  };
 }
 
 export async function logout(): Promise<void> {

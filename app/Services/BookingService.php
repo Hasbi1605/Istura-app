@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\PublicCache;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -31,10 +32,11 @@ class BookingService
         private readonly ScheduleService $schedule,
     ) {}
 
-    public function createFromPublic(array $data, UploadedFile $document): Booking
+    public function createFromPublic(array $data, UploadedFile $document, ?Request $request = null): Booking
     {
         $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'Asia/Jakarta')->startOfDay();
         $this->schedule->ensureHolidayDataForDate($date);
+        $this->assertIdentityMayBook($data['nik'], $data['whatsapp']);
         $documentPath = null;
 
         try {
@@ -42,7 +44,8 @@ class BookingService
             $storedName = $code.'-'.Str::uuid().'.'.strtolower($document->getClientOriginalExtension());
             $documentPath = $document->storeAs('booking-letters', $storedName, 'local');
 
-            return DB::transaction(function () use ($data, $document, $date, $documentPath, $code) {
+            return DB::transaction(function () use ($data, $document, $date, $documentPath, $code, $request) {
+                $this->assertIdentityMayBook($data['nik'], $data['whatsapp'], true);
                 $segments = $this->buildSlotSegments($date, $data['time'], (int) $data['groupSize'], true);
 
                 $booking = new Booking;
@@ -63,7 +66,7 @@ class BookingService
                 $booking->save();
                 $this->persistBookingSlots($booking, $segments, true);
 
-                $this->logAudit(null, "Booking baru {$booking->code} dari {$booking->institution}", $booking);
+                $this->logAudit(null, "Booking baru {$booking->code} dari {$booking->institution}", $booking, request: $request);
 
                 $this->broadcastAfterCommit(fn () => BookingCreated::dispatch($booking->fresh()->load('slots')), $booking);
 
@@ -82,19 +85,19 @@ class BookingService
         }
     }
 
-    public function accept(Booking $booking, ?User $actor, ?string $note = null): Booking
+    public function accept(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null): Booking
     {
-        return $this->transitionTo($booking, 'Accepted', $actor, 'accept', $note);
+        return $this->transitionTo($booking, 'Accepted', $actor, 'accept', $note, $request);
     }
 
-    public function reject(Booking $booking, ?User $actor, ?string $note = null): Booking
+    public function reject(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null): Booking
     {
-        return $this->transitionTo($booking, 'Rejected', $actor, 'reject', $note);
+        return $this->transitionTo($booking, 'Rejected', $actor, 'reject', $note, $request);
     }
 
-    public function complete(Booking $booking, ?User $actor, ?string $note = null): Booking
+    public function complete(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null): Booking
     {
-        return $this->transitionTo($booking, 'Completed', $actor, 'complete', $note);
+        return $this->transitionTo($booking, 'Completed', $actor, 'complete', $note, $request);
     }
 
     public function expireStalePending(?Carbon $now = null): int
@@ -102,16 +105,24 @@ class BookingService
         $now = ($now ?? now('Asia/Jakarta'))->copy()->timezone('Asia/Jakarta');
         $today = $now->toDateString();
         $time = $now->format('H.i');
+        $pendingTtlHours = (int) config('booking.pending_ttl_hours', 48);
+        $pendingSubmittedBefore = $pendingTtlHours > 0
+            ? $now->copy()->subHours($pendingTtlHours)
+            : null;
         $expired = 0;
 
         Booking::query()
             ->where('status', 'Pending')
-            ->where(function ($query) use ($today, $time) {
+            ->where(function ($query) use ($today, $time, $pendingSubmittedBefore) {
                 $query->whereDate('date', '<', $today)
                     ->orWhere(function ($sameDay) use ($today, $time) {
                         $sameDay->whereDate('date', $today)
                             ->where('time', '<=', $time);
                     });
+
+                if ($pendingSubmittedBefore) {
+                    $query->orWhere('submitted_at', '<=', $pendingSubmittedBefore);
+                }
             })
             ->orderBy('id')
             ->chunkById(100, function ($bookings) use ($now, &$expired) {
@@ -122,7 +133,10 @@ class BookingService
                             ->lockForUpdate()
                             ->first();
 
-                        if (! $booking || $booking->status !== 'Pending' || ! $booking->hasVisitStarted($now)) {
+                        $expiredByVisitStart = $booking?->hasVisitStarted($now) ?? false;
+                        $expiredByTtl = $booking && $this->isPendingOlderThanTtl($booking, $now);
+
+                        if (! $booking || $booking->status !== 'Pending' || (! $expiredByVisitStart && ! $expiredByTtl)) {
                             return;
                         }
 
@@ -134,6 +148,7 @@ class BookingService
 
                         $this->logAudit(null, "Menandai kedaluwarsa booking {$booking->code}", $booking, [
                             'expired_at' => $booking->expired_at?->toDateTimeString(),
+                            'reason' => $expiredByTtl ? 'pending_ttl' : 'visit_started',
                         ]);
                         $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, 'expire'), $booking);
 
@@ -215,6 +230,7 @@ class BookingService
         string $proposedDate,
         string $proposedTime,
         ?string $note = null,
+        ?Request $request = null,
     ): Booking {
         $booking->proposed_date = $proposedDate;
         $booking->proposed_time = $proposedTime;
@@ -228,12 +244,12 @@ class BookingService
         );
         $booking->proposed_at = now();
 
-        return $this->transitionTo($booking, 'Reschedule', $actor, 'reschedule', $note);
+        return $this->transitionTo($booking, 'Reschedule', $actor, 'reschedule', $note, $request);
     }
 
-    public function cancelReschedule(Booking $booking, ?User $actor, ?string $note = null): Booking
+    public function cancelReschedule(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null): Booking
     {
-        return DB::transaction(function () use ($booking, $actor, $note) {
+        return DB::transaction(function () use ($booking, $actor, $note, $request) {
             $booking = Booking::with('slots')
                 ->whereKey($booking->id)
                 ->lockForUpdate()
@@ -260,7 +276,7 @@ class BookingService
             $booking->slots()->where('kind', BookingSlot::KIND_PROPOSED)->delete();
             $this->syncBookingSlotKeys($booking);
 
-            $this->logAudit($actor, "Membatalkan usulan reschedule booking {$booking->code}", $booking);
+            $this->logAudit($actor, "Membatalkan usulan reschedule booking {$booking->code}", $booking, request: $request);
             $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), 'Reschedule', 'reschedule-cancel'), $booking, $affectedScheduleDates);
 
             return $booking->fresh()->load('slots');
@@ -280,8 +296,9 @@ class BookingService
         ?int $groupSize = null,
         ?string $note = null,
         bool $allowOverbook = false,
+        ?Request $request = null,
     ): Booking {
-        return DB::transaction(function () use ($booking, $actor, $segments, $groupSize, $note, $allowOverbook) {
+        return DB::transaction(function () use ($booking, $actor, $segments, $groupSize, $note, $allowOverbook, $request) {
             $booking = Booking::with('slots')
                 ->whereKey($booking->id)
                 ->lockForUpdate()
@@ -350,7 +367,7 @@ class BookingService
                 'old_group_size' => $oldGroupSize,
                 'new_group_size' => $targetGroupSize,
                 'note' => $note,
-            ]);
+            ], $request);
             $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments'), $booking, $affectedScheduleDates);
 
             return $booking->fresh()->load('slots');
@@ -363,9 +380,10 @@ class BookingService
         ?User $actor,
         string $action,
         ?string $note = null,
+        ?Request $request = null,
     ): Booking {
         try {
-            return DB::transaction(function () use ($booking, $newStatus, $actor, $action, $note) {
+            return DB::transaction(function () use ($booking, $newStatus, $actor, $action, $note, $request) {
                 $preparedProposal = null;
                 if ($newStatus === 'Reschedule') {
                     $preparedProposal = [
@@ -466,7 +484,7 @@ class BookingService
                     'reschedule' => 'Menjadwalkan ulang',
                     default => 'Mengubah',
                 };
-                $this->logAudit($actor, "{$verb} booking {$booking->code}", $booking);
+                $this->logAudit($actor, "{$verb} booking {$booking->code}", $booking, request: $request);
 
                 $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, $action), $booking, $affectedScheduleDates);
 
@@ -576,6 +594,49 @@ class BookingService
                 'status' => ['Usulan jadwal kunjungan sudah terlewat. Tawarkan jadwal baru atau batalkan reschedule.'],
             ]);
         }
+    }
+
+    private function isPendingOlderThanTtl(Booking $booking, Carbon $now): bool
+    {
+        $pendingTtlHours = (int) config('booking.pending_ttl_hours', 48);
+
+        return $pendingTtlHours > 0
+            && $booking->submitted_at !== null
+            && $booking->submitted_at->copy()->timezone('Asia/Jakarta')->lte($now->copy()->subHours($pendingTtlHours));
+    }
+
+    private function assertIdentityMayBook(string $nik, string $whatsapp, bool $lock = false): void
+    {
+        $limit = (int) config('booking.public_active_identity_limit', 2);
+        if ($limit <= 0) {
+            return;
+        }
+
+        $nikHash = Booking::identityHash($nik);
+        $normalizedWhatsapp = Booking::normalizeWhatsapp($whatsapp);
+
+        $query = Booking::query()
+            ->whereIn('status', Booking::ACTIVE_STATUSES)
+            ->where(function ($identity) use ($nikHash, $normalizedWhatsapp) {
+                $identity->where('nik_hash', $nikHash);
+
+                if ($normalizedWhatsapp) {
+                    $identity->orWhere('whatsapp_normalized', $normalizedWhatsapp);
+                }
+            });
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        if ($query->count() < $limit) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'nik' => ['Identitas atau nomor WhatsApp ini sudah mencapai batas booking aktif. Tunggu proses selesai atau hubungi admin.'],
+            'whatsapp' => ['Identitas atau nomor WhatsApp ini sudah mencapai batas booking aktif. Tunggu proses selesai atau hubungi admin.'],
+        ]);
     }
 
     private function statusAfterStaleReschedule(Booking $booking, Carbon $now): string
@@ -844,10 +905,10 @@ class BookingService
             && str_contains($message, 'active_slot_key');
     }
 
-    private function logAudit(?User $actor, string $description, Booking $booking, array $payload = []): void
+    private function logAudit(?User $actor, string $description, Booking $booking, array $payload = [], ?Request $request = null): void
     {
         AuditLogger::record($actor, $description, Booking::class, $booking->code, array_merge([
             'status' => $booking->status,
-        ], $payload));
+        ], $payload), $request);
     }
 }

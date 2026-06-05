@@ -16,6 +16,8 @@ class AuditLog extends Model
         'target_type',
         'target_id',
         'payload',
+        'ip_address',
+        'user_agent',
         'created_at',
     ];
 

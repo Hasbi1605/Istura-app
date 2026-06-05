@@ -46,7 +46,7 @@ class UserController extends Controller
             AuditLogger::record($request->user(), "Membuat pengguna admin {$user->email}", User::class, $user->id, [
                 'role' => $user->role,
                 'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
-            ]);
+            ], $request);
 
             return response()->json(['data' => (new UserResource($user))->resolve()], 201);
         });
@@ -91,7 +91,7 @@ class UserController extends Controller
                 'password_changed' => ! empty($data['password']),
                 'role' => $user->role,
                 'status' => $user->email_verified_at ? 'Aktif' : 'Nonaktif',
-            ]);
+            ], $request);
 
             return response()->json(['data' => (new UserResource($user->fresh()))->resolve()]);
         });
@@ -116,7 +116,7 @@ class UserController extends Controller
             $targetId = $user->id;
             $user->delete();
 
-            AuditLogger::record($request->user(), "Menghapus pengguna admin {$targetEmail}", User::class, $targetId);
+            AuditLogger::record($request->user(), "Menghapus pengguna admin {$targetEmail}", User::class, $targetId, request: $request);
 
             return response()->json(['ok' => true]);
         });

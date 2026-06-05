@@ -452,12 +452,14 @@ export function AdminAuditLog() {
               {logs.map((entry) => (
                 <li key={entry.id}>
                   <span className="admin-audit-dot" aria-hidden="true" />
-                  <div>
-                    <strong>{entry.actor ?? "Sistem"}</strong>
-                    <p>{entry.action}</p>
-                    <small>{entry.at ?? ""}</small>
-                  </div>
-                </li>
+	                  <div>
+	                    <strong>{entry.actor ?? "Sistem"}</strong>
+	                    <p>{entry.action}</p>
+	                    <small title={entry.userAgent ?? undefined}>
+	                      {[entry.at, entry.ipAddress ? `IP ${entry.ipAddress}` : null].filter(Boolean).join(" · ")}
+	                    </small>
+	                  </div>
+	                </li>
               ))}
             </ol>
             {totalPages > 1 && (

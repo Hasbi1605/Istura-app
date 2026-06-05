@@ -16,6 +16,8 @@ export type ApiAuditLog = {
   id: number;
   actor: string | null;
   action: string;
+  ipAddress: string | null;
+  userAgent: string | null;
   at: string | null;
 };
 

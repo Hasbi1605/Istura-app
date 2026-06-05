@@ -152,6 +152,31 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_pending_booking_expires_after_configured_ttl_and_releases_slot(): void
+    {
+        config(['booking.pending_ttl_hours' => 24]);
+        Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00', 'Asia/Jakarta'));
+
+        $booking = $this->createBooking([
+            'code' => 'ISTURA-2026-TTL',
+            'date' => '2026-06-04',
+            'time' => '08.00',
+            'status' => 'Pending',
+            'submitted_at' => now()->subHours(25),
+        ]);
+
+        $this->assertSame('Held', app(ScheduleService::class)->slotStatusFor('2026-06-04', '08.00'));
+
+        $this->artisan('bookings:expire-pending')->assertSuccessful();
+
+        $booking->refresh();
+        $this->assertSame('Expired', $booking->status);
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-04', '08.00'));
+
+        $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
+        $this->assertSame('pending_ttl', $log->payload['reason']);
+    }
+
     public function test_stale_reschedule_restores_original_booking_when_original_slot_is_still_valid(): void
     {
         $this->actingAsAdmin();
@@ -936,6 +961,44 @@ class ScheduleSyncTest extends TestCase
 
         $response->assertStatus(422)->assertJsonValidationErrors('time');
         $this->assertDatabaseCount('bookings', 1);
+    }
+
+    public function test_public_booking_rejects_identity_after_active_booking_limit(): void
+    {
+        Storage::fake('local');
+        config(['booking.public_active_identity_limit' => 2]);
+
+        $this->createBooking([
+            'code' => 'ISTURA-2026-ACTIVE1',
+            'date' => '2026-06-04',
+            'time' => '08.00',
+            'status' => 'Pending',
+            'nik' => '1234567890123456',
+            'whatsapp' => '081234567890',
+        ]);
+        $this->createBooking([
+            'code' => 'ISTURA-2026-ACTIVE2',
+            'date' => '2026-06-05',
+            'time' => '08.00',
+            'status' => 'Accepted',
+            'nik' => '1234567890123456',
+            'whatsapp' => '6281234567890',
+        ]);
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-06',
+            'time' => '08.00',
+            'nik' => '1234567890123456',
+            'whatsapp' => '081234567890',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['nik', 'whatsapp']);
+
+        $this->assertDatabaseMissing('bookings', [
+            'date' => '2026-06-06 00:00:00',
+            'time' => '08.00',
+            'status' => 'Pending',
+        ]);
     }
 
     public function test_public_booking_codes_start_from_zero_sequence(): void
@@ -2380,6 +2443,29 @@ class ScheduleSyncTest extends TestCase
         ])->assertOk();
 
         Event::assertDispatchedTimes(ScheduleUpdated::class, 3);
+    }
+
+    public function test_admin_audit_log_records_request_ip_and_user_agent(): void
+    {
+        config(['trustedproxy.proxies' => ['192.0.2.10']]);
+        $this->actingAsAdmin();
+
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.10'])
+            ->withHeaders([
+                'X-Forwarded-For' => '198.51.100.44',
+                'User-Agent' => 'IsturaTest/1.0',
+            ])
+            ->postJson('/api/admin/schedule/slot', [
+                'date' => '2026-06-01',
+                'time' => '10.00',
+                'status' => 'Closed',
+            ])->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'Mengubah slot jadwal 2026-06-01 10.00',
+            'ip_address' => '198.51.100.44',
+            'user_agent' => 'IsturaTest/1.0',
+        ]);
     }
 
     public function test_public_booking_broadcasts_public_schedule_update(): void

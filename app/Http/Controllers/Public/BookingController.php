@@ -17,6 +17,7 @@ class BookingController extends Controller
         $booking = $this->bookings->createFromPublic(
             $request->validated(),
             $request->file('document'),
+            $request,
         );
 
         return response()->json([

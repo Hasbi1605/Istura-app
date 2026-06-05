@@ -59,7 +59,7 @@ class CmsController extends Controller
 
         AuditLogger::record($request->user(), 'Memperbarui FAQ publik', Faq::class, null, [
             'count' => count($items),
-        ]);
+        ], $request);
         PublicCache::forgetCms('faqs');
 
         return $this->faqs();
@@ -93,7 +93,7 @@ class CmsController extends Controller
 
         AuditLogger::record($request->user(), 'Memperbarui kontak footer publik', FooterContact::class, null, [
             'count' => count($items),
-        ]);
+        ], $request);
         PublicCache::forgetCms('contacts');
 
         return $this->contacts();
@@ -125,7 +125,7 @@ class CmsController extends Controller
 
         AuditLogger::record($request->user(), 'Memperbarui template WhatsApp', WaTemplate::class, null, [
             'statuses' => collect($items)->pluck('id')->values()->all(),
-        ]);
+        ], $request);
         PublicCache::forgetCms('wa-templates');
 
         return $this->waTemplates();
@@ -172,7 +172,7 @@ class CmsController extends Controller
     {
         SiteSetting::write('hero', $request->validated());
 
-        AuditLogger::record($request->user(), 'Memperbarui konten hero', SiteSetting::class, 'hero');
+        AuditLogger::record($request->user(), 'Memperbarui konten hero', SiteSetting::class, 'hero', request: $request);
         PublicCache::forgetCms('hero');
 
         return $this->hero();
@@ -236,7 +236,7 @@ class CmsController extends Controller
             'description_updated' => true,
             'image_updated' => $request->hasFile('image'),
             'rules_image_updated' => $request->hasFile('rulesImage'),
-        ]);
+        ], $request);
         PublicCache::forgetCms('letter');
 
         return $this->letter();
@@ -253,7 +253,7 @@ class CmsController extends Controller
     {
         SiteSetting::write('site_content', $request->validated());
 
-        AuditLogger::record($request->user(), 'Memperbarui konten landing page', SiteSetting::class, 'site_content');
+        AuditLogger::record($request->user(), 'Memperbarui konten landing page', SiteSetting::class, 'site_content', request: $request);
         PublicCache::forgetCms('site-content');
 
         return $this->siteContent();

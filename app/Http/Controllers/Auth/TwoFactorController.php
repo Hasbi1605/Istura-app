@@ -76,7 +76,7 @@ class TwoFactorController extends Controller
 
         $this->twoFactor->markSessionVerified($user, $request);
 
-        AuditLogger::record($user, 'Mengaktifkan Two-Factor Authentication', User::class, $user->id);
+        AuditLogger::record($user, 'Mengaktifkan Two-Factor Authentication', User::class, $user->id, request: $request);
 
         return response()->json([
             'recovery_codes' => $recoveryCodes,
@@ -162,7 +162,7 @@ class TwoFactorController extends Controller
         // Clear 2FA session flag when the request uses browser session auth.
         $this->twoFactor->clearSessionVerification($request);
 
-        AuditLogger::record($user, 'Menonaktifkan Two-Factor Authentication', User::class, $user->id);
+        AuditLogger::record($user, 'Menonaktifkan Two-Factor Authentication', User::class, $user->id, request: $request);
 
         return response()->json(['ok' => true])->withCookie($forgetTrustedDeviceCookie);
     }
@@ -204,7 +204,7 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => encrypt(json_encode($this->twoFactor->hashRecoveryCodes($recoveryCodes))),
         ])->save();
 
-        AuditLogger::record($user, 'Memperbarui recovery codes 2FA', User::class, $user->id);
+        AuditLogger::record($user, 'Memperbarui recovery codes 2FA', User::class, $user->id, request: $request);
 
         return response()->json([
             'recovery_codes' => $recoveryCodes,

@@ -179,9 +179,11 @@ export function AdminShell({
 
 export function AdminLogin({
   onAuthenticated,
+  onTwoFactorRequired,
   onCancel,
 }: {
   onAuthenticated: (session: AdminSession) => void;
+  onTwoFactorRequired: () => void;
   onCancel: () => void;
 }) {
   const [email, setEmail] = useState("");
@@ -195,11 +197,16 @@ export function AdminLogin({
     setError("");
     setLoading(true);
     apiLogin(email.trim(), password)
-      .then((user) => {
+      .then((result) => {
+        if (result.requires2fa || !result.user) {
+          onTwoFactorRequired();
+          return;
+        }
+
         onAuthenticated({
-          email: user.email,
-          name: user.name,
-          role: user.roleLabel,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.roleLabel,
           loggedAt: new Date().toISOString(),
         });
       })

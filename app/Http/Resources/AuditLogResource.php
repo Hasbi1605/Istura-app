@@ -14,6 +14,8 @@ class AuditLogResource extends JsonResource
             'id' => $this->id,
             'actor' => $this->actor_name ?? $this->actor?->name,
             'action' => $this->action,
+            'ipAddress' => $this->ip_address,
+            'userAgent' => $this->user_agent,
             'at' => $this->created_at ? IndonesianDate::submittedAt($this->created_at) : null,
         ];
     }

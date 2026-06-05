@@ -56,7 +56,7 @@ class ScheduleController extends Controller
             'date' => $data['date'],
             'time' => $data['time'],
             'status' => $data['status'],
-        ]);
+        ], $request);
 
         return response()->json(['data' => $override]);
     }
@@ -78,7 +78,7 @@ class ScheduleController extends Controller
             'date' => $data['date'],
             'time' => $data['time'],
             'deleted' => $deleted,
-        ]);
+        ], $request);
 
         return response()->json(['ok' => true]);
     }
@@ -129,7 +129,7 @@ class ScheduleController extends Controller
             'time' => $data['time'] ?? null,
             'status' => $data['status'],
             'weekdays' => $weekdays,
-        ]);
+        ], $request);
 
         return response()->json(['ok' => true]);
     }

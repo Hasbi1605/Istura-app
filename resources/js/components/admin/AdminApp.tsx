@@ -15,7 +15,8 @@ import type {
   WaTemplate,
 } from "../../domain/types";
 import type { ApiHero, ApiLetter } from "../../api/cms";
-import { logout as apiLogout, twoFactorChallenge, twoFactorStatus } from "../../api/auth";
+import { logout as apiLogout, me as apiMe, twoFactorChallenge, twoFactorStatus } from "../../api/auth";
+import type { AuthUser } from "../../api/auth";
 import { destroyEcho } from "../../realtime/echo";
 import { clearAdminSession, writeAdminSession } from "../../lib/legacyShims";
 import { AdminShell, AdminLogin } from "./AdminShell";
@@ -86,10 +87,17 @@ export function AdminApp({
 	loading: DataLoadingState;
 	cmsSync: CmsSyncState;
 	onExitToPublic: (screen: Screen) => void;
-}) {
-  const [needs2fa, setNeeds2fa] = useState(false);
-  const [needsSetup, setNeedsSetup] = useState(false);
-  const [checking2fa, setChecking2fa] = useState(false);
+	}) {
+	  const [needs2fa, setNeeds2fa] = useState(false);
+	  const [needsSetup, setNeedsSetup] = useState(false);
+	  const [checking2fa, setChecking2fa] = useState(false);
+
+  const sessionFromUser = (user: AuthUser): AdminSession => ({
+    email: user.email,
+    name: user.name,
+    role: user.roleLabel,
+    loggedAt: new Date().toISOString(),
+  });
 
   const refreshAdminData = () => {
     onSessionChange((current) => current ? { ...current, loggedAt: new Date().toISOString() } : current);
@@ -117,11 +125,25 @@ export function AdminApp({
           return;
         }
 
-        const { requires_2fa } = await twoFactorChallenge();
-        if (cancelled) return;
+	        const { requires_2fa } = await twoFactorChallenge();
+	        if (cancelled) return;
 
-        setNeeds2fa(requires_2fa);
-        setNeedsSetup(false);
+	        if (!requires_2fa && session.email === "") {
+	          const user = await apiMe();
+	          if (cancelled) return;
+
+	          if (!user) {
+	            doLogoutAndReset();
+	            return;
+	          }
+
+	          const next = sessionFromUser(user);
+	          writeAdminSession(next);
+	          onSessionChange(next);
+	        }
+
+	        setNeeds2fa(requires_2fa);
+	        setNeedsSetup(false);
       } catch {
         if (cancelled) return;
         setNeeds2fa(true);
@@ -148,18 +170,30 @@ export function AdminApp({
 
   if (!session) {
     return (
-      <AdminLogin
-        onAuthenticated={(next) => {
-          writeAdminSession(next);
-          onSessionChange(next);
-          onAdminTabChange("dashboard");
-          window.history.replaceState(null, "", "/admin");
-        }}
-        onCancel={() => {
-          onExitToPublic("home");
-          window.history.replaceState(null, "", "/");
-        }}
-      />
+	      <AdminLogin
+	        onAuthenticated={(next) => {
+	          writeAdminSession(next);
+	          onSessionChange(next);
+	          onAdminTabChange("dashboard");
+	          window.history.replaceState(null, "", "/admin");
+	        }}
+	        onTwoFactorRequired={() => {
+	          onSessionChange({
+	            email: "",
+	            name: "Admin",
+	            role: "Admin",
+	            loggedAt: new Date().toISOString(),
+	          });
+	          setNeeds2fa(true);
+	          setNeedsSetup(false);
+	          setChecking2fa(false);
+	          window.history.replaceState(null, "", "/admin");
+	        }}
+	        onCancel={() => {
+	          onExitToPublic("home");
+	          window.history.replaceState(null, "", "/");
+	        }}
+	      />
     );
   }
 
@@ -185,15 +219,27 @@ export function AdminApp({
     );
   }
 
-  if (needs2fa) {
-    return (
-      <TwoFactorChallenge
-        onVerified={() => {
-          setNeeds2fa(false);
-          refreshAdminData();
-        }}
-        onCancel={doLogoutAndReset}
-      />
+	  if (needs2fa) {
+	    return (
+	      <TwoFactorChallenge
+	        onVerified={() => {
+	          void apiMe()
+	            .then((user) => {
+	              if (!user) {
+	                doLogoutAndReset();
+	                return;
+	              }
+
+	              const next = sessionFromUser(user);
+	              writeAdminSession(next);
+	              onSessionChange(next);
+	              setNeeds2fa(false);
+	              refreshAdminData();
+	            })
+	            .catch(doLogoutAndReset);
+	        }}
+	        onCancel={doLogoutAndReset}
+	      />
     );
   }
 

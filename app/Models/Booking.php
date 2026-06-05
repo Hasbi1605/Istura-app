@@ -69,8 +69,37 @@ class Booking extends Model
             set: fn (?string $value) => [
                 'nik_encrypted' => $value ? Crypt::encryptString($value) : null,
                 'nik_masked' => $value ? substr($value, 0, 4).str_repeat('*', max(0, strlen($value) - 8)).substr($value, -4) : null,
+                'nik_hash' => $value ? self::identityHash($value) : null,
             ],
         );
+    }
+
+    protected function whatsapp(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => [
+                'whatsapp' => $value,
+                'whatsapp_normalized' => self::normalizeWhatsapp($value),
+            ],
+        );
+    }
+
+    public static function identityHash(string $value): string
+    {
+        return hash_hmac('sha256', $value, (string) config('app.key'));
+    }
+
+    public static function normalizeWhatsapp(?string $value): ?string
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        if (str_starts_with($value, '08')) {
+            return '62'.substr($value, 1);
+        }
+
+        return $value;
     }
 
     public function scopeForRange($query, ?string $from, ?string $to)

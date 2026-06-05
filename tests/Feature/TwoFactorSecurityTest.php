@@ -138,6 +138,28 @@ class TwoFactorSecurityTest extends TestCase
         ])->assertStatus(429);
     }
 
+    public function test_login_for_confirmed_two_factor_user_returns_challenge_state_without_profile(): void
+    {
+        $service = app(TwoFactorService::class);
+        $admin = $this->createConfirmedAdmin($service);
+
+        $this->postJson('/api/auth/login', [
+            'email' => $admin->email,
+            'password' => 'password',
+        ])->assertOk()
+            ->assertJson(['requires_2fa' => true])
+            ->assertJsonMissingPath('user');
+
+        $this->postJson('/api/auth/two-factor/verify', [
+            'code' => (new Google2FA)->getCurrentOtp(decrypt($admin->two_factor_secret)),
+            'trust_device' => false,
+        ])->assertOk();
+
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.email', $admin->email);
+    }
+
     public function test_password_only_session_cannot_regenerate_recovery_codes_or_enter_admin(): void
     {
         $admin = $this->createConfirmedAdmin(app(TwoFactorService::class));
