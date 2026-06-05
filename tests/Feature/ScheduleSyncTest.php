@@ -488,6 +488,35 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Booked', $this->slotFromResponse($response->json('data'), $date, '09.00')['status']);
     }
 
+    public function test_closed_override_keeps_active_booking_visible_with_manual_reason(): void
+    {
+        $date = '2026-06-01';
+        $this->actingAsAdmin();
+        $this->createBooking([
+            'date' => $date,
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => $date,
+            'time' => '08.00',
+            'status' => 'Closed',
+            'note' => 'Admin menutup slot meski sudah ada booking.',
+        ])->assertOk();
+
+        $response = $this->getJson("/api/admin/schedule?from={$date}&to={$date}")
+            ->assertOk();
+        $slot = $this->slotFromResponse($response->json('data'), $date, '08.00');
+
+        $this->assertSame('Booked', $slot['status']);
+        $this->assertSame(1, $slot['bookingCount']);
+        $this->assertSame('manual_closed', $slot['closureReason']['type']);
+        $this->assertSame('Ditutup admin', $slot['closureReason']['label']);
+        $this->assertSame('Booked', app(ScheduleService::class)->slotStatusFor($date, '08.00'));
+        $this->assertSame('Booked', app(ScheduleService::class)->slotStatusesFor($date, ['08.00'])['08.00']);
+    }
+
     public function test_indonesian_holiday_sync_closes_public_schedule_with_reason(): void
     {
         Http::fake([
@@ -1281,6 +1310,27 @@ class ScheduleSyncTest extends TestCase
         $this->getJson('/api/admin/feedback')->assertForbidden();
         $this->getJson('/api/admin/users')->assertForbidden();
         $this->getJson('/api/admin/audit-logs')->assertForbidden();
+    }
+
+    public function test_dashboard_week_kpi_uses_sunday_to_saturday_range(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-01 09:00:00', 'Asia/Jakarta'));
+        $this->actingAsAdmin();
+
+        $this->createBooking([
+            'date' => '2026-05-31',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+        $this->createBooking([
+            'date' => '2026-05-30',
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->getJson('/api/admin/dashboard')
+            ->assertOk()
+            ->assertJsonPath('kpis.weekBookings', 1);
     }
 
     public function test_super_admin_user_management_writes_audit_log(): void

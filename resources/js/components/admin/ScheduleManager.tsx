@@ -291,7 +291,7 @@ export function AdminScheduleManager({
           body:
             `Pada ${day.label}, ${willClose} slot tersedia akan ditutup. ` +
             (activeBooking > 0
-              ? `Ada ${activeBooking} booking aktif di tanggal ini yang tidak terpengaruh.`
+              ? `Ada ${activeBooking} booking aktif di tanggal ini yang tetap ditampilkan sebagai terisi.`
               : "Slot yang sudah ada booking tidak terpengaruh."),
           confirmLabel: "Tutup semua",
           confirmVariant: "danger",
@@ -667,6 +667,8 @@ export function AdminScheduleManager({
                       const disabled = locked || past;
                       const isOpen = slot.status === "Available" && !past;
                       const closedLabel = slotClosureLabel(slot, selectedDay);
+                      const manuallyClosedActiveSlot =
+                        slot.status !== "Closed" && slot.closureReason?.type === "manual_closed";
                       const statusClass = past
                         ? "is-past"
                         : slot.status === "Available"
@@ -683,10 +685,10 @@ export function AdminScheduleManager({
                           : slot.status === "Closed"
                             ? closedLabel ?? "Ditutup"
                             : slot.overbooked
-                              ? `Terisi (${slot.bookingCount})`
+                              ? `Terisi (${slot.bookingCount})${manuallyClosedActiveSlot ? " · ditutup" : ""}`
                               : slot.status === "Booked"
-                              ? "Sudah terisi"
-                              : "Sedang diproses";
+                              ? `Sudah terisi${manuallyClosedActiveSlot ? " · ditutup" : ""}`
+                              : `Sedang diproses${manuallyClosedActiveSlot ? " · ditutup" : ""}`;
                       const StatusIcon = past
                         ? Clock3
                         : slot.status === "Available"

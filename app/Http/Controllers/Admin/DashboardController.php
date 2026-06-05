@@ -20,8 +20,8 @@ class DashboardController extends Controller
     {
         $now = Carbon::today('Asia/Jakarta');
         $today = $now->toDateString();
-        $weekStart = $now->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $weekEnd = $now->copy()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $weekStart = $now->copy()->startOfWeek(Carbon::SUNDAY)->toDateString();
+        $weekEnd = $now->copy()->endOfWeek(Carbon::SATURDAY)->toDateString();
         $monthStart = $now->copy()->startOfMonth()->toDateString();
         $monthEnd = $now->copy()->endOfMonth()->toDateString();
         $bookingKpis = Booking::query()

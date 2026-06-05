@@ -265,6 +265,15 @@ class ScheduleService
      */
     private function slotClosureReason(string $status, ?ScheduleOverride $override, ?array $defaultClosure): ?array
     {
+        if ($status !== 'Closed' && $override?->status === 'Closed') {
+            return [
+                'type' => 'manual_closed',
+                'name' => 'Ditutup admin',
+                'label' => 'Ditutup admin',
+                'tentative' => false,
+            ];
+        }
+
         if ($status !== 'Closed') {
             return null;
         }
@@ -311,9 +320,6 @@ class ScheduleService
         $override = ScheduleOverride::whereDate('date', $dateKey)
             ->where('time', $time)
             ->first();
-        if ($override?->status === 'Closed') {
-            return $override->status;
-        }
 
         $slotQuery = BookingSlot::with('booking')
             ->where('active_slot_key', BookingSlot::slotKey($dateKey, $time))
@@ -324,7 +330,7 @@ class ScheduleService
         }
 
         $bookingSlot = $slotQuery->first();
-        if ($bookingSlot?->booking) {
+        if ($bookingSlot && $this->bookingSlotBlocksSchedule($bookingSlot)) {
             return $this->statusFromBookingSlot($bookingSlot);
         }
 
@@ -340,6 +346,10 @@ class ScheduleService
         $booking = $bookingQuery->first();
         if ($booking) {
             return $this->statusFromBooking($booking);
+        }
+
+        if ($override?->status === 'Closed') {
+            return $override->status;
         }
 
         if ($override?->status === 'Available') {
@@ -386,15 +396,7 @@ class ScheduleService
             $statuses[$time] = $override->status;
         }
 
-        $availableTimes = $times
-            ->reject(fn (string $time): bool => $overrides->get($time)?->status === 'Closed')
-            ->values();
-
-        if ($availableTimes->isEmpty()) {
-            return $statuses;
-        }
-
-        $slotKeys = $availableTimes
+        $slotKeys = $times
             ->map(fn (string $time): string => BookingSlot::slotKey($dateKey, $time))
             ->all();
         $slotQuery = BookingSlot::with('booking')
@@ -406,15 +408,17 @@ class ScheduleService
         }
 
         $bookingSlots = $slotQuery->get()->groupBy('time');
-        foreach ($availableTimes as $time) {
-            $bookingSlot = $bookingSlots->get($time)?->first(fn (BookingSlot $slot): bool => $slot->booking !== null);
-            if ($bookingSlot?->booking) {
+        $timesWithBookingSlots = [];
+        foreach ($times as $time) {
+            $bookingSlot = $bookingSlots->get($time)?->first(fn (BookingSlot $slot): bool => $this->bookingSlotBlocksSchedule($slot));
+            if ($bookingSlot) {
                 $statuses[$time] = $this->statusFromBookingSlot($bookingSlot);
+                $timesWithBookingSlots[] = $time;
             }
         }
 
-        $timesWithoutSlots = $availableTimes
-            ->reject(fn (string $time): bool => ($statuses[$time] ?? null) !== 'Available')
+        $timesWithoutSlots = $times
+            ->reject(fn (string $time): bool => in_array($time, $timesWithBookingSlots, true))
             ->values();
 
         if ($timesWithoutSlots->isEmpty()) {
@@ -450,9 +454,6 @@ class ScheduleService
         Collection $bookingSlots,
     ): string {
         $override = $overrides->get($dateKey)?->firstWhere('time', $time);
-        if ($override?->status === 'Closed') {
-            return $override->status;
-        }
 
         $bookingSlot = $bookingSlots->get($dateKey)?->first(
             fn ($entry) => $entry->time === $time && $entry->booking?->isActiveForSchedule(),
@@ -466,6 +467,10 @@ class ScheduleService
         );
         if ($booking) {
             return $this->statusFromBooking($booking);
+        }
+
+        if ($override?->status === 'Closed') {
+            return $override->status;
         }
 
         if ($override?->status === 'Available') {
@@ -518,5 +523,11 @@ class ScheduleService
         }
 
         return $this->statusFromBooking($slot->booking);
+    }
+
+    private function bookingSlotBlocksSchedule(BookingSlot $slot): bool
+    {
+        return $slot->kind === BookingSlot::KIND_PROPOSED
+            || $slot->booking?->isActiveForSchedule();
     }
 }

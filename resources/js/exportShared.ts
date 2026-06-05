@@ -114,9 +114,8 @@ export const RANGE_FILENAME: Record<ExportRange, string> = {
   custom: "Custom",
 };
 
-// Compute the [from, to] inclusive range for a preset bucket. Week = Senin..
-// Minggu of the current week (locale ID convention starts on Senin), Month =
-// 1st..last day of current month, Year = Jan 1..Dec 31 current year.
+// Compute the [from, to] inclusive range for a preset bucket. Week follows the
+// admin dashboard convention: Minggu..Sabtu.
 export const resolveRange = (
   range: ExportRange,
   customFrom?: string,
@@ -125,10 +124,8 @@ export const resolveRange = (
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (range === "week") {
-    const dayOfWeek = today.getDay();
-    const offsetToMonday = (dayOfWeek + 6) % 7; // Senin=0, ..., Minggu=6
     const start = new Date(today);
-    start.setDate(today.getDate() - offsetToMonday);
+    start.setDate(today.getDate() - today.getDay());
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     return {
