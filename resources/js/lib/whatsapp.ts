@@ -105,6 +105,13 @@ export function feedbackLinkFor(booking: Booking): string {
   return `${publicAppOrigin()}/feedback/${encodeURIComponent(booking.code)}?token=${encodeURIComponent(booking.feedbackToken)}`;
 }
 
+// Tautan absolut ke infografis "Alur & Peraturan Kunjungan" (public/assets).
+// Dipakai placeholder {alur} pada template WA agar preview gambar muncul dan
+// URL selalu mengikuti origin aktif (dev/prod), bukan hardcoded.
+export function visitFlowImageUrl(): string {
+  return `${publicAppOrigin()}/assets/alur-kunjungan.webp`;
+}
+
 function formatVisitTimeForWhatsapp(segments: ReturnType<typeof bookingSegments>, fallbackTime: string): string {
   if (segments.length > 1) {
     return segments
@@ -149,5 +156,6 @@ export function buildWhatsappMessage(
     jam,
     catatan: note ?? "",
     link,
+    alur: visitFlowImageUrl(),
   });
 }

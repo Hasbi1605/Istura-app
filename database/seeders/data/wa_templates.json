@@ -3,7 +3,7 @@
     "id": "Accepted",
     "label": "Booking disetujui",
     "description": "Dikirim saat admin menyetujui permohonan kunjungan.",
-    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\u2705 *Booking Disetujui*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* telah disetujui.\n\nKode booking:\n*{kode}*\n\nTanggal kunjungan:\n*{tanggal}*\n\nJumlah rombongan:\n*{rombongan}*\n\nJadwal kunjungan:\n{jam}\n\nMohon hadir *15 menit lebih awal* dan masuk melalui *Gerbang Utara*.\n\nLokasi Google Maps:\nhttps://maps.app.goo.gl/iuAhnPB1SkJLMaX9A\n\nSalam hangat,\nAdmin ISTURA"
+    "template": "Halo Rencang Istana! \ud83d\ude0a\nsalam Humas Gedung Agung\n\nTerkait surat permohonan kunjungan Istura (Istana Untuk Rakyat) atas nama *{nama}* dari *{instansi}* sudah kami terima dan disetujui. \ud83c\udf89\n\nBerikut jadwal kunjungan yang telah terjadwal:\n\ud83d\udcc6 Tanggal: *{tanggal}*\n\u23f0 Jam: {jam}\n\ud83d\udc6b Rombongan: *{rombongan}*\n\nKode booking: *{kode}*\n\nAlur & peraturan kunjungan dapat dilihat di sini:\n{alur}\n\nNB: dimohon datang sesuai waktu jadwal kunjungan yang telah ditentukan, karena adanya jadwal kunjungan kelompok/instansi lainnya.\n\nUntuk update informasi seputar Gedung Agung, jangan lupa follow IG @istanakepresidenanyogyakarta \ud83d\ude4f\ud83e\udd17"
   },
   {
     "id": "Rejected",
