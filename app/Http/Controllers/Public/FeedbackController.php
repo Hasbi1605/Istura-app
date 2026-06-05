@@ -19,7 +19,7 @@ class FeedbackController extends Controller
 {
     public function show(Request $request, string $code): JsonResponse
     {
-        $booking = Booking::where('code', $code)->firstOrFail();
+        $booking = Booking::where('code', $code)->first();
         $token = (string) $request->query('token', '');
 
         $this->ensureValidFeedbackToken($booking, $token);
@@ -43,7 +43,7 @@ class FeedbackController extends Controller
 
         try {
             $feedback = DB::transaction(function () use ($code, $payload) {
-                $booking = Booking::where('code', $code)->lockForUpdate()->firstOrFail();
+                $booking = Booking::where('code', $code)->lockForUpdate()->first();
 
                 $this->ensureValidFeedbackToken($booking, (string) $payload['token']);
 
@@ -94,11 +94,11 @@ class FeedbackController extends Controller
         ], 201);
     }
 
-    private function ensureValidFeedbackToken(Booking $booking, string $token): void
+    private function ensureValidFeedbackToken(?Booking $booking, string $token): void
     {
-        if ($token === '' || ! hash_equals($booking->feedback_token, $token)) {
+        if (! $booking || $token === '' || ! hash_equals($booking->feedback_token, $token)) {
             throw ValidationException::withMessages([
-                'token' => ['Token feedback tidak valid.'],
+                'token' => ['Kode atau token feedback tidak valid.'],
             ]);
         }
     }

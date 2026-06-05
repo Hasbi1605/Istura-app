@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(AddSecurityHeaders::class);
+        $middleware->redirectGuestsTo(
+            fn (Request $request): ?string => $request->is('api/*', 'broadcasting/auth') ? null : '/',
+        );
         $middleware->statefulApi();
         $middleware->alias([
             'admin' => EnsureAdmin::class,

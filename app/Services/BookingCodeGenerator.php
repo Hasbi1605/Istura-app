@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
  */
 class BookingCodeGenerator
 {
+    private const FEEDBACK_TOKEN_BYTES = 20;
+
     private const FIRST_SEQUENCE = 0;
 
     private const SEQUENCE_WIDTH = 4;
@@ -83,6 +85,6 @@ class BookingCodeGenerator
 
     public function token(): string
     {
-        return 'fb_'.bin2hex(random_bytes(8));
+        return 'fb_'.rtrim(strtr(base64_encode(random_bytes(self::FEEDBACK_TOKEN_BYTES)), '+/', '-_'), '=');
     }
 }

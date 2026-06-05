@@ -6,6 +6,15 @@ use Tests\TestCase;
 
 class SecurityHeaderHardeningTest extends TestCase
 {
+    public function test_unauthenticated_admin_api_request_without_json_accept_returns_unauthorized(): void
+    {
+        $this->get('/api/admin/dashboard')
+            ->assertUnauthorized()
+            ->assertJson([
+                'message' => 'Unauthenticated.',
+            ]);
+    }
+
     public function test_cors_rejects_untrusted_origins_and_allows_configured_origin(): void
     {
         config(['cors.allowed_origins' => ['https://isturaiky.page', 'https://admin.isturaiky.page']]);

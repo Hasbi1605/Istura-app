@@ -13,6 +13,7 @@ use App\Models\Feedback;
 use App\Models\NationalHoliday;
 use App\Models\ScheduleOverride;
 use App\Models\User;
+use App\Services\BookingCodeGenerator;
 use App\Services\BookingService;
 use App\Services\NationalHolidaySyncService;
 use App\Services\ScheduleService;
@@ -1415,6 +1416,16 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('data.nikMasked', '3374********9012');
     }
 
+    public function test_feedback_token_is_short_url_safe_and_non_sequential(): void
+    {
+        $token = app(BookingCodeGenerator::class)->token();
+
+        $this->assertMatchesRegularExpression('/^fb_[A-Za-z0-9_-]{27}$/', $token);
+        $this->assertStringNotContainsString('+', $token);
+        $this->assertStringNotContainsString('/', $token);
+        $this->assertStringNotContainsString('=', $token);
+    }
+
     public function test_sensitive_fields_are_not_mass_assignable(): void
     {
         $booking = new Booking;
@@ -2499,14 +2510,23 @@ class ScheduleSyncTest extends TestCase
             'status' => 'Completed',
             'feedback_token' => 'fb_show_token',
         ]);
+        $invalidMessage = 'Kode atau token feedback tidak valid.';
+
+        $this->getJson('/api/public/feedback/ISTURA-2099-9999?token=wrong-token')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('token')
+            ->assertJsonPath('errors.token.0', $invalidMessage)
+            ->assertJsonMissing(['App\\Models\\Booking']);
 
         $this->getJson("/api/public/feedback/{$booking->code}")
             ->assertStatus(422)
-            ->assertJsonValidationErrors('token');
+            ->assertJsonValidationErrors('token')
+            ->assertJsonPath('errors.token.0', $invalidMessage);
 
         $this->getJson("/api/public/feedback/{$booking->code}?token=wrong-token")
             ->assertStatus(422)
-            ->assertJsonValidationErrors('token');
+            ->assertJsonValidationErrors('token')
+            ->assertJsonPath('errors.token.0', $invalidMessage);
 
         $this->getJson("/api/public/feedback/{$booking->code}?token=fb_show_token")
             ->assertOk()
