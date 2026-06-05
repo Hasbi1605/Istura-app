@@ -36,6 +36,7 @@ class AddSecurityHeaders
         $scriptSrc = "'self'";
         $connectSrc = "'self'";
         $fontSrc = "'self' data: https://fonts.gstatic.com";
+        $imgSrc = "'self' data: blob:".$this->cspSourceList($this->publicImageHosts());
 
         foreach ($this->reverbClientWebSocketUrls() as $reverbClientUrl) {
             $connectSrc .= " {$reverbClientUrl}";
@@ -53,8 +54,9 @@ class AddSecurityHeaders
         $directives = [
             "default-src 'self'",
             "script-src {$scriptSrc}",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "img-src 'self' data: https:",
+            "style-src 'self' https://fonts.googleapis.com",
+            "style-src-attr 'unsafe-inline'",
+            "img-src {$imgSrc}",
             "font-src {$fontSrc}",
             "connect-src {$connectSrc}",
             "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://www.google.com https://maps.google.com https://www.google.com/maps",
@@ -105,13 +107,41 @@ class AddSecurityHeaders
         }
 
         $scheme = config('reverb.apps.apps.0.options.scheme', 'https') === 'https' ? 'wss' : 'ws';
-        $fallbackScheme = $scheme === 'wss' ? 'ws' : 'wss';
         $port = config('reverb.apps.apps.0.options.port');
         $portSuffix = $port ? ":{$port}" : '';
 
-        return [
-            "{$scheme}://{$host}{$portSuffix}",
-            "{$fallbackScheme}://{$host}{$portSuffix}",
-        ];
+        $urls = ["{$scheme}://{$host}{$portSuffix}"];
+
+        if (app()->environment('local')) {
+            $fallbackScheme = $scheme === 'wss' ? 'ws' : 'wss';
+            $urls[] = "{$fallbackScheme}://{$host}{$portSuffix}";
+        }
+
+        return array_values(array_unique($urls));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function publicImageHosts(): array
+    {
+        return collect(config('security.public_image_hosts', []))
+            ->map(fn (string $host) => strtolower(trim($host)))
+            ->filter(fn (string $host) => $host !== '' && preg_match('/^[a-z0-9.-]+(?::[0-9]+)?$/', $host))
+            ->map(fn (string $host) => "https://{$host}")
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $sources
+     */
+    private function cspSourceList(array $sources): string
+    {
+        if ($sources === []) {
+            return '';
+        }
+
+        return ' '.implode(' ', $sources);
     }
 }
