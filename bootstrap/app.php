@@ -5,10 +5,12 @@ use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureAdminSessionFresh;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -44,4 +46,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*', 'broadcasting/auth'),
         );
+
+        $exceptions->render(function (NotFoundHttpException $exception, Request $request) {
+            if (! $request->is('api/*') || ! $exception->getPrevious() instanceof ModelNotFoundException) {
+                return null;
+            }
+
+            return response()->json(['message' => 'Data tidak ditemukan.'], 404);
+        });
     })->create();

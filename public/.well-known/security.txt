@@ -1,0 +1,4 @@
+Contact: https://wa.me/6281160300040
+Preferred-Languages: id, en
+Canonical: https://isturaiky.page/.well-known/security.txt
+Expires: 2027-06-01T00:00:00.000Z
