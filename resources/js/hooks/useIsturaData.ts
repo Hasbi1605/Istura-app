@@ -59,11 +59,14 @@ const DEFAULT_LETTER: ApiLetter = {
 setActiveWaTemplates(INITIAL_WA_TEMPLATES);
 
 const ALLOW_DEMO_FALLBACK = import.meta.env.DEV || import.meta.env.VITE_ALLOW_DEMO_FALLBACK === "true";
-const PUBLIC_SCHEDULE_FALLBACK_INITIAL_JITTER_MS = 10_000;
-const PUBLIC_SCHEDULE_FALLBACK_BASE_INTERVAL_MS = 45_000;
-const PUBLIC_SCHEDULE_FALLBACK_MAX_INTERVAL_MS = 180_000;
-const PUBLIC_SCHEDULE_FALLBACK_JITTER_MS = 15_000;
-const PUBLIC_SCHEDULE_FALLBACK_FOCUS_MIN_MS = 30_000;
+const PUBLIC_SCHEDULE_FALLBACK_INITIAL_JITTER_MS = 8_000;
+const PUBLIC_SCHEDULE_FALLBACK_BASE_INTERVAL_MS = 20_000;
+const PUBLIC_SCHEDULE_FALLBACK_MAX_INTERVAL_MS = 120_000;
+const PUBLIC_SCHEDULE_FALLBACK_JITTER_MS = 10_000;
+const PUBLIC_SCHEDULE_FALLBACK_FOCUS_MIN_MS = 15_000;
+// Jeda minimum antar full-refetch jadwal agar resync-on-connect dan refetch
+// setelah subscribe tidak menembak request ganda saat koneksi pertama terbentuk.
+const PUBLIC_SCHEDULE_RESYNC_MIN_MS = 3_000;
 const PUBLIC_SCHEDULE_FALLBACK_STATUSES = new Set<RealtimeConnectionStatus>([
   "disabled",
   "unavailable",
@@ -226,6 +229,9 @@ export function useIsturaData(): IsturaData {
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>(
     import.meta.env.VITE_REVERB_ENABLED === "true" ? "idle" : "disabled",
   );
+  // Timestamp full-refetch jadwal terakhir, dipakai bersama oleh refetch
+  // setelah subscribe dan resync-on-(re)connect untuk mencegah request ganda.
+  const lastScheduleResyncAtRef = useRef(0);
   // Komunikasi antar tab admin: misal Jadwal Kunjungan ingin mengarahkan
   // admin ke booking tertentu di tab Booking.
   const [bookingFocusCode, setBookingFocusCode] = useState<string | null>(null);
@@ -529,6 +535,8 @@ export function useIsturaData(): IsturaData {
     let active = true;
     let cleanup: (() => void) | undefined;
     const refreshSchedule = (payload?: { from?: string; to?: string }) => {
+      const isFullRefetch = !payload?.from;
+      if (isFullRefetch) lastScheduleResyncAtRef.current = Date.now();
       setLoading((current) => ({ ...current, schedule: true }));
       const fetcher = adminSession ? fetchAdminSchedule : fetchPublicSchedule;
       fetcher(payload?.from, payload?.to)
@@ -542,7 +550,7 @@ export function useIsturaData(): IsturaData {
           if (active) setLoading((current) => ({ ...current, schedule: false }));
         });
     };
-    const subscriptionDelay = adminSession ? 250 : 1800;
+    const subscriptionDelay = adminSession ? 250 : 400;
     const timerId = window.setTimeout(() => {
       void import("../realtime/echo").then(({ getEcho, PUBLIC_SCHEDULE_CHANNEL }) => {
         if (!active) return;
@@ -550,6 +558,12 @@ export function useIsturaData(): IsturaData {
         if (!echo) return;
         const channel = echo.channel(PUBLIC_SCHEDULE_CHANNEL);
         channel.listen(".schedule.updated", refreshSchedule);
+        // Susul event yang mungkin terlewat selama handshake/subscribe: tarik
+        // ulang jadwal penuh begitu channel siap, supaya tidak perlu refresh manual.
+        // Lewati jika resync-on-connect baru saja melakukannya.
+        if (Date.now() - lastScheduleResyncAtRef.current >= PUBLIC_SCHEDULE_RESYNC_MIN_MS) {
+          refreshSchedule();
+        }
         cleanup = () => {
           try {
             channel.stopListening(".schedule.updated");
@@ -567,6 +581,34 @@ export function useIsturaData(): IsturaData {
       cleanup?.();
     };
   }, [adminSession, loading.public]);
+
+  // Resync saat WebSocket (re)connect: event yang terlewat selama koneksi
+  // terputus/handshake disusulkan dengan satu full-refetch begitu status
+  // berubah menjadi "connected". Guard timestamp mencegah request ganda dengan
+  // refetch yang sudah dilakukan tepat setelah subscribe.
+  useEffect(() => {
+    if (loading.public || import.meta.env.VITE_REVERB_ENABLED !== "true") return;
+    if (realtimeStatus !== "connected") return;
+    if (Date.now() - lastScheduleResyncAtRef.current < PUBLIC_SCHEDULE_RESYNC_MIN_MS) return;
+
+    let active = true;
+    lastScheduleResyncAtRef.current = Date.now();
+    setLoading((current) => ({ ...current, schedule: true }));
+    const fetcher = adminSession ? fetchAdminSchedule : fetchPublicSchedule;
+    fetcher()
+      .then((days) => {
+        if (!active) return;
+        setSchedules(days.map(apiVisitDayToLocal));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading((current) => ({ ...current, schedule: false }));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [adminSession, loading.public, realtimeStatus]);
 
   // Fallback agar public tetap auto-sync saat WebSocket/Reverb belum tersambung
   // atau service realtime production sedang restart.
