@@ -40,7 +40,7 @@
 
     {{-- CSS dipisah ke file statis (bukan inline <style>) supaya lolos CSP
          style-src 'self'. Halaman tetap berdiri sendiri tanpa bundle React. --}}
-    <link rel="stylesheet" href="/assets/info-page.css?v=1" />
+    <link rel="stylesheet" href="/assets/info-page.css?v=2" />
 </head>
 <body>
     <main class="info-shell" role="main">
@@ -50,15 +50,21 @@
             <p class="info-sub">{{ $description }}</p>
         </header>
 
-        <figure class="info-figure">
-            <h2>Alur Kunjungan</h2>
-            <img src="/assets/alur-kunjungan.webp" alt="Alur kunjungan ISTURA: Gerbang Timur, Pos Satu, spot foto, hingga Museum." loading="eager" />
-        </figure>
+        <div class="info-grid">
+            <figure class="info-figure">
+                <h2>Alur Kunjungan</h2>
+                <a href="/assets/alur-kunjungan.webp?v=2" target="_blank" rel="noopener noreferrer" aria-label="Perbesar gambar alur kunjungan">
+                    <img src="/assets/alur-kunjungan.webp?v=2" alt="Alur kunjungan ISTURA: Gerbang Timur, Pos Satu, spot foto, hingga Museum." loading="eager" />
+                </a>
+            </figure>
 
-        <figure class="info-figure">
-            <h2>Peraturan Kunjungan</h2>
-            <img src="/assets/peraturan-kunjungan.webp" alt="Peraturan kunjungan ISTURA." loading="lazy" />
-        </figure>
+            <figure class="info-figure">
+                <h2>Peraturan Kunjungan</h2>
+                <a href="/assets/peraturan-kunjungan.webp" target="_blank" rel="noopener noreferrer" aria-label="Perbesar gambar peraturan kunjungan">
+                    <img src="/assets/peraturan-kunjungan.webp" alt="Peraturan kunjungan ISTURA." loading="lazy" />
+                </a>
+            </figure>
+        </div>
 
         @if ($mapUrl)
             <section class="info-location" aria-label="Lokasi Gedung Agung">

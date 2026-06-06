@@ -29,13 +29,29 @@ body {
 
 .info-shell {
     width: 100%;
-    max-width: 720px;
+    max-width: 1080px;
     margin: 0 auto;
 }
 
 .info-head {
     text-align: center;
     margin-bottom: 28px;
+}
+
+/* Dua kartu infografis berdampingan di desktop, menumpuk di layar sempit.
+   align-items: start agar tinggi tiap kartu mengikuti isinya sendiri. */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .info-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
 }
 
 .info-logo {
@@ -82,6 +98,25 @@ body {
     height: auto;
     border-radius: 12px;
     background: #fff;
+}
+
+/* Bungkus link "klik untuk perbesar" pada gambar infografis. */
+.info-figure a {
+    display: block;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: zoom-in;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.info-figure a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+}
+
+.info-figure a:focus-visible {
+    outline: 2px solid var(--gold-2);
+    outline-offset: 3px;
 }
 
 /* Kartu lokasi + tautan Google Maps */
