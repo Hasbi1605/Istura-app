@@ -59,6 +59,7 @@ import {
   type BookingDraft,
 } from "../../lib/bookingDraft";
 import { buildWhatsappTextUrl, normalizeWhatsapp } from "../../lib/whatsapp";
+import { ASSETS } from "../../lib/assets";
 import { useReducedMotion } from "../../hooks";
 import { MikyGuide } from "../MikyGuide";
 import { WhatsAppIcon } from "../icons/SocialIcons";
@@ -523,7 +524,7 @@ export function BookingWizard({
         aria-hidden="true"
       >
         <span className="miky-sticky-avatar">
-          <img src={wizardSteps[step].image} alt="" loading="lazy" />
+          <img src={ASSETS.mikyFace} alt="" loading="lazy" />
         </span>
         <div className="miky-sticky-body">
           <span className="miky-sticky-step">

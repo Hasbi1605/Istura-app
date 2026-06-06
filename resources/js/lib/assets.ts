@@ -10,6 +10,7 @@ export const ASSETS = {
   mikyStep6: "/assets/miky-step-6.webp",
   mikyStep7: "/assets/miky-step-7.webp",
   mikyStep8: "/assets/miky-step-8.webp",
+  mikyFace: "/assets/miky-face.webp",
   mikyFeedback: "/assets/miky-feedback.webp",
   mikyFeedback2: "/assets/miky-feedback-2.webp",
   mikyFeedback3: "/assets/miky-feedback-3.webp",
