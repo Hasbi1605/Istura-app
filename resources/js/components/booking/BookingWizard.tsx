@@ -59,6 +59,7 @@ import {
   type BookingDraft,
 } from "../../lib/bookingDraft";
 import { buildWhatsappTextUrl, normalizeWhatsapp } from "../../lib/whatsapp";
+import { useReducedMotion } from "../../hooks";
 import { MikyGuide } from "../MikyGuide";
 import { WhatsAppIcon } from "../icons/SocialIcons";
 import { ButtonSpinner, InlineSpinner, SectionSkeleton } from "../ui/LoadingStates";
@@ -212,6 +213,11 @@ export function BookingWizard({
   onNavigate: (screen: Screen) => void;
 }) {
   const documentInputId = useId();
+  const reduced = useReducedMotion();
+  const guideRef = useRef<HTMLDivElement | null>(null);
+  // True saat kartu MIKY besar sudah tergulir keluar layar; dipakai untuk
+  // memunculkan mini-guide sticky di mobile agar MIKY tetap mendampingi.
+  const [guideHidden, setGuideHidden] = useState(false);
   const restoredDraftRef = useRef<BookingDraft | null | undefined>(undefined);
   if (restoredDraftRef.current === undefined) {
     restoredDraftRef.current = readBookingDraft();
@@ -256,6 +262,27 @@ export function BookingWizard({
 
   useEffect(() => {
     void Promise.all(wizardSteps.map((item) => preloadImage(item.image)));
+  }, []);
+
+  // Setiap pindah step, mulai dari atas halaman supaya kartu MIKY + sapaannya
+  // selalu terlihat lebih dulu. Tanpa ini, halaman tetap di posisi tombol
+  // "Lanjut" (bawah) sehingga MIKY terlewat. Hormati prefers-reduced-motion.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+  }, [step, reduced]);
+
+  // Pantau visibilitas kartu MIKY besar. Saat keluar layar (user menggulir ke
+  // form), tampilkan mini-guide sticky di mobile.
+  useEffect(() => {
+    const el = guideRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setGuideHidden(!entry.isIntersecting),
+      { rootMargin: "-96px 0px 0px 0px", threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -490,8 +517,23 @@ export function BookingWizard({
 
   return (
     <section className="wizard-page">
+      <div
+        className={`miky-sticky${guideHidden && step < 7 ? " is-visible" : ""}`}
+        data-reduced={reduced ? "true" : undefined}
+        aria-hidden="true"
+      >
+        <span className="miky-sticky-avatar">
+          <img src={wizardSteps[step].image} alt="" loading="lazy" />
+        </span>
+        <div className="miky-sticky-body">
+          <span className="miky-sticky-step">
+            Langkah {step + 1} / {wizardSteps.length}
+          </span>
+          <p className="miky-sticky-msg">{wizardSteps[step].miky}</p>
+        </div>
+      </div>
       <div className="wizard-shell">
-        <aside className="wizard-guide">
+        <aside className="wizard-guide" ref={guideRef}>
           <MikyGuide
             icon={StepIcon}
             title={wizardSteps[step].title}
