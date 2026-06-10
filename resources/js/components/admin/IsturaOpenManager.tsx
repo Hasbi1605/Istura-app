@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Download, Plus, RefreshCw } from "lucide-react";
+import { Ban, CalendarClock, CalendarDays, Download, Eye, Plus, RefreshCw, X } from "lucide-react";
 import type {
   OpenEventAdmin,
   OpenQuotaSummary,
@@ -18,6 +18,8 @@ import {
   updateOpenEventDay,
 } from "../../api/openEvents";
 import { InlineSpinner } from "../ui/LoadingStates";
+import { DetailItem } from "../ui/DetailItem";
+import { Pagination } from "../ui/Pagination";
 import { exportOpenRegistrationsToExcel } from "../../exportOpenRegistrations";
 
 const MONTHS_ID = [
@@ -30,6 +32,31 @@ function longDate(key?: string | null): string {
   const [year, month, day] = key.split("-").map(Number);
   if (!year || !month || !day) return key;
   return `${day} ${MONTHS_ID[month - 1]} ${year}`;
+}
+
+const OPEN_STATUS_LABELS: Record<string, string> = {
+  Registered: "Terdaftar",
+  Confirmed: "Terkonfirmasi",
+  Cancelled: "Batal",
+  Waitlisted: "Daftar tunggu",
+};
+
+function openStatusLabel(status: string): string {
+  return OPEN_STATUS_LABELS[status] ?? status;
+}
+
+function OpenStatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`open-status open-status-${status.toLowerCase()}`}>
+      {openStatusLabel(status)}
+    </span>
+  );
+}
+
+function openRegistrantTotal(registration: OpenRegistrationAdmin): string {
+  return registration.addonCount > 0
+    ? `${registration.headcount} +${registration.addonCount} add-on`
+    : `${registration.headcount}`;
 }
 
 type Tab = "settings" | "registrants";
@@ -337,6 +364,7 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [detail, setDetail] = useState<OpenRegistrationAdmin | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -371,6 +399,12 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
     });
   };
 
+  const handleChanged = () => {
+    setDetail(null);
+    void load();
+    onChanged();
+  };
+
   return (
     <div className="open-registrants">
       <div className="booking-toolbar open-registrants-filters">
@@ -403,47 +437,43 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
       ) : (
         <>
           <p className="open-registrants-count">{total} pendaftar</p>
-          <div className="open-table-wrap">
-            <table className="admin-table open-table">
-              <thead>
-                <tr>
-                  <th>Hari</th>
-                  <th>Nama</th>
-                  <th>WhatsApp</th>
-                  <th>Kepala</th>
-                  <th>Add-on</th>
-                  <th>Status</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 && (
-                  <tr><td colSpan={7} className="open-table-empty">Belum ada pendaftar.</td></tr>
-                )}
-                {rows.map((reg) => (
-                  <RegistrantRow
-                    key={reg.code}
-                    eventId={event.id}
-                    days={event.days}
-                    registration={reg}
-                    onChanged={() => { void load(); onChanged(); }}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="booking-grid open-registrants-grid" role="table" aria-label="Daftar pendaftar Istura Open">
+            <div className="open-registrants-grid-head" role="row">
+              <span role="columnheader">Hari</span>
+              <span role="columnheader">Nama</span>
+              <span role="columnheader">WhatsApp</span>
+              <span role="columnheader">Total</span>
+              <span role="columnheader">Status</span>
+              <span role="columnheader">Aksi</span>
+            </div>
+            {rows.length === 0 ? (
+              <div className="open-registrants-empty" role="row">
+                <span role="cell">Belum ada pendaftar.</span>
+              </div>
+            ) : (
+              rows.map((reg) => (
+                <RegistrantRow
+                  key={reg.code}
+                  eventId={event.id}
+                  days={event.days}
+                  registration={reg}
+                  onView={() => setDetail(reg)}
+                  onChanged={handleChanged}
+                />
+              ))
+            )}
           </div>
           {lastPage > 1 && (
-            <div className="open-pagination">
-              <button type="button" className="button button-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Sebelumnya
-              </button>
-              <span>Hal {page} / {lastPage}</span>
-              <button type="button" className="button button-ghost" disabled={page >= lastPage} onClick={() => setPage((p) => p + 1)}>
-                Berikutnya
-              </button>
-            </div>
+            <Pagination page={page} totalPages={lastPage} onChange={setPage} />
           )}
         </>
+      )}
+
+      {detail && (
+        <OpenRegistrationDetailDrawer
+          registration={detail}
+          onClose={() => setDetail(null)}
+        />
       )}
     </div>
   );
@@ -453,11 +483,13 @@ function RegistrantRow({
   eventId,
   days,
   registration,
+  onView,
   onChanged,
 }: {
   eventId: number;
   days: OpenEventAdmin["days"];
   registration: OpenRegistrationAdmin;
+  onView: () => void;
   onChanged: () => void;
 }) {
   const [moving, setMoving] = useState(false);
@@ -507,44 +539,125 @@ function RegistrantRow({
 
   return (
     <>
-      <tr>
-        <td>{longDate(registration.dayDate)}</td>
-        <td>{registration.contactName}</td>
-        <td>{registration.whatsapp}</td>
-        <td>{registration.headcount}</td>
-        <td>{registration.addonCount > 0 ? `+${registration.addonCount}` : "-"}</td>
-        <td><span className={`open-status open-status-${registration.status.toLowerCase()}`}>{registration.status}</span></td>
-        <td>
-          {isActive && (
-            <div className="open-row-actions">
-              <button type="button" className="admin-card-link" onClick={() => setMoving((m) => !m)}>Pindah</button>
-              <button type="button" className="admin-card-link open-danger-link" disabled={busy} onClick={doCancel}>Batal</button>
-            </div>
-          )}
-        </td>
-      </tr>
+      <div className="open-registrants-grid-row" role="row">
+        <span className="open-registrants-grid-cell" role="cell">{longDate(registration.dayDate)}</span>
+        <span className="open-registrants-grid-cell open-registrants-name" role="cell">
+          <strong>{registration.contactName}</strong>
+          <small>{registration.code} · {longDate(registration.dayDate)}</small>
+        </span>
+        <span className="open-registrants-grid-cell" role="cell">{registration.whatsapp}</span>
+        <span className="open-registrants-grid-cell" role="cell">{openRegistrantTotal(registration)}</span>
+        <span className="open-registrants-grid-cell" role="cell"><OpenStatusBadge status={registration.status} /></span>
+        <span className="open-registrants-grid-cell" role="cell">
+          <div className="open-row-actions">
+            <button
+              type="button"
+              className="open-icon-action"
+              onClick={onView}
+              aria-label={`Lihat detail ${registration.contactName}`}
+              title="Lihat detail"
+            >
+              <Eye size={16} aria-hidden="true" />
+            </button>
+            {isActive && (
+              <>
+                <button
+                  type="button"
+                  className="open-icon-action"
+                  onClick={() => setMoving((m) => !m)}
+                  aria-label={`Pindahkan ${registration.contactName}`}
+                  aria-pressed={moving}
+                  title="Pindah hari"
+                >
+                  <CalendarClock size={16} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="open-icon-action open-icon-action--danger"
+                  disabled={busy}
+                  onClick={doCancel}
+                  aria-label={`Batalkan ${registration.contactName}`}
+                  title="Batalkan"
+                >
+                  <Ban size={16} aria-hidden="true" />
+                </button>
+              </>
+            )}
+          </div>
+        </span>
+      </div>
       {moving && (
-        <tr className="open-move-row">
-          <td colSpan={7}>
-            <div className="open-move-form">
-              <select value={moveDay} onChange={(e) => setMoveDay(e.target.value ? Number(e.target.value) : "")}>
-                <option value="">Pilih hari tujuan</option>
-                {days.filter((d) => d.id !== registration.dayId).map((d) => (
-                  <option key={d.id} value={d.id}>{longDate(d.date)}</option>
-                ))}
-              </select>
-              <label className="open-move-overbook">
-                <input type="checkbox" checked={allowOverbook} onChange={(e) => setAllowOverbook(e.target.checked)} />
-                Izinkan overbook
-              </label>
-              <input placeholder="Catatan (wajib jika overbook)" value={note} onChange={(e) => setNote(e.target.value)} />
-              <button type="button" className="button button-primary" disabled={busy || !moveDay} onClick={doMove}>Pindahkan</button>
-              {error && <small className="field-error">{error}</small>}
-            </div>
-          </td>
-        </tr>
+        <div className="open-move-row">
+          <div className="open-move-form">
+            <select value={moveDay} onChange={(e) => setMoveDay(e.target.value ? Number(e.target.value) : "")}>
+              <option value="">Pilih hari tujuan</option>
+              {days.filter((d) => d.id !== registration.dayId).map((d) => (
+                <option key={d.id} value={d.id}>{longDate(d.date)}</option>
+              ))}
+            </select>
+            <label className="open-move-overbook">
+              <input type="checkbox" checked={allowOverbook} onChange={(e) => setAllowOverbook(e.target.checked)} />
+              Izinkan overbook
+            </label>
+            <input placeholder="Catatan (wajib jika overbook)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <button type="button" className="button button-primary" disabled={busy || !moveDay} onClick={doMove}>Pindahkan</button>
+            {error && <small className="field-error">{error}</small>}
+          </div>
+        </div>
       )}
     </>
+  );
+}
+
+function OpenRegistrationDetailDrawer({
+  registration,
+  onClose,
+}: {
+  registration: OpenRegistrationAdmin;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="booking-slideover" role="dialog" aria-modal="true" aria-label="Detail pendaftar Istura Open">
+      <button
+        type="button"
+        className="booking-slideover-backdrop"
+        aria-label="Tutup detail"
+        onClick={onClose}
+      />
+      <aside className="booking-slideover-panel">
+        <header>
+          <span>
+            <strong>{registration.contactName}</strong>
+            <small>{registration.code}</small>
+          </span>
+          <button type="button" className="booking-slideover-close" onClick={onClose} aria-label="Tutup">
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+        <div className="booking-slideover-status">
+          <OpenStatusBadge status={registration.status} />
+        </div>
+        <div className="detail-grid">
+          <DetailItem label="Kode" value={registration.code} />
+          <DetailItem label="Nama" value={registration.contactName} />
+          <DetailItem label="NIK" value={registration.nik ?? registration.nikMasked} />
+          <DetailItem label="WhatsApp" value={registration.whatsapp} />
+          <DetailItem label="Hari kunjungan" value={longDate(registration.dayDate)} />
+          <DetailItem label="Jumlah kepala" value={`${registration.headcount}`} />
+          <DetailItem label="Add-on" value={registration.members.length > 0 ? registration.members.join(", ") : "-"} />
+          <DetailItem label="Waktu daftar" value={registration.registeredAt ?? "-"} />
+          <DetailItem label="Waktu batal" value={registration.cancelledAt ?? "-"} />
+        </div>
+      </aside>
+    </div>
   );
 }
 
