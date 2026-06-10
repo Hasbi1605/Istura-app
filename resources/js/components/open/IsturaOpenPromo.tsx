@@ -68,10 +68,9 @@ export function IsturaOpenPromo({
     onRegister();
   };
 
-  const quotaStrip = event.days
+  const totalRemaining = event.days
     .filter((day) => day.isOpen)
-    .map((day) => `${shortDate(day.date)} ${day.remaining}`)
-    .join(" · ");
+    .reduce((sum, day) => sum + Math.max(0, day.remaining), 0);
 
   return (
     <>
@@ -95,7 +94,9 @@ export function IsturaOpenPromo({
               Kunjungan perorangan {shortDate(event.startDate)} – {shortDate(event.endDate)}. Gratis, tanpa surat.
               Pilih harimu, siapa cepat dia dapat.
             </p>
-            {quotaStrip && <p className="open-promo-quota">Sisa kuota: {quotaStrip}</p>}
+            {totalRemaining > 0 && (
+              <p className="open-promo-quota">Sisa kuota: {totalRemaining} orang</p>
+            )}
             <div className="open-promo-actions">
               <button type="button" className="btn-primary" onClick={startRegister}>
                 Daftar Sekarang
