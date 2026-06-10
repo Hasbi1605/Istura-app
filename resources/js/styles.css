@@ -12163,8 +12163,7 @@ a {
 .open-wizard .btn-primary,
 .open-modal .btn-primary,
 .open-promo-modal .btn-primary,
-.open-admin .btn-primary,
-.open-banner .open-banner-cta {
+.open-admin .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -12576,33 +12575,82 @@ a {
 .open-promo-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .open-banner {
+  position: fixed;
+  top: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 29;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
-  margin: 84px auto 0;
-  max-width: 1180px;
+  width: min(1180px, calc(100% - 40px));
   padding: 12px 18px;
   color: var(--navy);
-  background: linear-gradient(135deg, rgba(229, 189, 85, 0.35), rgba(196, 146, 18, 0.18));
-  border: 1px solid rgba(196, 146, 18, 0.4);
+  background: linear-gradient(135deg, rgba(229, 189, 85, 0.92), rgba(196, 146, 18, 0.85));
+  border: 1px solid rgba(196, 146, 18, 0.5);
   border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 28px rgba(196, 146, 18, 0.22);
+  animation: open-banner-slide-in 300ms ease both;
 }
 
-.open-banner-text { display: inline-flex; align-items: center; gap: 10px; font-size: 0.92rem; }
-.open-banner-text svg { color: var(--gold); flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) {
+  .open-banner { animation: none; }
+}
+
+@keyframes open-banner-slide-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.open-banner-text { display: inline-flex; align-items: center; gap: 10px; font-size: 0.92rem; font-weight: 600; }
+.open-banner-text svg { color: var(--navy); flex: 0 0 auto; opacity: 0.7; }
+
+.open-banner-actions { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 
 .open-banner-cta {
-  flex: 0 0 auto;
-  min-height: 38px;
-  padding: 0 18px;
+  min-height: 36px;
+  padding: 0 16px;
   color: var(--navy);
-  background: linear-gradient(135deg, var(--gold-2), var(--gold));
+  background: var(--white);
   border: 0;
   border-radius: 999px;
   font-weight: 800;
+  font-size: 0.88rem;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 24, 47, 0.12);
+  transition: transform 120ms ease;
+}
+
+.open-banner-cta:hover { transform: scale(1.04); }
+
+.open-banner-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--navy);
+  background: rgba(16, 24, 47, 0.08);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 120ms ease;
+}
+
+.open-banner-close:hover { opacity: 1; }
+
+@media (max-width: 768px) {
+  .open-banner {
+    top: 78px;
+    width: calc(100% - 20px);
+    padding: 10px 14px;
+    gap: 10px;
+    font-size: 0.84rem;
+  }
+  .open-banner-text { font-size: 0.82rem; }
 }
 
 /* ---- Admin manager ------------------------------------------------------- */

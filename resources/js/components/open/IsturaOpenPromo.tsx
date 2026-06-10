@@ -18,8 +18,15 @@ function hasOpenCapacity(event: OpenEventPublic): boolean {
 }
 
 /**
- * Public popup (once per event per visitor) + persistent banner for the active
- * Istura Open event. Data piggybacks on /public/bootstrap; no WhatsApp links.
+ * Public popup (every page load while event active) + persistent fixed banner
+ * for the active Istura Open event.
+ *
+ * - Popup: muncul setiap kali halaman dimuat (refresh/navigasi) selama event
+ *   aktif dan masih ada kuota. Dismiss hanya menyembunyikan untuk mount saat
+ *   ini — refresh halaman akan menampilkan kembali.
+ * - Banner: fixed di bawah navbar, selalu terlihat saat scroll. Tombol ×
+ *   menyembunyikan untuk sesi browser saat ini (sessionStorage); tutup tab
+ *   dan buka lagi → banner muncul kembali.
  */
 export function IsturaOpenPromo({
   event,
@@ -28,19 +35,16 @@ export function IsturaOpenPromo({
   event: OpenEventPublic;
   onRegister: () => void;
 }) {
-  const seenKey = `istura-open-seen:${event.slug}`;
-  const [showPopup, setShowPopup] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!hasOpenCapacity(event)) return;
+  const bannerDismissedKey = `istura-open-banner-dismissed:${event.slug}`;
+  const [showPopup, setShowPopup] = useState(() => hasOpenCapacity(event));
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
     try {
-      if (window.localStorage.getItem(seenKey) === "1") return;
+      return window.sessionStorage.getItem(bannerDismissedKey) === "1";
     } catch {
-      /* ignore storage errors */
+      return false;
     }
-    setShowPopup(true);
-  }, [seenKey, event]);
+  });
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!showPopup) return;
@@ -59,8 +63,12 @@ export function IsturaOpenPromo({
 
   const dismissPopup = () => {
     setShowPopup(false);
+  };
+
+  const dismissBanner = () => {
+    setBannerDismissed(true);
     try {
-      window.localStorage.setItem(seenKey, "1");
+      window.sessionStorage.setItem(bannerDismissedKey, "1");
     } catch {
       /* ignore */
     }
@@ -111,17 +119,24 @@ export function IsturaOpenPromo({
         </div>
       )}
 
-      <div className="open-banner" role="region" aria-label="Istura Open">
-        <div className="open-banner-text">
-          <PartyPopper size={18} />
-          <span>
-            <strong>{event.name}</strong> — pendaftaran perorangan {shortDate(event.startDate)}–{shortDate(event.endDate)} dibuka.
-          </span>
+      {!bannerDismissed && (
+        <div className="open-banner" role="region" aria-label="Istura Open">
+          <div className="open-banner-text">
+            <PartyPopper size={18} />
+            <span>
+              <strong>{event.name}</strong> — pendaftaran perorangan {shortDate(event.startDate)}–{shortDate(event.endDate)} dibuka.
+            </span>
+          </div>
+          <div className="open-banner-actions">
+            <button type="button" className="open-banner-cta" onClick={onRegister}>
+              Daftar
+            </button>
+            <button type="button" className="open-banner-close" aria-label="Tutup banner" onClick={dismissBanner}>
+              <X size={16} />
+            </button>
+          </div>
         </div>
-        <button type="button" className="open-banner-cta" onClick={onRegister}>
-          Daftar
-        </button>
-      </div>
+      )}
     </>
   );
 }
