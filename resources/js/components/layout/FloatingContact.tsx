@@ -5,12 +5,12 @@
 import { MessageCircle, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { FooterContact } from "../../domain/types";
-import { useReducedMotion } from "../../hooks";
+import { useReducedMotion, useTypewriter } from "../../hooks";
 import { ASSETS } from "../../lib/assets";
 import { buildWhatsappTextUrl } from "../../lib/whatsapp";
 import { InstagramIcon, WhatsAppIcon } from "../icons/SocialIcons";
 
-const MIKY_GREETING = "Hai, aku MIKY! Ada yang bisa kubantu soal kunjungan ISTURA? Pilih topik di bawah ya.";
+const MIKY_GREETING = "Ada yang bisa kubantu soal kunjungan ISTURA? Pilih topik di bawah ya.";
 
 const QUICK_TOPICS: { label: string; message: string }[] = [
   {
@@ -49,6 +49,10 @@ export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
   const waContact = contacts.find((contact) => contact.iconKey === "whatsapp");
   const igContact = contacts.find((contact) => contact.iconKey === "instagram");
   const waPhone = resolveWaPhone(waContact);
+
+  // Subtitle "diketik" MIKY saat panel terbuka, konsisten dengan hero/wizard;
+  // langsung penuh bila pengguna memilih reduced motion.
+  const typedGreeting = useTypewriter(MIKY_GREETING, 22, !reduced, open);
 
   // Escape menutup panel, klik di luar menutup panel.
   useEffect(() => {
@@ -108,8 +112,13 @@ export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
               <img src={ASSETS.mikyFace} alt="" loading="lazy" decoding="async" />
             </span>
             <div className="floating-contact-intro">
-              <strong>MIKY · Tim ISTURA</strong>
-              <p>{MIKY_GREETING}</p>
+              <strong>MIKY · Asisten ISTURA</strong>
+              <p aria-live="polite">
+                {typedGreeting}
+                {!reduced && typedGreeting.length < MIKY_GREETING.length && (
+                  <span className="floating-contact-caret" aria-hidden="true" />
+                )}
+              </p>
             </div>
             <button
               ref={closeRef}

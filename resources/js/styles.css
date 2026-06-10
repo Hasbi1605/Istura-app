@@ -11986,6 +11986,28 @@ a {
   font-size: 0.84rem;
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.88);
+  min-height: 2.6em;
+}
+
+.floating-contact-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--gold-2);
+  animation: floating-contact-caret 0.9s steps(1) infinite;
+}
+
+@keyframes floating-contact-caret {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .floating-contact-close {
