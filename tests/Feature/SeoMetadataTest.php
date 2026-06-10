@@ -42,6 +42,7 @@ class SeoMetadataTest extends TestCase
         $response->assertSee('<link rel="canonical" href="https://www.isturaiky.page/" />', false);
         $response->assertSee('<script type="application/ld+json">', false);
         $response->assertSee('"@type": "FAQPage"', false);
+        $response->assertSee('<noscript>', false);
         $response->assertSee('Booking Kunjungan Istana Kepresidenan Yogyakarta');
         $response->assertSee('Jadwal Kunjungan ISTURA');
         $response->assertSee('Apakah kunjungan ISTURA gratis?');
