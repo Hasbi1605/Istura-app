@@ -6338,9 +6338,10 @@ a {
 
 .admin-landing-save-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .admin-save-status {
@@ -6367,36 +6368,40 @@ a {
   gap: 14px;
 }
 
-/* Sticky save bar: status + tombol Simpan selalu terjangkau saat scroll.
-   Offset memperhitungkan topbar admin (56px) yang juga sticky. */
-.admin-landing-heading {
+/* Sticky toolbar: navigasi section dan aksi simpan tetap terjangkau saat
+   editor panjang, sementara judul halaman tetap mengikuti pola admin umum. */
+.admin-landing-toolbar {
   position: sticky;
-  top: var(--admin-topbar-height, 56px);
+  top: calc(var(--admin-topbar-height, 56px) + 8px);
   z-index: 5;
-  margin: 0 -24px;
-  padding: 14px 24px;
-  background: rgba(247, 248, 251, 0.92);
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid rgba(16, 24, 47, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: rgba(247, 248, 251, 0.94);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(16, 24, 47, 0.06);
+  backdrop-filter: blur(8px);
 }
 
-/* Tab grup section — mengikuti pola .open-admin-tabs agar konsisten dengan
-   halaman admin lain. Sticky tepat di bawah save bar. */
-.admin-landing-tabs {
-  position: sticky;
-  top: calc(var(--admin-topbar-height, 56px) + 69px);
-  z-index: 4;
+/* Shared section tabs for admin editors and operational managers. */
+.admin-section-tabs {
   display: flex;
-  flex-wrap: wrap;
+  min-width: 0;
   gap: 6px;
-  margin: 0 -24px;
-  padding: 0 24px;
-  background: rgba(247, 248, 251, 0.92);
-  backdrop-filter: blur(6px);
   border-bottom: 1px solid rgba(16, 24, 47, 0.1);
 }
 
-.admin-landing-tabs button {
+.admin-landing-toolbar .admin-section-tabs {
+  flex: 1;
+  align-self: stretch;
+  border-bottom: 0;
+}
+
+.admin-section-tabs button {
   padding: 10px 16px;
   color: var(--muted);
   background: none;
@@ -6407,13 +6412,13 @@ a {
   cursor: pointer;
 }
 
-.admin-landing-tabs button:hover,
-.admin-landing-tabs button:focus-visible {
+.admin-section-tabs button:hover,
+.admin-section-tabs button:focus-visible {
   outline: none;
   color: var(--navy);
 }
 
-.admin-landing-tabs button.is-active {
+.admin-section-tabs button.is-active {
   color: var(--navy);
   border-bottom-color: var(--gold);
 }
@@ -12219,8 +12224,7 @@ a {
 /* Shared button helpers (scoped to the Istura Open module) */
 .open-wizard .btn-primary,
 .open-modal .btn-primary,
-.open-promo-modal .btn-primary,
-.open-admin .btn-primary {
+.open-promo-modal .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -12239,8 +12243,7 @@ a {
 
 .open-wizard .btn-secondary,
 .open-modal .btn-secondary,
-.open-promo-modal .btn-secondary,
-.open-admin .btn-secondary {
+.open-promo-modal .btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -12256,28 +12259,23 @@ a {
   transition: background 140ms ease, border-color 140ms ease;
 }
 
-.open-wizard .btn-primary:hover:not(:disabled),
-.open-admin .btn-primary:hover:not(:disabled) {
+.open-wizard .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 18px 34px rgba(196, 146, 18, 0.28);
 }
 
-.open-wizard .btn-secondary:hover:not(:disabled),
-.open-admin .btn-secondary:hover:not(:disabled) {
+.open-wizard .btn-secondary:hover:not(:disabled) {
   background: rgba(16, 24, 47, 0.05);
   border-color: rgba(16, 24, 47, 0.24);
 }
 
 .open-wizard .btn-primary:disabled,
-.open-wizard .btn-secondary:disabled,
-.open-admin .btn-primary:disabled,
-.open-admin .btn-secondary:disabled {
+.open-wizard .btn-secondary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.open-wizard .btn-link,
-.open-admin .btn-link {
+.open-wizard .btn-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -12289,8 +12287,7 @@ a {
   cursor: pointer;
 }
 
-.open-wizard .btn-link:hover,
-.open-admin .btn-link:hover {
+.open-wizard .btn-link:hover {
   color: var(--navy);
   text-decoration: underline;
 }
@@ -12772,42 +12769,55 @@ a {
 }
 
 /* ---- Admin manager ------------------------------------------------------- */
-.open-admin-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
+.open-admin-toolbar {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(16, 24, 47, 0.025);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 12px;
 }
 
-.open-admin-header h1 { margin: 0; color: var(--navy); font-size: 1.5rem; }
-
-.open-admin-header-actions {
+.open-admin-toolbar-primary {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
 }
 
-.open-admin-header-actions select {
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+.open-admin-event-select {
+  flex: 1;
+  min-width: 220px;
+}
+
+.open-admin-event-select select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 34px 0 12px;
+  color: var(--navy);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.86rem;
   font-weight: 700;
+}
+
+.open-admin-event-select select:focus {
+  outline: none;
+  border-color: rgba(196, 146, 18, 0.5);
+  box-shadow: 0 0 0 3px rgba(196, 146, 18, 0.15);
 }
 
 .open-admin-summary {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px 14px;
   flex-wrap: wrap;
-  padding: 12px 16px;
-  margin-bottom: 16px;
+  padding-top: 10px;
   color: var(--muted);
-  background: rgba(16, 24, 47, 0.04);
-  border-radius: 12px;
+  border-top: 1px solid rgba(16, 24, 47, 0.08);
+  font-size: 0.86rem;
   font-weight: 700;
 }
 
@@ -12829,25 +12839,6 @@ a {
 
 .open-activate { display: inline-flex; flex-direction: column; gap: 4px; margin-left: auto; }
 
-.open-admin-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 18px;
-  border-bottom: 1px solid var(--line);
-}
-
-.open-admin-tabs button {
-  padding: 10px 16px;
-  color: var(--muted);
-  background: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.open-admin-tabs button.is-active { color: var(--navy); border-bottom-color: var(--gold); }
-
 .open-day-admin-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -12857,10 +12848,6 @@ a {
 .open-day-admin-card {
   display: grid;
   gap: 10px;
-  padding: 16px;
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: 14px;
 }
 
 .open-day-admin-head {
@@ -12902,6 +12889,16 @@ a {
   gap: 10px;
 }
 
+.open-day-toggle.is-on {
+  color: var(--green);
+  background: rgba(45, 118, 84, 0.1);
+  border-color: rgba(45, 118, 84, 0.24);
+}
+
+.open-day-export {
+  border-radius: 8px;
+}
+
 .open-admin-empty,
 .open-registrants-count { color: var(--muted); }
 
@@ -12912,36 +12909,48 @@ a {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+  padding: 10px;
+  background: rgba(16, 24, 47, 0.025);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 12px;
 }
 
 .open-registrants-filters select {
   min-height: 38px;
   padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  color: var(--navy);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.86rem;
   font-weight: 700;
 }
 
-.open-registrants-search { display: inline-flex; gap: 8px; }
+.open-registrants-search {
+  display: inline-flex;
+  flex: 1 1 280px;
+  gap: 8px;
+}
+
 .open-registrants-search input {
+  flex: 1;
+  min-width: 160px;
   min-height: 38px;
   padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  color: var(--navy);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.86rem;
 }
 
 .open-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
 
-.open-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.open-table { min-width: 760px; }
 
-.open-table th,
-.open-table td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
-}
-
-.open-table th { color: var(--muted); font-weight: 800; background: rgba(16, 24, 47, 0.03); }
+.open-table th { background: rgba(16, 24, 47, 0.03); }
 .open-table-empty { text-align: center; color: var(--muted); padding: 24px; }
 
 .open-status {
@@ -12959,6 +12968,10 @@ a {
 
 .open-row-actions { display: inline-flex; gap: 12px; }
 
+.open-row-actions .admin-card-link {
+  padding-inline: 0;
+}
+
 .open-move-row td { background: rgba(16, 24, 47, 0.03); }
 
 .open-move-form {
@@ -12972,8 +12985,8 @@ a {
 .open-move-form input {
   min-height: 38px;
   padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
 }
 
 .open-move-overbook { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
@@ -12990,8 +13003,105 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .open-wizard .btn-primary,
-  .open-admin .btn-primary,
   .open-day-card {
     transition: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-landing-toolbar {
+    top: calc(var(--admin-topbar-height, 52px) + 6px);
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-section-tabs {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .admin-section-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-section-tabs button {
+    flex: 0 0 auto;
+  }
+
+  .admin-landing-save-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-landing-save-actions .admin-save-status {
+    text-align: left;
+  }
+
+  .open-admin-toolbar-primary {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .open-admin-event-select {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .open-admin-summary {
+    align-items: flex-start;
+  }
+
+  .open-activate {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .open-activate .button {
+    width: 100%;
+  }
+
+  .open-registrants-filters > select {
+    flex: 1 1 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-landing-save-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-landing-save-actions .button {
+    width: 100%;
+  }
+
+  .open-admin-toolbar-primary .button {
+    width: 100%;
+  }
+
+  .open-day-admin-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .open-day-admin-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .open-day-admin-actions .button,
+  .open-day-admin-actions .booking-export-button {
+    width: 100%;
+  }
+
+  .open-registrants-search {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+  }
+
+  .open-registrants-search input,
+  .open-registrants-search .button,
+  .open-registrants-filters > .booking-export-button {
+    width: 100%;
   }
 }

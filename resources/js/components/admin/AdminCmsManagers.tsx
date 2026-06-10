@@ -1456,10 +1456,31 @@ export function AdminLandingManager({
 
   return (
     <div className="admin-cms-page admin-landing-page">
-      <div className="admin-heading admin-landing-heading">
+      <div className="admin-heading">
         <div>
           <h1>Landing Page</h1>
           <p>Navbar, section utama, video, CTA, dan footer publik.</p>
+        </div>
+      </div>
+
+      <div
+        className="admin-landing-toolbar"
+        role="region"
+        aria-label="Navigasi dan penyimpanan landing page"
+      >
+        <div className="admin-section-tabs" role="tablist" aria-label="Grup section landing page">
+          {LANDING_TAB_GROUPS.map((group) => (
+            <button
+              key={group.id}
+              type="button"
+              role="tab"
+              aria-selected={activeGroup === group.id}
+              className={activeGroup === group.id ? "is-active" : ""}
+              onClick={() => setActiveGroup(group.id)}
+            >
+              {group.label}
+            </button>
+          ))}
         </div>
         <div className="admin-landing-save-actions">
           {saveStatus && (
@@ -1475,21 +1496,6 @@ export function AdminLandingManager({
             {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
           </button>
         </div>
-      </div>
-
-      <div className="admin-landing-tabs" role="tablist" aria-label="Grup section landing page">
-        {LANDING_TAB_GROUPS.map((group) => (
-          <button
-            key={group.id}
-            type="button"
-            role="tab"
-            aria-selected={activeGroup === group.id}
-            className={activeGroup === group.id ? "is-active" : ""}
-            onClick={() => setActiveGroup(group.id)}
-          >
-            {group.label}
-          </button>
-        ))}
       </div>
 
       <div className="admin-landing-sections">

@@ -71,41 +71,25 @@ export function IsturaOpenManager() {
 
   if (loading && events.length === 0) {
     return (
-      <div className="admin-panel">
+      <div className="admin-cms-page open-admin">
         <InlineSpinner label="Memuat Istura Open" />
       </div>
     );
   }
 
   return (
-    <div className="admin-panel open-admin">
-      <header className="open-admin-header">
+    <div className="admin-cms-page open-admin">
+      <div className="admin-heading">
         <div>
           <h1>Istura Open</h1>
-          <p className="admin-panel-subtitle">Pendaftaran perorangan untuk event tertentu.</p>
+          <p>Pendaftaran perorangan untuk event tertentu.</p>
         </div>
-        <div className="open-admin-header-actions">
-          {events.length > 0 && (
-            <select
-              value={selectedId ?? ""}
-              onChange={(e) => setSelectedId(Number(e.target.value))}
-              aria-label="Pilih event"
-            >
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.name} {event.isActive ? "• Aktif" : ""}
-                </option>
-              ))}
-            </select>
-          )}
-          <button type="button" className="btn-secondary" onClick={() => void reload()}>
-            <RefreshCw size={15} /> Muat ulang
-          </button>
-          <button type="button" className="btn-primary" onClick={() => setShowCreate(true)}>
+        <div className="admin-heading-actions">
+          <button type="button" className="button button-primary" onClick={() => setShowCreate(true)}>
             <Plus size={15} /> Buat Event
           </button>
         </div>
-      </header>
+      </div>
 
       {error && <p className="open-wizard-alert" role="alert">{error}</p>}
 
@@ -117,19 +101,40 @@ export function IsturaOpenManager() {
 
       {selected && (
         <>
-          <div className="open-admin-summary">
-            <span>
-              {longDate(selected.startDate)} – {longDate(selected.endDate)}
-            </span>
-            <span>{selected.perDayQuota}/hari</span>
-            <span>maks {selected.maxAddons} add-on</span>
-            <span className={selected.isActive ? "open-pill is-on" : "open-pill"}>
-              {selected.isActive ? "● Aktif" : "Nonaktif"}
-            </span>
-            <ActivateButton event={selected} onChanged={() => void reload()} />
-          </div>
+          <section className="open-admin-toolbar" aria-label="Pengaturan event Istura Open">
+            <div className="open-admin-toolbar-primary">
+              <label className="open-admin-event-select">
+                <span className="visually-hidden">Pilih event</span>
+                <select
+                  value={selectedId ?? ""}
+                  onChange={(e) => setSelectedId(Number(e.target.value))}
+                  aria-label="Pilih event"
+                >
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.name} {event.isActive ? "• Aktif" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" className="button button-ghost" onClick={() => void reload()}>
+                <RefreshCw size={15} /> Muat ulang
+              </button>
+            </div>
+            <div className="open-admin-summary">
+              <span>
+                {longDate(selected.startDate)} – {longDate(selected.endDate)}
+              </span>
+              <span>{selected.perDayQuota}/hari</span>
+              <span>maks {selected.maxAddons} add-on</span>
+              <span className={selected.isActive ? "open-pill is-on" : "open-pill"}>
+                {selected.isActive ? "● Aktif" : "Nonaktif"}
+              </span>
+              <ActivateButton event={selected} onChanged={() => void reload()} />
+            </div>
+          </section>
 
-          <div className="open-admin-tabs">
+          <div className="admin-section-tabs">
             <button type="button" className={tab === "settings" ? "is-active" : ""} onClick={() => setTab("settings")}>
               Pengaturan & Hari
             </button>
@@ -186,7 +191,12 @@ function ActivateButton({ event, onChanged }: { event: OpenEventAdmin; onChanged
 
   return (
     <span className="open-activate">
-      <button type="button" className={event.isActive ? "btn-secondary" : "btn-primary"} disabled={busy} onClick={toggle}>
+      <button
+        type="button"
+        className={`button ${event.isActive ? "button-ghost" : "button-primary"}`}
+        disabled={busy}
+        onClick={toggle}
+      >
         {event.isActive ? "Nonaktifkan" : "Aktifkan"}
       </button>
       {error && <small className="field-error">{error}</small>}
@@ -274,7 +284,7 @@ function DayCard({
   };
 
   return (
-    <div className="open-day-admin-card">
+    <div className="admin-card open-day-admin-card">
       <div className="open-day-admin-head">
         <CalendarDays size={16} /> {longDate(day.date)}
       </div>
@@ -303,14 +313,14 @@ function DayCard({
       <div className="open-day-admin-actions">
         <button
           type="button"
-          className={day.isOpen ? "open-pill is-on" : "open-pill"}
+          className={`button button-ghost open-day-toggle${day.isOpen ? " is-on" : ""}`}
           disabled={busy}
           onClick={() => persist({ isOpen: !day.isOpen })}
         >
           {day.isOpen ? "● Buka" : "Tutup"}
         </button>
-        <button type="button" className="btn-link" onClick={() => void exportDay()}>
-          <Download size={14} /> Export hari
+        <button type="button" className="booking-export-button open-day-export" onClick={() => void exportDay()}>
+          <Download size={14} /> Ekspor hari
         </button>
       </div>
       {error && <small className="field-error">{error}</small>}
@@ -381,10 +391,10 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
           onSubmit={(e) => { e.preventDefault(); setPage(1); void load(); }}
         >
           <input value={search} placeholder="Cari nama / WA / kode" onChange={(e) => setSearch(e.target.value)} />
-          <button type="submit" className="btn-secondary">Cari</button>
+          <button type="submit" className="button button-ghost">Cari</button>
         </form>
-        <button type="button" className="btn-primary" onClick={() => void exportAll()}>
-          <Download size={15} /> Export
+        <button type="button" className="booking-export-button" onClick={() => void exportAll()}>
+          <Download size={15} /> Ekspor
         </button>
       </div>
 
@@ -394,7 +404,7 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
         <>
           <p className="open-registrants-count">{total} pendaftar</p>
           <div className="open-table-wrap">
-            <table className="open-table">
+            <table className="admin-table open-table">
               <thead>
                 <tr>
                   <th>Hari</th>
@@ -424,11 +434,11 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
           </div>
           {lastPage > 1 && (
             <div className="open-pagination">
-              <button type="button" className="btn-secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <button type="button" className="button button-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 Sebelumnya
               </button>
               <span>Hal {page} / {lastPage}</span>
-              <button type="button" className="btn-secondary" disabled={page >= lastPage} onClick={() => setPage((p) => p + 1)}>
+              <button type="button" className="button button-ghost" disabled={page >= lastPage} onClick={() => setPage((p) => p + 1)}>
                 Berikutnya
               </button>
             </div>
@@ -507,8 +517,8 @@ function RegistrantRow({
         <td>
           {isActive && (
             <div className="open-row-actions">
-              <button type="button" className="btn-link" onClick={() => setMoving((m) => !m)}>Pindah</button>
-              <button type="button" className="btn-link open-danger-link" disabled={busy} onClick={doCancel}>Batal</button>
+              <button type="button" className="admin-card-link" onClick={() => setMoving((m) => !m)}>Pindah</button>
+              <button type="button" className="admin-card-link open-danger-link" disabled={busy} onClick={doCancel}>Batal</button>
             </div>
           )}
         </td>
@@ -528,7 +538,7 @@ function RegistrantRow({
                 Izinkan overbook
               </label>
               <input placeholder="Catatan (wajib jika overbook)" value={note} onChange={(e) => setNote(e.target.value)} />
-              <button type="button" className="btn-primary" disabled={busy || !moveDay} onClick={doMove}>Pindahkan</button>
+              <button type="button" className="button button-primary" disabled={busy || !moveDay} onClick={doMove}>Pindahkan</button>
               {error && <small className="field-error">{error}</small>}
             </div>
           </td>
@@ -614,8 +624,8 @@ function CreateEventModal({
           <textarea value={agreementText} onChange={(e) => setAgreementText(e.target.value)} rows={3} />
         </label>
         <div className="open-step-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>Batal</button>
-          <button type="button" className="btn-primary" disabled={busy} onClick={submit}>
+          <button type="button" className="button button-ghost" onClick={onClose}>Batal</button>
+          <button type="button" className="button button-primary" disabled={busy} onClick={submit}>
             {busy ? "Menyimpan..." : "Buat Event"}
           </button>
         </div>
