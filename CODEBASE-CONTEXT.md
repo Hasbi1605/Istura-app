@@ -163,7 +163,7 @@ Roadmap: **Istura Open** sudah diimplementasi (modul terpisah — lihat `IsturaO
 ### 5.1 Flow Publik
 - **Lihat info & jadwal:** load `/api/public/bootstrap` → telusuri seksi → kalender slot (Available/Held/Booked/Closed) → "Mulai Booking".
 - **Booking (8 langkah):** Selamat Datang → Contact Person (precheck NIK/WA) → Instansi → Pilih Jadwal → Upload Surat (≤5MB) → Review → Pernyataan → Selesai (kode `ISTURA-YYYY-NNNN`, status Pending). Submit mengunci slot via transaksi DB + broadcast realtime ke admin.
-- **Feedback:** admin set Completed → kirim tautan WA (kode+token) → pengunjung isi rating dsb → submit sekali per booking.
+- **Feedback:** admin klik "Tandai Selesai" → modal isi **link dokumentasi (opsional)** → set Completed (link disimpan di `bookings.documentation_link`) → kirim tautan WA (template `Completed` memakai variabel `{dokumentasi}` = link foto/dokumentasi & `{link}` = kuesioner/feedback kode+token) → pengunjung isi rating dsb → submit sekali per booking.
 
 ### 5.2 Flow Admin
 - **Login (+2FA):** email+password (progressive delay) → bila 2FA aktif tampil challenge TOTP/recovery + trusted device → dashboard (absolute session lifetime).

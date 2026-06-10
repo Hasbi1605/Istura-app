@@ -9,30 +9,30 @@
     "id": "Rejected",
     "label": "Booking ditolak",
     "description": "Dikirim saat permohonan tidak disetujui.",
-    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\u274C *Booking Belum Dapat Disetujui*\n\nYth. *{nama}*,\nmohon maaf, permohonan kunjungan dari *{instansi}* dengan kode *{kode}* belum dapat disetujui.\n\nAlasan/catatan:\n*{catatan}*\n\nSilakan hubungi admin melalui WhatsApp ini bila perlu informasi lanjutan.\n\nSalam hangat,\nAdmin ISTURA"
+    "template": "Halo Rencang Istana! \ud83d\ude0a\nsalam Humas Gedung Agung\n\nTerkait surat permohonan kunjungan Istura (Istana Untuk Rakyat) atas nama *{nama}* dari *{instansi}* dengan kode booking *{kode}*, mohon maaf permohonan belum dapat kami setujui saat ini. \ud83d\ude4f\n\nAlasan/catatan:\n*{catatan}*\n\nSilakan hubungi kami melalui WhatsApp ini apabila membutuhkan informasi lebih lanjut atau ingin mengajukan permohonan baru.\n\nTerima kasih atas pengertiannya,\nHumas Gedung Agung"
   },
   {
     "id": "Reschedule",
     "label": "Tawaran reschedule",
     "description": "Dikirim saat admin menawarkan jadwal alternatif.",
-    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\ud83d\udd01 *Usulan Reschedule Kunjungan*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* dengan kode *{kode}* perlu penyesuaian jadwal.\n\nJumlah rombongan:\n*{rombongan}*\n\nTanggal usulan:\n*{tanggal_usulan}*\n\nJadwal usulan:\n{jam}\n\nCatatan admin:\n*{catatan}*\n\nMohon konfirmasi melalui WhatsApp ini apakah jadwal tersebut dapat diikuti.\n\nSalam hangat,\nAdmin ISTURA"
+    "template": "Halo Rencang Istana! \ud83d\ude0a\nsalam Humas Gedung Agung\n\nTerkait surat permohonan kunjungan Istura (Istana Untuk Rakyat) atas nama *{nama}* dari *{instansi}* dengan kode booking *{kode}*, terdapat penyesuaian jadwal yang perlu kami sampaikan. \ud83d\udd01\n\nBerikut usulan jadwal kunjungan:\n\ud83d\udcc6 Tanggal: *{tanggal_usulan}*\n\u23f0 Jam: {jam}\n\ud83d\udc6b Rombongan: *{rombongan}*\n\nCatatan admin:\n*{catatan}*\n\nMohon konfirmasi melalui WhatsApp ini apakah jadwal tersebut dapat diikuti.\n\nTerima kasih atas kerja samanya,\nHumas Gedung Agung"
   },
   {
     "id": "Pending",
     "label": "Reschedule dibatalkan",
     "description": "Dikirim saat usulan reschedule dibatalkan dan booking kembali menunggu konfirmasi.",
-    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n*Status Booking Masih Menunggu Konfirmasi*\n\nYth. *{nama}*,\nusulan perubahan jadwal untuk booking dari *{instansi}* dengan kode *{kode}* belum dilanjutkan.\n\nStatus booking saat ini masih *menunggu konfirmasi admin*.\n\nTanggal kunjungan awal:\n*{tanggal_awal}*\n\nJadwal awal:\n{jam}\n\nCatatan admin:\n*{catatan}*\n\nAdmin ISTURA akan mengirim konfirmasi lanjutan setelah jadwal final ditetapkan.\n\nSalam hangat,\nAdmin ISTURA"
+    "template": "Halo Rencang Istana! \ud83d\ude0a\nsalam Humas Gedung Agung\n\nTerkait booking kunjungan Istura (Istana Untuk Rakyat) atas nama *{nama}* dari *{instansi}* dengan kode booking *{kode}*, kami informasikan bahwa usulan perubahan jadwal belum dilanjutkan. \u23f3\n\nStatus saat ini: *menunggu konfirmasi ulang dari admin*.\n\n\ud83d\udcc6 Tanggal kunjungan awal: *{tanggal_awal}*\n\u23f0 Jam: {jam}\n\nCatatan admin:\n*{catatan}*\n\nKami akan mengirimkan konfirmasi lanjutan setelah jadwal final ditetapkan. Mohon ditunggu, ya.\n\nTerima kasih atas kesabarannya,\nHumas Gedung Agung"
   },
   {
     "id": "Expired",
     "label": "Booking kedaluwarsa",
     "description": "Dikirim saat jadwal pending sudah terlewat tanpa keputusan admin.",
-    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n*Booking Kedaluwarsa*\n\nYth. *{nama}*,\npermohonan kunjungan dari *{instansi}* dengan kode *{kode}* belum sempat dikonfirmasi hingga jadwal yang diajukan terlewat.\n\nTanggal kunjungan awal:\n*{tanggal_awal}*\n\nJadwal awal:\n{jam}\n\nSilakan menunggu tawaran jadwal baru dari admin atau melakukan booking ulang sesuai slot yang tersedia.\n\nSalam hangat,\nAdmin ISTURA"
+    "template": "Halo Rencang Istana! \ud83d\ude0a\nsalam Humas Gedung Agung\n\nTerkait permohonan kunjungan Istura (Istana Untuk Rakyat) atas nama *{nama}* dari *{instansi}* dengan kode booking *{kode}*, kami informasikan bahwa jadwal yang diajukan telah terlewat tanpa konfirmasi. \u23f0\n\n\ud83d\udcc6 Tanggal awal: *{tanggal_awal}*\n\u23f0 Jam: {jam}\n\nSilakan menunggu tawaran jadwal baru dari kami atau melakukan booking ulang melalui website sesuai slot yang tersedia.\n\nMohon maaf atas ketidaknyamanannya,\nHumas Gedung Agung"
   },
   {
     "id": "Completed",
     "label": "Tandai selesai & permintaan feedback",
-    "description": "Dikirim setelah kunjungan selesai. {link} adalah tautan feedback unik.",
-    "template": "Halo Sobat ISTURA \ud83d\udc4b\n\n\u2B50 *Form Feedback Kunjungan*\n\nYth. *{nama}*,\nterima kasih telah berkunjung ke Istana Kepresidenan Yogyakarta pada *{tanggal}*.\n\nKami mohon bantuan Bapak/Ibu untuk mengisi feedback melalui tautan berikut:\n*{link}*\n\nMasukan Bapak/Ibu membantu kami meningkatkan pelayanan ISTURA.\n\nSalam hangat,\nAdmin ISTURA"
+    "description": "Dikirim setelah kunjungan selesai. {dokumentasi} = link dokumentasi, {link} = tautan kuesioner/feedback unik.",
+    "template": "Halo kak {nama} \ud83d\ude4c\nSalam dari Humas Istana Kepresidenan Yogyakarta (Gedung Agung)\n\nTerima kasih atas kunjungan {instansi} ke Gedung Agung. Berikut kami kirimkan link dokumentasi ISTURA (Istana Untuk Rakyat). Kami anjurkan untuk segera mengunduh foto karena dalam 2 hari ke depan link akan kami hapus. Dimohon juga untuk berkenan mengisi kuesioner kunjungan ISTURA di Gedung Agung.\n\n1. Link Dokumentasi \ud83d\udc47\n{dokumentasi}\n\n2. Link Kuesioner \ud83d\udc47\n{link}\n\n------------------------------------\nSilakan ikuti media sosial kami untuk update informasi dan kegiatan Istana Kepresidenan Yogyakarta \ud83d\ude0a\nInstagram: istanakepresidenanyogyakarta\nYouTube: Istana Kepresidenan Yogyakarta\n\n#istanakepresidenanyogyakarta #gedungagung"
   }
 ]

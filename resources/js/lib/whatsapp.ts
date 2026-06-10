@@ -43,51 +43,41 @@ export function fillWaTemplate(template: string, vars: Record<string, string>): 
 function fallbackTemplateFor(status: BookingStatus): string | null {
   if (status === "Expired") {
     return [
-      "Halo Sobat ISTURA \u{1F44B}",
+      "Halo Rencang Istana! \u{1F60A}",
+      "salam Humas Gedung Agung",
       "",
-      "*Booking Kedaluwarsa*",
+      "Terkait permohonan kunjungan Istura (Istana Untuk Rakyat) atas nama *{nama}* dari *{instansi}* dengan kode booking *{kode}*, kami informasikan bahwa jadwal yang diajukan telah terlewat tanpa konfirmasi. \u23F0",
       "",
-      "Yth. *{nama}*,",
-      "permohonan kunjungan dari *{instansi}* dengan kode *{kode}* belum sempat dikonfirmasi hingga jadwal yang diajukan terlewat.",
+      "\u{1F4C6} Tanggal awal: *{tanggal_awal}*",
+      "\u23F0 Jam: {jam}",
       "",
-      "Tanggal kunjungan awal:",
-      "*{tanggal_awal}*",
+      "Silakan menunggu tawaran jadwal baru dari kami atau melakukan booking ulang melalui website sesuai slot yang tersedia.",
       "",
-      "Jadwal awal:",
-      "{jam}",
-      "",
-      "Silakan menunggu tawaran jadwal baru dari admin atau melakukan booking ulang sesuai slot yang tersedia.",
-      "",
-      "Salam hangat,",
-      "Admin ISTURA",
+      "Mohon maaf atas ketidaknyamanannya,",
+      "Humas Gedung Agung",
     ].join("\n");
   }
 
   if (status !== "Pending") return null;
 
   return [
-    "Halo Sobat ISTURA \u{1F44B}",
+    "Halo Rencang Istana! \u{1F60A}",
+    "salam Humas Gedung Agung",
     "",
-    "*Status Booking Masih Menunggu Konfirmasi*",
+    "Terkait booking kunjungan Istura (Istana Untuk Rakyat) atas nama *{nama}* dari *{instansi}* dengan kode booking *{kode}*, kami informasikan bahwa usulan perubahan jadwal belum dilanjutkan. \u{23F3}",
     "",
-    "Yth. *{nama}*,",
-    "usulan perubahan jadwal untuk booking dari *{instansi}* dengan kode *{kode}* belum dilanjutkan.",
+    "Status saat ini: *menunggu konfirmasi ulang dari admin*.",
     "",
-    "Status booking saat ini masih *menunggu konfirmasi admin*.",
-    "",
-    "Tanggal kunjungan awal:",
-    "*{tanggal_awal}*",
-    "",
-    "Jadwal awal:",
-    "{jam}",
+    "\u{1F4C6} Tanggal kunjungan awal: *{tanggal_awal}*",
+    "\u23F0 Jam: {jam}",
     "",
     "Catatan admin:",
     "*{catatan}*",
     "",
-    "Admin ISTURA akan mengirim konfirmasi lanjutan setelah jadwal final ditetapkan.",
+    "Kami akan mengirimkan konfirmasi lanjutan setelah jadwal final ditetapkan. Mohon ditunggu, ya.",
     "",
-    "Salam hangat,",
-    "Admin ISTURA",
+    "Terima kasih atas kesabarannya,",
+    "Humas Gedung Agung",
   ].join("\n");
 }
 
@@ -157,5 +147,6 @@ export function buildWhatsappMessage(
     catatan: note ?? "",
     link,
     alur: visitFlowImageUrl(),
+    dokumentasi: booking.documentationLink ?? "",
   });
 }

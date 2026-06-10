@@ -30,7 +30,7 @@ export type AdminTab =
 
 export type VisitStatus = "Available" | "Held" | "Booked" | "Closed" | "Reschedule Hold";
 export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Reschedule" | "Completed" | "Expired";
-export type AdminAction = "accept" | "reject" | "reschedule";
+export type AdminAction = "accept" | "reject" | "reschedule" | "complete";
 
 export type ClosureReason = {
   type: string;
@@ -90,6 +90,7 @@ export type Booking = {
   leadTimeDays?: number | null;
   isShortNotice?: boolean;
   note?: string;
+  documentationLink?: string;
   feedbackToken: string;
   completedAt?: string;
   rejectedAt?: string;

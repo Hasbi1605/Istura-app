@@ -105,7 +105,7 @@ class BookingController extends Controller
     {
         $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
         Gate::authorize('update', $booking);
-        $updated = $this->bookings->complete($booking, $request->user(), $request->input('note'), $request);
+        $updated = $this->bookings->complete($booking, $request->user(), $request->input('note'), $request, $request->input('documentationLink'));
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
     }

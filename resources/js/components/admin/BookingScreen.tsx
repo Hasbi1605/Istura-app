@@ -264,14 +264,19 @@ export function AdminScreen({
 		return localBooking;
 	};
 
-	const updateBookingStatus = async (booking: Booking, status: BookingStatus, note?: string) => {
+	const updateBookingStatus = async (
+		booking: Booking,
+		status: BookingStatus,
+		note?: string,
+		documentationLink?: string,
+	) => {
 		const updated =
 			status === "Accepted"
 				? await apiAcceptBooking(booking.code, note)
 				: status === "Rejected"
 					? await apiRejectBooking(booking.code, note)
 					: status === "Completed"
-						? await apiCompleteBooking(booking.code)
+						? await apiCompleteBooking(booking.code, { note, documentationLink })
 						: null;
 
 		if (!updated) {
@@ -282,10 +287,7 @@ export function AdminScreen({
 	};
 
 	const handleMarkCompleted = (booking: Booking) => {
-		void runBookingAction(booking, "Menandai selesai...", async () => {
-			const updated = await updateBookingStatus(booking, "Completed");
-			openWhatsApp(updated, createWhatsappMessage(updated, "Completed"));
-		});
+		setModal({ action: "complete", booking });
 	};
 
   // Admin proposes a new slot. Original and proposed slots are held while we
@@ -335,11 +337,12 @@ export function AdminScreen({
 		});
 	};
 
-	const handleAction = (action: AdminAction, booking: Booking, note: string, proposed?: string) => {
+	const handleAction = (action: AdminAction, booking: Booking, note: string, proposed?: string, documentationLink?: string) => {
 		const labelMap: Record<AdminAction, string> = {
 			accept: "Menyetujui booking...",
 			reject: booking.status === "Expired" ? "Menutup kasus..." : "Menolak booking...",
 			reschedule: "Menyimpan reschedule...",
+			complete: "Menandai selesai...",
 		};
 		void runBookingAction(booking, labelMap[action], async () => {
 			if (action === "accept") {
@@ -350,6 +353,12 @@ export function AdminScreen({
 			if (action === "reject") {
 				const updated = await updateBookingStatus(booking, "Rejected", note);
 				openWhatsApp(updated, createWhatsappMessage(updated, "Rejected", note));
+				setModal(null);
+			}
+			if (action === "complete") {
+				const trimmedLink = documentationLink?.trim() || undefined;
+				const updated = await updateBookingStatus(booking, "Completed", undefined, trimmedLink);
+				openWhatsApp(updated, createWhatsappMessage(updated, "Completed"));
 				setModal(null);
 			}
 			if (action === "reschedule") {
@@ -1422,9 +1431,10 @@ export function AdminActionModal({
   pendingLabel?: string | null;
   error?: string;
   onClose: () => void;
-  onConfirm: (action: AdminAction, booking: Booking, note: string, proposed?: string) => void;
+  onConfirm: (action: AdminAction, booking: Booking, note: string, proposed?: string, documentationLink?: string) => void;
 }) {
   const [note, setNote] = useState("");
+  const [documentationLink, setDocumentationLink] = useState(modal.booking.documentationLink ?? "");
   const segments = bookingSegments(modal.booking);
   const requiredSlots = segments.length > 1 ? segments.length : 1;
   const minProposedDate = addDays(jakartaToday(), 1);
@@ -1447,8 +1457,9 @@ export function AdminActionModal({
     accept: "Setujui booking",
     reject: modal.booking.status === "Expired" ? "Tutup kasus" : "Tolak booking",
     reschedule: "Tawarkan jadwal lain",
+    complete: "Tandai selesai",
   };
-  const needsNote = modal.action !== "accept";
+  const needsNote = modal.action === "reject" || modal.action === "reschedule";
 
   const handleDayChange = (date: string) => {
     setSelectedDay(date);
@@ -1571,10 +1582,25 @@ export function AdminActionModal({
             )}
           </div>
         )}
-        <label className="form-field">
-          <span>{needsNote ? "Alasan" : "Catatan admin opsional"}</span>
-          <textarea value={note} onChange={(event) => setNote(event.target.value)} />
-        </label>
+        {modal.action === "complete" && (
+          <label className="form-field">
+            <span>Link dokumentasi (opsional)</span>
+            <input
+              type="url"
+              inputMode="url"
+              placeholder="https://drive.google.com/drive/folders/..."
+              value={documentationLink}
+              onChange={(event) => setDocumentationLink(event.target.value)}
+            />
+            <small>Tautan folder foto/dokumentasi kunjungan. Akan disisipkan pada pesan WhatsApp lewat variabel {"{dokumentasi}"}.</small>
+          </label>
+        )}
+        {modal.action !== "complete" && (
+          <label className="form-field">
+            <span>{needsNote ? "Alasan" : "Catatan admin opsional"}</span>
+            <textarea value={note} onChange={(event) => setNote(event.target.value)} />
+          </label>
+        )}
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions">
           <button className="button button-ghost" type="button" onClick={onClose} disabled={Boolean(pendingLabel)}>
@@ -1584,7 +1610,7 @@ export function AdminActionModal({
             className="button button-primary"
             type="button"
             disabled={Boolean(pendingLabel) || (needsNote && !note.trim()) || (modal.action === "reschedule" && !proposed)}
-            onClick={() => onConfirm(modal.action, modal.booking, note, proposed)}
+            onClick={() => onConfirm(modal.action, modal.booking, note, proposed, documentationLink)}
           >
             {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Konfirmasi & Buka WhatsApp"}
           </button>

@@ -37,6 +37,7 @@ class BookingResource extends JsonResource
             'leadTimeDays' => $leadTimeDays,
             'isShortNotice' => $leadTimeDays !== null && $leadTimeDays >= 0 && $leadTimeDays < 5,
             'note' => $this->note,
+            'documentationLink' => $this->documentation_link,
             'feedbackToken' => $this->when($this->shouldExposeFeedbackToken($request), fn () => $this->feedback_token),
             'completedAt' => $this->completed_at ? IndonesianDate::submittedAt($this->completed_at) : null,
             'rejectedAt' => $this->rejected_at ? IndonesianDate::submittedAt($this->rejected_at) : null,

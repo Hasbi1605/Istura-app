@@ -28,6 +28,7 @@ export function apiBookingToLocal(b: ApiBooking): Booking {
     leadTimeDays: b.leadTimeDays ?? undefined,
     isShortNotice: b.isShortNotice ?? false,
     note: b.note ?? undefined,
+    documentationLink: b.documentationLink ?? undefined,
     feedbackToken: b.feedbackToken ?? "",
     completedAt: b.completedAt ?? undefined,
     rejectedAt: b.rejectedAt ?? undefined,

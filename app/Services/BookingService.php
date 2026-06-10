@@ -95,9 +95,9 @@ class BookingService
         return $this->transitionTo($booking, 'Rejected', $actor, 'reject', $note, $request);
     }
 
-    public function complete(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null): Booking
+    public function complete(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null, ?string $documentationLink = null): Booking
     {
-        return $this->transitionTo($booking, 'Completed', $actor, 'complete', $note, $request);
+        return $this->transitionTo($booking, 'Completed', $actor, 'complete', $note, $request, $documentationLink);
     }
 
     public function expireStalePending(?Carbon $now = null): int
@@ -381,9 +381,10 @@ class BookingService
         string $action,
         ?string $note = null,
         ?Request $request = null,
+        ?string $documentationLink = null,
     ): Booking {
         try {
-            return DB::transaction(function () use ($booking, $newStatus, $actor, $action, $note, $request) {
+            return DB::transaction(function () use ($booking, $newStatus, $actor, $action, $note, $request, $documentationLink) {
                 $preparedProposal = null;
                 if ($newStatus === 'Reschedule') {
                     $preparedProposal = [
@@ -461,6 +462,9 @@ class BookingService
                         ]);
                     }
                     $booking->completed_at = now();
+                    if ($documentationLink !== null) {
+                        $booking->documentation_link = $documentationLink !== '' ? $documentationLink : null;
+                    }
                 }
 
                 $booking->status = $newStatus;

@@ -40,6 +40,7 @@ const WA_TEMPLATE_VARIABLES = [
   "{jam}",
   "{catatan}",
   "{link}",
+  "{dokumentasi}",
 ];
 
 function adminLetterErrorTargetFromField(field?: string): AdminLetterErrorTarget {

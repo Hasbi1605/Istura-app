@@ -907,6 +907,45 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_complete_booking_persists_documentation_link_when_provided(): void
+    {
+        $booking = $this->createBooking([
+            'date' => '2026-05-28',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $link = 'https://drive.google.com/drive/folders/1VGbnnkXPnTXetYLpHtCRKhIfaq5N02Iu';
+
+        $this->actingAsAdmin();
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete", [
+            'documentationLink' => $link,
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Completed')
+            ->assertJsonPath('data.documentationLink', $link);
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'status' => 'Completed',
+            'documentation_link' => $link,
+        ]);
+    }
+
+    public function test_complete_booking_rejects_invalid_documentation_link(): void
+    {
+        $booking = $this->createBooking([
+            'date' => '2026-05-28',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->actingAsAdmin();
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete", [
+            'documentationLink' => 'bukan-url-valid',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('documentationLink');
+    }
+
     public function test_admin_cannot_complete_future_booking(): void
     {
         $booking = $this->createBooking([

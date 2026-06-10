@@ -15,6 +15,8 @@ class UpdateBookingStatusRequest extends FormRequest
     {
         return [
             'note' => ['nullable', 'string', 'max:2000'],
+            // Hanya relevan untuk aksi "complete"; aman karena nullable pada aksi lain.
+            'documentationLink' => ['nullable', 'string', 'url', 'max:2000'],
         ];
     }
 }
