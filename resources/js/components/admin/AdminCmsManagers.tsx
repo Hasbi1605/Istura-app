@@ -51,15 +51,6 @@ function adminLetterErrorTargetFromField(field?: string): AdminLetterErrorTarget
   return "form";
 }
 
-function summarizeWaTemplate(template: string) {
-  return template
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 2)
-    .join(" ");
-}
-
 function countWaTemplateLines(template: string) {
   if (!template) return 0;
   return template.split(/\r?\n/).length;
@@ -482,9 +473,6 @@ export function AdminWaTemplates({
                     {isTemplateDirty && <em>Diubah</em>}
                   </span>
                   <small>{draft.description}</small>
-                  <span className="admin-wa-template-preview">
-                    {summarizeWaTemplate(draft.template) || "Template kosong."}
-                  </span>
                 </span>
               </button>
             );
