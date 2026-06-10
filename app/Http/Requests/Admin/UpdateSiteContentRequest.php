@@ -98,6 +98,12 @@ class UpdateSiteContentRequest extends FormRequest
             'footer.mapEmbedUrl' => ['required', 'string', 'max:500', SafePublicUrl::mapEmbed()],
             'footer.address' => ['required', 'string', 'max:500'],
             'footer.copyright' => ['required', 'string', 'max:255'],
+
+            'floatingContact' => ['required', 'array'],
+            'floatingContact.greeting' => ['required', 'string', 'max:255'],
+            'floatingContact.topics' => ['required', 'array', 'min:1', 'max:6'],
+            'floatingContact.topics.*.label' => ['required', 'string', 'max:60'],
+            'floatingContact.topics.*.message' => ['required', 'string', 'max:500'],
         ];
     }
 }

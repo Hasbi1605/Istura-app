@@ -172,7 +172,9 @@ function App() {
             </Suspense>
           )}
 
-          {screen !== "booking" && <FloatingContact contacts={contacts} />}
+          {screen !== "booking" && (
+            <FloatingContact contacts={contacts} content={siteContent.floatingContact} />
+          )}
         </>
       )}
     </main>

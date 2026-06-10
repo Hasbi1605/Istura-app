@@ -124,7 +124,7 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 ### 3.5 Components (`components/`)
 - **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx`, `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
 - **booking/**: `BookingWizard.tsx` (wizard 8 langkah). **feedback/**: `FeedbackScreen.tsx`. **home/**: `HomeScreen.tsx`.
-- **layout/**: `Navigation.tsx`, `Footer.tsx`, `FloatingContact.tsx` (FAB WhatsApp mengambang di halaman publik selain `booking`; expand jadi kartu MIKY + quick-topic prefill WA + tautan Instagram, sumber nomor dari `contacts`/CMS). **ui/**: `DetailItem`, `LoadingStates`, `Pagination`, `StatCard`, `StatusBadge`. **icons/**: `SocialIcons.tsx`. `MikyGuide.tsx` (maskot).
+- **layout/**: `Navigation.tsx`, `Footer.tsx`, `FloatingContact.tsx` (FAB WhatsApp mengambang di halaman publik selain `booking`; expand jadi kartu MIKY + quick-topic prefill WA + tautan Instagram. Nomor dari `contacts`/CMS; sapaan & daftar topik dari `siteContent.floatingContact` (editable di admin Landing Page → "Widget WhatsApp Mengambang"), subtitle animasi typewriter). **ui/**: `DetailItem`, `LoadingStates`, `Pagination`, `StatCard`, `StatusBadge`. **icons/**: `SocialIcons.tsx`. `MikyGuide.tsx` (maskot).
 
 ### 3.6 Ekspor (browser, root `resources/js`)
 `exportBookings.ts`, `exportFeedback.ts`, `exportMonthlyReport.ts`, `exportWeeklyPoster.ts`, `exportShared.ts`.

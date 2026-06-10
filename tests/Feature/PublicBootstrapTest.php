@@ -43,7 +43,7 @@ class PublicBootstrapTest extends TestCase
                     'waTemplates',
                     'hero' => ['headline', 'subheadline', 'primaryCta', 'secondaryCta', 'story'],
                     'letter' => ['image', 'checklist'],
-                    'siteContent' => ['nav', 'quickInfo', 'schedule', 'video', 'bookingSteps', 'activities', 'letterSection', 'faq', 'cta', 'footer'],
+                    'siteContent' => ['nav', 'quickInfo', 'schedule', 'video', 'bookingSteps', 'activities', 'letterSection', 'faq', 'cta', 'footer', 'floatingContact'],
                 ],
             ]);
 

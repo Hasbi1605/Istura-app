@@ -254,6 +254,15 @@ export type SiteContent = {
     address: string;
     copyright: string;
   };
+  floatingContact: {
+    greeting: string;
+    topics: FloatingContactTopic[];
+  };
+};
+
+export type FloatingContactTopic = {
+  label: string;
+  message: string;
 };
 
 // Booking list helpers (admin booking page)

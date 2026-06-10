@@ -1350,6 +1350,45 @@ export function AdminLandingManager({
     setDraft((current) => ({ ...current, footer: { ...current.footer, [field]: value } }));
   };
 
+  const updateFloatingGreeting = (value: string) => {
+    setDraft((current) => ({
+      ...current,
+      floatingContact: { ...current.floatingContact, greeting: value },
+    }));
+  };
+
+  const updateFloatingTopic = (index: number, field: "label" | "message", value: string) => {
+    setDraft((current) => ({
+      ...current,
+      floatingContact: {
+        ...current.floatingContact,
+        topics: current.floatingContact.topics.map((topic, idx) =>
+          idx === index ? { ...topic, [field]: value } : topic,
+        ),
+      },
+    }));
+  };
+
+  const addFloatingTopic = () => {
+    setDraft((current) => ({
+      ...current,
+      floatingContact: {
+        ...current.floatingContact,
+        topics: [...current.floatingContact.topics, { label: "Topik baru", message: "Halo Admin ISTURA, " }],
+      },
+    }));
+  };
+
+  const removeFloatingTopic = (index: number) => {
+    setDraft((current) => ({
+      ...current,
+      floatingContact: {
+        ...current.floatingContact,
+        topics: current.floatingContact.topics.filter((_, idx) => idx !== index),
+      },
+    }));
+  };
+
   const save = async () => {
     const payload = normalizeLandingContentForSave(draft);
     const emptyPointsIndex = payload.quickInfo.cards.findIndex((card) => card.points.length === 0);
@@ -1785,6 +1824,60 @@ export function AdminLandingManager({
             <span>Copyright</span>
             <input value={draft.footer.copyright} onChange={(event) => updateFooter("copyright", event.target.value)} />
           </label>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <AdminLandingSectionHead
+          title="Widget WhatsApp Mengambang"
+          actionLabel="Tambah topik"
+          onAction={addFloatingTopic}
+        />
+        <div className="admin-cms-form">
+          <label className="form-field">
+            <span>Sapaan MIKY (di-ketik saat panel dibuka)</span>
+            <textarea
+              rows={2}
+              maxLength={255}
+              value={draft.floatingContact.greeting}
+              onChange={(event) => updateFloatingGreeting(event.target.value)}
+            />
+          </label>
+          <div className="admin-landing-list">
+            {draft.floatingContact.topics.map((topic, index) => (
+              <article className="admin-landing-subcard" key={`floating-topic-${index}`}>
+                <div className="admin-landing-subcard-head">
+                  <strong>Topik {index + 1}</strong>
+                  <button
+                    type="button"
+                    className="admin-icon-btn admin-icon-btn--danger"
+                    onClick={() => removeFloatingTopic(index)}
+                    disabled={draft.floatingContact.topics.length <= 1}
+                    aria-label="Hapus topik"
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </div>
+                <label className="form-field">
+                  <span>Label tombol</span>
+                  <input
+                    value={topic.label}
+                    maxLength={60}
+                    onChange={(event) => updateFloatingTopic(index, "label", event.target.value)}
+                  />
+                </label>
+                <label className="form-field">
+                  <span>Pesan WhatsApp (terisi otomatis saat diklik)</span>
+                  <textarea
+                    rows={2}
+                    maxLength={500}
+                    value={topic.message}
+                    onChange={(event) => updateFloatingTopic(index, "message", event.target.value)}
+                  />
+                </label>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 

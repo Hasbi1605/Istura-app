@@ -392,6 +392,24 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       "Jl. Jend. Ahmad Yani, Ngupasan, Kec. Gondomanan, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55122",
     copyright: "\u00a9 2026 Istana Kepresidenan Yogyakarta / Gedung Agung. Seluruh hak cipta dilindungi.",
   },
+  floatingContact: {
+    greeting: "Ada yang bisa kubantu soal kunjungan ISTURA? Pilih topik di bawah ya.",
+    topics: [
+      {
+        label: "Tanya jadwal kunjungan",
+        message:
+          "Halo Admin ISTURA, saya ingin menanyakan jadwal kunjungan ke Istana Kepresidenan Yogyakarta.",
+      },
+      {
+        label: "Bantuan proses booking",
+        message: "Halo Admin ISTURA, saya butuh bantuan terkait proses booking kunjungan ISTURA.",
+      },
+      {
+        label: "Informasi umum",
+        message: "Halo Admin ISTURA, saya ingin menanyakan informasi umum seputar kunjungan ISTURA.",
+      },
+    ],
+  },
 };
 
 export const HERO_MESSAGES: Array<{ text: string; image: string }> = [

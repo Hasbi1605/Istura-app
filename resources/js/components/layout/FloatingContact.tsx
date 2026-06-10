@@ -1,34 +1,17 @@
 // Floating WhatsApp contact widget for public pages. A green FAB that expands
 // into a compact, MIKY-branded card with quick-topic shortcuts that prefill an
-// official WhatsApp message. Pure presentational + local UI state; reuses the
-// CMS-managed footer contacts so the number is never hardcoded.
+// official WhatsApp message. Pure presentational + local UI state; the WA number
+// comes from CMS-managed footer contacts, and the greeting + topics come from
+// CMS site content so admins can edit them without a deploy.
 import { MessageCircle, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import type { FooterContact } from "../../domain/types";
+import type { FooterContact, SiteContent } from "../../domain/types";
 import { useReducedMotion, useTypewriter } from "../../hooks";
 import { ASSETS } from "../../lib/assets";
 import { buildWhatsappTextUrl } from "../../lib/whatsapp";
 import { InstagramIcon, WhatsAppIcon } from "../icons/SocialIcons";
 
-const MIKY_GREETING = "Ada yang bisa kubantu soal kunjungan ISTURA? Pilih topik di bawah ya.";
-
-const QUICK_TOPICS: { label: string; message: string }[] = [
-  {
-    label: "Tanya jadwal kunjungan",
-    message:
-      "Halo Admin ISTURA, saya ingin menanyakan jadwal kunjungan ke Istana Kepresidenan Yogyakarta.",
-  },
-  {
-    label: "Bantuan proses booking",
-    message:
-      "Halo Admin ISTURA, saya butuh bantuan terkait proses booking kunjungan ISTURA.",
-  },
-  {
-    label: "Informasi umum",
-    message:
-      "Halo Admin ISTURA, saya ingin menanyakan informasi umum seputar kunjungan ISTURA.",
-  },
-];
+const PRIMARY_MESSAGE = "Halo Admin ISTURA, saya ingin bertanya seputar kunjungan ISTURA.";
 
 // Ambil nomor WA bersih: prioritaskan digit dari href (wa.me/62...), fallback ke value.
 function resolveWaPhone(contact: FooterContact | undefined): string {
@@ -38,7 +21,13 @@ function resolveWaPhone(contact: FooterContact | undefined): string {
   return contact.value.replace(/\s+/g, "");
 }
 
-export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
+export function FloatingContact({
+  contacts,
+  content,
+}: {
+  contacts: FooterContact[];
+  content: SiteContent["floatingContact"];
+}) {
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -50,9 +39,12 @@ export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
   const igContact = contacts.find((contact) => contact.iconKey === "instagram");
   const waPhone = resolveWaPhone(waContact);
 
+  const greeting = content.greeting;
+  const topics = content.topics;
+
   // Subtitle "diketik" MIKY saat panel terbuka, konsisten dengan hero/wizard;
   // langsung penuh bila pengguna memilih reduced motion.
-  const typedGreeting = useTypewriter(MIKY_GREETING, 22, !reduced, open);
+  const typedGreeting = useTypewriter(greeting, 22, !reduced, open);
 
   // Escape menutup panel, klik di luar menutup panel.
   useEffect(() => {
@@ -115,7 +107,7 @@ export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
               <strong>MIKY · Asisten ISTURA</strong>
               <p aria-live="polite">
                 {typedGreeting}
-                {!reduced && typedGreeting.length < MIKY_GREETING.length && (
+                {!reduced && typedGreeting.length < greeting.length && (
                   <span className="floating-contact-caret" aria-hidden="true" />
                 )}
               </p>
@@ -135,7 +127,7 @@ export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
           </div>
 
           <div className="floating-contact-topics">
-            {QUICK_TOPICS.map((topic) => (
+            {topics.map((topic) => (
               <button
                 key={topic.label}
                 type="button"
@@ -152,9 +144,7 @@ export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
             <button
               type="button"
               className="floating-contact-primary"
-              onClick={() =>
-                openWa("Halo Admin ISTURA, saya ingin bertanya seputar kunjungan ISTURA.")
-              }
+              onClick={() => openWa(PRIMARY_MESSAGE)}
             >
               <WhatsAppIcon />
               <span>WhatsApp</span>
