@@ -855,20 +855,22 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
         />
       </div>
 
-      <div className="admin-subtabs">
+      <div className="admin-section-tabs" role="tablist" aria-label="Grup ketentuan kunjungan">
         <button
           type="button"
-          className={`button admin-subtab-button ${activeSubTab === "rules" ? "button-primary" : "button-ghost"}`}
+          role="tab"
+          className={activeSubTab === "rules" ? "is-active" : ""}
           onClick={() => setActiveSubTab("rules")}
-          aria-pressed={activeSubTab === "rules"}
+          aria-selected={activeSubTab === "rules"}
         >
           Tata Tertib Kunjungan
         </button>
         <button
           type="button"
-          className={`button admin-subtab-button ${activeSubTab === "letter" ? "button-primary" : "button-ghost"}`}
+          role="tab"
+          className={activeSubTab === "letter" ? "is-active" : ""}
           onClick={() => setActiveSubTab("letter")}
-          aria-pressed={activeSubTab === "letter"}
+          aria-selected={activeSubTab === "letter"}
         >
           Contoh Surat Permohonan
         </button>
@@ -1987,10 +1989,10 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-landing-section admin-landing-anchor" id="landing-open-banner">
+      <section className="admin-card admin-landing-anchor" id="landing-open-banner">
         <AdminLandingSectionHead title="Banner Istura Open (Ticker)" />
-        <div className="admin-landing-card">
-          <p className="admin-landing-hint">Teks yang bergerak di banner Istura Open di bawah navbar. Muncul saat ada event aktif.</p>
+        <div className="admin-cms-form">
+          <p>Teks yang bergerak di banner Istura Open di bawah navbar. Muncul saat ada event aktif.</p>
           <label className="form-field">
             <span>Teks ticker (scrolling)</span>
             <textarea

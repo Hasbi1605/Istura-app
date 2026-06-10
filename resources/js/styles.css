@@ -6039,19 +6039,6 @@ a {
   margin-top: 0;
 }
 
-.admin-subtabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
-.admin-subtab-button {
-  min-height: 40px;
-  padding: 0 18px;
-  font-size: 0.95rem;
-}
-
 .admin-cms-link {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
