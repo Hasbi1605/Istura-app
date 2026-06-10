@@ -60,6 +60,25 @@ class SeoMetadataTest extends TestCase
         $response->assertSee('<lastmod>2026-06-10</lastmod>', false);
     }
 
+    public function test_visit_flow_page_uses_rules_image_for_social_preview(): void
+    {
+        $response = $this->get('/info/alur-kunjungan');
+
+        $response->assertOk();
+        $response->assertSee(
+            '<meta property="og:image" content="https://www.isturaiky.page/assets/peraturan-kunjungan.jpg" />',
+            false,
+        );
+        $response->assertSee('<meta property="og:image:width" content="819" />', false);
+        $response->assertSee('<meta property="og:image:height" content="1024" />', false);
+        $response->assertSee('<meta property="og:image:alt" content="Peraturan Kunjungan ISTURA" />', false);
+        $response->assertDontSee(
+            '<meta property="og:image" content="https://www.isturaiky.page/assets/alur-kunjungan.jpg" />',
+            false,
+        );
+        $this->assertFileExists(public_path('assets/peraturan-kunjungan.jpg'));
+    }
+
     public function test_robots_allows_ai_search_and_gemini_grounding_but_disallows_training_crawlers(): void
     {
         $response = $this->get('/robots.txt');

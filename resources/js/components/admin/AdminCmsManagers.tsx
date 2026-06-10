@@ -29,6 +29,43 @@ type AdminLetterErrorTarget =
 
 const MAX_LANDING_QUICK_POINTS = 6;
 const MAX_LANDING_QUICK_POINT_LENGTH = 120;
+
+// Peta section landing page untuk navigator sticky + scroll-spy.
+// Urutan item DI SINI harus sama dengan urutan render section di DOM agar
+// highlight scroll-spy bergerak monoton (tidak melompat-lompat saat scroll).
+const LANDING_NAV_GROUPS: { group: string; items: { id: string; label: string }[] }[] = [
+  {
+    group: "Navbar & Beranda",
+    items: [
+      { id: "navbar", label: "Navbar" },
+      { id: "quick-info", label: "Sebelum booking" },
+      { id: "schedule", label: "Jadwal Kunjungan" },
+      { id: "video", label: "Video virtual" },
+      { id: "booking-steps", label: "Booking 4 langkah" },
+      { id: "activities", label: "Aktivitas di Istana" },
+    ],
+  },
+  {
+    group: "Info & Bantuan",
+    items: [
+      { id: "letter", label: "Contoh surat" },
+      { id: "rules", label: "Peraturan Kunjungan" },
+      { id: "faq", label: "FAQ section" },
+      { id: "cta", label: "CTA booking" },
+    ],
+  },
+  {
+    group: "Footer & Widget",
+    items: [
+      { id: "footer", label: "Footer" },
+      { id: "floating", label: "Widget WhatsApp" },
+      { id: "open-banner", label: "Banner Istura Open" },
+    ],
+  },
+];
+
+const LANDING_NAV_IDS = LANDING_NAV_GROUPS.flatMap((group) => group.items.map((item) => item.id));
+
 const WA_TEMPLATE_VARIABLES = [
   "{nama}",
   "{instansi}",
@@ -1088,10 +1125,49 @@ export function AdminLandingManager({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string>(LANDING_NAV_IDS[0]);
+  const sectionsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setDraft(content);
   }, [content]);
+
+  // Scroll-spy: tandai section yang sedang terlihat di navigator.
+  useEffect(() => {
+    const container = sectionsRef.current;
+    if (!container || typeof IntersectionObserver === "undefined") return;
+
+    const sections = LANDING_NAV_IDS.map((id) =>
+      container.querySelector<HTMLElement>(`#landing-${id}`),
+    ).filter((el): el is HTMLElement => Boolean(el));
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        const topMost = visible[0]?.target as HTMLElement | undefined;
+        if (topMost) {
+          setActiveSection(topMost.id.replace(/^landing-/, ""));
+        }
+      },
+      { rootMargin: "-120px 0px -55% 0px", threshold: 0 },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+
+  const handleNavClick = (id: string) => {
+    const target = document.getElementById(`landing-${id}`);
+    if (!target) return;
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
+    setActiveSection(id);
+  };
 
   const updateNav = (field: keyof SiteContent["nav"], value: string) => {
     setDraft((current) => ({ ...current, nav: { ...current.nav, [field]: value } }));
@@ -1440,7 +1516,7 @@ export function AdminLandingManager({
 
   return (
     <div className="admin-cms-page admin-landing-page">
-      <div className="admin-heading">
+      <div className="admin-heading admin-landing-heading">
         <div>
           <h1>Landing Page</h1>
           <p>Navbar, section utama, video, CTA, dan footer publik.</p>
@@ -1461,7 +1537,33 @@ export function AdminLandingManager({
         </div>
       </div>
 
-      <section className="admin-card">
+      <div className="admin-landing-layout">
+        <nav className="admin-landing-nav" aria-label="Navigasi section landing page">
+          {LANDING_NAV_GROUPS.map((group) => (
+            <div className="admin-landing-nav-group" key={group.group}>
+              <p className="admin-landing-nav-group-title">{group.group}</p>
+              <ul>
+                {group.items.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className={`admin-landing-nav-link${
+                        activeSection === item.id ? " is-active" : ""
+                      }`}
+                      aria-current={activeSection === item.id ? "true" : undefined}
+                      onClick={() => handleNavClick(item.id)}
+                    >
+                      {item.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        <div className="admin-landing-sections" ref={sectionsRef}>
+          <section className="admin-card admin-landing-anchor" id="landing-navbar">
         <AdminLandingSectionHead title="Navbar" actionLabel="Tambah menu" onAction={addNavItem} />
         <div className="admin-cms-form">
           <div className="admin-cms-link">
@@ -1510,7 +1612,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-quick-info">
         <AdminLandingSectionHead title="Sebelum booking" actionLabel="Tambah kartu" onAction={addQuickCard} />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1555,7 +1657,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-schedule">
         <AdminLandingSectionHead title="Jadwal Kunjungan" />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1569,7 +1671,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-video">
         <AdminLandingSectionHead title="Video virtual" />
         <div className="admin-cms-link">
           <label className="form-field">
@@ -1583,7 +1685,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-booking-steps">
         <AdminLandingSectionHead title="Booking dalam 4 langkah" actionLabel="Tambah langkah" onAction={addStepCard} />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1624,7 +1726,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-activities">
         <AdminLandingSectionHead title="Aktivitas di Istana" actionLabel="Tambah aktivitas" onAction={addActivity} />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1668,7 +1770,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-letter">
         <AdminLandingSectionHead title="Contoh surat" />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1702,7 +1804,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-rules">
         <AdminLandingSectionHead title="Peraturan Kunjungan" />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1730,7 +1832,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-faq">
         <AdminLandingSectionHead title="FAQ section" />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1744,7 +1846,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-cta">
         <AdminLandingSectionHead title="CTA booking" />
         <div className="admin-cms-form">
           <label className="form-field">
@@ -1768,7 +1870,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-footer">
         <AdminLandingSectionHead title="Footer" />
         <div className="admin-cms-form">
           <div className="admin-cms-link">
@@ -1816,7 +1918,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="admin-card admin-landing-anchor" id="landing-floating">
         <AdminLandingSectionHead
           title="Widget WhatsApp Mengambang"
           actionLabel="Tambah topik"
@@ -1870,7 +1972,7 @@ export function AdminLandingManager({
         </div>
       </section>
 
-      <section className="admin-landing-section">
+      <section className="admin-landing-section admin-landing-anchor" id="landing-open-banner">
         <AdminLandingSectionHead title="Banner Istura Open (Ticker)" />
         <div className="admin-landing-card">
           <p className="admin-landing-hint">Teks yang bergerak di banner Istura Open di bawah navbar. Muncul saat ada event aktif.</p>
@@ -1894,6 +1996,8 @@ export function AdminLandingManager({
 
       {error && <p className="admin-form-error">{error}</p>}
       {savedAt && <small className="admin-cms-saved">Tersimpan terakhir pukul {savedAt}.</small>}
+        </div>
+      </div>
     </div>
   );
 }

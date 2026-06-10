@@ -4,7 +4,7 @@
     // URL absolut wajib untuk OG tag (crawler WhatsApp/Facebook tidak resolve
     // path relatif). og:image sengaja memakai JPG, bukan webp, karena crawler
     // WA tidak andal merender webp sebagai preview.
-    $ogImage = SeoMeta::assetUrl('/assets/alur-kunjungan.jpg');
+    $ogImage = SeoMeta::assetUrl('/assets/peraturan-kunjungan.jpg');
     $pageUrl = SeoMeta::url('/info/alur-kunjungan');
     $title = 'Alur & Peraturan Kunjungan ISTURA';
     $description = 'Panduan alur dan peraturan kunjungan Istana Kepresidenan Yogyakarta (Gedung Agung).';
@@ -31,9 +31,9 @@
     <meta property="og:image" content="{{ $ogImage }}" />
     <meta property="og:image:secure_url" content="{{ $ogImage }}" />
     <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="1280" />
-    <meta property="og:image:alt" content="Alur Kunjungan ISTURA" />
+    <meta property="og:image:width" content="819" />
+    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:alt" content="Peraturan Kunjungan ISTURA" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $title }}" />
