@@ -20,6 +20,22 @@ const generateId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 const MAX_ADMIN_LETTER_IMAGE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_RULES_DESCRIPTION =
+  "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.";
+const DEFAULT_RULES_IMAGE = "/assets/peraturan-kunjungan.webp";
+const DEFAULT_ADMIN_HERO: ApiHero = {
+  headline: "ISTURA - Istana Untuk Rakyat",
+  subheadline: "Booking Kunjungan Istana Kepresidenan Yogyakarta",
+  primaryCta: "Mulai Booking",
+  secondaryCta: "Cek Jadwal",
+  story: storyWords.join(" "),
+};
+
+type SavedLetterDraft = {
+  checklist: string[];
+  rulesDescription: string;
+};
+
 type AdminLetterErrorTarget =
   | "form"
   | "letter-checklist"
@@ -80,6 +96,44 @@ function normalizeLandingContentForSave(content: SiteContent): SiteContent {
       })),
     },
   };
+}
+
+function normalizeHeroForSave(hero: ApiHero): ApiHero {
+  return {
+    headline: hero.headline.trim(),
+    subheadline: hero.subheadline.trim(),
+    primaryCta: hero.primaryCta.trim(),
+    secondaryCta: hero.secondaryCta.trim(),
+    story: hero.story.trim(),
+  };
+}
+
+function AdminSaveButton({
+  saving,
+  disabled,
+  onClick,
+}: {
+  saving: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="button button-primary"
+      onClick={onClick}
+      disabled={disabled || saving}
+    >
+      {saving ? (
+        <ButtonSpinner label="Menyimpan..." />
+      ) : (
+        <>
+          <Save size={16} aria-hidden="true" />
+          Simpan perubahan
+        </>
+      )}
+    </button>
+  );
 }
 
 export function AdminFaqManager({
@@ -303,6 +357,8 @@ export function AdminContactsManager({
     setDrafts(contacts);
   }, [contacts]);
 
+  const isDirty = JSON.stringify(drafts) !== JSON.stringify(contacts);
+
   const updateField = (index: number, field: keyof FooterContact, value: string) => {
     setDrafts((current) =>
       current.map((item, idx) =>
@@ -320,15 +376,17 @@ export function AdminContactsManager({
 
   return (
     <div className="admin-cms-page">
-		<div className="admin-heading">
+		<div className="admin-page-head">
 			<div>
 				<h1>Kontak Footer</h1>
 				<p>Tautan kontak resmi yang ditampilkan di footer publik.</p>
 				<SavingStatus status={syncStatus} />
 			</div>
-			<button type="button" className="button button-primary" onClick={save} disabled={syncStatus === "saving"}>
-				{syncStatus === "saving" ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
-			</button>
+			<AdminSaveButton
+				saving={syncStatus === "saving"}
+				disabled={!isDirty}
+				onClick={save}
+			/>
       </div>
 
       <div className="admin-cms-list">
@@ -454,14 +512,11 @@ export function AdminWaTemplates({
 				<p>Pesan otomatis yang dikirim ke pengunjung lewat WhatsApp.</p>
 				<SavingStatus status={syncStatus} />
 			</div>
-        <button
-          type="button"
-          className="button button-primary"
+        <AdminSaveButton
+          saving={syncStatus === "saving"}
+          disabled={!isDirty}
           onClick={save}
-			disabled={!isDirty || syncStatus === "saving"}
-		>
-			{syncStatus === "saving" ? <ButtonSpinner label="Menyimpan..." /> : <><Save size={16} aria-hidden="true" /> Simpan perubahan</>}
-		</button>
+        />
       </div>
 
       <div className="admin-wa-workspace">
@@ -566,10 +621,11 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
-  const [rulesDescription, setRulesDescription] = useState<string>("Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.");
-  const [rulesImage, setRulesImage] = useState<string>("/assets/peraturan-kunjungan.webp");
+  const [rulesDescription, setRulesDescription] = useState<string>(DEFAULT_RULES_DESCRIPTION);
+  const [rulesImage, setRulesImage] = useState<string>(DEFAULT_RULES_IMAGE);
   const [rulesFile, setRulesFile] = useState<File | null>(null);
   const [rulesPreview, setRulesPreview] = useState<string | null>(null);
+  const [savedDraft, setSavedDraft] = useState<SavedLetterDraft | null>(null);
 
   const [activeSubTab, setActiveSubTab] = useState<"rules" | "letter">("rules");
   const [loading, setLoading] = useState(true);
@@ -603,10 +659,16 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
     fetchAdminLetter()
       .then((data) => {
         if (cancelled) return;
-        setChecklist(data.checklist.length ? data.checklist : letterChecklist);
+        const nextChecklist = data.checklist.length ? data.checklist : letterChecklist;
+        const nextRulesDescription = data.rulesDescription || DEFAULT_RULES_DESCRIPTION;
+        setChecklist(nextChecklist);
         setImage(data.image || ASSETS.letterExample);
-        setRulesDescription(data.rulesDescription || "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.");
-        setRulesImage(data.rulesImage || "/assets/peraturan-kunjungan.webp");
+        setRulesDescription(nextRulesDescription);
+        setRulesImage(data.rulesImage || DEFAULT_RULES_IMAGE);
+        setSavedDraft({
+          checklist: nextChecklist,
+          rulesDescription: nextRulesDescription,
+        });
       })
       .catch(() => {})
       .finally(() => {
@@ -726,8 +788,13 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
       const data = await updateAdminLetter(cleanedChecklist, file, cleanedDescription, rulesFile);
       setChecklist(data.checklist);
       setImage(data.image || ASSETS.letterExample);
-      setRulesDescription(data.rulesDescription || "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.");
-      setRulesImage(data.rulesImage || "/assets/peraturan-kunjungan.webp");
+      const nextRulesDescription = data.rulesDescription || DEFAULT_RULES_DESCRIPTION;
+      setRulesDescription(nextRulesDescription);
+      setRulesImage(data.rulesImage || DEFAULT_RULES_IMAGE);
+      setSavedDraft({
+        checklist: data.checklist,
+        rulesDescription: nextRulesDescription,
+      });
       onChange?.(data);
       setFile(null);
       setPreview(null);
@@ -757,18 +824,20 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
   const letterImageError = errorTarget === "letter-image" ? error : null;
   const rulesDescriptionError = errorTarget === "rules-description" ? error : null;
   const rulesImageError = errorTarget === "rules-image" ? error : null;
+  const hasUnsavedChanges = Boolean(
+    savedDraft &&
+      (JSON.stringify(checklist) !== JSON.stringify(savedDraft.checklist) ||
+        rulesDescription !== savedDraft.rulesDescription ||
+        file ||
+        rulesFile),
+  );
 
   return (
     <div className="admin-cms-page">
-      <div className="admin-heading">
+      <div className="admin-page-head">
         <div>
           <h1>Ketentuan Kunjungan</h1>
           <p>Kelola peraturan tata tertib fisik dan acuan contoh surat permohonan kunjungan.</p>
-        </div>
-        <div className="admin-letter-save-actions">
-          <button type="button" className="button button-primary" onClick={save} disabled={saving || loading}>
-            {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
-          </button>
           <div className="admin-letter-save-status" aria-live={error ? "assertive" : "polite"} aria-atomic="true">
             {error ? (
               <p className="admin-form-error" role="alert">
@@ -779,6 +848,11 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
             ) : null}
           </div>
         </div>
+        <AdminSaveButton
+          saving={saving}
+          disabled={loading || !hasUnsavedChanges}
+          onClick={() => void save()}
+        />
       </div>
 
       <div className="admin-subtabs">
@@ -951,13 +1025,8 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
 }
 
 export function AdminHeroManager({ onChange }: { onChange?: (next: ApiHero) => void }) {
-  const [draft, setDraft] = useState<ApiHero>({
-    headline: "ISTURA - Istana Untuk Rakyat",
-    subheadline: "Booking Kunjungan Istana Kepresidenan Yogyakarta",
-    primaryCta: "Mulai Booking",
-    secondaryCta: "Cek Jadwal",
-    story: storyWords.join(" "),
-  });
+  const [draft, setDraft] = useState<ApiHero>(DEFAULT_ADMIN_HERO);
+  const [savedDraft, setSavedDraft] = useState<ApiHero | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -968,7 +1037,10 @@ export function AdminHeroManager({ onChange }: { onChange?: (next: ApiHero) => v
 		setLoading(true);
 		fetchAdminHero()
 			.then((data) => {
-				if (!cancelled) setDraft(data);
+				if (!cancelled) {
+          setDraft(data);
+          setSavedDraft(data);
+        }
 			})
 			.catch(() => {})
 			.finally(() => {
@@ -986,14 +1058,9 @@ export function AdminHeroManager({ onChange }: { onChange?: (next: ApiHero) => v
     setSaving(true);
     setError(null);
     try {
-      const data = await updateAdminHero({
-        headline: draft.headline.trim(),
-        subheadline: draft.subheadline.trim(),
-        primaryCta: draft.primaryCta.trim(),
-        secondaryCta: draft.secondaryCta.trim(),
-        story: draft.story.trim(),
-      });
+      const data = await updateAdminHero(normalizeHeroForSave(draft));
       setDraft(data);
+      setSavedDraft(data);
       onChange?.(data);
       setSavedAt(
         new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
@@ -1011,16 +1078,24 @@ export function AdminHeroManager({ onChange }: { onChange?: (next: ApiHero) => v
     }
   };
 
+  const hasUnsavedChanges = Boolean(
+    savedDraft &&
+      JSON.stringify(normalizeHeroForSave(draft)) !==
+        JSON.stringify(normalizeHeroForSave(savedDraft)),
+  );
+
   return (
     <div className="admin-cms-page">
-      <div className="admin-heading">
+      <div className="admin-page-head">
         <div>
           <h1>Hero & Cerita</h1>
           <p>Edit copy hero dan cerita pendek di halaman beranda.</p>
         </div>
-		<button type="button" className="button button-primary" onClick={save} disabled={saving || loading}>
-			{saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
-		</button>
+        <AdminSaveButton
+          saving={saving}
+          disabled={loading || !hasUnsavedChanges}
+          onClick={() => void save()}
+        />
       </div>
 
       <section className="admin-card">
@@ -1456,33 +1531,10 @@ export function AdminLandingManager({
 
   return (
     <div className="admin-cms-page admin-landing-page">
-      <div className="admin-heading">
+      <div className="admin-page-head">
         <div>
           <h1>Landing Page</h1>
           <p>Navbar, section utama, video, CTA, dan footer publik.</p>
-        </div>
-      </div>
-
-      <div
-        className="admin-landing-toolbar"
-        role="region"
-        aria-label="Navigasi dan penyimpanan landing page"
-      >
-        <div className="admin-section-tabs" role="tablist" aria-label="Grup section landing page">
-          {LANDING_TAB_GROUPS.map((group) => (
-            <button
-              key={group.id}
-              type="button"
-              role="tab"
-              aria-selected={activeGroup === group.id}
-              className={activeGroup === group.id ? "is-active" : ""}
-              onClick={() => setActiveGroup(group.id)}
-            >
-              {group.label}
-            </button>
-          ))}
-        </div>
-        <div className="admin-landing-save-actions">
           {saveStatus && (
             <small
               className={`admin-save-status admin-save-status--${saveStatusClass}`}
@@ -1492,10 +1544,27 @@ export function AdminLandingManager({
               {saveStatus}
             </small>
           )}
-          <button type="button" className="button button-primary" onClick={save} disabled={saving}>
-            {saving ? <ButtonSpinner label="Menyimpan..." /> : "Simpan perubahan"}
-          </button>
         </div>
+        <AdminSaveButton
+          saving={saving}
+          disabled={!hasUnsavedChanges}
+          onClick={() => void save()}
+        />
+      </div>
+
+      <div className="admin-section-tabs" role="tablist" aria-label="Grup section landing page">
+        {LANDING_TAB_GROUPS.map((group) => (
+          <button
+            key={group.id}
+            type="button"
+            role="tab"
+            aria-selected={activeGroup === group.id}
+            className={activeGroup === group.id ? "is-active" : ""}
+            onClick={() => setActiveGroup(group.id)}
+          >
+            {group.label}
+          </button>
+        ))}
       </div>
 
       <div className="admin-landing-sections">

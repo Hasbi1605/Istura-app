@@ -101,8 +101,8 @@ export function IsturaOpenManager() {
 
       {selected && (
         <>
-          <section className="open-admin-toolbar" aria-label="Pengaturan event Istura Open">
-            <div className="open-admin-toolbar-primary">
+          <section className="booking-toolbar open-admin-toolbar" aria-label="Pengaturan event Istura Open">
+            <div className="booking-toolbar-row open-admin-toolbar-primary">
               <label className="open-admin-event-select">
                 <span className="visually-hidden">Pilih event</span>
                 <select
@@ -121,7 +121,7 @@ export function IsturaOpenManager() {
                 <RefreshCw size={15} /> Muat ulang
               </button>
             </div>
-            <div className="open-admin-summary">
+            <div className="booking-toolbar-row booking-toolbar-row--secondary open-admin-summary">
               <span>
                 {longDate(selected.startDate)} – {longDate(selected.endDate)}
               </span>
@@ -373,7 +373,7 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
 
   return (
     <div className="open-registrants">
-      <div className="open-registrants-filters">
+      <div className="booking-toolbar open-registrants-filters">
         <select value={dayFilter} onChange={(e) => { setPage(1); setDayFilter(e.target.value ? Number(e.target.value) : ""); }}>
           <option value="">Semua hari</option>
           {event.days.map((day) => (

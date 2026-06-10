@@ -6030,16 +6030,9 @@ a {
   gap: 12px;
 }
 
-.admin-letter-save-actions {
-  display: grid;
-  justify-items: end;
-  gap: 8px;
-  max-width: min(420px, 100%);
-}
-
 .admin-letter-save-status {
   min-height: 1.1rem;
-  text-align: right;
+  text-align: left;
 }
 
 .admin-letter-save-status .admin-form-error {
@@ -6057,18 +6050,6 @@ a {
   min-height: 40px;
   padding: 0 18px;
   font-size: 0.95rem;
-}
-
-@media (max-width: 640px) {
-  .admin-letter-save-actions {
-    justify-items: stretch;
-    width: 100%;
-    max-width: none;
-  }
-
-  .admin-letter-save-status {
-    text-align: left;
-  }
 }
 
 .admin-cms-link {
@@ -6336,19 +6317,13 @@ a {
   font-weight: 700;
 }
 
-.admin-landing-save-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
 .admin-save-status {
+  display: inline-block;
+  margin-top: 2px;
   color: rgba(16, 24, 47, 0.62);
+  font-size: 0.76rem;
   font-weight: 800;
   line-height: 1.3;
-  text-align: right;
 }
 
 .admin-save-status--saving,
@@ -6368,37 +6343,12 @@ a {
   gap: 14px;
 }
 
-/* Sticky toolbar: navigasi section dan aksi simpan tetap terjangkau saat
-   editor panjang, sementara judul halaman tetap mengikuti pola admin umum. */
-.admin-landing-toolbar {
-  position: sticky;
-  top: calc(var(--admin-topbar-height, 56px) + 8px);
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  padding: 8px 10px;
-  background: rgba(247, 248, 251, 0.94);
-  border: 1px solid rgba(16, 24, 47, 0.08);
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(16, 24, 47, 0.06);
-  backdrop-filter: blur(8px);
-}
-
 /* Shared section tabs for admin editors and operational managers. */
 .admin-section-tabs {
   display: flex;
   min-width: 0;
   gap: 6px;
   border-bottom: 1px solid rgba(16, 24, 47, 0.1);
-}
-
-.admin-landing-toolbar .admin-section-tabs {
-  flex: 1;
-  align-self: stretch;
-  border-bottom: 0;
 }
 
 .admin-section-tabs button {
@@ -12772,22 +12722,19 @@ a {
 .open-admin-toolbar {
   display: grid;
   gap: 10px;
-  padding: 12px 14px;
-  background: rgba(16, 24, 47, 0.025);
-  border: 1px solid rgba(16, 24, 47, 0.08);
-  border-radius: 12px;
 }
 
 .open-admin-toolbar-primary {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   min-width: 0;
 }
 
 .open-admin-event-select {
-  flex: 1;
-  min-width: 220px;
+  flex: 0 1 480px;
+  min-width: min(320px, 100%);
 }
 
 .open-admin-event-select select {
@@ -12814,9 +12761,8 @@ a {
   align-items: center;
   gap: 8px 14px;
   flex-wrap: wrap;
-  padding-top: 10px;
+  width: 100%;
   color: var(--muted);
-  border-top: 1px solid rgba(16, 24, 47, 0.08);
   font-size: 0.86rem;
   font-weight: 700;
 }
@@ -12909,10 +12855,6 @@ a {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 14px;
-  padding: 10px;
-  background: rgba(16, 24, 47, 0.025);
-  border: 1px solid rgba(16, 24, 47, 0.08);
-  border-radius: 12px;
 }
 
 .open-registrants-filters select {
@@ -13009,12 +12951,6 @@ a {
 }
 
 @media (max-width: 768px) {
-  .admin-landing-toolbar {
-    top: calc(var(--admin-topbar-height, 52px) + 6px);
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .admin-section-tabs {
     width: 100%;
     overflow-x: auto;
@@ -13027,15 +12963,6 @@ a {
 
   .admin-section-tabs button {
     flex: 0 0 auto;
-  }
-
-  .admin-landing-save-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .admin-landing-save-actions .admin-save-status {
-    text-align: left;
   }
 
   .open-admin-toolbar-primary {
@@ -13067,15 +12994,6 @@ a {
 }
 
 @media (max-width: 480px) {
-  .admin-landing-save-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .admin-landing-save-actions .button {
-    width: 100%;
-  }
-
   .open-admin-toolbar-primary .button {
     width: 100%;
   }
