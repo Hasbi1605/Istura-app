@@ -148,7 +148,7 @@ export function FloatingContact({ contacts }: { contacts: FooterContact[] }) {
               }
             >
               <WhatsAppIcon />
-              <span>Chat via WhatsApp</span>
+              <span>WhatsApp</span>
             </button>
             {igContact && (
               <a

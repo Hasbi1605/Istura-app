@@ -12059,16 +12059,16 @@ a {
 
 .floating-contact-primary {
   display: inline-flex;
-  flex: 1;
+  flex: 1 1 0;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 14px;
-  font-size: 0.88rem;
+  padding: 11px 14px;
+  font-size: 0.86rem;
   font-weight: 700;
   color: #fff;
   background: linear-gradient(150deg, #25d366, #1aa851);
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 12px;
   box-shadow: 0 8px 18px rgba(37, 211, 102, 0.32);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -12091,19 +12091,22 @@ a {
 
 .floating-contact-secondary {
   display: inline-flex;
+  flex: 1 1 0;
   align-items: center;
-  gap: 6px;
-  padding: 12px;
-  font-size: 0.82rem;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  font-size: 0.86rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 12px;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .floating-contact-secondary:hover {
+  transform: translateY(-1px);
   color: var(--ink);
   border-color: rgba(196, 146, 18, 0.5);
 }
