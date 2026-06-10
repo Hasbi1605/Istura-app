@@ -35,15 +35,8 @@ export function IsturaOpenPromo({
   event: OpenEventPublic;
   onRegister: () => void;
 }) {
-  const bannerDismissedKey = `istura-open-banner-dismissed:${event.slug}`;
   const [showPopup, setShowPopup] = useState(() => hasOpenCapacity(event));
-  const [bannerDismissed, setBannerDismissed] = useState(() => {
-    try {
-      return window.sessionStorage.getItem(bannerDismissedKey) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -67,11 +60,6 @@ export function IsturaOpenPromo({
 
   const dismissBanner = () => {
     setBannerDismissed(true);
-    try {
-      window.sessionStorage.setItem(bannerDismissedKey, "1");
-    } catch {
-      /* ignore */
-    }
   };
 
   const startRegister = () => {
