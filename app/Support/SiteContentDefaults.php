@@ -163,6 +163,9 @@ class SiteContentDefaults
                     ['label' => 'Informasi umum', 'message' => 'Halo Admin ISTURA, saya ingin menanyakan informasi umum seputar kunjungan ISTURA.'],
                 ],
             ],
+            'openBanner' => [
+                'tickerText' => 'Pendaftaran kunjungan perorangan gratis, tanpa surat. Pilih harimu, siapa cepat dia dapat!',
+            ],
         ];
     }
 

@@ -104,6 +104,9 @@ class UpdateSiteContentRequest extends FormRequest
             'floatingContact.topics' => ['required', 'array', 'min:1', 'max:6'],
             'floatingContact.topics.*.label' => ['required', 'string', 'max:60'],
             'floatingContact.topics.*.message' => ['required', 'string', 'max:500'],
+
+            'openBanner' => ['sometimes', 'array'],
+            'openBanner.tickerText' => ['sometimes', 'string', 'max:500'],
         ];
     }
 }

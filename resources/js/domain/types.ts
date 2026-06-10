@@ -259,6 +259,9 @@ export type SiteContent = {
     greeting: string;
     topics: FloatingContactTopic[];
   };
+  openBanner: {
+    tickerText: string;
+  };
 };
 
 export type FloatingContactTopic = {

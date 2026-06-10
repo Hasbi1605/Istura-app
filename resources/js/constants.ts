@@ -411,6 +411,9 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       },
     ],
   },
+  openBanner: {
+    tickerText: "Pendaftaran kunjungan perorangan gratis, tanpa surat. Pilih harimu, siapa cepat dia dapat!",
+  },
 };
 
 export const HERO_MESSAGES: Array<{ text: string; image: string }> = [

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PartyPopper, X } from "lucide-react";
-import type { OpenEventPublic } from "../../domain/types";
+import type { OpenEventPublic, SiteContent } from "../../domain/types";
 
 const MONTHS_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
@@ -21,23 +21,24 @@ function hasOpenCapacity(event: OpenEventPublic): boolean {
  * Public popup (every page load while event active) + persistent fixed banner
  * for the active Istura Open event.
  *
- * - Popup: muncul setiap kali halaman dimuat (refresh/navigasi) selama event
- *   aktif dan masih ada kuota. Dismiss hanya menyembunyikan untuk mount saat
- *   ini — refresh halaman akan menampilkan kembali.
- * - Banner: fixed di bawah navbar, selalu terlihat saat scroll. Tombol ×
- *   menyembunyikan untuk sesi browser saat ini (sessionStorage); tutup tab
- *   dan buka lagi → banner muncul kembali.
+ * Banner layout: [🎉 icon] [Title (static)] [|] [Ticker text (marquee scroll)] [Daftar] [×]
+ * Ticker text is CMS-editable via siteContent.openBanner.tickerText.
  */
 export function IsturaOpenPromo({
   event,
+  siteContent,
   onRegister,
 }: {
   event: OpenEventPublic;
+  siteContent: SiteContent;
   onRegister: () => void;
 }) {
   const [showPopup, setShowPopup] = useState(() => hasOpenCapacity(event));
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+
+  const tickerText = siteContent.openBanner?.tickerText
+    || "Pendaftaran kunjungan perorangan gratis, tanpa surat. Pilih harimu, siapa cepat dia dapat!";
 
   useEffect(() => {
     if (!showPopup) return;
@@ -109,18 +110,21 @@ export function IsturaOpenPromo({
 
       {!bannerDismissed && (
         <div className="open-banner" role="region" aria-label="Istura Open">
-          <div className="open-banner-text">
-            <PartyPopper size={18} />
-            <span>
-              <strong>{event.name}</strong> — pendaftaran perorangan {shortDate(event.startDate)}–{shortDate(event.endDate)} dibuka.
-            </span>
+          <PartyPopper size={16} className="open-banner-icon" />
+          <span className="open-banner-title">{event.name}</span>
+          <span className="open-banner-divider" aria-hidden="true">|</span>
+          <div className="open-banner-ticker" aria-label={tickerText}>
+            <div className="open-banner-ticker-track">
+              <span>{tickerText}</span>
+              <span aria-hidden="true">{tickerText}</span>
+            </div>
           </div>
           <div className="open-banner-actions">
             <button type="button" className="open-banner-cta" onClick={onRegister}>
               Daftar
             </button>
             <button type="button" className="open-banner-close" aria-label="Tutup banner" onClick={dismissBanner}>
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         </div>

@@ -12580,25 +12580,26 @@ a {
   left: 50%;
   transform: translateX(-50%);
   z-index: 29;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 0;
   width: fit-content;
-  max-width: min(620px, calc(100% - 32px));
-  padding: 8px 10px 8px 20px;
+  max-width: min(640px, calc(100% - 32px));
+  padding: 7px 8px 7px 16px;
   color: var(--white);
-  background: rgba(16, 24, 47, 0.82);
-  border: 1.5px solid rgba(229, 189, 85, 0.4);
+  background: rgba(16, 24, 47, 0.84);
+  border: 1.5px solid rgba(229, 189, 85, 0.35);
   border-radius: 999px;
   backdrop-filter: blur(14px);
   box-shadow:
-    0 0 0 1px rgba(229, 189, 85, 0.15),
+    0 0 0 1px rgba(229, 189, 85, 0.12),
     0 10px 28px rgba(11, 17, 34, 0.32);
   animation: open-banner-slide-in 350ms ease both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .open-banner { animation: none; }
+  .open-banner-ticker-track { animation: none !important; }
 }
 
 @keyframes open-banner-slide-in {
@@ -12606,75 +12607,111 @@ a {
   to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
 
-.open-banner-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 0.86rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.open-banner-icon {
+  flex: 0 0 auto;
+  color: var(--gold-2);
+  margin-right: 10px;
 }
 
-.open-banner-text svg { color: var(--gold-2); flex: 0 0 auto; }
+.open-banner-title {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--gold-2);
+  white-space: nowrap;
+}
 
-.open-banner-actions { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.open-banner-divider {
+  flex: 0 0 auto;
+  margin: 0 10px;
+  color: rgba(255, 255, 255, 0.25);
+  font-weight: 300;
+}
+
+.open-banner-ticker {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.open-banner-ticker-track {
+  display: inline-flex;
+  gap: 48px;
+  white-space: nowrap;
+  animation: open-ticker-scroll 18s linear infinite;
+}
+
+.open-banner-ticker-track span {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+@keyframes open-ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-50% - 24px)); }
+}
+
+.open-banner-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: 12px;
+}
 
 .open-banner-cta {
-  min-height: 32px;
-  padding: 0 16px;
+  min-height: 30px;
+  padding: 0 14px;
   color: var(--navy);
   background: linear-gradient(135deg, var(--gold-2), var(--gold));
   border: 0;
   border-radius: 999px;
   font-weight: 800;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(196, 146, 18, 0.28);
+  box-shadow: 0 3px 10px rgba(196, 146, 18, 0.28);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 .open-banner-cta:hover {
   transform: scale(1.05);
-  box-shadow: 0 6px 18px rgba(196, 146, 18, 0.36);
+  box-shadow: 0 5px 14px rgba(196, 146, 18, 0.36);
 }
 
 .open-banner-close {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   color: var(--white);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border: 0;
   border-radius: 999px;
   cursor: pointer;
-  opacity: 0.6;
+  opacity: 0.5;
   transition: opacity 120ms ease, background 120ms ease;
 }
 
 .open-banner-close:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 @media (max-width: 768px) {
   .open-banner {
     top: 80px;
     max-width: calc(100% - 20px);
-    padding: 7px 8px 7px 16px;
-    gap: 10px;
+    padding: 6px 6px 6px 12px;
   }
-  .open-banner-text {
-    font-size: 0.78rem;
-    white-space: normal;
-  }
-  .open-banner-cta {
-    min-height: 30px;
-    padding: 0 12px;
-    font-size: 0.76rem;
-  }
+  .open-banner-title { font-size: 0.74rem; }
+  .open-banner-divider { margin: 0 7px; }
+  .open-banner-ticker-track span { font-size: 0.72rem; }
+  .open-banner-cta { min-height: 28px; padding: 0 10px; font-size: 0.72rem; }
+  .open-banner-close { width: 24px; height: 24px; }
 }
 
 /* ---- Admin manager ------------------------------------------------------- */
