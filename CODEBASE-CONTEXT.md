@@ -65,8 +65,20 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 
 ### 2.3 Models (`app/Models`)
 `AuditLog`, `Booking`, `BookingSlot`, `Faq`, `Feedback`, `FooterContact`,
-`NationalHoliday`, `ScheduleOverride`, `SiteSetting`, `TrustedDevice`, `User`, `WaTemplate`.
+`NationalHoliday`, `ScheduleOverride`, `SiteSetting`, `TrustedDevice`, `User`, `WaTemplate`,
+`OpenEvent`, `OpenEventDay`, `OpenRegistration` (modul Istura Open).
 > Skema kolom lengkap ada di `PRD-ISTURA-APP.md` §6.
+
+#### Istura Open (modul terpisah, lihat `IsturaOpen.md`)
+- **Tabel:** `open_events`, `open_event_days`, `open_registrations`, `open_registration_sequences` (counter kode).
+- **Service:** `OpenRegistrationService` (store atomic dengan `lockForUpdate` baris event → no overbooking, dedup 1 NIK + 1 WhatsApp aktif/event, self/admin cancel, admin move + overbook, quotaSummary live). Isolated penuh dari `BookingService`/`ScheduleService`.
+- **Kode:** `OpenRegistrationCodeGenerator` → `ISTURA-OPEN-{year}-{NNNN}` (pola `booking_sequences`).
+- **Event broadcast:** `OpenQuotaUpdated` (ShouldBroadcastNow) ke channel publik `public.open`, event `.open.quota-updated` (kuota live). Dipancarkan saat register/cancel/move/admin toggle.
+- **Controllers:** `Public/OpenRegistrationController` (show/precheck/store/lookup/cancel), `Admin/OpenEventController` (index/store/update/activate/deactivate/updateDay/export), `Admin/OpenRegistrationController` (index/move/cancel).
+- **Requests:** `Public/{Store,Precheck,Lookup,Cancel}OpenRegistrationRequest`, `Admin/{StoreOpenEvent,UpdateOpenEvent,UpdateOpenEventDay,MoveOpenRegistration}Request`.
+- **Resources:** `OpenEventResource`, `OpenEventDayResource` (link WA hanya admin), `OpenRegistrationResource`.
+- **Keamanan:** link grup WhatsApp tidak pernah muncul di endpoint/bootstrap publik; hanya dikembalikan pada response sukses register/lookup. Hari tak bisa dibuka/diaktifkan tanpa link. Rate limit `public-open`. `is_active` default false (kill-switch).
+- **Bootstrap:** ringkasan event aktif (`openEvent`, tanpa link WA) ikut di `ContentController::bootstrap`.
 
 ### 2.4 Requests / Resources / Middleware / lainnya
 - **Requests** (`app/Http/Requests`): root `ScheduleRangeRequest`; `Auth/LoginRequest`;
@@ -83,7 +95,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - **Console/Commands**: `ExpirePendingBookings` (`bookings:expire-pending`), `SyncIndonesianHolidays` (`holidays:sync-id`), `PruneAuditLogs` (`audit:prune`), `CleanupLunchBreakSlots`, `ResetUserTwoFactor`.
 
 ### 2.5 Routes (`routes/`)
-- **api.php** — 3 grup: `public/*` (rate-limited), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`, nested `super-admin` untuk users).
+- **api.php** — 3 grup: `public/*` (rate-limited; termasuk `open-event` + `open-registrations/*` throttle `public-open`), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`, nested `super-admin` untuk users; termasuk `open-events*` & `open-events/{event}/registrations*`).
 - **web.php** — `/robots.txt`, `/sitemap.xml`, `/info/alur-kunjungan` (OG tags WA preview)
   lalu catch-all `/{any?}` → `view('app')` (SPA dengan metadata/JSON-LD dan konten
   ringkasan server-rendered untuk crawler). Regex catch-all mengecualikan `api`.
@@ -113,21 +125,21 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 
 ### 3.3 API layer (`api/`)
 - `client.ts` — fetch wrapper Sanctum (CSRF priming, `ApiError`/`ValidationError`, listener auth-failure admin).
-- `adapters.ts` — adapter response. Per-domain: `admin.ts`, `auth.ts`, `bookings.ts`, `cms.ts`, `feedback.ts`, `schedule.ts`.
+- `adapters.ts` — adapter response. Per-domain: `admin.ts`, `auth.ts`, `bookings.ts`, `cms.ts`, `feedback.ts`, `schedule.ts`, `openEvents.ts` (Istura Open publik + admin).
 
 ### 3.4 Domain & realtime & lib
 - `domain/`: `types.ts` (termasuk `Screen`), `booking.ts`, `schedule.ts`, `weeklyPoster.ts`.
-- `realtime/echo.ts` — singleton Echo (Reverb/Pusher), lazy, state machine koneksi, gated `VITE_REVERB_ENABLED`.
+- `realtime/echo.ts` — singleton Echo (Reverb/Pusher), lazy, state machine koneksi, gated `VITE_REVERB_ENABLED`. Channel: `admin.bookings` (private), `public.schedule`, `public.open` (Istura Open kuota live).
 - `lib/`: `assets.ts`, `bookingDraft.ts` (autosave draft), `date.ts`, `legacyShims.ts`, `waActions.ts`, `whatsapp.ts`.
 - `animations/`: `HomeAnimationLayer.tsx`, `useHomeAnimations.ts` (GSAP).
 
 ### 3.5 Components (`components/`)
-- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx`, `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
-- **booking/**: `BookingWizard.tsx` (wizard 8 langkah). **feedback/**: `FeedbackScreen.tsx`. **home/**: `HomeScreen.tsx`.
+- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx`, `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
+- **booking/**: `BookingWizard.tsx` (wizard 8 langkah). **feedback/**: `FeedbackScreen.tsx`. **home/**: `HomeScreen.tsx`. **open/**: `IsturaOpenWizard.tsx` (wizard publik Istura Open 5 langkah: pilih hari → data diri → add-on → tinjau → sukses + tombol grup WA; ada lookup/self-cancel via NIK), `IsturaOpenPromo.tsx` (popup sekali per event per pengunjung + banner persisten).
 - **layout/**: `Navigation.tsx`, `Footer.tsx`, `FloatingContact.tsx` (FAB WhatsApp mengambang di halaman publik selain `booking`; expand jadi kartu MIKY + quick-topic prefill WA + tautan Instagram. Nomor dari `contacts`/CMS; sapaan & daftar topik dari `siteContent.floatingContact` (editable di admin Landing Page → "Widget WhatsApp Mengambang"), subtitle animasi typewriter). **ui/**: `DetailItem`, `LoadingStates`, `Pagination`, `StatCard`, `StatusBadge`. **icons/**: `SocialIcons.tsx`. `MikyGuide.tsx` (maskot).
 
 ### 3.6 Ekspor (browser, root `resources/js`)
-`exportBookings.ts`, `exportFeedback.ts`, `exportMonthlyReport.ts`, `exportWeeklyPoster.ts`, `exportShared.ts`.
+- `exportBookings.ts`, `exportFeedback.ts`, `exportMonthlyReport.ts`, `exportWeeklyPoster.ts`, `exportShared.ts`, `exportOpenRegistrations.ts` (Istura Open → Excel `.xlsx` berstilir, per hari/seluruh event; ExcelJS lazy-import).
 
 ### 3.7 Build/config
 - `package.json` scripts: `dev` (vite), `build` (vite build). `vite.config.js` (root). `tsconfig.json` alias `@/* → resources/js/*`.
@@ -140,7 +152,7 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 
 Publik: landing CMS-driven, kalender jadwal 2 bulan, booking wizard 8 langkah (precheck identitas, autosave, split kloter otomatis), feedback pasca-kunjungan via token.
 Admin: dashboard KPI realtime, manajemen booking (siklus hidup + segments + unduh surat + pesan WA tergenerasi), manajemen jadwal (slot/range override), feedback + ekspor, CMS penuh, 2FA, audit log, manajemen admin (super-admin), ekspor (Excel/PDF/ZIP, laporan bulanan, poster mingguan).
-Roadmap: **Istura Open** (pendaftaran perorangan event, modul terpisah — lihat `IsturaOpen.md`).
+Roadmap: **Istura Open** sudah diimplementasi (modul terpisah — lihat `IsturaOpen.md` & §2.3). Pendaftaran perorangan per-event, kuota harian berbasis headcount, link grup WA, realtime kuota via channel `public.open`.
 
 > Daftar lengkap requirement (FR/NFR/BR) ada di `PRD-ISTURA-APP.md` §2–§3.
 

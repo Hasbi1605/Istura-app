@@ -11,12 +11,13 @@ export type FooterContact = {
   iconKey: ContactIconKey;
 };
 
-export type Screen = "home" | "booking" | "feedback" | "admin";
+export type Screen = "home" | "booking" | "feedback" | "open" | "admin";
 
 export type AdminTab =
   | "dashboard"
   | "bookings"
   | "schedule"
+  | "istura-open"
   | "feedback"
   | "cms-faq"
   | "cms-letter"
@@ -283,3 +284,89 @@ export type DataLoadingState = {
 export type CmsSyncKey = "faqs" | "contacts" | "waTemplates";
 export type CmsSyncStatus = "idle" | "saving" | "saved" | "error";
 export type CmsSyncState = Record<CmsSyncKey, CmsSyncStatus>;
+
+// ---- Istura Open (event registration module) ---------------------------
+
+export type OpenEventDayPublic = {
+  id: number;
+  date: string;
+  quota: number;
+  used: number;
+  remaining: number;
+  isOpen: boolean;
+};
+
+// Public-facing active event summary (no WhatsApp links).
+export type OpenEventPublic = {
+  name: string;
+  slug: string;
+  startDate: string;
+  endDate: string;
+  maxAddons: number;
+  agreementText: string | null;
+  days: OpenEventDayPublic[];
+};
+
+// Result returned after a successful registration / lookup (includes link).
+export type OpenRegistrationResult = {
+  code: string;
+  status: string;
+  dayDate: string | null;
+  headcount: number;
+  members: string[];
+  whatsappGroupUrl: string | null;
+};
+
+export type OpenEventDayAdmin = {
+  id: number;
+  date: string;
+  quota: number;
+  quotaOverride: number | null;
+  isOpen: boolean;
+  opensAt: string | null;
+  whatsappGroupUrl?: string | null;
+  hasWhatsappGroupUrl: boolean;
+};
+
+export type OpenEventAdmin = {
+  id: number;
+  name: string;
+  slug: string;
+  startDate: string;
+  endDate: string;
+  perDayQuota: number;
+  maxAddons: number;
+  assignmentMode: string;
+  releaseMode: string;
+  registrationOpensAt: string | null;
+  registrationClosesAt: string | null;
+  agreementText: string | null;
+  isActive: boolean;
+  days: OpenEventDayAdmin[];
+};
+
+export type OpenQuotaSummary = {
+  dayId: number;
+  date: string;
+  quota: number;
+  used: number;
+  remaining: number;
+  isOpen: boolean;
+  opensAt: string | null;
+};
+
+export type OpenRegistrationAdmin = {
+  code: string;
+  contactName: string;
+  nik?: string;
+  nikMasked: string;
+  whatsapp: string;
+  members: string[];
+  addonCount: number;
+  headcount: number;
+  status: string;
+  dayId: number | null;
+  dayDate?: string;
+  registeredAt: string | null;
+  cancelledAt: string | null;
+};

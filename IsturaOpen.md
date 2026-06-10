@@ -74,7 +74,7 @@ bagian paling rapuh menjadi mendekati nol.
 | 3 | Kuota per hari | **100 orang (headcount)**, dapat di-override per hari |
 | 4 | Add-on memenuhi kuota | **Ya** (1 pendaftar + add-on = headcount) |
 | 5 | Add-on | **Nama saja**, maksimal **4**, tanpa NIK |
-| 6 | Identitas | **1 NIK = 1 pendaftaran aktif** per event |
+| 6 | Identitas (anti-borong) | **1 NIK + 1 WhatsApp** = masing-masing 1 pendaftaran aktif per event |
 | 7 | Surat permohonan | **Tidak ada** |
 | 8 | Persetujuan admin | **Tidak ada** — first-come otomatis |
 | 9 | Output sukses | **Link grup WhatsApp hari terpilih** (bukan nomor pendaftaran) |
@@ -84,18 +84,21 @@ bagian paling rapuh menjadi mendekati nol.
 | 13 | Setelan grup WA | Join instan (approve OFF); approve/rotasi link sebagai tuas bila bocor |
 | 14 | Modul | **Terisolasi & reusable**, satu event aktif pada satu waktu |
 | 15 | Mode assignment | `assignment_mode` disimpan sebagai kolom; **hanya `self_select` diimplementasi v1** |
+| 16 | Mode pembukaan | **Serentak** (`release_mode = simultaneous`) — 3 hari dibuka bersamaan, bebas pilih selagi kuota ada |
+| 17 | Anti-borong | **1 NIK + 1 WhatsApp**, masing-masing **1 pendaftaran aktif** per event; **IP hanya untuk rate-limit**, bukan kunci keunikan; **email tidak dipakai** |
 
 ---
 
-## 5. Keputusan yang Masih Terbuka
+## 5. Keputusan yang Sebelumnya Terbuka (kini terkunci)
 
-- **TERBUKA — `release_mode` (serentak vs bertahap).** Menunggu jawaban admin:
-  - `simultaneous` (serentak): ketiga hari dibuka bersamaan; peserta bebas memilih hari
-    mana pun yang masih ada kuota.
-  - `sequential` (bertahap): hanya hari aktif yang dibuka; hari berikutnya dibuka saat hari
-    sebelumnya penuh.
-  - **Dampak ke arsitektur: nol.** Cukup konfigurasi field `opens_at` per hari +
-    `release_mode` di event. Default sementara: `simultaneous`.
+- **TERKUNCI — `release_mode` = `simultaneous` (serentak).** Konfirmasi admin (Mbak Fit):
+  ketiga hari (14/15/16) dibuka **bersamaan** sejak awal; peserta **bebas memilih hari mana
+  pun** yang masih ada kuota. Mode `sequential` (bertahap) tetap didukung skema (`opens_at`
+  per hari) tetapi tidak dipakai untuk event ini.
+- **Dampak ke arsitektur: nol.** Hanya nilai konfigurasi (`release_mode` + `opens_at` semua
+  hari diisi saat event dibuka).
+
+Tidak ada keputusan yang masih terbuka.
 
 ---
 
@@ -121,6 +124,16 @@ bagian paling rapuh menjadi mendekati nol.
 (`POST admin/schedule/range` status `Closed`); 17 Agustus juga sudah auto-closed sebagai
 libur nasional. Tidak ada logika baru. Detail koeksistensi di §9.6.
 
+**Default OFF & kill-switch (penting).** Saat fitur ini di-deploy, **tidak ada perubahan di
+sisi publik** sampai admin sengaja menyalakannya. Jaminan berlapis:
+- Tabel `open_events` kosong → `/public/bootstrap` tidak mengirim event aktif → tanpa popup,
+  banner, form, maupun menu Istura Open. Publik hanya melihat booking reguler.
+- `is_active` **default `false`**; draft event tidak memunculkan apa pun ke publik.
+- Aktivasi adalah 3 langkah sengaja oleh admin: **buat event → isi kuota & link grup WA tiap
+  hari → Aktifkan** (guard menolak bila ada hari Buka tanpa link WA).
+- Set `is_active = false` kapan pun = **kill-switch**: permukaan publik Istura Open langsung
+  hilang, booking reguler tetap jalan.
+
 ---
 
 ## 7. Model Data
@@ -143,7 +156,7 @@ Tidak ada perubahan skema `bookings`. Tiga tabel baru:
 | registration_closes_at | datetime nullable | |
 | agreement_text | text nullable | teks persetujuan yang ditampilkan |
 | whatsapp_template | text nullable | opsional, untuk masa depan |
-| is_active | bool | **hanya satu boleh true** |
+| is_active | bool | **default `false`**; **hanya satu boleh true** (lihat §6 Default OFF) |
 | timestamps | | |
 
 ### 7.2 `open_event_days`
@@ -211,12 +224,21 @@ DB::transaction:
 ```
 
 ### 8.2 Anti-abuse
-- **1 NIK = 1 pendaftaran aktif/event** (cek `nik_hash`), divalidasi di precheck dan saat
-  submit (satu sumber aturan, seperti `identityActiveBookingExceeded()` di booking).
-- **Rate limit** reuse/clone `public-bookings` (30/menit per IP). Buat limiter
-  `public-open` bila ingin terpisah.
-- NIK tidak terverifikasi di lokasi → dedup ini "cukup adil", bukan antipeluru.
-  Diterima sesuai model longgar yang dipilih admin.
+Bedakan **kunci keunikan** (cegah borong) dari **throttle** (cegah flood):
+
+- **NIK — 1 pendaftaran aktif/event** (cek `nik_hash`), divalidasi di precheck & submit
+  (satu sumber aturan, seperti `identityActiveBookingExceeded()` di booking).
+- **WhatsApp — 1 pendaftaran aktif/event** (cek `whatsapp_normalized`). Tidak menyakiti
+  keluarga karena rombongan ditampung add-on (≤5 kepala/pendaftaran). Konsisten dengan
+  booking reguler yang membatasi NIK & WhatsApp.
+- **IP — hanya rate-limit, BUKAN kunci keunikan.** IP berbagi (kantor, WiFi publik, CGNAT
+  seluler) → "1/IP" akan salah blokir pengguna sah. Reuse/clone `public-bookings` sebagai
+  limiter `public-open`.
+- **Email — tidak dipakai.** Tidak ada di model data; email tak terverifikasi = nol proteksi.
+- **Limit configurable per event.** Admin bisa melonggarkan bila perlu.
+- **Catatan jujur:** tanpa verifikasi (OTP/cek identitas di lokasi), semua batasan ini lapis
+  lunak — menahan abuse malas, bukan antipeluru. Teeth nyata butuh OTP WhatsApp (ditunda).
+  Diterima sesuai model longgar yang dipilih admin; payoff abuse kecil (hanya masuk grup WA).
 
 ### 8.3 Saat kuota hari penuh
 - Default v1: tolak dengan pesan "Hari ini sudah penuh, pilih hari lain" + kembalikan sisa
@@ -417,7 +439,7 @@ aktif sebagai jalan masuk permanen. Popup = sekali; banner = selalu selama event
 
 **Publik** (`routes/api.php`, prefix `public`, throttle `public-open`)
 - `GET  public/open-event` — event aktif + hari + sisa kuota (TANPA link WA).
-- `POST public/open-registrations/precheck` — cek NIK belum terdaftar + kuota tersedia.
+- `POST public/open-registrations/precheck` — cek NIK & WhatsApp belum terdaftar + kuota tersedia.
 - `POST public/open-registrations` — store; sukses mengembalikan link grup WA.
 - `POST public/open-registrations/lookup` — input NIK → tampilkan registrasi + link / opsi batal.
 - `POST public/open-registrations/cancel` — self-cancel via NIK.

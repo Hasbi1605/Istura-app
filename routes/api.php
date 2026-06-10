@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\BookingController as AdminBookingController;
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
+use App\Http\Controllers\Admin\OpenEventController;
+use App\Http\Controllers\Admin\OpenRegistrationController as AdminOpenRegistrationController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthController;
@@ -13,6 +15,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Public\BookingController as PublicBookingController;
 use App\Http\Controllers\Public\ContentController;
 use App\Http\Controllers\Public\FeedbackController as PublicFeedbackController;
+use App\Http\Controllers\Public\OpenRegistrationController as PublicOpenRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('health', HealthController::class);
@@ -34,6 +37,15 @@ Route::prefix('public')->group(function () {
     Route::middleware('throttle:public-bookings')->group(function () {
         Route::post('bookings/precheck', [PublicBookingController::class, 'precheck']);
         Route::post('bookings', [PublicBookingController::class, 'store']);
+    });
+
+    // Istura Open (public registration for special events)
+    Route::get('open-event', [PublicOpenRegistrationController::class, 'show']);
+    Route::middleware('throttle:public-open')->group(function () {
+        Route::post('open-registrations/precheck', [PublicOpenRegistrationController::class, 'precheck']);
+        Route::post('open-registrations', [PublicOpenRegistrationController::class, 'store']);
+        Route::post('open-registrations/lookup', [PublicOpenRegistrationController::class, 'lookup']);
+        Route::post('open-registrations/cancel', [PublicOpenRegistrationController::class, 'cancel']);
     });
 
     Route::get('feedback/{code}', [PublicFeedbackController::class, 'show'])->middleware('throttle:public-feedback');
@@ -105,4 +117,16 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
         Route::delete('users/{user}', [UserController::class, 'destroy']);
     });
     Route::get('audit-logs', [AuditLogController::class, 'index']);
+
+    // Istura Open management
+    Route::get('open-events', [OpenEventController::class, 'index']);
+    Route::post('open-events', [OpenEventController::class, 'store']);
+    Route::put('open-events/{event}', [OpenEventController::class, 'update']);
+    Route::post('open-events/{event}/activate', [OpenEventController::class, 'activate']);
+    Route::post('open-events/{event}/deactivate', [OpenEventController::class, 'deactivate']);
+    Route::put('open-events/{event}/days/{day}', [OpenEventController::class, 'updateDay']);
+    Route::get('open-events/{event}/export', [OpenEventController::class, 'export']);
+    Route::get('open-events/{event}/registrations', [AdminOpenRegistrationController::class, 'index']);
+    Route::post('open-events/{event}/registrations/{code}/move', [AdminOpenRegistrationController::class, 'move']);
+    Route::post('open-events/{event}/registrations/{code}/cancel', [AdminOpenRegistrationController::class, 'cancel']);
 });

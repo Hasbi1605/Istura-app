@@ -2,6 +2,7 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { Navigation } from "./components/layout/Navigation";
 import { FloatingContact } from "./components/layout/FloatingContact";
 import { HomeScreen } from "./components/home/HomeScreen";
+import { IsturaOpenPromo } from "./components/open/IsturaOpenPromo";
 import { InlineSpinner } from "./components/ui/LoadingStates";
 import { useIsturaData } from "./hooks/useIsturaData";
 import type { Screen } from "./domain/types";
@@ -18,6 +19,9 @@ const FeedbackScreen = lazy(() =>
 );
 const AdminApp = lazy(() =>
   import("./components/admin/AdminApp").then((module) => ({ default: module.AdminApp })),
+);
+const IsturaOpenWizard = lazy(() =>
+  import("./components/open/IsturaOpenWizard").then((module) => ({ default: module.IsturaOpenWizard })),
 );
 
 function App() {
@@ -48,6 +52,8 @@ function App() {
     setLetter,
     siteContent,
     setSiteContent,
+    openEvent,
+    refetchOpenEvent,
     adminSession,
     setAdminSession,
     adminTab,
@@ -122,16 +128,28 @@ function App() {
           />
 
           {screen === "home" && (
-            <HomeScreen
-              contacts={contacts}
-              faqs={faqs}
-              schedules={schedules}
-              hero={hero}
-              letter={letter}
-              siteContent={siteContent}
-              loading={loading.public || loading.schedule}
-              onNavigate={goToScreen}
-            />
+            <>
+              {openEvent && <IsturaOpenPromo event={openEvent} onRegister={() => goToScreen("open")} />}
+              <HomeScreen
+                contacts={contacts}
+                faqs={faqs}
+                schedules={schedules}
+                hero={hero}
+                letter={letter}
+                siteContent={siteContent}
+                loading={loading.public || loading.schedule}
+                onNavigate={goToScreen}
+              />
+            </>
+          )}
+          {screen === "open" && (
+            <Suspense fallback={screenFallback}>
+              <IsturaOpenWizard
+                event={openEvent}
+                onNavigate={goToScreen}
+                onQuotaChanged={refetchOpenEvent}
+              />
+            </Suspense>
           )}
           {screen === "booking" && (
             <Suspense fallback={screenFallback}>
@@ -172,7 +190,7 @@ function App() {
             </Suspense>
           )}
 
-          {screen !== "booking" && (
+          {screen !== "booking" && screen !== "open" && (
             <FloatingContact contacts={contacts} content={siteContent.floatingContact} />
           )}
         </>

@@ -137,3 +137,4 @@ export function destroyEcho(): void {
 
 export const ADMIN_BOOKINGS_CHANNEL = "admin.bookings";
 export const PUBLIC_SCHEDULE_CHANNEL = "public.schedule";
+export const PUBLIC_OPEN_CHANNEL = "public.open";

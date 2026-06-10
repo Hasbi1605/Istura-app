@@ -1,0 +1,127 @@
+import { useEffect, useRef, useState } from "react";
+import { PartyPopper, X } from "lucide-react";
+import type { OpenEventPublic } from "../../domain/types";
+
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+  "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+];
+
+function shortDate(key: string): string {
+  const [, month, day] = key.split("-").map(Number);
+  if (!month || !day) return key;
+  return `${day} ${MONTHS_SHORT[month - 1]}`;
+}
+
+function hasOpenCapacity(event: OpenEventPublic): boolean {
+  return event.days.some((day) => day.isOpen && day.remaining > 0);
+}
+
+/**
+ * Public popup (once per event per visitor) + persistent banner for the active
+ * Istura Open event. Data piggybacks on /public/bootstrap; no WhatsApp links.
+ */
+export function IsturaOpenPromo({
+  event,
+  onRegister,
+}: {
+  event: OpenEventPublic;
+  onRegister: () => void;
+}) {
+  const seenKey = `istura-open-seen:${event.slug}`;
+  const [showPopup, setShowPopup] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!hasOpenCapacity(event)) return;
+    try {
+      if (window.localStorage.getItem(seenKey) === "1") return;
+    } catch {
+      /* ignore storage errors */
+    }
+    setShowPopup(true);
+  }, [seenKey, event]);
+
+  useEffect(() => {
+    if (!showPopup) return;
+    closeRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dismissPopup();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showPopup]);
+
+  const dismissPopup = () => {
+    setShowPopup(false);
+    try {
+      window.localStorage.setItem(seenKey, "1");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const startRegister = () => {
+    dismissPopup();
+    onRegister();
+  };
+
+  const quotaStrip = event.days
+    .filter((day) => day.isOpen)
+    .map((day) => `${shortDate(day.date)} ${day.remaining}`)
+    .join(" · ");
+
+  return (
+    <>
+      {showPopup && (
+        <div
+          className="open-promo-scrim"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="open-promo-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) dismissPopup();
+          }}
+        >
+          <div className="open-promo-modal">
+            <button ref={closeRef} type="button" className="open-promo-close" aria-label="Tutup" onClick={dismissPopup}>
+              <X size={18} />
+            </button>
+            <div className="open-promo-badge"><PartyPopper size={24} /></div>
+            <h2 id="open-promo-title">{event.name}</h2>
+            <p className="open-promo-lead">
+              Kunjungan perorangan {shortDate(event.startDate)} – {shortDate(event.endDate)}. Gratis, tanpa surat.
+              Pilih harimu, siapa cepat dia dapat.
+            </p>
+            {quotaStrip && <p className="open-promo-quota">Sisa kuota: {quotaStrip}</p>}
+            <div className="open-promo-actions">
+              <button type="button" className="btn-primary" onClick={startRegister}>
+                Daftar Sekarang
+              </button>
+              <button type="button" className="btn-secondary" onClick={dismissPopup}>
+                Nanti saja
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="open-banner" role="region" aria-label="Istura Open">
+        <div className="open-banner-text">
+          <PartyPopper size={18} />
+          <span>
+            <strong>{event.name}</strong> — pendaftaran perorangan {shortDate(event.startDate)}–{shortDate(event.endDate)} dibuka.
+          </span>
+        </div>
+        <button type="button" className="open-banner-cta" onClick={onRegister}>
+          Daftar
+        </button>
+      </div>
+    </>
+  );
+}

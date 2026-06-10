@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { BookingStatus, SiteContent } from "../domain/types";
+import type { BookingStatus, OpenEventPublic, SiteContent } from "../domain/types";
 import type { ApiVisitDay } from "./schedule";
 
 export type ApiFaq = {
@@ -74,6 +74,7 @@ export type ApiPublicBootstrap = {
   hero: ApiHero;
   letter: ApiLetter;
   siteContent: SiteContent;
+  openEvent: OpenEventPublic | null;
 };
 
 export const fetchPublicBootstrap = () =>

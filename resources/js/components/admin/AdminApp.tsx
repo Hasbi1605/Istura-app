@@ -27,6 +27,7 @@ import { AdminDashboard } from "./AdminDashboard";
 import { AdminScreen } from "./BookingScreen";
 import { AdminFeedbackList } from "./AdminFeedbackList";
 import { AdminScheduleManager } from "./ScheduleManager";
+import { IsturaOpenManager } from "./IsturaOpenManager";
 import {
   AdminFaqManager,
   AdminContactsManager,
@@ -304,6 +305,7 @@ export function AdminApp({
           }}
         />
       )}
+      {safeAdminTab === "istura-open" && <IsturaOpenManager />}
 		{safeAdminTab === "cms-faq" && (
 			<AdminFaqManager faqs={faqs} syncStatus={cmsSync.faqs} onChange={onFaqsChange} />
 		)}

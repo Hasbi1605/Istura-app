@@ -12,6 +12,7 @@ use App\Models\Faq;
 use App\Models\FooterContact;
 use App\Models\SiteSetting;
 use App\Models\WaTemplate;
+use App\Services\OpenRegistrationService;
 use App\Services\ScheduleService;
 use App\Support\PublicCache;
 use App\Support\SiteContentDefaults;
@@ -33,6 +34,7 @@ class ContentController extends Controller
                 'hero' => $this->heroData(),
                 'letter' => $this->letterData(),
                 'siteContent' => $this->siteContentData(),
+                'openEvent' => $this->openEventData(),
             ],
         ], PublicCache::BOOTSTRAP_BROWSER_TTL);
     }
@@ -142,6 +144,46 @@ class ContentController extends Controller
     private function siteContentData(): array
     {
         return PublicCache::rememberCms('site-content', fn () => SiteContentDefaults::mergeSiteContent(SiteSetting::read('site_content')));
+    }
+
+    /**
+     * Active Istura Open event summary (live quota, no WhatsApp links).
+     * Returns null when no event is active so public surfaces stay hidden.
+     */
+    private function openEventData(): ?array
+    {
+        $service = app(OpenRegistrationService::class);
+        $event = $service->activeEvent();
+
+        if (! $event || ! $event->registrationWindowOpen()) {
+            return null;
+        }
+
+        $quota = collect($service->quotaSummary($event))->keyBy('dayId');
+
+        return [
+            'name' => $event->name,
+            'slug' => $event->slug,
+            'startDate' => $event->start_date?->toDateString(),
+            'endDate' => $event->end_date?->toDateString(),
+            'maxAddons' => (int) $event->max_addons,
+            'agreementText' => $event->agreement_text,
+            'days' => $event->days
+                ->map(function ($day) use ($quota) {
+                    $summary = $quota->get($day->id);
+
+                    return [
+                        'id' => $day->id,
+                        'date' => $day->date?->toDateString(),
+                        'quota' => $summary['quota'] ?? 0,
+                        'used' => $summary['used'] ?? 0,
+                        'remaining' => $summary['remaining'] ?? 0,
+                        'isOpen' => $summary['isOpen'] ?? false,
+                    ];
+                })
+                ->values()
+                ->all(),
+        ];
     }
 
     /**

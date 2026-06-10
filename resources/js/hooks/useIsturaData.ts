@@ -35,6 +35,8 @@ import {
   type ApiHero,
   type ApiLetter,
 } from "../api/cms";
+import { fetchPublicOpenEvent } from "../api/openEvents";
+import type { OpenEventPublic } from "../domain/types";
 import { apiBookingToLocal, apiFeedbackToLocal, apiVisitDayToLocal } from "../api/adapters";
 import { ApiError, onAdminAuthFailure, resetCsrf } from "../api/client";
 import type { RealtimeConnectionStatus } from "../realtime/echo";
@@ -134,6 +136,8 @@ export interface IsturaData {
   setLetter: Dispatch<SetStateAction<ApiLetter>>;
   siteContent: SiteContent;
   setSiteContent: Dispatch<SetStateAction<SiteContent>>;
+  openEvent: OpenEventPublic | null;
+  refetchOpenEvent: () => void;
   adminSession: AdminSession | null;
   setAdminSession: Dispatch<SetStateAction<AdminSession | null>>;
   adminTab: AdminTab;
@@ -211,6 +215,7 @@ export function useIsturaData(): IsturaData {
   const [hero, setHero] = useState<ApiHero>(DEFAULT_HERO);
   const [letter, setLetter] = useState<ApiLetter>(DEFAULT_LETTER);
   const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
+  const [openEvent, setOpenEvent] = useState<OpenEventPublic | null>(null);
 
   // Refs untuk membedakan "data baru dari API" (jangan push balik ke API)
   // vs "user mengubah dari UI" (push ke API). Diset true di useEffect
@@ -418,6 +423,7 @@ export function useIsturaData(): IsturaData {
         if (data.hero) setHero(data.hero);
         if (data.letter) setLetter(data.letter);
         if (data.siteContent) setSiteContent(data.siteContent);
+        setOpenEvent(data.openEvent ?? null);
 
         requestAnimationFrame(() => {
           faqsHydratedRef.current = true;
@@ -767,6 +773,49 @@ export function useIsturaData(): IsturaData {
     }
   }, []);
 
+  // Istura Open: refetch live quota when an active event changes (register /
+  // cancel / move / admin toggle). Mirrors the schedule.updated pattern.
+  const refetchOpenEvent = () => {
+    fetchPublicOpenEvent()
+      .then((data) => setOpenEvent(data ?? null))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (loading.public || import.meta.env.VITE_REVERB_ENABLED !== "true") return;
+    if (screen === "admin") return;
+
+    let active = true;
+    let cleanup: (() => void) | undefined;
+    const onQuotaUpdated = () => {
+      if (active) refetchOpenEvent();
+    };
+
+    const timerId = window.setTimeout(() => {
+      void import("../realtime/echo").then(({ getEcho, PUBLIC_OPEN_CHANNEL }) => {
+        if (!active) return;
+        const echo = getEcho();
+        if (!echo) return;
+        const channel = echo.channel(PUBLIC_OPEN_CHANNEL);
+        channel.listen(".open.quota-updated", onQuotaUpdated);
+        cleanup = () => {
+          try {
+            channel.stopListening(".open.quota-updated");
+            echo.leave(PUBLIC_OPEN_CHANNEL);
+          } catch {
+            /* ignore */
+          }
+        };
+      });
+    }, 450);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timerId);
+      cleanup?.();
+    };
+  }, [loading.public, screen]);
+
   useEffect(() => {
     const match = window.location.pathname.match(/^\/feedback\/([^/]+)\/?$/);
     if (!match) return;
@@ -800,6 +849,8 @@ export function useIsturaData(): IsturaData {
     setLetter,
     siteContent,
     setSiteContent,
+    openEvent,
+    refetchOpenEvent,
     adminSession,
     setAdminSession,
     adminTab,

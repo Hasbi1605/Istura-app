@@ -1,0 +1,253 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Events\OpenQuotaUpdated;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreOpenEventRequest;
+use App\Http\Requests\Admin\UpdateOpenEventDayRequest;
+use App\Http\Requests\Admin\UpdateOpenEventRequest;
+use App\Http\Resources\OpenEventDayResource;
+use App\Http\Resources\OpenEventResource;
+use App\Http\Resources\OpenRegistrationResource;
+use App\Models\OpenEvent;
+use App\Models\OpenEventDay;
+use App\Services\AuditLogger;
+use App\Services\OpenRegistrationService;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+
+class OpenEventController extends Controller
+{
+    public function __construct(private readonly OpenRegistrationService $service) {}
+
+    public function index(): JsonResponse
+    {
+        $events = OpenEvent::with('days')->latest('id')->get();
+
+        return response()->json([
+            'data' => OpenEventResource::collection($events)->resolve(),
+            'quota' => $events->mapWithKeys(fn (OpenEvent $event) => [
+                $event->id => $this->service->quotaSummary($event),
+            ]),
+        ]);
+    }
+
+    public function store(StoreOpenEventRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        $event = DB::transaction(function () use ($data, $request) {
+            $event = new OpenEvent;
+            $event->name = $data['name'];
+            $event->slug = $this->uniqueSlug($data['name']);
+            $event->start_date = $data['startDate'];
+            $event->end_date = $data['endDate'];
+            $event->per_day_quota = $data['perDayQuota'];
+            $event->max_addons = $data['maxAddons'];
+            $event->assignment_mode = $data['assignmentMode'] ?? 'self_select';
+            $event->release_mode = $data['releaseMode'] ?? 'simultaneous';
+            $event->registration_opens_at = $data['registrationOpensAt'] ?? null;
+            $event->registration_closes_at = $data['registrationClosesAt'] ?? null;
+            $event->agreement_text = $data['agreementText'] ?? null;
+            $event->is_active = false;
+            $event->save();
+
+            $this->syncDays($event);
+
+            AuditLogger::record($request->user(), "Membuat event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+
+            return $event;
+        });
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
+        ], 201);
+    }
+
+    public function update(UpdateOpenEventRequest $request, OpenEvent $event): JsonResponse
+    {
+        $data = $request->validated();
+
+        DB::transaction(function () use ($event, $data, $request) {
+            $event->fill(array_filter([
+                'name' => $data['name'] ?? null,
+                'start_date' => $data['startDate'] ?? null,
+                'end_date' => $data['endDate'] ?? null,
+                'per_day_quota' => $data['perDayQuota'] ?? null,
+                'max_addons' => $data['maxAddons'] ?? null,
+                'assignment_mode' => $data['assignmentMode'] ?? null,
+                'release_mode' => $data['releaseMode'] ?? null,
+            ], fn ($value) => $value !== null));
+
+            foreach (['registrationOpensAt' => 'registration_opens_at', 'registrationClosesAt' => 'registration_closes_at', 'agreementText' => 'agreement_text'] as $input => $column) {
+                if (array_key_exists($input, $data)) {
+                    $event->{$column} = $data[$input];
+                }
+            }
+
+            $event->save();
+
+            if (array_key_exists('startDate', $data) || array_key_exists('endDate', $data)) {
+                $this->syncDays($event);
+            }
+
+            AuditLogger::record($request->user(), "Memperbarui event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        });
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
+        ]);
+    }
+
+    public function activate(Request $request, OpenEvent $event): JsonResponse
+    {
+        $event->loadMissing('days');
+
+        $openDaysMissingLink = $event->days
+            ->filter(fn (OpenEventDay $day) => $day->is_open && blank($day->whatsapp_group_url));
+
+        if ($openDaysMissingLink->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'days' => ['Setiap hari yang dibuka wajib memiliki link grup WhatsApp sebelum event diaktifkan.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($event, $request) {
+            OpenEvent::where('id', '!=', $event->id)->where('is_active', true)->update(['is_active' => false]);
+            $event->is_active = true;
+            $event->save();
+
+            AuditLogger::record($request->user(), "Mengaktifkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        });
+
+        OpenQuotaUpdated::dispatch($event->slug);
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
+        ]);
+    }
+
+    public function deactivate(Request $request, OpenEvent $event): JsonResponse
+    {
+        $event->is_active = false;
+        $event->save();
+
+        AuditLogger::record($request->user(), "Menonaktifkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        OpenQuotaUpdated::dispatch($event->slug);
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
+        ]);
+    }
+
+    public function updateDay(UpdateOpenEventDayRequest $request, OpenEvent $event, OpenEventDay $day): JsonResponse
+    {
+        abort_unless($day->open_event_id === $event->id, 404);
+
+        $data = $request->validated();
+
+        $wantsOpen = array_key_exists('isOpen', $data) ? (bool) $data['isOpen'] : $day->is_open;
+        $resultingUrl = array_key_exists('whatsappGroupUrl', $data) ? $data['whatsappGroupUrl'] : $day->whatsapp_group_url;
+
+        if ($wantsOpen && blank($resultingUrl)) {
+            throw ValidationException::withMessages([
+                'whatsappGroupUrl' => ['Isi link grup WhatsApp sebelum membuka hari ini.'],
+            ]);
+        }
+
+        if (array_key_exists('quotaOverride', $data)) {
+            $day->quota_override = $data['quotaOverride'];
+        }
+        if (array_key_exists('whatsappGroupUrl', $data)) {
+            $day->whatsapp_group_url = $data['whatsappGroupUrl'];
+        }
+        if (array_key_exists('opensAt', $data)) {
+            $day->opens_at = $data['opensAt'];
+        }
+        if (array_key_exists('isOpen', $data)) {
+            $day->is_open = (bool) $data['isOpen'];
+        }
+        $day->save();
+
+        AuditLogger::record($request->user(), "Memperbarui hari Istura Open {$day->date?->toDateString()}", 'open_event_day', $day->id, [], $request);
+        OpenQuotaUpdated::dispatch($event->slug);
+
+        $day->setRelation('event', $event);
+
+        return response()->json([
+            'data' => (new OpenEventDayResource($day))->resolve(),
+        ]);
+    }
+
+    /**
+     * Registration rows for browser-side export (per day, with add-on names).
+     */
+    public function export(OpenEvent $event): JsonResponse
+    {
+        $registrations = $event->registrations()
+            ->with('day')
+            ->orderBy('assigned_event_day_id')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'data' => OpenRegistrationResource::collection($registrations)->resolve(),
+            'event' => (new OpenEventResource($event->loadMissing('days')))->resolve(),
+        ]);
+    }
+
+    private function syncDays(OpenEvent $event): void
+    {
+        $start = Carbon::parse($event->start_date, 'Asia/Jakarta')->startOfDay();
+        $end = Carbon::parse($event->end_date, 'Asia/Jakarta')->startOfDay();
+
+        $wanted = [];
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            $wanted[] = $date->toDateString();
+        }
+
+        $existingDays = $event->days()->get();
+        $existing = $existingDays
+            ->map(fn (OpenEventDay $day) => $day->date?->toDateString())
+            ->filter()
+            ->all();
+
+        foreach ($wanted as $date) {
+            if (! in_array($date, $existing, true)) {
+                $event->days()->create([
+                    'date' => $date,
+                    'is_open' => false,
+                ]);
+            }
+        }
+
+        // Drop out-of-range days that never received registrations.
+        $staleIds = $existingDays
+            ->filter(fn (OpenEventDay $day) => ! in_array($day->date?->toDateString(), $wanted, true))
+            ->filter(fn (OpenEventDay $day) => $day->registrations()->count() === 0)
+            ->pluck('id')
+            ->all();
+
+        if ($staleIds !== []) {
+            OpenEventDay::whereIn('id', $staleIds)->delete();
+        }
+    }
+
+    private function uniqueSlug(string $name): string
+    {
+        $base = Str::slug($name) ?: 'istura-open';
+        $slug = $base;
+        $suffix = 1;
+
+        while (OpenEvent::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.(++$suffix);
+        }
+
+        return $slug;
+    }
+}

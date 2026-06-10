@@ -49,6 +49,10 @@ class AppServiceProvider extends ServiceProvider
             'public-bookings:'.$request->ip(),
         ));
 
+        RateLimiter::for('public-open', fn (Request $request) => Limit::perMinute(30)->by(
+            'public-open:'.$request->ip(),
+        ));
+
         RateLimiter::for('public-schedule', fn (Request $request) => Limit::perMinute(120)->by(
             'public-schedule:'.$request->ip(),
         ));
