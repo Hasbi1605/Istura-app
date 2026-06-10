@@ -6367,8 +6367,8 @@ a {
   gap: 14px;
 }
 
-/* Sticky save bar: status + tombol Simpan selalu terjangkau dari section
-   manapun. Offset memperhitungkan topbar admin (56px) yang juga sticky. */
+/* Sticky save bar: status + tombol Simpan selalu terjangkau saat scroll.
+   Offset memperhitungkan topbar admin (56px) yang juga sticky. */
 .admin-landing-heading {
   position: sticky;
   top: var(--admin-topbar-height, 56px);
@@ -6380,133 +6380,48 @@ a {
   border-bottom: 1px solid rgba(16, 24, 47, 0.08);
 }
 
-/* Layout 2 kolom: navigator section (kiri) + form (kanan). */
-.admin-landing-layout {
-  display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.admin-landing-nav {
+/* Tab grup section — mengikuti pola .open-admin-tabs agar konsisten dengan
+   halaman admin lain. Sticky tepat di bawah save bar. */
+.admin-landing-tabs {
   position: sticky;
-  top: calc(var(--admin-topbar-height, 56px) + 84px);
-  display: grid;
-  gap: 14px;
-  max-height: calc(100vh - var(--admin-topbar-height, 56px) - 100px);
-  overflow-y: auto;
-  padding-right: 4px;
+  top: calc(var(--admin-topbar-height, 56px) + 69px);
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 -24px;
+  padding: 0 24px;
+  background: rgba(247, 248, 251, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(16, 24, 47, 0.1);
 }
 
-.admin-landing-nav-group {
-  display: grid;
-  gap: 4px;
-}
-
-.admin-landing-nav-group-title {
-  margin: 0 0 2px;
-  padding: 0 10px;
-  color: rgba(16, 24, 47, 0.42);
-  font-size: 0.68rem !important;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.admin-landing-nav-group ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.admin-landing-nav-link {
-  display: block;
-  width: 100%;
-  padding: 7px 10px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: rgba(16, 24, 47, 0.7);
-  font-size: 0.82rem;
+.admin-landing-tabs button {
+  padding: 10px 16px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 0.86rem;
   font-weight: 700;
-  text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.admin-landing-nav-link:hover,
-.admin-landing-nav-link:focus-visible {
+.admin-landing-tabs button:hover,
+.admin-landing-tabs button:focus-visible {
   outline: none;
-  background: rgba(16, 24, 47, 0.06);
   color: var(--navy);
 }
 
-.admin-landing-nav-link.is-active {
-  background: var(--gold-2);
+.admin-landing-tabs button.is-active {
   color: var(--navy);
+  border-bottom-color: var(--gold);
 }
 
 .admin-landing-sections {
   display: grid;
   gap: 16px;
   min-width: 0;
-}
-
-/* Beri jarak agar target anchor tidak tersembunyi di balik topbar + save bar
-   yang sticky saat di-scroll lewat klik navigator. */
-.admin-landing-anchor {
-  scroll-margin-top: calc(var(--admin-topbar-height, 56px) + 96px);
-}
-
-@media (max-width: 900px) {
-  .admin-landing-layout {
-    grid-template-columns: 1fr;
-  }
-
-  /* Di layar sempit navigator jadi baris chip horizontal yang bisa di-scroll,
-     bukan kolom yang memakan tinggi. */
-  .admin-landing-nav {
-    position: sticky;
-    top: calc(var(--admin-topbar-height, 56px) + 78px);
-    z-index: 4;
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    max-height: none;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 8px 0;
-    margin: 0 -24px;
-    padding-left: 24px;
-    padding-right: 24px;
-    background: rgba(247, 248, 251, 0.92);
-    backdrop-filter: blur(6px);
-    border-bottom: 1px solid rgba(16, 24, 47, 0.08);
-  }
-
-  .admin-landing-nav-group {
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .admin-landing-nav-group-title {
-    align-self: center;
-    white-space: nowrap;
-    padding: 0 6px 0 0;
-  }
-
-  .admin-landing-nav-group ul {
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-  }
-
-  .admin-landing-nav-link {
-    white-space: nowrap;
-    border: 1px solid rgba(16, 24, 47, 0.1);
-  }
 }
 
 .admin-landing-list {

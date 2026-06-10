@@ -30,41 +30,16 @@ type AdminLetterErrorTarget =
 const MAX_LANDING_QUICK_POINTS = 6;
 const MAX_LANDING_QUICK_POINT_LENGTH = 120;
 
-// Peta section landing page untuk navigator sticky + scroll-spy.
-// Urutan item DI SINI harus sama dengan urutan render section di DOM agar
-// highlight scroll-spy bergerak monoton (tidak melompat-lompat saat scroll).
-const LANDING_NAV_GROUPS: { group: string; items: { id: string; label: string }[] }[] = [
-  {
-    group: "Navbar & Beranda",
-    items: [
-      { id: "navbar", label: "Navbar" },
-      { id: "quick-info", label: "Sebelum booking" },
-      { id: "schedule", label: "Jadwal Kunjungan" },
-      { id: "video", label: "Video virtual" },
-      { id: "booking-steps", label: "Booking 4 langkah" },
-      { id: "activities", label: "Aktivitas di Istana" },
-    ],
-  },
-  {
-    group: "Info & Bantuan",
-    items: [
-      { id: "letter", label: "Contoh surat" },
-      { id: "rules", label: "Peraturan Kunjungan" },
-      { id: "faq", label: "FAQ section" },
-      { id: "cta", label: "CTA booking" },
-    ],
-  },
-  {
-    group: "Footer & Widget",
-    items: [
-      { id: "footer", label: "Footer" },
-      { id: "floating", label: "Widget WhatsApp" },
-      { id: "open-banner", label: "Banner Istura Open" },
-    ],
-  },
-];
+// Tab grup section landing page. Render kondisional per grup agar halaman
+// pendek & fokus, tapi semua grup tetap berbagi satu draft + satu tombol Simpan
+// (pindah tab tidak menghilangkan perubahan karena draft hidup di state React).
+const LANDING_TAB_GROUPS = [
+  { id: "navbar-beranda", label: "Navbar & Beranda" },
+  { id: "info-bantuan", label: "Info & Bantuan" },
+  { id: "footer-widget", label: "Footer & Widget" },
+] as const;
 
-const LANDING_NAV_IDS = LANDING_NAV_GROUPS.flatMap((group) => group.items.map((item) => item.id));
+type LandingTabGroup = (typeof LANDING_TAB_GROUPS)[number]["id"];
 
 const WA_TEMPLATE_VARIABLES = [
   "{nama}",
@@ -1125,49 +1100,11 @@ export function AdminLandingManager({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<string>(LANDING_NAV_IDS[0]);
-  const sectionsRef = useRef<HTMLDivElement | null>(null);
+  const [activeGroup, setActiveGroup] = useState<LandingTabGroup>(LANDING_TAB_GROUPS[0].id);
 
   useEffect(() => {
     setDraft(content);
   }, [content]);
-
-  // Scroll-spy: tandai section yang sedang terlihat di navigator.
-  useEffect(() => {
-    const container = sectionsRef.current;
-    if (!container || typeof IntersectionObserver === "undefined") return;
-
-    const sections = LANDING_NAV_IDS.map((id) =>
-      container.querySelector<HTMLElement>(`#landing-${id}`),
-    ).filter((el): el is HTMLElement => Boolean(el));
-    if (sections.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        const topMost = visible[0]?.target as HTMLElement | undefined;
-        if (topMost) {
-          setActiveSection(topMost.id.replace(/^landing-/, ""));
-        }
-      },
-      { rootMargin: "-120px 0px -55% 0px", threshold: 0 },
-    );
-
-    sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
-  }, []);
-
-  const handleNavClick = (id: string) => {
-    const target = document.getElementById(`landing-${id}`);
-    if (!target) return;
-    const prefersReduced =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    target.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
-    setActiveSection(id);
-  };
 
   const updateNav = (field: keyof SiteContent["nav"], value: string) => {
     setDraft((current) => ({ ...current, nav: { ...current.nav, [field]: value } }));
@@ -1458,6 +1395,7 @@ export function AdminLandingManager({
     const payload = normalizeLandingContentForSave(draft);
     const emptyPointsIndex = payload.quickInfo.cards.findIndex((card) => card.points.length === 0);
     if (emptyPointsIndex !== -1) {
+      setActiveGroup("navbar-beranda");
       setError(`Kartu ${emptyPointsIndex + 1} harus punya minimal satu poin.`);
       return;
     }
@@ -1466,6 +1404,7 @@ export function AdminLandingManager({
       (card) => card.points.length > MAX_LANDING_QUICK_POINTS,
     );
     if (tooManyPointsIndex !== -1) {
+      setActiveGroup("navbar-beranda");
       setError(`Kartu ${tooManyPointsIndex + 1} maksimal ${MAX_LANDING_QUICK_POINTS} poin.`);
       return;
     }
@@ -1474,6 +1413,7 @@ export function AdminLandingManager({
       card.points.some((point) => point.length > MAX_LANDING_QUICK_POINT_LENGTH),
     );
     if (tooLongPointIndex !== -1) {
+      setActiveGroup("navbar-beranda");
       setError(
         `Kartu ${tooLongPointIndex + 1} punya poin lebih dari ${MAX_LANDING_QUICK_POINT_LENGTH} karakter.`,
       );
@@ -1537,32 +1477,24 @@ export function AdminLandingManager({
         </div>
       </div>
 
-      <div className="admin-landing-layout">
-        <nav className="admin-landing-nav" aria-label="Navigasi section landing page">
-          {LANDING_NAV_GROUPS.map((group) => (
-            <div className="admin-landing-nav-group" key={group.group}>
-              <p className="admin-landing-nav-group-title">{group.group}</p>
-              <ul>
-                {group.items.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      className={`admin-landing-nav-link${
-                        activeSection === item.id ? " is-active" : ""
-                      }`}
-                      aria-current={activeSection === item.id ? "true" : undefined}
-                      onClick={() => handleNavClick(item.id)}
-                    >
-                      {item.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
+      <div className="admin-landing-tabs" role="tablist" aria-label="Grup section landing page">
+        {LANDING_TAB_GROUPS.map((group) => (
+          <button
+            key={group.id}
+            type="button"
+            role="tab"
+            aria-selected={activeGroup === group.id}
+            className={activeGroup === group.id ? "is-active" : ""}
+            onClick={() => setActiveGroup(group.id)}
+          >
+            {group.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="admin-landing-sections" ref={sectionsRef}>
+      <div className="admin-landing-sections">
+        {activeGroup === "navbar-beranda" && (
+          <>
           <section className="admin-card admin-landing-anchor" id="landing-navbar">
         <AdminLandingSectionHead title="Navbar" actionLabel="Tambah menu" onAction={addNavItem} />
         <div className="admin-cms-form">
@@ -1769,7 +1701,11 @@ export function AdminLandingManager({
           </div>
         </div>
       </section>
+          </>
+        )}
 
+        {activeGroup === "info-bantuan" && (
+          <>
       <section className="admin-card admin-landing-anchor" id="landing-letter">
         <AdminLandingSectionHead title="Contoh surat" />
         <div className="admin-cms-form">
@@ -1869,7 +1805,11 @@ export function AdminLandingManager({
           </div>
         </div>
       </section>
+          </>
+        )}
 
+        {activeGroup === "footer-widget" && (
+          <>
       <section className="admin-card admin-landing-anchor" id="landing-footer">
         <AdminLandingSectionHead title="Footer" />
         <div className="admin-cms-form">
@@ -1993,11 +1933,12 @@ export function AdminLandingManager({
           </label>
         </div>
       </section>
+          </>
+        )}
 
       {error && <p className="admin-form-error">{error}</p>}
       {savedAt && <small className="admin-cms-saved">Tersimpan terakhir pukul {savedAt}.</small>}
         </div>
-      </div>
     </div>
   );
 }
