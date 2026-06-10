@@ -1881,6 +1881,28 @@ export function AdminLandingManager({
         </div>
       </section>
 
+      <section className="admin-landing-section">
+        <AdminLandingSectionHead title="Banner Istura Open (Ticker)" />
+        <div className="admin-landing-card">
+          <p className="admin-landing-hint">Teks yang bergerak di banner Istura Open di bawah navbar. Muncul saat ada event aktif.</p>
+          <label className="form-field">
+            <span>Teks ticker (scrolling)</span>
+            <textarea
+              rows={2}
+              maxLength={500}
+              value={draft.openBanner?.tickerText ?? ""}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  openBanner: { ...current.openBanner, tickerText: event.target.value },
+                }))
+              }
+            />
+            <small>Akan tampil bergerak horizontal di banner. Maksimal 500 karakter.</small>
+          </label>
+        </div>
+      </section>
+
       {error && <p className="admin-form-error">{error}</p>}
       {savedAt && <small className="admin-cms-saved">Tersimpan terakhir pukul {savedAt}.</small>}
     </div>
