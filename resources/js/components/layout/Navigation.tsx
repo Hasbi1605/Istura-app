@@ -92,7 +92,7 @@ export function Navigation({
     <header className="nav-wrap">
       <nav className="nav-shell" aria-label="Navigasi utama">
         <button className="brand-lockup" type="button" disabled={navigationLocked} onClick={() => handleNavigate("home")}>
-          <img src={content.logoSrc || ASSETS.logoWhite} alt={content.logoAlt || "Logo Gedung Agung"} />
+          <img src={content.logoSrc || ASSETS.logoGold} alt={content.logoAlt || "Logo Gedung Agung"} />
           <span>{content.brandText}</span>
         </button>
         <div className="nav-links">

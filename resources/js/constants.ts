@@ -202,7 +202,7 @@ export const INITIAL_FAQ_ITEMS: FaqItem[] = [
     id: "faq-individu",
     question: "Apakah pengunjung individu bisa mendaftar?",
     answer:
-      "Alur ini diprioritaskan untuk perwakilan instansi, sekolah, komunitas, atau organisasi yang mengajukan kunjungan rombongan.",
+      "Bisa. Pendaftar individu atau kelompok biasa tetap dapat mengajukan kunjungan melalui form booking. Cukup isi data sebagai koordinator dan lampirkan surat permohonan bertanda tangan (tidak harus berkop resmi). Alur ini memang diprioritaskan untuk rombongan instansi/sekolah/komunitas, namun terbuka untuk siapa saja.",
   },
   {
     id: "faq-rombongan",
@@ -214,7 +214,7 @@ export const INITIAL_FAQ_ITEMS: FaqItem[] = [
     id: "faq-format-surat",
     question: "Format surat permohonan seperti apa?",
     answer:
-      "Bagi instansi/organisasi resmi, wajib menggunakan surat berkop resmi. Untuk pendaftar individu atau kelompok biasa, tetap wajib melampirkan surat permohonan kunjungan bertanda tangan koordinator (tidak harus berkop resmi). Semua surat wajib mencantumkan tanggal kunjungan, waktu, jumlah peserta, data koordinator, dan tanda tangan penanggung jawab.",
+      "Bagi instansi/organisasi resmi, wajib menggunakan surat berkop resmi. Untuk pendaftar individu atau kelompok biasa, cukup surat permohonan kunjungan bertanda tangan koordinator (tidak harus berkop). Semua surat wajib mencantumkan: tanggal kunjungan, waktu, jumlah peserta, data koordinator, dan tanda tangan penanggung jawab.",
     link: { label: "Lihat contoh surat", href: "#contoh-surat" },
   },
   {
@@ -267,7 +267,7 @@ export const LANDING_ICON_OPTIONS: Array<{ key: LandingIconKey; label: string }>
 
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   nav: {
-    logoSrc: ASSETS.logoWhite,
+    logoSrc: ASSETS.logoGold,
     logoAlt: "Logo Gedung Agung",
     brandText: "ISTURA",
     ctaLabel: "Mulai Booking",
@@ -381,7 +381,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     backgroundImage: "/assets/hero-istana.webp",
   },
   footer: {
-    logoSrc: ASSETS.logoWhite,
+    logoSrc: ASSETS.logoGold,
     logoAlt: "Gedung Agung",
     scheduleLabel: "Jadwal buka",
     scheduleDays: "Senin - Kamis",

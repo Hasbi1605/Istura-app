@@ -13,7 +13,7 @@ class SiteContentDefaults
     {
         return [
             'nav' => [
-                'logoSrc' => '/assets/gedung-agung-white.webp',
+                'logoSrc' => '/assets/gedung-agung-gold.webp',
                 'logoAlt' => 'Logo Gedung Agung',
                 'brandText' => 'ISTURA',
                 'ctaLabel' => 'Mulai Booking',
@@ -145,7 +145,7 @@ class SiteContentDefaults
                 'backgroundImage' => '/assets/hero-istana.webp',
             ],
             'footer' => [
-                'logoSrc' => '/assets/gedung-agung-white.webp',
+                'logoSrc' => '/assets/gedung-agung-gold.webp',
                 'logoAlt' => 'Gedung Agung',
                 'scheduleLabel' => 'Jadwal buka',
                 'scheduleDays' => 'Senin - Kamis',

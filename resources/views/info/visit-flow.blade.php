@@ -1,10 +1,11 @@
 @php
+    use App\Support\SeoMeta;
+
     // URL absolut wajib untuk OG tag (crawler WhatsApp/Facebook tidak resolve
     // path relatif). og:image sengaja memakai JPG, bukan webp, karena crawler
     // WA tidak andal merender webp sebagai preview.
-    $base = rtrim(config('app.url'), '/');
-    $ogImage = $base.'/assets/alur-kunjungan.jpg';
-    $pageUrl = $base.'/info/alur-kunjungan';
+    $ogImage = SeoMeta::assetUrl('/assets/alur-kunjungan.jpg');
+    $pageUrl = SeoMeta::url('/info/alur-kunjungan');
     $title = 'Alur & Peraturan Kunjungan ISTURA';
     $description = 'Panduan alur dan peraturan kunjungan Istana Kepresidenan Yogyakarta (Gedung Agung).';
     // Lokasi diambil dari CMS (footer). Fallback ke nilai default bila kosong.
@@ -18,6 +19,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ $title }}</title>
     <meta name="description" content="{{ $description }}" />
+    <link rel="canonical" href="{{ $pageUrl }}" />
     <link rel="icon" type="image/webp" href="/assets/gedung-agung-gold.webp" />
 
     {{-- Open Graph: dibaca WhatsApp/Facebook/Telegram untuk kartu preview. --}}

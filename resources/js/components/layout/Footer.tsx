@@ -18,7 +18,7 @@ export function Footer({
         <div className="footer-col footer-col-brand">
           <span className="footer-eyebrow">Tentang</span>
           <div className="footer-brand-stack">
-            <img className="footer-logo" src={content.logoSrc || ASSETS.logoWhite} alt={content.logoAlt || "Gedung Agung"} />
+            <img className="footer-logo" src={content.logoSrc || ASSETS.logoGold} alt={content.logoAlt || "Gedung Agung"} />
             <p className="footer-hours-line" aria-label={content.scheduleLabel}>
               <Clock3 size={14} aria-hidden="true" />
               <span>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useRef, useState } from "react";
 import { Navigation } from "./components/layout/Navigation";
+import { FloatingContact } from "./components/layout/FloatingContact";
 import { HomeScreen } from "./components/home/HomeScreen";
 import { InlineSpinner } from "./components/ui/LoadingStates";
 import { useIsturaData } from "./hooks/useIsturaData";
@@ -170,6 +171,8 @@ function App() {
               />
             </Suspense>
           )}
+
+          {screen !== "booking" && <FloatingContact contacts={contacts} />}
         </>
       )}
     </main>
