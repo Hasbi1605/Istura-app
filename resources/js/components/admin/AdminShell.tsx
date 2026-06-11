@@ -47,7 +47,11 @@ export function AdminShell({
     enabled: true,
   });
   const visibleMenu = ADMIN_MENU.filter(
-    (item) => item.key !== "users" || session.role === "Super Admin",
+    (item) => {
+      if (item.key === "users" && session.role !== "Super Admin") return false;
+      if (item.key === "audit" && session.role === "Viewer") return false;
+      return true;
+    },
   );
   const currentItem = visibleMenu.find((item) => item.key === tab) ?? visibleMenu[0];
 

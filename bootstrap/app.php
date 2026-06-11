@@ -3,6 +3,7 @@
 use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureAdminSessionFresh;
+use App\Http\Middleware\EnsureOperator;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => EnsureAdmin::class,
             'admin-session' => EnsureAdminSessionFresh::class,
+            'operator' => EnsureOperator::class,
             'super-admin' => EnsureSuperAdmin::class,
             'two-factor' => EnsureTwoFactorVerified::class,
         ]);

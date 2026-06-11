@@ -83,6 +83,7 @@ export function AdminScreen({
   focusCode,
   onFocusCodeConsumed,
   adminName,
+  readOnly = false,
 }: {
 	schedules: VisitDay[];
 	bookings: Booking[];
@@ -92,6 +93,7 @@ export function AdminScreen({
   focusCode?: string | null;
   onFocusCodeConsumed?: () => void;
   adminName?: string;
+  readOnly?: boolean;
 }) {
   const [selectedCode, setSelectedCode] = useState(
     focusCode ?? bookings[0]?.code ?? "",
@@ -632,6 +634,7 @@ export function AdminScreen({
                 onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
                 onPreviewDocument={(booking) => setPreviewBooking(booking)}
                 onDownloadDocument={handleDownloadDocument}
+                readOnly={readOnly}
               />
             ) : (
               <div className="booking-detail booking-detail--empty">
@@ -684,6 +687,7 @@ export function AdminScreen({
           onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
           onPreviewDocument={(booking) => setPreviewBooking(booking)}
           onDownloadDocument={handleDownloadDocument}
+          readOnly={readOnly}
         />
       )}
 
@@ -929,6 +933,7 @@ export function BookingDetailPanel({
   onResendReschedule,
   onPreviewDocument,
   onDownloadDocument,
+  readOnly = false,
 }: {
   booking: Booking;
   pendingLabel?: string | null;
@@ -943,6 +948,7 @@ export function BookingDetailPanel({
   onResendReschedule?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="booking-detail">
@@ -992,6 +998,7 @@ export function BookingDetailPanel({
         onCancelReschedule={onCancelReschedule}
         onRejectRescheduledBooking={onRejectRescheduledBooking}
         onResendReschedule={onResendReschedule}
+        readOnly={readOnly}
       />
     </div>
   );
@@ -1045,6 +1052,7 @@ export function BookingActions({
   onCancelReschedule,
   onRejectRescheduledBooking,
   onResendReschedule,
+  readOnly = false,
 }: {
   booking: Booking;
   pendingLabel?: string | null;
@@ -1057,7 +1065,15 @@ export function BookingActions({
   onCancelReschedule?: () => void;
   onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
+  readOnly?: boolean;
 }) {
+  if (readOnly) {
+    return (
+      <div className="admin-actions">
+        <span className="admin-actions-locked">Status: {BOOKING_STATUS_LABELS[booking.status]}</span>
+      </div>
+    );
+  }
   const busy = Boolean(pendingLabel);
   return (
     <div className="admin-actions">
@@ -1332,6 +1348,7 @@ export function BookingSlideOver({
   onResendReschedule,
   onPreviewDocument,
   onDownloadDocument,
+  readOnly = false,
 }: {
   booking: Booking;
   pendingLabel?: string | null;
@@ -1347,6 +1364,7 @@ export function BookingSlideOver({
   onResendReschedule?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
+  readOnly?: boolean;
 }) {
   // Close on Escape so power users can navigate the table without leaving the
   // keyboard.
@@ -1415,6 +1433,7 @@ export function BookingSlideOver({
           onCancelReschedule={onCancelReschedule}
           onRejectRescheduledBooking={onRejectRescheduledBooking}
           onResendReschedule={onResendReschedule}
+          readOnly={readOnly}
         />
       </aside>
     </div>

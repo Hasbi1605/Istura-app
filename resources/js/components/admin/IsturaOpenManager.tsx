@@ -97,7 +97,7 @@ const OPEN_REGISTRATION_FILTER_CHIPS: Array<{
   { value: "Cancelled", label: "Batal", countKey: "cancelled", className: "booking-chip--rejected" },
 ];
 
-export function IsturaOpenManager() {
+export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) {
   const [events, setEvents] = useState<OpenEventAdmin[]>([]);
   const [quota, setQuota] = useState<Record<number, OpenQuotaSummary[]>>({});
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -147,11 +147,11 @@ export function IsturaOpenManager() {
           <h1>Istura Open</h1>
           <p>Pendaftaran perorangan untuk event tertentu.</p>
         </div>
-        <div className="admin-heading-actions">
+        {!readOnly && <div className="admin-heading-actions">
           <button type="button" className="button button-primary" onClick={() => setShowCreate(true)}>
             <Plus size={15} /> Buat Event
           </button>
-        </div>
+        </div>}
       </div>
 
       {error && <p className="open-wizard-alert" role="alert">{error}</p>}
@@ -193,7 +193,7 @@ export function IsturaOpenManager() {
               <span className={selected.isActive ? "open-pill is-on" : "open-pill"}>
                 {selected.isActive ? "● Aktif" : "Nonaktif"}
               </span>
-              <ActivateButton event={selected} onChanged={() => void reload()} />
+              <ActivateButton event={selected} onChanged={() => void reload()} readOnly={readOnly} />
             </div>
           </section>
 
@@ -209,7 +209,7 @@ export function IsturaOpenManager() {
           {tab === "settings" && (
             <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} />
           )}
-          {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} />}
+          {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly} />}
         </>
       )}
 
@@ -227,7 +227,7 @@ export function IsturaOpenManager() {
   );
 }
 
-function ActivateButton({ event, onChanged }: { event: OpenEventAdmin; onChanged: () => void }) {
+function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEventAdmin; onChanged: () => void; readOnly?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -254,14 +254,14 @@ function ActivateButton({ event, onChanged }: { event: OpenEventAdmin; onChanged
 
   return (
     <span className="open-activate">
-      <button
+      {!readOnly && <button
         type="button"
         className={`button ${event.isActive ? "button-ghost" : "button-primary"}`}
         disabled={busy}
         onClick={toggle}
       >
         {event.isActive ? "Nonaktifkan" : "Aktifkan"}
-      </button>
+      </button>}
       {error && <small className="field-error">{error}</small>}
     </span>
   );
@@ -391,7 +391,7 @@ function DayCard({
   );
 }
 
-function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChanged: () => void }) {
+function RegistrantsPanel({ event, onChanged, readOnly = false }: { event: OpenEventAdmin; onChanged: () => void; readOnly?: boolean }) {
   const [rows, setRows] = useState<OpenRegistrationAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [dayFilter, setDayFilter] = useState<number | "">("");
@@ -545,6 +545,7 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
                   registration={reg}
                   onView={() => setDetail(reg)}
                   onChanged={handleChanged}
+                  readOnly={readOnly}
                 />
               ))
             )}
@@ -571,12 +572,14 @@ function RegistrantRow({
   registration,
   onView,
   onChanged,
+  readOnly = false,
 }: {
   eventId: number;
   days: OpenEventAdmin["days"];
   registration: OpenRegistrationAdmin;
   onView: () => void;
   onChanged: () => void;
+  readOnly?: boolean;
 }) {
   const [moving, setMoving] = useState(false);
   const [moveDay, setMoveDay] = useState<number | "">("");
@@ -648,7 +651,7 @@ function RegistrantRow({
             >
               <Eye size={16} aria-hidden="true" />
             </button>
-            {isActive && (
+            {isActive && !readOnly && (
               <>
                 <button
                   type="button"

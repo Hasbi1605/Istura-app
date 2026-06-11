@@ -48,12 +48,14 @@ export function AdminScheduleManager({
 	loading = false,
 	onSchedulesChange,
   onOpenBooking,
+  readOnly = false,
 }: {
 	schedules: VisitDay[];
 	bookings: Booking[];
 	loading?: boolean;
 	onSchedulesChange: (next: VisitDay[]) => void;
   onOpenBooking: (bookingCode: string) => void;
+  readOnly?: boolean;
 }) {
   const today = useState(() => startOfDay(new Date()))[0];
   const minMonth = startOfMonth(today);
@@ -509,14 +511,14 @@ export function AdminScheduleManager({
                 <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
-			<button
+			{!readOnly && <button
 				type="button"
 				className="admin-pill-button"
 				disabled={scheduleBusy}
 				onClick={() => setShowRangeModal(true)}
             >
               Pengaturan rentang
-            </button>
+            </button>}
           </header>
           <div className="admin-schedule-cal-weekdays" aria-hidden="true">
             {calendarWeekdays.map((label) => (
@@ -639,7 +641,7 @@ export function AdminScheduleManager({
                       role="group"
                       aria-label="Bulk action hari ini"
                     >
-                      <button
+                      {!readOnly && (<><button
                         type="button"
                         className={`admin-segment-button${fullyClosed ? " is-active" : ""}`}
                         onClick={() => setDayAll(selectedDay.date, "close")}
@@ -656,7 +658,7 @@ export function AdminScheduleManager({
                         aria-pressed={fullyOpen}
                       >
                         Buka semua
-                      </button>
+                      </button></>)}
                     </div>
                   </header>
 
@@ -727,6 +729,7 @@ export function AdminScheduleManager({
                             type="button"
                             className="admin-schedule-slot-main"
                             onClick={() => {
+                              if (readOnly) return;
                               if (locked) {
                                 setSlotInfoTime(slot.time);
                                 return;
@@ -734,7 +737,7 @@ export function AdminScheduleManager({
                               if (past) return;
                               toggleSlot(selectedDay.date, slot.time);
                             }}
-							disabled={scheduleBusy || (past && !locked)}
+							disabled={readOnly || scheduleBusy || (past && !locked)}
                             aria-label={`${slot.time} ${statusLabel}${
                               isMultiKloter && kloterIndex > 0
                                 ? `, Kloter ${kloterIndex} dari ${segments.length}`
@@ -775,7 +778,7 @@ export function AdminScheduleManager({
                               Khusus
                             </span>
                           )}
-                          {slot.custom && !locked && !past && (
+                          {slot.custom && !locked && !past && !readOnly && (
                             <button
                               type="button"
 								className="admin-schedule-slot-remove"
@@ -791,11 +794,11 @@ export function AdminScheduleManager({
                             <SlotBookingPopover
                               booking={booking}
                               onClose={() => setSlotInfoTime(null)}
-                              onForceOpen={() => {
+                              onForceOpen={readOnly ? undefined : () => {
                                 forceSetSlotStatus(selectedDay.date, slot.time, "Available");
                                 setSlotInfoTime(null);
                               }}
-                              onForceClose={() => {
+                              onForceClose={readOnly ? undefined : () => {
                                 forceSetSlotStatus(selectedDay.date, slot.time, "Closed");
                                 setSlotInfoTime(null);
                               }}
@@ -810,7 +813,7 @@ export function AdminScheduleManager({
                     })}
                   </div>
 
-                  <form
+                  {!readOnly && <form
                     className="admin-schedule-add"
 					onSubmit={(event) => {
 						event.preventDefault();
@@ -855,7 +858,7 @@ export function AdminScheduleManager({
                       Jam default 08.00-11.00 dan 13.00-14.00.
                       Tambahkan jam khusus jika ada keperluan di luar jam tersebut.
                     </small>
-                  </form>
+                  </form>}
                 </>
               );
             })()
@@ -917,8 +920,8 @@ export function SlotBookingPopover({
 }: {
   booking: Booking;
   onClose: () => void;
-  onForceOpen: () => void;
-  onForceClose: () => void;
+  onForceOpen?: () => void;
+  onForceClose?: () => void;
   onOpen: () => void;
 }) {
   // Tutup popover saat klik di luar atau Esc.
@@ -971,12 +974,12 @@ export function SlotBookingPopover({
         <button type="button" className="admin-pill-button" onClick={onClose}>
           Tutup
         </button>
-        <button type="button" className="admin-pill-button" onClick={onForceOpen}>
+        {onForceOpen && <button type="button" className="admin-pill-button" onClick={onForceOpen}>
           Paksa buka
-        </button>
-        <button type="button" className="admin-pill-button admin-pill-button--danger" onClick={onForceClose}>
+        </button>}
+        {onForceClose && <button type="button" className="admin-pill-button admin-pill-button--danger" onClick={onForceClose}>
           Paksa tutup
-        </button>
+        </button>}
         <button
           type="button"
           className="admin-pill-button admin-pill-button--primary"

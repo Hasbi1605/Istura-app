@@ -149,11 +149,20 @@ function AdminSaveButton({
   saving,
   disabled,
   onClick,
+  readOnly = false,
 }: {
   saving: boolean;
   disabled: boolean;
   onClick: () => void;
+  readOnly?: boolean;
 }) {
+  if (readOnly) {
+    return (
+      <span className="admin-info-note" style={{ fontSize: "0.85rem" }}>
+        Mode hanya-baca. Anda tidak memiliki izin untuk mengubah konten.
+      </span>
+    );
+  }
   return (
     <button
       type="button"
@@ -177,10 +186,12 @@ export function AdminFaqManager({
 	faqs,
 	syncStatus = "idle",
 	onChange,
+	readOnly = false,
 }: {
 	faqs: FaqItem[];
 	syncStatus?: CmsSyncStatus;
 	onChange: (next: FaqItem[]) => void;
+	readOnly?: boolean;
 }) {
   const [editing, setEditing] = useState<FaqItem | null>(null);
   const [draft, setDraft] = useState<FaqItem>({
@@ -255,7 +266,7 @@ export function AdminFaqManager({
 				<p>Pertanyaan dan jawaban yang muncul di halaman publik.</p>
 				<SavingStatus status={syncStatus} />
 			</div>
-        {!isFormOpen && (
+        {!isFormOpen && !readOnly && (
           <button type="button" className="button button-primary" onClick={startCreate}>
             <PenLine size={16} aria-hidden="true" />
             Tambah pertanyaan
@@ -335,7 +346,7 @@ export function AdminFaqManager({
                 </small>
               )}
             </div>
-            <div className="admin-cms-row-actions">
+            {!readOnly && <div className="admin-cms-row-actions">
               <button
                 type="button"
                 className="admin-icon-btn"
@@ -370,7 +381,7 @@ export function AdminFaqManager({
               >
                 <X size={16} aria-hidden="true" />
               </button>
-            </div>
+            </div>}
           </article>
         ))}
       </div>
@@ -382,10 +393,12 @@ export function AdminContactsManager({
 	contacts,
 	syncStatus = "idle",
 	onChange,
+	readOnly = false,
 }: {
 	contacts: FooterContact[];
 	syncStatus?: CmsSyncStatus;
 	onChange: (next: FooterContact[]) => void;
+	readOnly?: boolean;
 }) {
   const [drafts, setDrafts] = useState<FooterContact[]>(contacts);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -423,6 +436,7 @@ export function AdminContactsManager({
 				saving={syncStatus === "saving"}
 				disabled={!isDirty}
 				onClick={save}
+				readOnly={readOnly}
 			/>
       </div>
 
@@ -470,10 +484,12 @@ export function AdminWaTemplates({
 	templates,
 	syncStatus = "idle",
 	onChange,
+	readOnly = false,
 }: {
 	templates: WaTemplate[];
 	syncStatus?: CmsSyncStatus;
 	onChange: (next: WaTemplate[]) => void;
+	readOnly?: boolean;
 }) {
   const [drafts, setDrafts] = useState<WaTemplate[]>(templates);
   const [selectedId, setSelectedId] = useState<WaTemplate["id"]>(
@@ -553,6 +569,7 @@ export function AdminWaTemplates({
           saving={syncStatus === "saving"}
           disabled={!isDirty}
           onClick={save}
+          readOnly={readOnly}
         />
       </div>
 
@@ -652,7 +669,7 @@ export function AdminWaTemplates({
   );
 }
 
-export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) => void }) {
+export function AdminLetterManager({ onChange, readOnly = false }: { onChange?: (next: ApiLetter) => void; readOnly?: boolean }) {
   const [checklist, setChecklist] = useState<string[]>(letterChecklist);
   const [image, setImage] = useState<string>(ASSETS.letterExample);
   const [file, setFile] = useState<File | null>(null);
@@ -889,6 +906,7 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
           saving={saving}
           disabled={loading || !hasUnsavedChanges}
           onClick={() => void save()}
+          readOnly={readOnly}
         />
       </div>
 
@@ -1063,7 +1081,7 @@ export function AdminLetterManager({ onChange }: { onChange?: (next: ApiLetter) 
   );
 }
 
-export function AdminHeroManager({ onChange }: { onChange?: (next: ApiHero) => void }) {
+export function AdminHeroManager({ onChange, readOnly = false }: { onChange?: (next: ApiHero) => void; readOnly?: boolean }) {
   const [draft, setDraft] = useState<ApiHero>(DEFAULT_ADMIN_HERO);
   const [savedDraft, setSavedDraft] = useState<ApiHero | null>(null);
 	const [saving, setSaving] = useState(false);
@@ -1134,6 +1152,7 @@ export function AdminHeroManager({ onChange }: { onChange?: (next: ApiHero) => v
           saving={saving}
           disabled={loading || !hasUnsavedChanges}
           onClick={() => void save()}
+          readOnly={readOnly}
         />
       </div>
 
@@ -1206,9 +1225,11 @@ export function AdminHeroManager({ onChange }: { onChange?: (next: ApiHero) => v
 export function AdminLandingManager({
   content,
   onChange,
+  readOnly = false,
 }: {
   content: SiteContent;
   onChange?: (next: SiteContent) => void;
+  readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState<SiteContent>(content);
   const [saving, setSaving] = useState(false);
@@ -2012,6 +2033,7 @@ export function AdminLandingManager({
           saving={saving}
           disabled={!hasUnsavedChanges}
           onClick={() => void save()}
+          readOnly={readOnly}
         />
       </div>
 

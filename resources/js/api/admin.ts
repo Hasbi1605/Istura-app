@@ -1,6 +1,6 @@
 import { api } from "./client";
 
-export type AdminRole = "super_admin" | "admin";
+export type AdminRole = "super_admin" | "admin" | "viewer";
 
 export type ApiAdminUser = {
   id: number;

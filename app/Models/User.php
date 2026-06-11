@@ -24,6 +24,8 @@ class User extends Authenticatable
 
     public const ROLE_ADMIN = 'admin';
 
+    public const ROLE_VIEWER = 'viewer';
+
     /**
      * Get the attributes that should be cast.
      *
@@ -44,9 +46,20 @@ class User extends Authenticatable
         return $this->isActive() && $this->role === self::ROLE_SUPER_ADMIN;
     }
 
-    public function isAdmin(): bool
+    /**
+     * Can perform mutations (admin actions). Viewer is excluded.
+     */
+    public function isOperator(): bool
     {
         return $this->isActive() && in_array($this->role, [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN], true);
+    }
+
+    /**
+     * Can access the admin panel (includes viewer for read-only).
+     */
+    public function isAdmin(): bool
+    {
+        return $this->isActive() && in_array($this->role, [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN, self::ROLE_VIEWER], true);
     }
 
     public function isActive(): bool

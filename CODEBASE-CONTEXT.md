@@ -89,7 +89,9 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
   `FeedbackResource`, `FooterContactResource`, `PublicVisitDayResource`, `UserResource`, `VisitDayResource`, `WaTemplateResource`.
   `VisitDayResource` dan `PublicVisitDayResource` sama-sama membawa metadata hari `closureReason`/`holiday` agar kalender publik/admin tidak kehilangan label alasan tutup saat state jadwal dipakai ulang.
 - **Middleware** (`app/Http/Middleware`): `AddSecurityHeaders`, `EnsureAdmin` (alias `admin-access`),
-  `EnsureAdminSessionFresh`, `EnsureSuperAdmin` (alias `super-admin`), `EnsureTwoFactorVerified`.
+  `EnsureAdminSessionFresh`, `EnsureOperator` (alias `operator` — blokir viewer dari mutasi),
+  `EnsureSuperAdmin` (alias `super-admin`), `EnsureTwoFactorVerified`.
+- **Roles**: 3 tier hierarkis — `super_admin` (semua + kelola user), `admin` (semua kecuali kelola user), `viewer` (read-only + download dokumen + export, tanpa audit log). Konstanta di `User::ROLE_*`. Helper: `isAdmin()` (semua role), `isOperator()` (admin + super_admin), `isSuperAdmin()`.
 - **Events** (`app/Events`): `BookingCreated`, `BookingStatusChanged`, `FeedbackSubmitted`, `ScheduleUpdated` (broadcast ke channel `admin.bookings`).
 - **Policies** (`app/Policies`): `BookingPolicy`, `FeedbackPolicy`, `ScheduleOverridePolicy`.
 - **Rules** (`app/Rules`): `SafePublicUrl`, `VisitTime`.
@@ -98,7 +100,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - **Console/Commands**: `ExpirePendingBookings` (`bookings:expire-pending`), `SyncIndonesianHolidays` (`holidays:sync-id`), `PruneAuditLogs` (`audit:prune`), `CleanupLunchBreakSlots`, `ResetUserTwoFactor`.
 
 ### 2.5 Routes (`routes/`)
-- **api.php** — 3 grup: `public/*` (rate-limited; termasuk `open-event` + `open-registrations/*` throttle `public-open`), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`, nested `super-admin` untuk users; termasuk `open-events*` & `open-events/{event}/registrations*`). `cms/site-content` menerima PUT JSON dan POST multipart untuk upload aset gambar landing.
+- **api.php** — 3 grup: `public/*` (rate-limited; termasuk `open-event` + `open-registrations/*` throttle `public-open`), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`; READ routes terbuka untuk viewer, MUTATION routes dibungkus middleware `operator`, nested `super-admin` untuk users). `cms/site-content` menerima PUT JSON dan POST multipart untuk upload aset gambar landing.
 - **web.php** — `/robots.txt`, `/sitemap.xml`, `/info/alur-kunjungan` (OG tags WA preview)
   lalu catch-all `/{any?}` → `view('app')` (SPA dengan metadata/JSON-LD dan konten
   ringkasan server-rendered untuk crawler). Regex catch-all mengecualikan `api`.

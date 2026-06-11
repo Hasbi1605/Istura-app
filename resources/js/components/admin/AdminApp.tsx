@@ -245,7 +245,11 @@ export function AdminApp({
   }
 
   const canManageUsers = session.role === "Super Admin";
-  const safeAdminTab: AdminTab = !canManageUsers && adminTab === "users" ? "dashboard" : adminTab;
+  const isViewer = session.role === "Viewer";
+  const safeAdminTab: AdminTab =
+    (!canManageUsers && adminTab === "users") || (isViewer && adminTab === "audit")
+      ? "dashboard"
+      : adminTab;
 
   return (
     <AdminShell
@@ -283,6 +287,7 @@ export function AdminApp({
           focusCode={bookingFocusCode}
           onFocusCodeConsumed={() => onBookingFocusCodeChange(null)}
           adminName={session.name}
+          readOnly={isViewer}
         />
       )}
       {safeAdminTab === "feedback" && (
@@ -303,22 +308,23 @@ export function AdminApp({
             onBookingFocusCodeChange(code);
             onAdminTabChange("bookings");
           }}
+          readOnly={isViewer}
         />
       )}
-      {safeAdminTab === "istura-open" && <IsturaOpenManager />}
+      {safeAdminTab === "istura-open" && <IsturaOpenManager readOnly={isViewer} />}
 		{safeAdminTab === "cms-faq" && (
-			<AdminFaqManager faqs={faqs} syncStatus={cmsSync.faqs} onChange={onFaqsChange} />
+			<AdminFaqManager faqs={faqs} syncStatus={cmsSync.faqs} onChange={onFaqsChange} readOnly={isViewer} />
 		)}
 		{safeAdminTab === "cms-contacts" && (
-			<AdminContactsManager contacts={contacts} syncStatus={cmsSync.contacts} onChange={onContactsChange} />
+			<AdminContactsManager contacts={contacts} syncStatus={cmsSync.contacts} onChange={onContactsChange} readOnly={isViewer} />
 		)}
-	  {safeAdminTab === "cms-letter" && <AdminLetterManager onChange={onLetterChange} />}
-      {safeAdminTab === "cms-hero" && <AdminHeroManager onChange={onHeroChange} />}
+	  {safeAdminTab === "cms-letter" && <AdminLetterManager onChange={onLetterChange} readOnly={isViewer} />}
+      {safeAdminTab === "cms-hero" && <AdminHeroManager onChange={onHeroChange} readOnly={isViewer} />}
 		{safeAdminTab === "cms-landing" && (
-			<AdminLandingManager content={siteContent} onChange={onSiteContentChange} />
+			<AdminLandingManager content={siteContent} onChange={onSiteContentChange} readOnly={isViewer} />
 		)}
 		{safeAdminTab === "cms-wa" && (
-			<AdminWaTemplates templates={waTemplates} syncStatus={cmsSync.waTemplates} onChange={onWaTemplatesChange} />
+			<AdminWaTemplates templates={waTemplates} syncStatus={cmsSync.waTemplates} onChange={onWaTemplatesChange} readOnly={isViewer} />
 		)}
       {safeAdminTab === "users" && <AdminUsersList session={session} />}
       {safeAdminTab === "audit" && <AdminAuditLog />}

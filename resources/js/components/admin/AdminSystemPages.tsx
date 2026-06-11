@@ -18,6 +18,7 @@ import { Pagination } from "../ui/Pagination";
 const ROLE_OPTIONS: Array<{ value: AdminRole; label: string }> = [
   { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Admin" },
+  { value: "viewer", label: "Viewer" },
 ];
 
 type UserDraft = {
