@@ -21,7 +21,16 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ASSETS } from "./lib/assets";
-import type { AdminTab, FaqItem, FooterContact, LandingIconKey, SiteContent, WaTemplate } from "./domain/types";
+import type {
+  AdminTab,
+  BookingWizardContent,
+  FaqItem,
+  FeedbackWizardContent,
+  FooterContact,
+  LandingIconKey,
+  SiteContent,
+  WaTemplate,
+} from "./domain/types";
 
 export const INITIAL_FOOTER_CONTACTS: FooterContact[] = [
   {
@@ -131,6 +140,122 @@ export const wizardSteps = [
     image: ASSETS.mikyStep8,
   },
 ];
+
+export const DEFAULT_BOOKING_WIZARD_CONTENT: BookingWizardContent = {
+  steps: wizardSteps.map(({ title, helper, miky }) => ({ title, helper, miky })),
+  preparation: {
+    items: ["Data contact person", "Nomor WhatsApp aktif", "Tanggal kunjungan", "Surat permohonan"],
+    scheduleLinkLabel: "Cek jadwal",
+    letterLinkLabel: "Lihat contoh",
+  },
+  fields: {
+    contactNameLabel: "Nama Lengkap CP",
+    nikLabel: "NIK KTP",
+    whatsappLabel: "Nomor WhatsApp CP",
+    whatsappHelper: "Contoh 08xxxxxxxxxx",
+    institutionLabel: "Asal Instansi",
+    groupSizeLabel: "Jumlah Rombongan",
+  },
+  schedule: {
+    timeTitle: "Pilih Jam Kunjungan",
+    emptyDateLabel: "Pilih tanggal terlebih dahulu",
+    emptySlotLabel: "Tidak ada slot pada tanggal ini.",
+    legendLabel: "Keterangan:",
+  },
+  upload: {
+    readyLabel: "File siap dikirim",
+    emptyTitle: "Unggah surat permohonan",
+    selectedTitle: "Surat berhasil dipilih",
+    helper: "PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.",
+    chooseLabel: "Pilih File",
+    replaceLabel: "Ganti File",
+  },
+  agreementText:
+    "Saya menyatakan data yang diisi benar dan rombongan bersedia mengikuti aturan kunjungan Istana Kepresidenan Yogyakarta.",
+  successMessage:
+    "Permohonan berhasil dikirim dengan status Pending. Admin akan menghubungi maksimal 1x24 jam melalui WhatsApp.",
+  actions: {
+    backLabel: "Kembali",
+    nextLabel: "Lanjut",
+    submitLabel: "Submit Booking",
+    homeLabel: "Kembali ke Beranda",
+  },
+};
+
+export const DEFAULT_FEEDBACK_WIZARD_CONTENT: FeedbackWizardContent = {
+  intro: "Bagikan pengalaman kunjunganmu di Istana Kepresidenan Yogyakarta.",
+  steps: {
+    rating: {
+      title: "Penilaian Inti",
+      bubbleTitle: "Beri bintangmu",
+      bubbleEmpty: "Halo! Bagaimana pengalaman kunjunganmu? Beri bintang di tiga aspek ini ya.",
+      bubbleLow: "Maaf belum sesuai harapan. Lengkapi dulu, nanti kita ceritakan di langkah terakhir.",
+      bubbleNeutral: "Cukup baik. Lanjut ke aspek yang lain ya.",
+      bubbleHigh: "Senang mendengarnya! Lanjut sebentar.",
+    },
+    details: {
+      title: "Detail Pengalaman",
+      bubbleTitle: "Cerita lebih dalam",
+      bubbleEmpty: "Sekarang, seberapa besar kamu mau merekomendasikan ISTURA?",
+      bubbleHighlightsEmpty: "Mantap. Bagian mana yang paling berkesan?",
+      bubbleDone: "Boleh juga sebut yang masih perlu diperbaiki, opsional saja.",
+    },
+    comment: {
+      title: "Cerita & Kirim",
+      bubbleTitle: "Tinggal sedikit lagi",
+      bubbleEmpty: "Ceritakan momen yang paling berkesan, atau langsung kirim saja.",
+      bubbleDone: "Terima kasih ceritanya. Tekan kirim kalau sudah siap.",
+    },
+  },
+  fields: {
+    ratingLabel: "Kepuasan keseluruhan",
+    bookingEaseLabel: "Kemudahan proses booking online",
+    serviceLabel: "Pelayanan petugas saat kunjungan",
+    recommendLegend: "Akan merekomendasikan ke teman atau keluarga?",
+    recommendLowLabel: "Tidak",
+    recommendHighLabel: "Sangat mungkin",
+    highlightsLabel: "Aspek terbaik",
+    improvementsLabel: "Aspek yang perlu diperbaiki (opsional)",
+    commentLabel: "Saran atau cerita pengalaman",
+    commentPlaceholder: "Ceritakan momen yang berkesan atau saran spesifik...",
+    publishConsent: "Saya mengizinkan kesan saya ditampilkan sebagai testimoni publik (tanpa data pribadi).",
+    ratingLabels: RATING_LABELS,
+  },
+  options: {
+    highlights: FEEDBACK_HIGHLIGHTS,
+    improvements: FEEDBACK_IMPROVEMENTS,
+  },
+  gates: {
+    loadingTitle: "Memuat feedback",
+    loadingMessage: "Kami sedang memeriksa tautan feedback kunjunganmu. Mohon tunggu sebentar.",
+    invalidTitle: "Link feedback tidak valid",
+    invalidMessage:
+      "Periksa kembali tautan dari WhatsApp resmi ISTURA. Pastikan kode booking dan token tidak terpotong.",
+    alreadySubmittedTitle: "Feedback sudah tercatat",
+    alreadySubmittedMessage: "Terima kasih, masukan untuk kode kunjungan ini sudah kami terima.",
+    unavailableTitle: "Link aktif setelah kunjungan selesai",
+    unavailableMessage:
+      "Form feedback akan terbuka setelah petugas menandai kunjunganmu selesai. Terima kasih sudah menanti.",
+    restrictedLoadingTitle: "Memuat akses feedback",
+    restrictedTitle: "Akses feedback dibatasi",
+    restrictedLoadingMessage: "Kami sedang memeriksa data kunjungan yang tersedia. Mohon tunggu sebentar.",
+    restrictedMessage:
+      "Tautan feedback dikirim melalui WhatsApp setelah kunjungan selesai. Silakan tunggu pesan resmi dari ISTURA.",
+    busyLabel: "Mohon tunggu",
+  },
+  success: {
+    eyebrow: "Terima kasih",
+    title: "Feedback berhasil dikirim",
+    message:
+      "Cerita Bapak/Ibu membantu kami memperbaiki layanan ISTURA. Kunjungan dengan kode {kode} sudah terhubung dengan masukan ini.",
+  },
+  actions: {
+    backLabel: "Kembali",
+    nextLabel: "Lanjut",
+    submitLabel: "Kirim Feedback",
+    homeLabel: "Kembali ke Beranda",
+  },
+};
 
 export const quickInfoCards: Array<{
   icon: LucideIcon;
@@ -414,6 +539,8 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   openBanner: {
     tickerText: "Pendaftaran kunjungan perorangan gratis, tanpa surat. Pilih harimu, siapa cepat dia dapat!",
   },
+  bookingWizard: DEFAULT_BOOKING_WIZARD_CONTENT,
+  feedbackWizard: DEFAULT_FEEDBACK_WIZARD_CONTENT,
 };
 
 export const HERO_MESSAGES: Array<{ text: string; image: string }> = [

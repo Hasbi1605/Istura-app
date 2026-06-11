@@ -55,9 +55,12 @@ const LANDING_TAB_GROUPS = [
   { id: "navbar-beranda", label: "Navbar & Beranda" },
   { id: "info-bantuan", label: "Info & Bantuan" },
   { id: "footer-widget", label: "Footer & Widget" },
+  { id: "wizard-publik", label: "Wizard Publik" },
 ] as const;
 
 type LandingTabGroup = (typeof LANDING_TAB_GROUPS)[number]["id"];
+type FeedbackWizardStepKey = keyof SiteContent["feedbackWizard"]["steps"];
+type FeedbackWizardOptionKey = keyof SiteContent["feedbackWizard"]["options"];
 
 type ActivityImageUpload = {
   file: File;
@@ -1647,6 +1650,244 @@ export function AdminLandingManager({
     }));
   };
 
+  const updateBookingWizardStep = (
+    index: number,
+    field: keyof SiteContent["bookingWizard"]["steps"][number],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: {
+        ...current.bookingWizard,
+        steps: current.bookingWizard.steps.map((step, idx) =>
+          idx === index ? { ...step, [field]: value } : step,
+        ),
+      },
+    }));
+  };
+
+  const updateBookingWizardPreparationItem = (index: number, value: string) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: {
+        ...current.bookingWizard,
+        preparation: {
+          ...current.bookingWizard.preparation,
+          items: current.bookingWizard.preparation.items.map((item, idx) =>
+            idx === index ? value : item,
+          ),
+        },
+      },
+    }));
+  };
+
+  const updateBookingWizardPreparation = (
+    field: "scheduleLinkLabel" | "letterLinkLabel",
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: {
+        ...current.bookingWizard,
+        preparation: { ...current.bookingWizard.preparation, [field]: value },
+      },
+    }));
+  };
+
+  const updateBookingWizardField = (
+    field: keyof SiteContent["bookingWizard"]["fields"],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: {
+        ...current.bookingWizard,
+        fields: { ...current.bookingWizard.fields, [field]: value },
+      },
+    }));
+  };
+
+  const updateBookingWizardSchedule = (
+    field: keyof SiteContent["bookingWizard"]["schedule"],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: {
+        ...current.bookingWizard,
+        schedule: { ...current.bookingWizard.schedule, [field]: value },
+      },
+    }));
+  };
+
+  const updateBookingWizardUpload = (
+    field: keyof SiteContent["bookingWizard"]["upload"],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: {
+        ...current.bookingWizard,
+        upload: { ...current.bookingWizard.upload, [field]: value },
+      },
+    }));
+  };
+
+  const updateBookingWizardText = (
+    field: "agreementText" | "successMessage",
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: { ...current.bookingWizard, [field]: value },
+    }));
+  };
+
+  const updateBookingWizardAction = (
+    field: keyof SiteContent["bookingWizard"]["actions"],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      bookingWizard: {
+        ...current.bookingWizard,
+        actions: { ...current.bookingWizard.actions, [field]: value },
+      },
+    }));
+  };
+
+  const updateFeedbackWizardStep = (
+    section: FeedbackWizardStepKey,
+    field: string,
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        steps: {
+          ...current.feedbackWizard.steps,
+          [section]: { ...current.feedbackWizard.steps[section], [field]: value },
+        },
+      },
+    }));
+  };
+
+  const updateFeedbackWizardIntro = (value: string) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: { ...current.feedbackWizard, intro: value },
+    }));
+  };
+
+  const updateFeedbackWizardField = (
+    field: Exclude<keyof SiteContent["feedbackWizard"]["fields"], "ratingLabels">,
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        fields: { ...current.feedbackWizard.fields, [field]: value },
+      },
+    }));
+  };
+
+  const updateFeedbackRatingLabel = (index: number, value: string) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        fields: {
+          ...current.feedbackWizard.fields,
+          ratingLabels: current.feedbackWizard.fields.ratingLabels.map((label, idx) =>
+            idx === index ? value : label,
+          ),
+        },
+      },
+    }));
+  };
+
+  const updateFeedbackOption = (group: FeedbackWizardOptionKey, index: number, value: string) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        options: {
+          ...current.feedbackWizard.options,
+          [group]: current.feedbackWizard.options[group].map((item, idx) =>
+            idx === index ? value : item,
+          ),
+        },
+      },
+    }));
+  };
+
+  const addFeedbackOption = (group: FeedbackWizardOptionKey) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        options: {
+          ...current.feedbackWizard.options,
+          [group]: [...current.feedbackWizard.options[group], "Opsi baru"],
+        },
+      },
+    }));
+  };
+
+  const removeFeedbackOption = (group: FeedbackWizardOptionKey, index: number) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        options: {
+          ...current.feedbackWizard.options,
+          [group]: current.feedbackWizard.options[group].filter((_, idx) => idx !== index),
+        },
+      },
+    }));
+  };
+
+  const updateFeedbackGate = (
+    field: keyof SiteContent["feedbackWizard"]["gates"],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        gates: { ...current.feedbackWizard.gates, [field]: value },
+      },
+    }));
+  };
+
+  const updateFeedbackSuccess = (
+    field: keyof SiteContent["feedbackWizard"]["success"],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        success: { ...current.feedbackWizard.success, [field]: value },
+      },
+    }));
+  };
+
+  const updateFeedbackAction = (
+    field: keyof SiteContent["feedbackWizard"]["actions"],
+    value: string,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        actions: { ...current.feedbackWizard.actions, [field]: value },
+      },
+    }));
+  };
+
   const save = async () => {
     const payload = normalizeLandingContentForSave(draft);
     const emptyPointsIndex = payload.quickInfo.cards.findIndex((card) => card.points.length === 0);
@@ -2292,6 +2533,505 @@ export function AdminLandingManager({
             />
             <small>Akan tampil bergerak horizontal di banner. Maksimal 500 karakter.</small>
           </label>
+        </div>
+      </section>
+          </>
+        )}
+
+        {activeGroup === "wizard-publik" && (
+          <>
+      <section className="admin-card admin-landing-anchor" id="landing-booking-wizard">
+        <AdminLandingSectionHead title="Wizard Booking" />
+        <div className="admin-cms-form">
+          <p>
+            Alur tetap 8 langkah. Admin hanya mengubah teks yang tampil, bukan urutan,
+            validasi, ikon, atau gambar MIKY.
+          </p>
+          <div className="admin-landing-list">
+            {draft.bookingWizard.steps.map((step, index) => (
+              <article className="admin-landing-subcard" key={`booking-wizard-step-${index}`}>
+                <div className="admin-landing-subcard-head">
+                  <strong>Langkah {index + 1}</strong>
+                </div>
+                <label className="form-field">
+                  <span>Judul</span>
+                  <input
+                    value={step.title}
+                    maxLength={80}
+                    onChange={(event) => updateBookingWizardStep(index, "title", event.target.value)}
+                  />
+                </label>
+                <label className="form-field">
+                  <span>Helper panel kanan</span>
+                  <textarea
+                    rows={2}
+                    maxLength={255}
+                    value={step.helper}
+                    onChange={(event) => updateBookingWizardStep(index, "helper", event.target.value)}
+                  />
+                </label>
+                <label className="form-field">
+                  <span>Bubble MIKY</span>
+                  <textarea
+                    rows={2}
+                    maxLength={255}
+                    value={step.miky}
+                    onChange={(event) => updateBookingWizardStep(index, "miky", event.target.value)}
+                  />
+                </label>
+              </article>
+            ))}
+          </div>
+
+          <div className="admin-landing-list">
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Checklist awal</strong>
+              </div>
+              {draft.bookingWizard.preparation.items.map((item, index) => (
+                <label className="form-field" key={`booking-prep-${index}`}>
+                  <span>Item {index + 1}</span>
+                  <input
+                    value={item}
+                    maxLength={80}
+                    onChange={(event) => updateBookingWizardPreparationItem(index, event.target.value)}
+                  />
+                </label>
+              ))}
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Label link jadwal</span>
+                  <input
+                    value={draft.bookingWizard.preparation.scheduleLinkLabel}
+                    maxLength={48}
+                    onChange={(event) => updateBookingWizardPreparation("scheduleLinkLabel", event.target.value)}
+                  />
+                </label>
+                <label className="form-field">
+                  <span>Label link contoh surat</span>
+                  <input
+                    value={draft.bookingWizard.preparation.letterLinkLabel}
+                    maxLength={48}
+                    onChange={(event) => updateBookingWizardPreparation("letterLinkLabel", event.target.value)}
+                  />
+                </label>
+              </div>
+            </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Label form</strong>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Nama CP</span>
+                  <input value={draft.bookingWizard.fields.contactNameLabel} onChange={(event) => updateBookingWizardField("contactNameLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>NIK</span>
+                  <input value={draft.bookingWizard.fields.nikLabel} onChange={(event) => updateBookingWizardField("nikLabel", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>WhatsApp</span>
+                  <input value={draft.bookingWizard.fields.whatsappLabel} onChange={(event) => updateBookingWizardField("whatsappLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Helper WhatsApp</span>
+                  <input value={draft.bookingWizard.fields.whatsappHelper} onChange={(event) => updateBookingWizardField("whatsappHelper", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Instansi</span>
+                  <input value={draft.bookingWizard.fields.institutionLabel} onChange={(event) => updateBookingWizardField("institutionLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Jumlah rombongan</span>
+                  <input value={draft.bookingWizard.fields.groupSizeLabel} onChange={(event) => updateBookingWizardField("groupSizeLabel", event.target.value)} />
+                </label>
+              </div>
+            </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Jadwal & upload</strong>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Judul jam</span>
+                  <input value={draft.bookingWizard.schedule.timeTitle} onChange={(event) => updateBookingWizardSchedule("timeTitle", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Prompt tanggal kosong</span>
+                  <input value={draft.bookingWizard.schedule.emptyDateLabel} onChange={(event) => updateBookingWizardSchedule("emptyDateLabel", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Slot kosong</span>
+                  <input value={draft.bookingWizard.schedule.emptySlotLabel} onChange={(event) => updateBookingWizardSchedule("emptySlotLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Label legenda</span>
+                  <input value={draft.bookingWizard.schedule.legendLabel} onChange={(event) => updateBookingWizardSchedule("legendLabel", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Status upload</span>
+                  <input value={draft.bookingWizard.upload.readyLabel} onChange={(event) => updateBookingWizardUpload("readyLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Judul upload kosong</span>
+                  <input value={draft.bookingWizard.upload.emptyTitle} onChange={(event) => updateBookingWizardUpload("emptyTitle", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Judul file dipilih</span>
+                  <input value={draft.bookingWizard.upload.selectedTitle} onChange={(event) => updateBookingWizardUpload("selectedTitle", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Helper upload</span>
+                  <input value={draft.bookingWizard.upload.helper} onChange={(event) => updateBookingWizardUpload("helper", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Tombol pilih file</span>
+                  <input value={draft.bookingWizard.upload.chooseLabel} onChange={(event) => updateBookingWizardUpload("chooseLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Tombol ganti file</span>
+                  <input value={draft.bookingWizard.upload.replaceLabel} onChange={(event) => updateBookingWizardUpload("replaceLabel", event.target.value)} />
+                </label>
+              </div>
+            </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Persetujuan, sukses, tombol</strong>
+              </div>
+              <label className="form-field">
+                <span>Teks pernyataan</span>
+                <textarea rows={3} value={draft.bookingWizard.agreementText} onChange={(event) => updateBookingWizardText("agreementText", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Pesan sukses</span>
+                <textarea rows={3} value={draft.bookingWizard.successMessage} onChange={(event) => updateBookingWizardText("successMessage", event.target.value)} />
+                <small>Opsional: gunakan {"{kode}"} jika ingin menyisipkan kode booking di kalimat.</small>
+              </label>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Tombol kembali</span>
+                  <input value={draft.bookingWizard.actions.backLabel} onChange={(event) => updateBookingWizardAction("backLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Tombol lanjut</span>
+                  <input value={draft.bookingWizard.actions.nextLabel} onChange={(event) => updateBookingWizardAction("nextLabel", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Tombol submit</span>
+                  <input value={draft.bookingWizard.actions.submitLabel} onChange={(event) => updateBookingWizardAction("submitLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Tombol beranda</span>
+                  <input value={draft.bookingWizard.actions.homeLabel} onChange={(event) => updateBookingWizardAction("homeLabel", event.target.value)} />
+                </label>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-card admin-landing-anchor" id="landing-feedback-wizard">
+        <AdminLandingSectionHead title="Wizard Feedback" />
+        <div className="admin-cms-form">
+          <p>
+            Alur feedback tetap 3 langkah. Pilihan aspek dapat diubah; data feedback lama tetap
+            tersimpan dengan label lama di laporan.
+          </p>
+          <label className="form-field">
+            <span>Intro panel kanan</span>
+            <textarea rows={2} value={draft.feedbackWizard.intro} onChange={(event) => updateFeedbackWizardIntro(event.target.value)} />
+          </label>
+
+          <div className="admin-landing-list">
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Step 1 - Rating</strong>
+              </div>
+              <label className="form-field">
+                <span>Judul</span>
+                <input value={draft.feedbackWizard.steps.rating.title} onChange={(event) => updateFeedbackWizardStep("rating", "title", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Judul bubble MIKY</span>
+                <input value={draft.feedbackWizard.steps.rating.bubbleTitle} onChange={(event) => updateFeedbackWizardStep("rating", "bubbleTitle", event.target.value)} />
+              </label>
+              {(["bubbleEmpty", "bubbleLow", "bubbleNeutral", "bubbleHigh"] as const).map((field) => (
+                <label className="form-field" key={field}>
+                  <span>{field}</span>
+                  <textarea rows={2} value={draft.feedbackWizard.steps.rating[field]} onChange={(event) => updateFeedbackWizardStep("rating", field, event.target.value)} />
+                </label>
+              ))}
+            </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Step 2 - Detail</strong>
+              </div>
+              <label className="form-field">
+                <span>Judul</span>
+                <input value={draft.feedbackWizard.steps.details.title} onChange={(event) => updateFeedbackWizardStep("details", "title", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Judul bubble MIKY</span>
+                <input value={draft.feedbackWizard.steps.details.bubbleTitle} onChange={(event) => updateFeedbackWizardStep("details", "bubbleTitle", event.target.value)} />
+              </label>
+              {(["bubbleEmpty", "bubbleHighlightsEmpty", "bubbleDone"] as const).map((field) => (
+                <label className="form-field" key={field}>
+                  <span>{field}</span>
+                  <textarea rows={2} value={draft.feedbackWizard.steps.details[field]} onChange={(event) => updateFeedbackWizardStep("details", field, event.target.value)} />
+                </label>
+              ))}
+            </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Step 3 - Cerita</strong>
+              </div>
+              <label className="form-field">
+                <span>Judul</span>
+                <input value={draft.feedbackWizard.steps.comment.title} onChange={(event) => updateFeedbackWizardStep("comment", "title", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Judul bubble MIKY</span>
+                <input value={draft.feedbackWizard.steps.comment.bubbleTitle} onChange={(event) => updateFeedbackWizardStep("comment", "bubbleTitle", event.target.value)} />
+              </label>
+              {(["bubbleEmpty", "bubbleDone"] as const).map((field) => (
+                <label className="form-field" key={field}>
+                  <span>{field}</span>
+                  <textarea rows={2} value={draft.feedbackWizard.steps.comment[field]} onChange={(event) => updateFeedbackWizardStep("comment", field, event.target.value)} />
+                </label>
+              ))}
+            </article>
+          </div>
+
+          <div className="admin-landing-list">
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Label pertanyaan</strong>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Rating utama</span>
+                  <input value={draft.feedbackWizard.fields.ratingLabel} onChange={(event) => updateFeedbackWizardField("ratingLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Kemudahan booking</span>
+                  <input value={draft.feedbackWizard.fields.bookingEaseLabel} onChange={(event) => updateFeedbackWizardField("bookingEaseLabel", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Pelayanan</span>
+                  <input value={draft.feedbackWizard.fields.serviceLabel} onChange={(event) => updateFeedbackWizardField("serviceLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Rekomendasi</span>
+                  <input value={draft.feedbackWizard.fields.recommendLegend} onChange={(event) => updateFeedbackWizardField("recommendLegend", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Skala kiri</span>
+                  <input value={draft.feedbackWizard.fields.recommendLowLabel} onChange={(event) => updateFeedbackWizardField("recommendLowLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Skala kanan</span>
+                  <input value={draft.feedbackWizard.fields.recommendHighLabel} onChange={(event) => updateFeedbackWizardField("recommendHighLabel", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Aspek terbaik</span>
+                  <input value={draft.feedbackWizard.fields.highlightsLabel} onChange={(event) => updateFeedbackWizardField("highlightsLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Aspek perbaikan</span>
+                  <input value={draft.feedbackWizard.fields.improvementsLabel} onChange={(event) => updateFeedbackWizardField("improvementsLabel", event.target.value)} />
+                </label>
+              </div>
+              <label className="form-field">
+                <span>Label komentar</span>
+                <input value={draft.feedbackWizard.fields.commentLabel} onChange={(event) => updateFeedbackWizardField("commentLabel", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Placeholder komentar</span>
+                <input value={draft.feedbackWizard.fields.commentPlaceholder} onChange={(event) => updateFeedbackWizardField("commentPlaceholder", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Teks izin publikasi</span>
+                <textarea rows={2} value={draft.feedbackWizard.fields.publishConsent} onChange={(event) => updateFeedbackWizardField("publishConsent", event.target.value)} />
+              </label>
+            </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Label rating</strong>
+              </div>
+              {draft.feedbackWizard.fields.ratingLabels.map((label, index) => (
+                <label className="form-field" key={`rating-label-${index}`}>
+                  <span>{index === 0 ? "Belum dipilih" : `${index} bintang`}</span>
+                  <input value={label} onChange={(event) => updateFeedbackRatingLabel(index, event.target.value)} />
+                </label>
+              ))}
+            </article>
+          </div>
+
+          <div className="admin-landing-list">
+            {(["highlights", "improvements"] as const).map((group) => (
+              <article className="admin-landing-subcard" key={`feedback-options-${group}`}>
+                <div className="admin-landing-subcard-head">
+                  <strong>{group === "highlights" ? "Opsi aspek terbaik" : "Opsi aspek perbaikan"}</strong>
+                  <button
+                    type="button"
+                    className="admin-icon-btn"
+                    onClick={() => addFeedbackOption(group)}
+                    disabled={draft.feedbackWizard.options[group].length >= 12}
+                    aria-label="Tambah opsi feedback"
+                  >
+                    <PenLine size={16} aria-hidden="true" />
+                  </button>
+                </div>
+                {draft.feedbackWizard.options[group].map((option, index) => (
+                  <div className="admin-landing-inline-row" key={`${group}-${index}`}>
+                    <label className="form-field">
+                      <span>Opsi {index + 1}</span>
+                      <input value={option} onChange={(event) => updateFeedbackOption(group, index, event.target.value)} />
+                    </label>
+                    <button
+                      type="button"
+                      className="admin-icon-btn admin-icon-btn--danger"
+                      onClick={() => removeFeedbackOption(group, index)}
+                      disabled={draft.feedbackWizard.options[group].length <= 1}
+                      aria-label="Hapus opsi feedback"
+                    >
+                      <X size={16} aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </article>
+            ))}
+          </div>
+
+          <section className="admin-landing-subcard">
+            <div className="admin-landing-subcard-head">
+              <strong>Gate, sukses, dan tombol</strong>
+            </div>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Title loading</span>
+                <input value={draft.feedbackWizard.gates.loadingTitle} onChange={(event) => updateFeedbackGate("loadingTitle", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Pesan loading</span>
+                <input value={draft.feedbackWizard.gates.loadingMessage} onChange={(event) => updateFeedbackGate("loadingMessage", event.target.value)} />
+              </label>
+            </div>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Title invalid</span>
+                <input value={draft.feedbackWizard.gates.invalidTitle} onChange={(event) => updateFeedbackGate("invalidTitle", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Pesan invalid</span>
+                <input value={draft.feedbackWizard.gates.invalidMessage} onChange={(event) => updateFeedbackGate("invalidMessage", event.target.value)} />
+              </label>
+            </div>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Title sudah submit</span>
+                <input value={draft.feedbackWizard.gates.alreadySubmittedTitle} onChange={(event) => updateFeedbackGate("alreadySubmittedTitle", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Pesan sudah submit</span>
+                <input value={draft.feedbackWizard.gates.alreadySubmittedMessage} onChange={(event) => updateFeedbackGate("alreadySubmittedMessage", event.target.value)} />
+              </label>
+            </div>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Title belum aktif</span>
+                <input value={draft.feedbackWizard.gates.unavailableTitle} onChange={(event) => updateFeedbackGate("unavailableTitle", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Pesan belum aktif</span>
+                <input value={draft.feedbackWizard.gates.unavailableMessage} onChange={(event) => updateFeedbackGate("unavailableMessage", event.target.value)} />
+              </label>
+            </div>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Title akses loading</span>
+                <input value={draft.feedbackWizard.gates.restrictedLoadingTitle} onChange={(event) => updateFeedbackGate("restrictedLoadingTitle", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Title akses dibatasi</span>
+                <input value={draft.feedbackWizard.gates.restrictedTitle} onChange={(event) => updateFeedbackGate("restrictedTitle", event.target.value)} />
+              </label>
+            </div>
+            <label className="form-field">
+              <span>Pesan akses loading</span>
+              <textarea rows={2} value={draft.feedbackWizard.gates.restrictedLoadingMessage} onChange={(event) => updateFeedbackGate("restrictedLoadingMessage", event.target.value)} />
+            </label>
+            <label className="form-field">
+              <span>Pesan akses dibatasi</span>
+              <textarea rows={2} value={draft.feedbackWizard.gates.restrictedMessage} onChange={(event) => updateFeedbackGate("restrictedMessage", event.target.value)} />
+            </label>
+            <label className="form-field">
+              <span>Label spinner gate</span>
+              <input value={draft.feedbackWizard.gates.busyLabel} onChange={(event) => updateFeedbackGate("busyLabel", event.target.value)} />
+            </label>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Eyebrow sukses</span>
+                <input value={draft.feedbackWizard.success.eyebrow} onChange={(event) => updateFeedbackSuccess("eyebrow", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Judul sukses</span>
+                <input value={draft.feedbackWizard.success.title} onChange={(event) => updateFeedbackSuccess("title", event.target.value)} />
+              </label>
+            </div>
+            <label className="form-field">
+              <span>Pesan sukses</span>
+              <textarea rows={3} value={draft.feedbackWizard.success.message} onChange={(event) => updateFeedbackSuccess("message", event.target.value)} />
+              <small>Gunakan {"{kode}"} untuk menyisipkan kode booking.</small>
+            </label>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Tombol kembali</span>
+                <input value={draft.feedbackWizard.actions.backLabel} onChange={(event) => updateFeedbackAction("backLabel", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Tombol lanjut</span>
+                <input value={draft.feedbackWizard.actions.nextLabel} onChange={(event) => updateFeedbackAction("nextLabel", event.target.value)} />
+              </label>
+            </div>
+            <div className="admin-cms-link">
+              <label className="form-field">
+                <span>Tombol submit</span>
+                <input value={draft.feedbackWizard.actions.submitLabel} onChange={(event) => updateFeedbackAction("submitLabel", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Tombol beranda</span>
+                <input value={draft.feedbackWizard.actions.homeLabel} onChange={(event) => updateFeedbackAction("homeLabel", event.target.value)} />
+              </label>
+            </div>
+          </section>
         </div>
       </section>
           </>

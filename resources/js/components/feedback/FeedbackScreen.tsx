@@ -11,9 +11,9 @@ import {
   Star,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Booking, Feedback } from "../../domain/types";
+import type { Booking, Feedback, FeedbackWizardContent } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
-import { FEEDBACK_HIGHLIGHTS, FEEDBACK_IMPROVEMENTS, RATING_LABELS } from "../../constants";
+import { DEFAULT_FEEDBACK_WIZARD_CONTENT } from "../../constants";
 import { fetchPublicFeedback, submitPublicFeedback } from "../../api/feedback";
 import { ValidationError } from "../../api/client";
 import { useReducedMotion } from "../../hooks";
@@ -73,6 +73,7 @@ export function FeedbackScreen({
   bookings,
   submittedCode,
 	feedbacks,
+  content = DEFAULT_FEEDBACK_WIZARD_CONTENT,
 	access,
 	loading = false,
 	onFeedbackCreate,
@@ -81,6 +82,7 @@ export function FeedbackScreen({
   bookings: Booking[];
   submittedCode: string;
 	feedbacks: Feedback[];
+  content?: FeedbackWizardContent;
 	access: { code: string; token: string } | null;
 	loading?: boolean;
   onFeedbackCreate: (feedback: Feedback) => void;
@@ -160,7 +162,7 @@ export function FeedbackScreen({
         setAccessError(
           firstValidationMessage(
             err,
-            "Periksa kembali tautan dari WhatsApp resmi ISTURA. Pastikan kode booking dan token tidak terpotong.",
+            content.gates.invalidMessage,
           ),
         );
       })
@@ -171,7 +173,7 @@ export function FeedbackScreen({
     return () => {
       cancelled = true;
     };
-  }, [accessCode, accessToken]);
+  }, [accessCode, accessToken, content.gates.invalidMessage]);
 
   // Restore draft from localStorage
   useEffect(() => {
@@ -248,6 +250,9 @@ export function FeedbackScreen({
   };
 
   const totalSteps = 3;
+  const ratingStep = content.steps.rating;
+  const detailsStep = content.steps.details;
+  const commentStep = content.steps.comment;
 
   const stepConfig: {
     title: string;
@@ -257,39 +262,39 @@ export function FeedbackScreen({
     image: string;
   }[] = [
     {
-      title: "Penilaian Inti",
+      title: ratingStep.title,
       icon: Star,
-      bubbleTitle: "Beri bintangmu",
+      bubbleTitle: ratingStep.bubbleTitle,
       bubble:
         rating === 0
-          ? "Halo! Bagaimana pengalaman kunjunganmu? Beri bintang di tiga aspek ini ya."
+          ? ratingStep.bubbleEmpty
           : rating <= 2
-            ? "Maaf belum sesuai harapan. Lengkapi dulu, nanti kita ceritakan di langkah terakhir."
+            ? ratingStep.bubbleLow
             : rating === 3
-              ? "Cukup baik. Lanjut ke aspek yang lain ya."
-              : "Senang mendengarnya! Lanjut sebentar.",
+              ? ratingStep.bubbleNeutral
+              : ratingStep.bubbleHigh,
       image: ASSETS.mikyFeedback,
     },
     {
-      title: "Detail Pengalaman",
+      title: detailsStep.title,
       icon: Sparkles,
-      bubbleTitle: "Cerita lebih dalam",
+      bubbleTitle: detailsStep.bubbleTitle,
       bubble:
         recommend === null
-          ? "Sekarang, seberapa besar kamu mau merekomendasikan ISTURA?"
+          ? detailsStep.bubbleEmpty
           : highlights.length === 0
-            ? "Mantap. Bagian mana yang paling berkesan?"
-            : "Boleh juga sebut yang masih perlu diperbaiki, opsional saja.",
+            ? detailsStep.bubbleHighlightsEmpty
+            : detailsStep.bubbleDone,
       image: ASSETS.mikyFeedback2,
     },
     {
-      title: "Cerita & Kirim",
+      title: commentStep.title,
       icon: Send,
-      bubbleTitle: "Tinggal sedikit lagi",
+      bubbleTitle: commentStep.bubbleTitle,
       bubble:
         comment.trim().length === 0
-          ? "Ceritakan momen yang paling berkesan, atau langsung kirim saja."
-          : "Terima kasih ceritanya. Tekan kirim kalau sudah siap.",
+          ? commentStep.bubbleEmpty
+          : commentStep.bubbleDone,
       image: ASSETS.mikyFeedback3,
     },
   ];
@@ -376,8 +381,10 @@ export function FeedbackScreen({
       return (
 			<FeedbackGate
 				icon={Clock3}
-				title="Memuat feedback"
-				message="Kami sedang memeriksa tautan feedback kunjunganmu. Mohon tunggu sebentar."
+				title={content.gates.loadingTitle}
+				message={content.gates.loadingMessage}
+        busyLabel={content.gates.busyLabel}
+        homeLabel={content.actions.homeLabel}
 				busy
 			/>
       );
@@ -386,8 +393,9 @@ export function FeedbackScreen({
       return (
         <FeedbackGate
           icon={ShieldCheck}
-          title="Link feedback tidak valid"
+          title={content.gates.invalidTitle}
           message={accessError}
+          homeLabel={content.actions.homeLabel}
         />
       );
     }
@@ -395,8 +403,9 @@ export function FeedbackScreen({
       return (
         <FeedbackGate
           icon={ShieldCheck}
-          title="Link feedback tidak valid"
-          message="Periksa kembali tautan dari WhatsApp resmi ISTURA. Pastikan kode booking dan token tidak terpotong."
+          title={content.gates.invalidTitle}
+          message={content.gates.invalidMessage}
+          homeLabel={content.actions.homeLabel}
         />
       );
     }
@@ -404,8 +413,9 @@ export function FeedbackScreen({
       return (
         <FeedbackGate
           icon={BadgeCheck}
-          title="Feedback sudah tercatat"
-          message="Terima kasih, masukan untuk kode kunjungan ini sudah kami terima."
+          title={content.gates.alreadySubmittedTitle}
+          message={content.gates.alreadySubmittedMessage}
+          homeLabel={content.actions.homeLabel}
         />
       );
     }
@@ -413,8 +423,9 @@ export function FeedbackScreen({
       return (
         <FeedbackGate
           icon={Clock3}
-          title="Link aktif setelah kunjungan selesai"
-          message="Form feedback akan terbuka setelah petugas menandai kunjunganmu selesai. Terima kasih sudah menanti."
+          title={content.gates.unavailableTitle}
+          message={content.gates.unavailableMessage}
+          homeLabel={content.actions.homeLabel}
         />
       );
     }
@@ -422,12 +433,14 @@ export function FeedbackScreen({
 		return (
 			<FeedbackGate
 				icon={loading ? Clock3 : ShieldCheck}
-				title={loading ? "Memuat akses feedback" : "Akses feedback dibatasi"}
+				title={loading ? content.gates.restrictedLoadingTitle : content.gates.restrictedTitle}
 				message={
 					loading
-						? "Kami sedang memeriksa data kunjungan yang tersedia. Mohon tunggu sebentar."
-						: "Tautan feedback dikirim melalui WhatsApp setelah kunjungan selesai. Silakan tunggu pesan resmi dari ISTURA."
+						? content.gates.restrictedLoadingMessage
+						: content.gates.restrictedMessage
 				}
+        busyLabel={content.gates.busyLabel}
+        homeLabel={content.actions.homeLabel}
 				busy={loading}
 			/>
 		);
@@ -451,15 +464,22 @@ export function FeedbackScreen({
             <div className="feedback-success-copy">
               <span className="feedback-success-eyebrow">
                 <BadgeCheck size={16} aria-hidden="true" />
-                Terima kasih
+                {content.success.eyebrow}
               </span>
-              <h1>Feedback berhasil dikirim</h1>
+              <h1>{content.success.title}</h1>
               <p>
-                Cerita Bapak/Ibu membantu kami memperbaiki layanan ISTURA. Kunjungan dengan kode {" "}
-                <strong>{code}</strong> sudah terhubung dengan masukan ini.
+                {content.success.message.includes("{kode}") ? (
+                  <>
+                    {content.success.message.split("{kode}")[0]}
+                    <strong>{code}</strong>
+                    {content.success.message.split("{kode}").slice(1).join(code)}
+                  </>
+                ) : (
+                  content.success.message
+                )}
               </p>
               <a className="button button-primary" href="/">
-                Kembali ke Beranda
+                {content.actions.homeLabel}
                 <ArrowRight size={18} aria-hidden="true" />
               </a>
             </div>
@@ -488,7 +508,7 @@ export function FeedbackScreen({
         <div className="wizard-panel">
           <div className="wizard-content">
             <h1>{current.title}</h1>
-            <p>Bagikan pengalaman kunjunganmu di Istana Kepresidenan Yogyakarta.</p>
+            <p>{content.intro}</p>
 
             <aside
               className="feedback-context"
@@ -512,18 +532,21 @@ export function FeedbackScreen({
             {step === 0 && (
               <div className="feedback-step">
                 <RatingField
-                  label="Kepuasan keseluruhan"
+                  label={content.fields.ratingLabel}
                   value={rating}
+                  labels={content.fields.ratingLabels}
                   onChange={setRating}
                 />
                 <RatingField
-                  label="Kemudahan proses booking online"
+                  label={content.fields.bookingEaseLabel}
                   value={bookingEase}
+                  labels={content.fields.ratingLabels}
                   onChange={setBookingEase}
                 />
                 <RatingField
-                  label="Pelayanan petugas saat kunjungan"
+                  label={content.fields.serviceLabel}
                   value={service}
+                  labels={content.fields.ratingLabels}
                   onChange={setService}
                 />
               </div>
@@ -532,7 +555,7 @@ export function FeedbackScreen({
             {step === 1 && (
               <div className="feedback-step">
                 <fieldset className="recommend-field">
-                  <legend>Akan merekomendasikan ke teman atau keluarga?</legend>
+                  <legend>{content.fields.recommendLegend}</legend>
                   <div
                     className="recommend-scale"
                     role="radiogroup"
@@ -555,20 +578,20 @@ export function FeedbackScreen({
                     })}
                   </div>
                   <div className="recommend-scale-legend" aria-hidden="true">
-                    <span>Tidak</span>
-                    <span>Sangat mungkin</span>
+                    <span>{content.fields.recommendLowLabel}</span>
+                    <span>{content.fields.recommendHighLabel}</span>
                   </div>
                 </fieldset>
 
                 <ChipField
-                  label="Aspek terbaik"
-                  options={FEEDBACK_HIGHLIGHTS}
+                  label={content.fields.highlightsLabel}
+                  options={content.options.highlights}
                   values={highlights}
                   onToggle={(value) => toggleChip(highlights, setHighlights, value)}
                 />
                 <ChipField
-                  label="Aspek yang perlu diperbaiki (opsional)"
-                  options={FEEDBACK_IMPROVEMENTS}
+                  label={content.fields.improvementsLabel}
+                  options={content.options.improvements}
                   values={improvements}
                   onToggle={(value) => toggleChip(improvements, setImprovements, value)}
                 />
@@ -578,11 +601,11 @@ export function FeedbackScreen({
             {step === 2 && (
               <div className="feedback-step">
                 <label className="form-field">
-                  <span>Saran atau cerita pengalaman</span>
+                  <span>{content.fields.commentLabel}</span>
                   <textarea
                     value={comment}
                     onChange={(event) => setComment(event.target.value)}
-                    placeholder="Ceritakan momen yang berkesan atau saran spesifik..."
+                    placeholder={content.fields.commentPlaceholder}
                     rows={5}
                   />
                 </label>
@@ -594,8 +617,7 @@ export function FeedbackScreen({
                     onChange={(event) => setAllowPublish(event.target.checked)}
                   />
                   <span>
-                    Saya mengizinkan kesan saya ditampilkan sebagai testimoni publik (tanpa data
-                    pribadi).
+                    {content.fields.publishConsent}
                   </span>
                 </label>
               </div>
@@ -612,11 +634,11 @@ export function FeedbackScreen({
 				onClick={goBack}
             >
               <ArrowLeft size={18} aria-hidden="true" />
-              Kembali
+              {content.actions.backLabel}
             </button>
             {step < totalSteps - 1 ? (
               <button className="button button-primary" type="button" onClick={goNext}>
-                Lanjut
+                {content.actions.nextLabel}
                 <ArrowRight size={18} aria-hidden="true" />
               </button>
             ) : (
@@ -630,7 +652,7 @@ export function FeedbackScreen({
 					<ButtonSpinner label="Mengirim feedback..." />
 				) : (
 					<>
-						Kirim Feedback
+						{content.actions.submitLabel}
 						<Send size={18} aria-hidden="true" />
 					</>
 				)}
@@ -647,11 +669,15 @@ function FeedbackGate({
 	icon: Icon,
 	title,
 	message,
+  busyLabel = "Mohon tunggu",
+  homeLabel = "Kembali ke Beranda",
 	busy = false,
 }: {
 	icon: LucideIcon;
 	title: string;
 	message: string;
+  busyLabel?: string;
+  homeLabel?: string;
 	busy?: boolean;
 }) {
   return (
@@ -663,9 +689,9 @@ function FeedbackGate({
 			</span>
 			<h1>{title}</h1>
 			<p>{message}</p>
-			{busy && <InlineSpinner label="Mohon tunggu" />}
+			{busy && <InlineSpinner label={busyLabel} />}
 			<a className="button button-secondary" href="/">
-            Kembali ke Beranda
+            {homeLabel}
             <ArrowRight size={18} aria-hidden="true" />
           </a>
         </div>
@@ -715,11 +741,13 @@ function ChipField({
 function RatingField({
   label,
   value,
+  labels,
   onChange,
   helper,
 }: {
   label: string;
   value: number;
+  labels: string[];
   onChange: (value: number) => void;
   helper?: string;
 }) {
@@ -750,7 +778,7 @@ function RatingField({
               onFocus={() => setHover(score)}
               onBlur={() => setHover(0)}
               onClick={() => onChange(score)}
-              aria-label={`${score} dari 5: ${RATING_LABELS[score]}`}
+              aria-label={`${score} dari 5: ${labels[score] ?? score}`}
             >
               <Star size={22} fill={filled ? "currentColor" : "none"} aria-hidden="true" />
             </button>
@@ -758,7 +786,7 @@ function RatingField({
         })}
       </div>
       <span className="rating-caption" aria-live="polite">
-        {display ? RATING_LABELS[display] : "Belum dipilih"}
+        {display ? labels[display] ?? display : labels[0] ?? "Belum dipilih"}
       </span>
     </fieldset>
   );

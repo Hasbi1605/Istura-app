@@ -157,6 +157,7 @@ function App() {
                 schedules={schedules}
                 bookings={bookings}
                 contacts={contacts}
+                content={siteContent.bookingWizard}
                 onScheduleLock={setSchedules}
                 scheduleLoading={loading.schedule}
                 onBookingCreate={(booking) => {
@@ -182,6 +183,7 @@ function App() {
                 bookings={bookings}
                 submittedCode={submittedCode}
                 feedbacks={feedbacks}
+                content={siteContent.feedbackWizard}
                 access={feedbackAccess}
                 loading={loading.feedbacks}
                 onFeedbackCreate={(feedback) => setFeedbacks((current) => [feedback, ...current])}

@@ -44,6 +44,29 @@ class AdminCmsActivityImageTest extends TestCase
         }
     }
 
+    public function test_admin_can_update_public_wizard_copy_in_site_content(): void
+    {
+        $this->actingAsAdmin();
+
+        $content = SiteContentDefaults::siteContent();
+        $content['bookingWizard']['steps'][0]['title'] = 'Halo Rencang Istana';
+        $content['bookingWizard']['fields']['contactNameLabel'] = 'Nama Koordinator';
+        $content['feedbackWizard']['intro'] = 'Bagikan cerita kunjunganmu untuk perbaikan layanan.';
+        $content['feedbackWizard']['options']['highlights'][0] = 'Sambutan petugas';
+
+        $this->putJson('/api/admin/cms/site-content', $content)
+            ->assertOk()
+            ->assertJsonPath('data.bookingWizard.steps.0.title', 'Halo Rencang Istana')
+            ->assertJsonPath('data.bookingWizard.fields.contactNameLabel', 'Nama Koordinator')
+            ->assertJsonPath('data.feedbackWizard.intro', 'Bagikan cerita kunjunganmu untuk perbaikan layanan.')
+            ->assertJsonPath('data.feedbackWizard.options.highlights.0', 'Sambutan petugas');
+
+        $this->getJson('/api/public/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('data.siteContent.bookingWizard.steps.0.title', 'Halo Rencang Istana')
+            ->assertJsonPath('data.siteContent.feedbackWizard.options.highlights.0', 'Sambutan petugas');
+    }
+
     public function test_replacing_nav_logo_deletes_only_previous_managed_nav_logo(): void
     {
         Storage::fake('public');

@@ -188,6 +188,121 @@ export type LandingActivity = {
   image: string;
 };
 
+export type BookingWizardStepCopy = {
+  title: string;
+  helper: string;
+  miky: string;
+};
+
+export type BookingWizardContent = {
+  steps: BookingWizardStepCopy[];
+  preparation: {
+    items: string[];
+    scheduleLinkLabel: string;
+    letterLinkLabel: string;
+  };
+  fields: {
+    contactNameLabel: string;
+    nikLabel: string;
+    whatsappLabel: string;
+    whatsappHelper: string;
+    institutionLabel: string;
+    groupSizeLabel: string;
+  };
+  schedule: {
+    timeTitle: string;
+    emptyDateLabel: string;
+    emptySlotLabel: string;
+    legendLabel: string;
+  };
+  upload: {
+    readyLabel: string;
+    emptyTitle: string;
+    selectedTitle: string;
+    helper: string;
+    chooseLabel: string;
+    replaceLabel: string;
+  };
+  agreementText: string;
+  successMessage: string;
+  actions: {
+    backLabel: string;
+    nextLabel: string;
+    submitLabel: string;
+    homeLabel: string;
+  };
+};
+
+export type FeedbackWizardStepCopy = {
+  title: string;
+  bubbleTitle: string;
+};
+
+export type FeedbackWizardContent = {
+  intro: string;
+  steps: {
+    rating: FeedbackWizardStepCopy & {
+      bubbleEmpty: string;
+      bubbleLow: string;
+      bubbleNeutral: string;
+      bubbleHigh: string;
+    };
+    details: FeedbackWizardStepCopy & {
+      bubbleEmpty: string;
+      bubbleHighlightsEmpty: string;
+      bubbleDone: string;
+    };
+    comment: FeedbackWizardStepCopy & {
+      bubbleEmpty: string;
+      bubbleDone: string;
+    };
+  };
+  fields: {
+    ratingLabel: string;
+    bookingEaseLabel: string;
+    serviceLabel: string;
+    recommendLegend: string;
+    recommendLowLabel: string;
+    recommendHighLabel: string;
+    highlightsLabel: string;
+    improvementsLabel: string;
+    commentLabel: string;
+    commentPlaceholder: string;
+    publishConsent: string;
+    ratingLabels: string[];
+  };
+  options: {
+    highlights: string[];
+    improvements: string[];
+  };
+  gates: {
+    loadingTitle: string;
+    loadingMessage: string;
+    invalidTitle: string;
+    invalidMessage: string;
+    alreadySubmittedTitle: string;
+    alreadySubmittedMessage: string;
+    unavailableTitle: string;
+    unavailableMessage: string;
+    restrictedLoadingTitle: string;
+    restrictedTitle: string;
+    restrictedLoadingMessage: string;
+    restrictedMessage: string;
+    busyLabel: string;
+  };
+  success: {
+    eyebrow: string;
+    title: string;
+    message: string;
+  };
+  actions: {
+    backLabel: string;
+    nextLabel: string;
+    submitLabel: string;
+    homeLabel: string;
+  };
+};
+
 export type SiteContent = {
   nav: {
     logoSrc: string;
@@ -263,6 +378,8 @@ export type SiteContent = {
   openBanner: {
     tickerText: string;
   };
+  bookingWizard: BookingWizardContent;
+  feedbackWizard: FeedbackWizardContent;
 };
 
 export type FloatingContactTopic = {

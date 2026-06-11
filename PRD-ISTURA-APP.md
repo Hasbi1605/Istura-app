@@ -163,8 +163,9 @@ area perbaikan, komentar, dan izin publikasi. Admin melihat & mengekspor feedbac
 
 ### 3.6 CMS (Content Management)
 Admin mengelola seluruh konten publik tanpa deploy: FAQ, ketentuan kunjungan/surat, kontak
-footer, hero & cerita, landing page (seksi-seksi), dan template pesan WhatsApp per status
-booking (Pending, Accepted, Rejected, Reschedule, Completed, Expired).
+footer, hero & cerita, landing page (seksi-seksi), copy wizard booking/feedback, dan template
+pesan WhatsApp per status booking (Pending, Accepted, Rejected, Reschedule, Completed,
+Expired).
 
 ### 3.7 Autentikasi & Keamanan Admin
 Login email+password (Sanctum SPA session), progressive delay anti-bruteforce, Two-Factor
@@ -309,8 +310,10 @@ lihat dokumen `IsturaOpen.md`.
 2. Pilih sub-menu: FAQ | Ketentuan Kunjungan | Kontak Footer | Hero & Cerita | Landing Page
    | Template Pesan WA.
 3. Edit konten dalam editor → simpan.
-4. Sistem menyimpan ke site_settings/tabel terkait, mencatat audit log, dan mem-bump cache
-   publik sehingga perubahan langsung tampil di landing page.
+4. Untuk Landing Page, admin juga dapat mengubah copy fixed-flow Wizard Publik (booking
+   reguler dan feedback) tanpa mengubah urutan step atau aturan validasi.
+5. Sistem menyimpan ke site_settings/tabel terkait, mencatat audit log, dan mem-bump cache
+   publik sehingga perubahan langsung tampil di landing page/wizard publik.
 ```
 
 #### 4.2.6 Flow: Mengelola Pengguna Admin (Super Admin only)

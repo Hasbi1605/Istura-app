@@ -14,6 +14,7 @@ import {
 import type {
   Booking,
   BookingForm,
+  BookingWizardContent,
   BookingSegment,
   FooterContact,
   PublicDateStatus,
@@ -47,7 +48,7 @@ import {
   publicStatusMeta,
   startOfMonth,
 } from "../../lib/date";
-import { INITIAL_FOOTER_CONTACTS, wizardSteps } from "../../constants";
+import { DEFAULT_BOOKING_WIZARD_CONTENT, INITIAL_FOOTER_CONTACTS, wizardSteps } from "../../constants";
 import { submitPublicBooking, precheckBookingIdentity } from "../../api/bookings";
 import type { ApiBooking } from "../../api/bookings";
 import { ValidationError } from "../../api/client";
@@ -196,6 +197,7 @@ export function BookingWizard({
   schedules,
   bookings,
 	contacts = INITIAL_FOOTER_CONTACTS,
+  content = DEFAULT_BOOKING_WIZARD_CONTENT,
 	onScheduleLock,
 	scheduleLoading = false,
 	onBookingCreate,
@@ -206,6 +208,7 @@ export function BookingWizard({
   schedules: VisitDay[];
   bookings: Booking[];
 	contacts?: FooterContact[];
+  content?: BookingWizardContent;
 	onScheduleLock: (schedules: VisitDay[]) => void;
 	scheduleLoading?: boolean;
 	onBookingCreate: (booking: Booking) => void;
@@ -515,6 +518,7 @@ export function BookingWizard({
   const StepIcon = wizardSteps[step].icon;
   const hasDocument = Boolean(form.documentName);
   const UploadStateIcon = hasDocument ? FileCheck2 : UploadCloud;
+  const stepCopy = content.steps[step] ?? DEFAULT_BOOKING_WIZARD_CONTENT.steps[step];
 
   return (
     <section className="wizard-page">
@@ -530,15 +534,15 @@ export function BookingWizard({
           <span className="miky-sticky-step">
             Langkah {step + 1} / {wizardSteps.length}
           </span>
-          <p className="miky-sticky-msg">{wizardSteps[step].miky}</p>
+          <p className="miky-sticky-msg">{stepCopy.miky}</p>
         </div>
       </div>
       <div className="wizard-shell">
         <aside className="wizard-guide" ref={guideRef}>
           <MikyGuide
             icon={StepIcon}
-            title={wizardSteps[step].title}
-            message={wizardSteps[step].miky}
+            title={stepCopy.title}
+            message={stepCopy.miky}
             step={step}
             totalSteps={wizardSteps.length}
             variant={step === 0 ? "welcome" : "default"}
@@ -548,24 +552,24 @@ export function BookingWizard({
 
         <div className="wizard-panel">
           <div className="wizard-content">
-            <h1>{wizardSteps[step].title}</h1>
-            <p>{wizardSteps[step].helper}</p>
+            <h1>{stepCopy.title}</h1>
+            <p>{stepCopy.helper}</p>
 
             {step === 0 && (
               <div className="prep-grid">
-                {["Data contact person", "Nomor WhatsApp aktif", "Tanggal kunjungan", "Surat permohonan"].map(
-                  (item) => (
+                {content.preparation.items.map(
+                  (item, index) => (
                     <span key={item}>
                       <Check size={16} aria-hidden="true" />
                       {item}
-                      {item === "Tanggal kunjungan" && (
+                      {index === 2 && (
                         <button type="button" className="prep-link" onClick={onShowSchedule}>
-                          Cek jadwal
+                          {content.preparation.scheduleLinkLabel}
                         </button>
                       )}
-                      {item === "Surat permohonan" && (
+                      {index === 3 && (
                         <button type="button" className="prep-link" onClick={onShowExampleLetter}>
-                          Lihat contoh
+                          {content.preparation.letterLinkLabel}
                         </button>
                       )}
                     </span>
@@ -577,25 +581,25 @@ export function BookingWizard({
             {step === 1 && (
               <div className="form-grid">
                 <FormField
-                  label="Nama Lengkap CP"
+                  label={content.fields.contactNameLabel}
                   value={form.contactName}
                   error={errors.contactName}
                   maxLength={120}
                   onChange={(value) => setField("contactName", normalizePersonNameInput(value))}
                 />
                 <FormField
-                  label="NIK KTP"
+                  label={content.fields.nikLabel}
                   inputMode="numeric"
                   value={form.nik}
                   error={errors.nik}
                   onChange={(value) => setField("nik", value.replace(/\D/g, "").slice(0, 16))}
                 />
                 <FormField
-                  label="Nomor WhatsApp CP"
+                  label={content.fields.whatsappLabel}
                   inputMode="tel"
                   value={form.whatsapp}
                   error={errors.whatsapp}
-                  helper="Contoh 08xxxxxxxxxx"
+                  helper={content.fields.whatsappHelper}
                   onChange={(value) => setField("whatsapp", value.replace(/[^\d]/g, ""))}
                 />
               </div>
@@ -605,14 +609,14 @@ export function BookingWizard({
               <>
                 <div className="form-grid">
                   <FormField
-                    label="Asal Instansi"
+                    label={content.fields.institutionLabel}
                     value={form.institution}
                     error={errors.institution}
                     maxLength={200}
                     onChange={(value) => setField("institution", normalizeInstitutionInput(value))}
                   />
                   <FormField
-                    label="Jumlah Rombongan"
+                    label={content.fields.groupSizeLabel}
                     inputMode="numeric"
                     maxLength={GROUP_SIZE_INPUT_MAX_LENGTH}
                     value={form.groupSize}
@@ -634,6 +638,7 @@ export function BookingWizard({
 				<SchedulePicker
 					schedules={schedules}
 						loading={scheduleLoading}
+            content={content.schedule}
 						minDate={minBookingDate}
 						requiredSlots={neededSlots}
 						selectedDate={form.date}
@@ -658,17 +663,17 @@ export function BookingWizard({
                   <UploadStateIcon size={42} />
                 </span>
                 <div className="upload-box-copy">
-                  {hasDocument && <span className="upload-box-status">File siap dikirim</span>}
-                  <strong>{hasDocument ? "Surat berhasil dipilih" : "Unggah surat permohonan"}</strong>
+                  {hasDocument && <span className="upload-box-status">{content.upload.readyLabel}</span>}
+                  <strong>{hasDocument ? content.upload.selectedTitle : content.upload.emptyTitle}</strong>
                   {hasDocument ? (
                     <p className="upload-file-name">{form.documentName}</p>
                   ) : (
-                    <p>PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.</p>
+                    <p>{content.upload.helper}</p>
                   )}
-                  {hasDocument && <small>PDF, JPG, JPEG, atau PNG. Maksimal 5 MB.</small>}
+                  {hasDocument && <small>{content.upload.helper}</small>}
                 </div>
                 <label className="button button-secondary" htmlFor={documentInputId}>
-                  {hasDocument ? "Ganti File" : "Pilih File"}
+                  {hasDocument ? content.upload.replaceLabel : content.upload.chooseLabel}
                   <input id={documentInputId} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFile} />
                 </label>
                 {errors.documentName && <small className="field-error">{errors.documentName}</small>}
@@ -686,8 +691,7 @@ export function BookingWizard({
                     onChange={(event) => setField("agreement", event.target.checked)}
                   />
                   <span>
-                    Saya menyatakan data yang diisi benar dan rombongan bersedia mengikuti aturan
-                    kunjungan Istana Kepresidenan Yogyakarta.
+                    {content.agreementText}
                   </span>
                 </label>
                 {errors.agreement && <small className="field-error">{errors.agreement}</small>}
@@ -699,10 +703,7 @@ export function BookingWizard({
               <div className="success-box">
                 <BadgeCheck size={58} aria-hidden="true" />
                 <strong>{successCode}</strong>
-                <p>
-                  Permohonan berhasil dikirim dengan status Pending. Admin akan menghubungi maksimal
-                  1x24 jam melalui WhatsApp.
-                </p>
+                <p>{content.successMessage.replace("{kode}", successCode)}</p>
               </div>
             )}
           </div>
@@ -721,9 +722,9 @@ export function BookingWizard({
                       setStep((current) => Math.max(current - 1, 0));
                     }
                   }}
-                >
+	                >
                   <ArrowLeft size={18} aria-hidden="true" />
-                  Kembali
+                  {content.actions.backLabel}
                 </button>
 					<button
 						className="button button-primary"
@@ -738,10 +739,10 @@ export function BookingWizard({
 						) : step === 6 && submitting ? (
 							<ButtonSpinner label="Mengirim permohonan..." />
 						) : (
-							<>
-								{step === 6 ? "Submit Booking" : "Lanjut"}
-								<ArrowRight size={18} aria-hidden="true" />
-							</>
+								<>
+									{step === 6 ? content.actions.submitLabel : content.actions.nextLabel}
+									<ArrowRight size={18} aria-hidden="true" />
+								</>
 						)}
 					</button>
               </>
@@ -752,7 +753,7 @@ export function BookingWizard({
                 onClick={() => onNavigate("home")}
               >
                 <ArrowLeft size={18} aria-hidden="true" />
-                Kembali ke Beranda
+                {content.actions.homeLabel}
               </button>
             )}
           </div>
@@ -860,6 +861,7 @@ function KloterBreakdown({
 function SchedulePicker({
 	schedules,
 	loading = false,
+  content,
 	minDate,
 	requiredSlots,
 	selectedDate,
@@ -870,6 +872,7 @@ function SchedulePicker({
 }: {
 	schedules: VisitDay[];
 	loading?: boolean;
+  content: BookingWizardContent["schedule"];
 	minDate: Date;
 	requiredSlots: number;
 	selectedDate: string;
@@ -1005,8 +1008,8 @@ function SchedulePicker({
         </section>
 
         <section className="time-card" aria-label="Pilihan jam kunjungan">
-          <h3>Pilih Jam Kunjungan</h3>
-          <p>{selectedDay?.label ?? "Pilih tanggal terlebih dahulu"}</p>
+          <h3>{content.timeTitle}</h3>
+          <p>{selectedDay?.label ?? content.emptyDateLabel}</p>
           {selectedClosureLabel && <p className="time-card-note">{selectedClosureLabel}</p>}
           <div className="time-list time-list--hourly">
             {selectedDay ? (
@@ -1041,7 +1044,7 @@ function SchedulePicker({
                 );
               })
             ) : (
-              <p className="time-empty">Tidak ada slot pada tanggal ini.</p>
+              <p className="time-empty">{content.emptySlotLabel}</p>
             )}
           </div>
         </section>
@@ -1049,7 +1052,7 @@ function SchedulePicker({
 			)}
 
 			<div className="availability-legend availability-legend--inline" aria-label="Keterangan status jadwal">
-        <strong>Keterangan:</strong>
+        <strong>{content.legendLabel}</strong>
         {legendStatuses.map((status) => (
           <span key={status}>
             <i className={`legend-dot is-${status}`} />

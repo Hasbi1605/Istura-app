@@ -84,7 +84,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 ### 2.4 Requests / Resources / Middleware / lainnya
 - **Requests** (`app/Http/Requests`): root `ScheduleRangeRequest`; `Auth/LoginRequest`;
   `Public/` (PrecheckBookingIdentity, StoreBooking, StoreFeedback); `Admin/` (15 request: Index*, Update*, Store*, Destroy*, Reschedule).
-  `UpdateSiteContentRequest` menerima JSON biasa atau multipart (`content` + `navLogo`/`footerLogo`/`ctaBackground`/`activityImages[index]`) dengan validasi gambar fail-closed.
+  `UpdateSiteContentRequest` menerima JSON biasa atau multipart (`content` + `navLogo`/`footerLogo`/`ctaBackground`/`activityImages[index]`) dengan validasi gambar fail-closed; payload `siteContent` juga memuat copy fixed-flow untuk wizard booking (`bookingWizard`) dan feedback (`feedbackWizard`).
 - **Resources** (`app/Http/Resources`): `AuditLogResource`, `BookingResource`, `FaqResource`,
   `FeedbackResource`, `FooterContactResource`, `PublicVisitDayResource`, `UserResource`, `VisitDayResource`, `WaTemplateResource`.
   `VisitDayResource` dan `PublicVisitDayResource` sama-sama membawa metadata hari `closureReason`/`holiday` agar kalender publik/admin tidak kehilangan label alasan tutup saat state jadwal dipakai ulang.
@@ -94,7 +94,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - **Policies** (`app/Policies`): `BookingPolicy`, `FeedbackPolicy`, `ScheduleOverridePolicy`.
 - **Rules** (`app/Rules`): `SafePublicUrl`, `VisitTime`.
 - **Support** (`app/Support`): `PublicCache` (rememberCms + TTL/versi), `SiteContentDefaults`,
-  `SeoMeta` (canonical URL, metadata, JSON-LD, sitemap, robots).
+  `SeoMeta` (canonical URL, metadata, JSON-LD, sitemap, robots). `SiteContentDefaults` adalah fallback utama untuk konten landing, widget WhatsApp, banner Istura Open, serta copy wizard publik.
 - **Console/Commands**: `ExpirePendingBookings` (`bookings:expire-pending`), `SyncIndonesianHolidays` (`holidays:sync-id`), `PruneAuditLogs` (`audit:prune`), `CleanupLunchBreakSlots`, `ResetUserTwoFactor`.
 
 ### 2.5 Routes (`routes/`)
@@ -137,8 +137,8 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 - `animations/`: `HomeAnimationLayer.tsx`, `useHomeAnimations.ts` (GSAP).
 
 ### 3.5 Components (`components/`)
-- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx` (preview + upload langsung logo navbar/footer, background CTA, dan foto panel aktivitas; semua aset ikut satu draft/save Landing Page), `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
-- **booking/**: `BookingWizard.tsx` (wizard 8 langkah). **feedback/**: `FeedbackScreen.tsx`. **home/**: `HomeScreen.tsx`. **open/**: `IsturaOpenWizard.tsx` (wizard publik Istura Open 5 langkah: pilih hari → data diri → add-on → tinjau → sukses + tombol grup WA; ada lookup/self-cancel via NIK), `IsturaOpenPromo.tsx` (popup sekali per event per pengunjung + banner persisten).
+- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx` (preview + upload langsung logo navbar/footer, background CTA, dan foto panel aktivitas; semua aset ikut satu draft/save Landing Page. Tab "Wizard Publik" mengedit copy fixed-flow untuk `BookingWizard` dan `FeedbackScreen` tanpa mengubah step/validasi/ikon/gambar), `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
+- **booking/**: `BookingWizard.tsx` (wizard 8 langkah; teks step, helper, MIKY, label form, upload, persetujuan, sukses, dan tombol berasal dari `siteContent.bookingWizard` dengan fallback default). **feedback/**: `FeedbackScreen.tsx` (copy step/gate/sukses, label rating, dan opsi chip berasal dari `siteContent.feedbackWizard`). **home/**: `HomeScreen.tsx`. **open/**: `IsturaOpenWizard.tsx` (wizard publik Istura Open 5 langkah: pilih hari → data diri → add-on → tinjau → sukses + tombol grup WA; ada lookup/self-cancel via NIK), `IsturaOpenPromo.tsx` (popup sekali per event per pengunjung + banner persisten).
 - **layout/**: `Navigation.tsx`, `Footer.tsx`, `FloatingContact.tsx` (FAB WhatsApp mengambang di halaman publik selain `booking`; expand jadi kartu MIKY + quick-topic prefill WA + tautan Instagram. Nomor dari `contacts`/CMS; sapaan & daftar topik dari `siteContent.floatingContact` (editable di admin Landing Page → "Widget WhatsApp Mengambang"), subtitle animasi typewriter). **ui/**: `DetailItem`, `LoadingStates`, `Pagination`, `StatCard`, `StatusBadge`. **icons/**: `SocialIcons.tsx`. `MikyGuide.tsx` (maskot).
 
 ### 3.6 Ekspor (browser, root `resources/js`)
@@ -172,7 +172,7 @@ Roadmap: **Istura Open** sudah diimplementasi (modul terpisah — lihat `IsturaO
 - **Login (+2FA):** email+password (progressive delay) → bila 2FA aktif tampil challenge TOTP/recovery + trusted device → dashboard (absolute session lifetime).
 - **Booking lifecycle:** Pending → Accept/Reject/Reschedule; Accepted → Complete/Reschedule; Reschedule → Accept/Reject/Cancel; Expired → Reschedule/Reject. Tiap aksi: audit log + broadcast + invalidasi cache + pesan WA siap salin.
 - **Jadwal:** tutup/buka slot tunggal atau rentang tanggal (override); default dihitung runtime; slot ber-booking aktif terlindungi.
-- **CMS:** edit FAQ/ketentuan/kontak/hero/landing/template WA → simpan → bump cache publik. Logo navbar/footer, background CTA, dan foto panel "Aktivitas di Istana" dipilih langsung di editor Landing Page, dipreview lokal, lalu saat save dikonversi otomatis ke WebP; file lama dibersihkan setelah konfigurasi baru berhasil tersimpan.
+- **CMS:** edit FAQ/ketentuan/kontak/hero/landing/template WA → simpan → bump cache publik. Logo navbar/footer, background CTA, dan foto panel "Aktivitas di Istana" dipilih langsung di editor Landing Page, dipreview lokal, lalu saat save dikonversi otomatis ke WebP; file lama dibersihkan setelah konfigurasi baru berhasil tersimpan. Copy wizard publik (booking + feedback) diedit dari tab "Wizard Publik" di Landing Page dengan struktur step tetap.
 - **Users (super-admin):** CRUD akun admin. **Dashboard/Feedback/Audit/Ekspor:** lihat KPI, feedback, audit dengan filter, ekspor data.
 
 ### 5.3 State booking
