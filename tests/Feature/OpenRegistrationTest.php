@@ -71,6 +71,7 @@ class OpenRegistrationTest extends TestCase
                 'contactName' => 'Budi Santoso',
                 'nik' => '3374010101010001',
                 'whatsapp' => '081234567001',
+                'city' => 'Yogyakarta',
                 'assignedDayId' => $day->id,
                 'members' => ['Anak Satu', 'Anak Dua'],
                 'agreement' => true,
@@ -98,6 +99,7 @@ class OpenRegistrationTest extends TestCase
             'contactName' => 'Penuh Satu',
             'nik' => '3374010101010002',
             'whatsapp' => '081234567002',
+            'city' => 'Semarang',
             'assignedDayId' => $day->id,
             'members' => ['Teman'],
             'agreement' => true,
@@ -108,6 +110,7 @@ class OpenRegistrationTest extends TestCase
             'contactName' => 'Penuh Dua',
             'nik' => '3374010101010003',
             'whatsapp' => '081234567003',
+            'city' => 'Jakarta',
             'assignedDayId' => $day->id,
             'agreement' => true,
         ])->assertStatus(422);
@@ -122,6 +125,7 @@ class OpenRegistrationTest extends TestCase
             'contactName' => 'Asli',
             'nik' => '3374010101010010',
             'whatsapp' => '081234567010',
+            'city' => 'Bandung',
             'assignedDayId' => $day->id,
             'agreement' => true,
         ])->assertCreated();
@@ -131,6 +135,7 @@ class OpenRegistrationTest extends TestCase
             'contactName' => 'Duplikat',
             'nik' => '3374010101010010',
             'whatsapp' => '081234567099',
+            'city' => 'Surabaya',
             'assignedDayId' => $day->id,
             'agreement' => true,
         ])->assertStatus(422);
@@ -153,6 +158,7 @@ class OpenRegistrationTest extends TestCase
             'contactName' => 'Batal',
             'nik' => '3374010101010020',
             'whatsapp' => '081234567020',
+            'city' => 'Solo',
             'assignedDayId' => $day->id,
             'agreement' => true,
         ])->assertCreated();
@@ -171,6 +177,7 @@ class OpenRegistrationTest extends TestCase
             'contactName' => 'Pengganti',
             'nik' => '3374010101010021',
             'whatsapp' => '081234567021',
+            'city' => 'Magelang',
             'assignedDayId' => $day->id,
             'agreement' => true,
         ])->assertCreated();
@@ -185,6 +192,7 @@ class OpenRegistrationTest extends TestCase
             'contactName' => 'Banyak',
             'nik' => '3374010101010030',
             'whatsapp' => '081234567030',
+            'city' => 'Yogyakarta',
             'assignedDayId' => $day->id,
             'members' => ['A', 'B', 'C', 'D', 'E'],
             'agreement' => true,
@@ -368,6 +376,7 @@ class OpenRegistrationTest extends TestCase
         $registration->contact_name = 'Peserta '.substr($nik, -4);
         $registration->nik = $nik;
         $registration->whatsapp = $whatsapp;
+        $registration->city = 'Yogyakarta';
         $registration->members = [];
         $registration->headcount = 1;
         $registration->status = 'Registered';

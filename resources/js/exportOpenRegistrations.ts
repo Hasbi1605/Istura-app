@@ -58,6 +58,7 @@ const COLUMNS: Column[] = [
   { header: "Nama", width: 26, value: (r) => r.contactName },
   { header: "NIK", width: 20, value: (r) => r.nik ?? r.nikMasked },
   { header: "WhatsApp", width: 18, value: (r) => r.whatsapp },
+  { header: "Asal Kota", width: 20, value: (r) => r.city ?? "-" },
   { header: "Jumlah Kepala", width: 14, value: (r) => r.headcount },
   { header: "Add-on", width: 36, value: (r) => (r.members.length > 0 ? r.members.join("; ") : "-") },
   { header: "Status", width: 16, value: (r) => STATUS_LABELS[r.status] ?? r.status },
@@ -136,7 +137,7 @@ const buildWorkbook = async (
     });
 
     // Status tint, glanceable but report-friendly.
-    const statusCell = row.getCell(9);
+    const statusCell = row.getCell(10);
     const statusFill =
       registration.status === "Confirmed"
         ? "FFD9F2DF"

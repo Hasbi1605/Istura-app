@@ -526,6 +526,7 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
             <div className="open-registrants-grid-head" role="row">
               <span role="columnheader">Hari</span>
               <span role="columnheader">Nama</span>
+              <span role="columnheader">Asal Kota</span>
               <span role="columnheader">WhatsApp</span>
               <span role="columnheader">Peserta</span>
               <span role="columnheader">Status</span>
@@ -630,6 +631,7 @@ function RegistrantRow({
           <strong>{registration.contactName}</strong>
           <small>{registration.code} · {longDate(registration.dayDate)}</small>
         </span>
+        <span className="open-registrants-grid-cell" role="cell">{registration.city ?? "-"}</span>
         <span className="open-registrants-grid-cell" role="cell">{registration.whatsapp}</span>
         <span className="open-registrants-grid-cell" role="cell">
           <OpenRegistrantParticipantCell registration={registration} />
@@ -737,6 +739,7 @@ function OpenRegistrationDetailDrawer({
           <DetailItem label="Nama" value={registration.contactName} />
           <DetailItem label="NIK" value={registration.nik ?? registration.nikMasked} />
           <DetailItem label="WhatsApp" value={registration.whatsapp} />
+          <DetailItem label="Asal Kota" value={registration.city ?? "-"} />
           <DetailItem label="Hari kunjungan" value={longDate(registration.dayDate)} />
           <DetailItem label="Total peserta" value={`${registration.headcount} orang`} />
           <DetailItem label="Add-on" value={openAddonDetail(registration)} />

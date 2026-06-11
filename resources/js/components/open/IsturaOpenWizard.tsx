@@ -71,6 +71,7 @@ export function IsturaOpenWizard({
   const [contactName, setContactName] = useState("");
   const [nik, setNik] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [city, setCity] = useState("");
   const [members, setMembers] = useState<string[]>([]);
   const [agreement, setAgreement] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -135,6 +136,7 @@ export function IsturaOpenWizard({
     if (!/^[\p{L}][\p{L}\s.'-]*$/u.test(contactName.trim())) nextErrors.contactName = "Nama wajib diisi.";
     if (!/^\d{16}$/.test(nik)) nextErrors.nik = "NIK harus 16 digit angka.";
     if (!/^(08|628)\d{8,13}$/.test(whatsapp)) nextErrors.whatsapp = "Nomor WhatsApp tidak valid.";
+    if (!city.trim()) nextErrors.city = "Asal kota wajib diisi.";
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -174,6 +176,7 @@ export function IsturaOpenWizard({
         contactName: contactName.trim(),
         nik,
         whatsapp,
+        city: city.trim(),
         assignedDayId: dayId,
         members: members.map((name) => name.trim()).filter(Boolean),
         agreement: true,
@@ -322,6 +325,14 @@ export function IsturaOpenWizard({
                 helper="Contoh 08xxxxxxxxxx."
                 onChange={setField("whatsapp", (value) => setWhatsapp(value.replace(/[^\d]/g, "").slice(0, 15)))}
               />
+              <OpenFormField
+                label="Asal Kota"
+                value={city}
+                error={errors.city}
+                maxLength={100}
+                helper="Kota/kabupaten domisili Anda."
+                onChange={setField("city", setCity)}
+              />
             </div>
             <div className="open-step-actions">
               <button type="button" className="btn-secondary" onClick={() => setStep(0)}>
@@ -384,6 +395,7 @@ export function IsturaOpenWizard({
             <dl className="open-review">
               <div><dt>Hari</dt><dd>{selectedDay ? formatLongDate(selectedDay.date) : "-"}</dd></div>
               <div><dt>Nama</dt><dd>{contactName}</dd></div>
+              <div><dt>Asal Kota</dt><dd>{city}</dd></div>
               <div><dt>WhatsApp</dt><dd>{whatsapp}</dd></div>
               <div>
                 <dt>Jumlah kepala</dt>

@@ -18,6 +18,7 @@ class OpenRegistration extends Model
         'contact_name',
         'nik',
         'whatsapp',
+        'city',
         'members',
         'headcount',
     ];

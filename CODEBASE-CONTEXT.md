@@ -70,7 +70,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 > Skema kolom lengkap ada di `PRD-ISTURA-APP.md` §6.
 
 #### Istura Open (modul terpisah, lihat `IsturaOpen.md`)
-- **Tabel:** `open_events`, `open_event_days`, `open_registrations`, `open_registration_sequences` (counter kode).
+- **Tabel:** `open_events`, `open_event_days`, `open_registrations` (termasuk kolom `city` untuk asal kota pendaftar), `open_registration_sequences` (counter kode).
 - **Service:** `OpenRegistrationService` (store atomic dengan `lockForUpdate` baris event → no overbooking, dedup 1 NIK + 1 WhatsApp aktif/event, self/admin cancel, admin move + overbook, quotaSummary live). Isolated penuh dari `BookingService`/`ScheduleService`.
 - **Kode:** `OpenRegistrationCodeGenerator` → `ISTURA-OPEN-{year}-{NNNN}` (pola `booking_sequences`).
 - **Event broadcast:** `OpenQuotaUpdated` (ShouldBroadcastNow) ke channel publik `public.open`, event `.open.quota-updated` (kuota live). Dipancarkan saat register/cancel/move/admin toggle.

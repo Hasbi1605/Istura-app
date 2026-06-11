@@ -157,6 +157,7 @@ class OpenRegistrationService
             $registration->contact_name = $data['contactName'];
             $registration->nik = $data['nik'];
             $registration->whatsapp = $data['whatsapp'];
+            $registration->city = $data['city'] ?? null;
             $registration->members = $members;
             $registration->headcount = $headcount;
             $registration->status = 'Registered';

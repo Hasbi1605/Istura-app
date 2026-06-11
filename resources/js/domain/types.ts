@@ -365,6 +365,7 @@ export type OpenRegistrationAdmin = {
   nik?: string;
   nikMasked: string;
   whatsapp: string;
+  city: string | null;
   members: string[];
   addonCount: number;
   headcount: number;

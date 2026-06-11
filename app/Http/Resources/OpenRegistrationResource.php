@@ -22,6 +22,7 @@ class OpenRegistrationResource extends JsonResource
             'nik' => $this->when($this->shouldExposeNik($request), fn () => $this->nik),
             'nikMasked' => $this->nik_masked,
             'whatsapp' => $this->whatsapp,
+            'city' => $this->city,
             'members' => $members,
             'addonCount' => count($members),
             'headcount' => (int) $this->headcount,

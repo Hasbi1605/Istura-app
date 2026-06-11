@@ -23,6 +23,7 @@ export type StoreOpenRegistrationPayload = {
   contactName: string;
   nik: string;
   whatsapp: string;
+  city: string;
   assignedDayId: number;
   members: string[];
   agreement: boolean;

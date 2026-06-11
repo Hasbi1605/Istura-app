@@ -6399,6 +6399,52 @@ a {
   font-size: 0.86rem;
 }
 
+.admin-activity-editor {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.65fr) minmax(0, 1.35fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-activity-image-preview {
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  background: rgba(16, 24, 47, 0.08);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 10px;
+}
+
+.admin-activity-image-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-activity-fields {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-activity-image-cancel {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.admin-activity-image-hint {
+  color: rgba(16, 24, 47, 0.58);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .admin-activity-editor {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---- Schedule manager ---- */
 
 .admin-schedule-shell {
@@ -12918,11 +12964,12 @@ a {
 .open-registrants-grid-row {
   display: grid;
   grid-template-columns:
-    minmax(130px, 0.8fr)
-    minmax(190px, 1.2fr)
-    minmax(150px, 0.9fr)
+    minmax(120px, 0.75fr)
+    minmax(170px, 1.1fr)
     minmax(120px, 0.75fr)
     minmax(130px, 0.8fr)
+    minmax(110px, 0.7fr)
+    minmax(120px, 0.7fr)
     minmax(118px, 0.65fr);
   align-items: center;
 }
@@ -13123,7 +13170,9 @@ a {
   }
 
   .open-registrants-grid-head span:nth-child(3),
-  .open-registrants-grid-row .open-registrants-grid-cell:nth-child(3) {
+  .open-registrants-grid-row .open-registrants-grid-cell:nth-child(3),
+  .open-registrants-grid-head span:nth-child(4),
+  .open-registrants-grid-row .open-registrants-grid-cell:nth-child(4) {
     display: none;
   }
 }
@@ -13137,9 +13186,11 @@ a {
   .open-registrants-grid-head span:nth-child(1),
   .open-registrants-grid-head span:nth-child(3),
   .open-registrants-grid-head span:nth-child(4),
+  .open-registrants-grid-head span:nth-child(5),
   .open-registrants-grid-row .open-registrants-grid-cell:nth-child(1),
   .open-registrants-grid-row .open-registrants-grid-cell:nth-child(3),
-  .open-registrants-grid-row .open-registrants-grid-cell:nth-child(4) {
+  .open-registrants-grid-row .open-registrants-grid-cell:nth-child(4),
+  .open-registrants-grid-row .open-registrants-grid-cell:nth-child(5) {
     display: none;
   }
 
