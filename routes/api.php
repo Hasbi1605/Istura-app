@@ -109,6 +109,7 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
     Route::post('cms/letter', [CmsController::class, 'updateLetter']);
     Route::get('cms/site-content', [CmsController::class, 'siteContent']);
     Route::put('cms/site-content', [CmsController::class, 'updateSiteContent']);
+    Route::post('cms/site-content', [CmsController::class, 'updateSiteContent']);
 
     Route::middleware('super-admin')->group(function () {
         Route::get('users', [UserController::class, 'index']);

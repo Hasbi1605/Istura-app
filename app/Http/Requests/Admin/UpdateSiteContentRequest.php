@@ -3,8 +3,12 @@
 namespace App\Http\Requests\Admin;
 
 use App\Rules\SafePublicUrl;
+use App\Services\CmsImageService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+use JsonException;
 
 class UpdateSiteContentRequest extends FormRequest
 {
@@ -13,11 +17,30 @@ class UpdateSiteContentRequest extends FormRequest
         return $this->user()?->isAdmin() ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $content = $this->input('content');
+        if (! is_string($content)) {
+            return;
+        }
+
+        try {
+            $decoded = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return;
+        }
+
+        if (is_array($decoded)) {
+            $this->merge($decoded);
+        }
+    }
+
     public function rules(): array
     {
         $iconKeys = ['clock', 'file-check', 'message-circle', 'calendar', 'pen', 'upload', 'map-pin', 'image'];
 
         return [
+            'content' => ['sometimes', 'string', 'json', 'max:200000'],
             'nav' => ['required', 'array'],
             'nav.logoSrc' => ['nullable', 'string', 'max:500', SafePublicUrl::image()],
             'nav.logoAlt' => ['nullable', 'string', 'max:120'],
@@ -60,6 +83,14 @@ class UpdateSiteContentRequest extends FormRequest
             'activities.items.*.title' => ['required', 'string', 'max:100'],
             'activities.items.*.body' => ['required', 'string', 'max:255'],
             'activities.items.*.image' => ['required', 'string', 'max:500', SafePublicUrl::image()],
+            'activityImages' => ['sometimes', 'array', 'max:8'],
+            'activityImages.*' => [
+                'file',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+                'dimensions:max_width='.CmsImageService::MAX_INPUT_WIDTH.',max_height='.CmsImageService::MAX_INPUT_HEIGHT,
+            ],
 
             'rulesSection' => ['required', 'array'],
             'rulesSection.title' => ['required', 'string', 'max:160'],
@@ -107,6 +138,49 @@ class UpdateSiteContentRequest extends FormRequest
 
             'openBanner' => ['sometimes', 'array'],
             'openBanner.tickerText' => ['sometimes', 'string', 'max:500'],
+        ];
+    }
+
+    /**
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $items = $this->input('activities.items', []);
+                $images = $this->file('activityImages', []);
+                if (! is_array($images)) {
+                    return;
+                }
+
+                foreach ($images as $index => $image) {
+                    $attribute = "activityImages.{$index}";
+                    if (! is_array($items) || ! array_key_exists((int) $index, $items)) {
+                        $validator->errors()->add($attribute, 'Panel aktivitas untuk gambar ini tidak ditemukan.');
+
+                        continue;
+                    }
+
+                    if (! $image instanceof UploadedFile || ! $image->isValid()) {
+                        continue;
+                    }
+
+                    $realPath = $image->getRealPath();
+                    $dimensions = is_string($realPath) && $realPath !== '' ? @getimagesize($realPath) : false;
+                    if (! is_array($dimensions)) {
+                        $validator->errors()->add($attribute, 'Gambar tidak dapat dibaca.');
+
+                        continue;
+                    }
+
+                    $width = (int) ($dimensions[0] ?? 0);
+                    $height = (int) ($dimensions[1] ?? 0);
+                    if ($width < 1 || $height < 1 || $height > intdiv(CmsImageService::MAX_INPUT_PIXELS, max(1, $width))) {
+                        $validator->errors()->add($attribute, 'Total piksel gambar terlalu besar.');
+                    }
+                }
+            },
         ];
     }
 }

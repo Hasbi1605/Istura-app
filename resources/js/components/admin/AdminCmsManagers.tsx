@@ -20,6 +20,7 @@ const generateId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 const MAX_ADMIN_LETTER_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_ADMIN_ACTIVITY_IMAGE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_RULES_DESCRIPTION =
   "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.";
 const DEFAULT_RULES_IMAGE = "/assets/peraturan-kunjungan.webp";
@@ -56,6 +57,11 @@ const LANDING_TAB_GROUPS = [
 ] as const;
 
 type LandingTabGroup = (typeof LANDING_TAB_GROUPS)[number]["id"];
+
+type ActivityImageUpload = {
+  file: File;
+  preview: string;
+};
 
 const WA_TEMPLATE_VARIABLES = [
   "{nama}",
@@ -1178,10 +1184,35 @@ export function AdminLandingManager({
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeGroup, setActiveGroup] = useState<LandingTabGroup>(LANDING_TAB_GROUPS[0].id);
+  const [activityUploads, setActivityUploads] = useState<Array<ActivityImageUpload | null>>(
+    () => content.activities.items.map(() => null),
+  );
+  const [activityImageErrors, setActivityImageErrors] = useState<Record<number, string>>({});
+  const activityUploadsRef = useRef(activityUploads);
+
+  useEffect(() => {
+    activityUploadsRef.current = activityUploads;
+  }, [activityUploads]);
 
   useEffect(() => {
     setDraft(content);
+    setActivityUploads((current) => {
+      current.forEach((upload) => {
+        if (upload) URL.revokeObjectURL(upload.preview);
+      });
+
+      return content.activities.items.map(() => null);
+    });
+    setActivityImageErrors({});
   }, [content]);
+
+  useEffect(() => {
+    return () => {
+      activityUploadsRef.current.forEach((upload) => {
+        if (upload) URL.revokeObjectURL(upload.preview);
+      });
+    };
+  }, []);
 
   const updateNav = (field: keyof SiteContent["nav"], value: string) => {
     setDraft((current) => ({ ...current, nav: { ...current.nav, [field]: value } }));
@@ -1334,7 +1365,7 @@ export function AdminLandingManager({
 
   const updateActivity = (
     index: number,
-    field: "title" | "body" | "image",
+    field: "title" | "body",
     value: string,
   ) => {
     setDraft((current) => ({
@@ -1359,6 +1390,7 @@ export function AdminLandingManager({
         ],
       },
     }));
+    setActivityUploads((current) => [...current, null]);
   };
 
   const removeActivity = (index: number) => {
@@ -1369,6 +1401,82 @@ export function AdminLandingManager({
         items: current.activities.items.filter((_, idx) => idx !== index),
       },
     }));
+    setActivityUploads((current) => {
+      const next = [...current];
+      const removed = next.splice(index, 1)[0];
+      if (removed) URL.revokeObjectURL(removed.preview);
+
+      return next;
+    });
+    setActivityImageErrors((current) => {
+      const next: Record<number, string> = {};
+      Object.entries(current).forEach(([key, message]) => {
+        const currentIndex = Number(key);
+        if (currentIndex < index) next[currentIndex] = message;
+        if (currentIndex > index) next[currentIndex - 1] = message;
+      });
+
+      return next;
+    });
+  };
+
+  const onActivityFileChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0] ?? null;
+    if (!nextFile) return;
+
+    const isSupportedImage = /\.(jpe?g|png|webp)$/i.test(nextFile.name);
+    if (!isSupportedImage) {
+      event.currentTarget.value = "";
+      setActivityImageErrors((current) => ({
+        ...current,
+        [index]: "Format gambar harus JPG, PNG, atau WebP.",
+      }));
+      return;
+    }
+
+    if (nextFile.size > MAX_ADMIN_ACTIVITY_IMAGE_BYTES) {
+      event.currentTarget.value = "";
+      setActivityImageErrors((current) => ({
+        ...current,
+        [index]: "Ukuran gambar maksimal 5 MB.",
+      }));
+      return;
+    }
+
+    const nextUpload = { file: nextFile, preview: URL.createObjectURL(nextFile) };
+    setActivityUploads((current) => {
+      const next = [...current];
+      const previous = next[index];
+      if (previous) URL.revokeObjectURL(previous.preview);
+      next[index] = nextUpload;
+
+      return next;
+    });
+    setActivityImageErrors((current) => {
+      const next = { ...current };
+      delete next[index];
+
+      return next;
+    });
+    event.currentTarget.value = "";
+    setError(null);
+  };
+
+  const clearActivityUpload = (index: number) => {
+    setActivityUploads((current) => {
+      const next = [...current];
+      const previous = next[index];
+      if (previous) URL.revokeObjectURL(previous.preview);
+      next[index] = null;
+
+      return next;
+    });
+    setActivityImageErrors((current) => {
+      const next = { ...current };
+      delete next[index];
+
+      return next;
+    });
   };
 
   const updateLetterSection = (field: keyof SiteContent["letterSection"], value: string) => {
@@ -1500,13 +1608,34 @@ export function AdminLandingManager({
     setSaving(true);
     setError(null);
     try {
-      const data = await updateAdminSiteContent(payload);
+      const data = await updateAdminSiteContent(
+        payload,
+        activityUploads.map((upload) => upload?.file ?? null),
+      );
       setDraft(data);
+      setActivityUploads((current) => {
+        current.forEach((upload) => {
+          if (upload) URL.revokeObjectURL(upload.preview);
+        });
+
+        return data.activities.items.map(() => null);
+      });
+      setActivityImageErrors({});
       onChange?.(data);
       setSavedAt(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
       if (err instanceof ValidationError) {
-        setError(Object.values(err.errors)[0]?.[0] ?? "Validasi gagal.");
+        const firstError = Object.entries(err.errors)[0];
+        const message = firstError?.[1]?.[0] ?? "Validasi gagal.";
+        const activityMatch = firstError?.[0]?.match(/^activityImages\.(\d+)$/);
+        if (activityMatch) {
+          setActiveGroup("navbar-beranda");
+          setActivityImageErrors((current) => ({
+            ...current,
+            [Number(activityMatch[1])]: message,
+          }));
+        }
+        setError(message);
       } else if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -1519,7 +1648,8 @@ export function AdminLandingManager({
 
   const hasUnsavedChanges =
     JSON.stringify(normalizeLandingContentForSave(draft)) !==
-    JSON.stringify(normalizeLandingContentForSave(content));
+      JSON.stringify(normalizeLandingContentForSave(content)) ||
+    activityUploads.some(Boolean);
   const saveStatus = saving
     ? "Menyimpan perubahan..."
     : error
@@ -1761,18 +1891,60 @@ export function AdminLandingManager({
                     <X size={16} aria-hidden="true" />
                   </button>
                 </div>
-                <label className="form-field">
-                  <span>Judul</span>
-                  <input value={item.title} onChange={(event) => updateActivity(index, "title", event.target.value)} />
-                </label>
-                <label className="form-field">
-                  <span>Deskripsi</span>
-                  <textarea rows={2} value={item.body} onChange={(event) => updateActivity(index, "body", event.target.value)} />
-                </label>
-                <label className="form-field">
-                  <span>Gambar</span>
-                  <input value={item.image} onChange={(event) => updateActivity(index, "image", event.target.value)} />
-                </label>
+                <div className="admin-activity-editor">
+                  <div className="admin-activity-image-preview">
+                    <img
+                      src={activityUploads[index]?.preview ?? item.image}
+                      alt={`Pratinjau ${item.title || `panel ${index + 1}`}`}
+                    />
+                  </div>
+                  <div className="admin-activity-fields">
+                    <label className="form-field">
+                      <span>Judul</span>
+                      <input value={item.title} onChange={(event) => updateActivity(index, "title", event.target.value)} />
+                    </label>
+                    <label className="form-field">
+                      <span>Deskripsi</span>
+                      <textarea rows={2} value={item.body} onChange={(event) => updateActivity(index, "body", event.target.value)} />
+                    </label>
+                    <div className="admin-file-field">
+                      <span className="admin-file-field-label">Foto aktivitas (JPG/PNG/WebP, maks 5 MB)</span>
+                      <div className="admin-file-row">
+                        <label className="button button-ghost admin-file-button">
+                          <UploadCloud size={16} aria-hidden="true" />
+                          {activityUploads[index] ? "Ganti pilihan" : "Pilih gambar"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={(event) => onActivityFileChange(index, event)}
+                            className="admin-file-input"
+                            aria-describedby={activityImageErrors[index] ? `activity-image-error-${index}` : undefined}
+                          />
+                        </label>
+                        <span className="admin-file-name">
+                          {activityUploads[index]?.file.name ?? "Menggunakan gambar tersimpan"}
+                        </span>
+                        {activityUploads[index] && (
+                          <button
+                            type="button"
+                            className="button button-ghost admin-activity-image-cancel"
+                            onClick={() => clearActivityUpload(index)}
+                          >
+                            Batalkan pilihan
+                          </button>
+                        )}
+                      </div>
+                      <small className="admin-activity-image-hint">
+                        Disarankan foto landscape rasio 3:2, minimal 1200 × 800 piksel. Sistem menyimpan hasil sebagai WebP.
+                      </small>
+                      {activityImageErrors[index] && (
+                        <p id={`activity-image-error-${index}`} className="admin-form-error admin-form-error--field">
+                          {activityImageErrors[index]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </article>
             ))}
           </div>

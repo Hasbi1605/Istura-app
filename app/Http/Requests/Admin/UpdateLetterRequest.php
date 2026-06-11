@@ -2,17 +2,18 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\CmsImageService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Validator;
 
 class UpdateLetterRequest extends FormRequest
 {
-    public const LETTER_IMAGE_MAX_WIDTH = 2800;
+    public const LETTER_IMAGE_MAX_WIDTH = CmsImageService::MAX_INPUT_WIDTH;
 
-    public const LETTER_IMAGE_MAX_HEIGHT = 3600;
+    public const LETTER_IMAGE_MAX_HEIGHT = CmsImageService::MAX_INPUT_HEIGHT;
 
-    public const LETTER_IMAGE_MAX_PIXELS = self::LETTER_IMAGE_MAX_WIDTH * self::LETTER_IMAGE_MAX_HEIGHT;
+    public const LETTER_IMAGE_MAX_PIXELS = CmsImageService::MAX_INPUT_PIXELS;
 
     public function authorize(): bool
     {
@@ -60,12 +61,14 @@ class UpdateLetterRequest extends FormRequest
                     $realPath = $image->getRealPath();
                     if (! is_string($realPath) || $realPath === '') {
                         $validator->errors()->add($fieldName, 'Gambar tidak dapat dibaca.');
+
                         continue;
                     }
 
                     $dimensions = @getimagesize($realPath);
                     if (! is_array($dimensions)) {
                         $validator->errors()->add($fieldName, 'Gambar tidak dapat dibaca.');
+
                         continue;
                     }
 

@@ -27,7 +27,7 @@ Backend melayani REST API + WebSocket (Reverb); frontend SPA React dihosting via
 | Frontend | React 19 + TypeScript + Vite 8, GSAP, lucide-react |
 | Ekspor (browser) | pdfmake, exceljs, jszip, html-to-image |
 | Cache/Queue/Session | database driver |
-| Storage file | local disk (`storage/app/private`) |
+| Storage file | local disk (`storage/app/private` untuk surat booking; `storage/app/public` untuk aset CMS) |
 
 ---
 
@@ -50,7 +50,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
   - `BookingController.php` — index/show + aksi: accept, reject, reschedule, cancelReschedule, segments, complete, document.
   - `ScheduleController.php` — index, storeSlot, destroySlot, storeRange.
   - `FeedbackController.php` — index/show.
-  - `CmsController.php` — CRUD faqs, contacts, wa-templates, hero, letter, site-content.
+  - `CmsController.php` — CRUD faqs, contacts, wa-templates, hero, letter, site-content; upload foto aktivitas landing dalam satu save multipart.
   - `UserController.php` — manajemen admin (super-admin only).
   - `AuditLogController.php` — index audit log.
 
@@ -61,6 +61,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - `TwoFactorService.php` — TOTP + recovery code + trusted device.
 - `NationalHolidaySyncService.php` — sinkron tanggal merah dari provider.
 - `AuditLogger.php` — `record()` entri audit + konteks request.
+- `CmsImageService.php` — pipeline gambar CMS raster-only: validasi dimensi/piksel, resize, konversi WebP, dan penyimpanan disk publik.
 - `IndonesianDate.php` — format tanggal/locale Indonesia.
 
 ### 2.3 Models (`app/Models`)
@@ -83,6 +84,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 ### 2.4 Requests / Resources / Middleware / lainnya
 - **Requests** (`app/Http/Requests`): root `ScheduleRangeRequest`; `Auth/LoginRequest`;
   `Public/` (PrecheckBookingIdentity, StoreBooking, StoreFeedback); `Admin/` (15 request: Index*, Update*, Store*, Destroy*, Reschedule).
+  `UpdateSiteContentRequest` menerima JSON biasa atau multipart (`content` + `activityImages[index]`) dengan validasi gambar fail-closed.
 - **Resources** (`app/Http/Resources`): `AuditLogResource`, `BookingResource`, `FaqResource`,
   `FeedbackResource`, `FooterContactResource`, `PublicVisitDayResource`, `UserResource`, `VisitDayResource`, `WaTemplateResource`.
 - **Middleware** (`app/Http/Middleware`): `AddSecurityHeaders`, `EnsureAdmin` (alias `admin-access`),
@@ -95,7 +97,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - **Console/Commands**: `ExpirePendingBookings` (`bookings:expire-pending`), `SyncIndonesianHolidays` (`holidays:sync-id`), `PruneAuditLogs` (`audit:prune`), `CleanupLunchBreakSlots`, `ResetUserTwoFactor`.
 
 ### 2.5 Routes (`routes/`)
-- **api.php** — 3 grup: `public/*` (rate-limited; termasuk `open-event` + `open-registrations/*` throttle `public-open`), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`, nested `super-admin` untuk users; termasuk `open-events*` & `open-events/{event}/registrations*`).
+- **api.php** — 3 grup: `public/*` (rate-limited; termasuk `open-event` + `open-registrations/*` throttle `public-open`), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`, nested `super-admin` untuk users; termasuk `open-events*` & `open-events/{event}/registrations*`). `cms/site-content` menerima PUT JSON dan POST multipart untuk upload foto aktivitas.
 - **web.php** — `/robots.txt`, `/sitemap.xml`, `/info/alur-kunjungan` (OG tags WA preview)
   lalu catch-all `/{any?}` → `view('app')` (SPA dengan metadata/JSON-LD dan konten
   ringkasan server-rendered untuk crawler). Regex catch-all mengecualikan `api`.
@@ -134,7 +136,7 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 - `animations/`: `HomeAnimationLayer.tsx`, `useHomeAnimations.ts` (GSAP).
 
 ### 3.5 Components (`components/`)
-- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx`, `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
+- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx` (termasuk preview + upload langsung foto panel aktivitas; semua foto ikut satu draft/save Landing Page), `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
 - **booking/**: `BookingWizard.tsx` (wizard 8 langkah). **feedback/**: `FeedbackScreen.tsx`. **home/**: `HomeScreen.tsx`. **open/**: `IsturaOpenWizard.tsx` (wizard publik Istura Open 5 langkah: pilih hari → data diri → add-on → tinjau → sukses + tombol grup WA; ada lookup/self-cancel via NIK), `IsturaOpenPromo.tsx` (popup sekali per event per pengunjung + banner persisten).
 - **layout/**: `Navigation.tsx`, `Footer.tsx`, `FloatingContact.tsx` (FAB WhatsApp mengambang di halaman publik selain `booking`; expand jadi kartu MIKY + quick-topic prefill WA + tautan Instagram. Nomor dari `contacts`/CMS; sapaan & daftar topik dari `siteContent.floatingContact` (editable di admin Landing Page → "Widget WhatsApp Mengambang"), subtitle animasi typewriter). **ui/**: `DetailItem`, `LoadingStates`, `Pagination`, `StatCard`, `StatusBadge`. **icons/**: `SocialIcons.tsx`. `MikyGuide.tsx` (maskot).
 
@@ -169,7 +171,7 @@ Roadmap: **Istura Open** sudah diimplementasi (modul terpisah — lihat `IsturaO
 - **Login (+2FA):** email+password (progressive delay) → bila 2FA aktif tampil challenge TOTP/recovery + trusted device → dashboard (absolute session lifetime).
 - **Booking lifecycle:** Pending → Accept/Reject/Reschedule; Accepted → Complete/Reschedule; Reschedule → Accept/Reject/Cancel; Expired → Reschedule/Reject. Tiap aksi: audit log + broadcast + invalidasi cache + pesan WA siap salin.
 - **Jadwal:** tutup/buka slot tunggal atau rentang tanggal (override); default dihitung runtime; slot ber-booking aktif terlindungi.
-- **CMS:** edit FAQ/ketentuan/kontak/hero/landing/template WA → simpan → bump cache publik.
+- **CMS:** edit FAQ/ketentuan/kontak/hero/landing/template WA → simpan → bump cache publik. Foto panel "Aktivitas di Istana" dipilih langsung di editor Landing Page, dipreview lokal, lalu saat save dikonversi otomatis ke WebP; file lama dibersihkan setelah konfigurasi baru berhasil tersimpan.
 - **Users (super-admin):** CRUD akun admin. **Dashboard/Feedback/Audit/Ekspor:** lihat KPI, feedback, audit dengan filter, ekspor data.
 
 ### 5.3 State booking

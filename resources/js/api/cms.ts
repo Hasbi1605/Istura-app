@@ -110,8 +110,25 @@ export const updateAdminLetter = (
 
 export const fetchAdminSiteContent = () =>
   api<{ data: SiteContent }>("/api/admin/cms/site-content").then((r) => r.data);
-export const updateAdminSiteContent = (content: SiteContent) =>
-  api<{ data: SiteContent }>("/api/admin/cms/site-content", {
-    method: "PUT",
-    body: content,
+export const updateAdminSiteContent = (
+  content: SiteContent,
+  activityImages: Array<File | null> = [],
+) => {
+  if (!activityImages.some(Boolean)) {
+    return api<{ data: SiteContent }>("/api/admin/cms/site-content", {
+      method: "PUT",
+      body: content,
+    }).then((r) => r.data);
+  }
+
+  const formData = new FormData();
+  formData.append("content", JSON.stringify(content));
+  activityImages.forEach((file, index) => {
+    if (file) formData.append(`activityImages[${index}]`, file);
+  });
+
+  return api<{ data: SiteContent }>("/api/admin/cms/site-content", {
+    method: "POST",
+    formData,
   }).then((r) => r.data);
+};
