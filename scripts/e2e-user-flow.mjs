@@ -568,7 +568,11 @@ async function runApiMatrix() {
         rating: 5,
         bookingEase: 5,
         service: 5,
+        guideQuality: 5,
+        facilityComfort: 5,
         recommend: 5,
+        visitedBefore: false,
+        discoverySource: "social_media",
         highlights: ["Penyambutan"],
         improvements: [],
         comment: "Premature feedback should be blocked",
@@ -584,7 +588,11 @@ async function runApiMatrix() {
       rating: 5,
       bookingEase: 4,
       service: 5,
+      guideQuality: 5,
+      facilityComfort: 4,
       recommend: 5,
+      visitedBefore: true,
+      discoverySource: "previous_visit",
       highlights: ["Penyambutan"],
       improvements: ["Akses informasi"],
       comment: "E2E feedback",
@@ -714,9 +722,9 @@ async function runApiMatrix() {
     }
 
     const invalidFeedbackCases = [
-      { token: "x", rating: 0, bookingEase: 5, service: 5, recommend: 5, highlights: [], improvements: [], comment: "", allowPublish: true },
-      { token: "x", rating: 5, bookingEase: 6, service: 5, recommend: 5, highlights: [], improvements: [], comment: "", allowPublish: true },
-      { token: "x", rating: 5, bookingEase: 5, service: 5, recommend: 5, highlights: [], improvements: [], comment: "", allowPublish: "yes" },
+      { token: "x", rating: 0, bookingEase: 5, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: [], comment: "", allowPublish: true },
+      { token: "x", rating: 5, bookingEase: 6, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: [], comment: "", allowPublish: true },
+      { token: "x", rating: 5, bookingEase: 5, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: [], comment: "", allowPublish: "yes" },
     ];
     for (const body of invalidFeedbackCases) {
       const response = await anon.request("/api/public/feedback/ISTURA-404", { method: "POST", body });
@@ -805,6 +813,11 @@ async function runBrowserFlows() {
     await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
     await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
     await page.locator('.rating-field').nth(2).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.getByRole("button", { name: /Lanjut/i }).click();
+    await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.getByRole("radio", { name: /Belum, ini pertama kali/i }).click();
+    await page.getByLabel(/Dari mana pertama kali/i).selectOption("social_media");
     await page.getByRole("button", { name: /Lanjut/i }).click();
     await page.getByRole("radio", { name: "5" }).click();
     await page.getByRole("button", { name: /Lanjut/i }).click();

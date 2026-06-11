@@ -84,7 +84,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 ### 2.4 Requests / Resources / Middleware / lainnya
 - **Requests** (`app/Http/Requests`): root `ScheduleRangeRequest`; `Auth/LoginRequest`;
   `Public/` (PrecheckBookingIdentity, StoreBooking, StoreFeedback); `Admin/` (15 request: Index*, Update*, Store*, Destroy*, Reschedule).
-  `UpdateSiteContentRequest` menerima JSON biasa atau multipart (`content` + `navLogo`/`footerLogo`/`ctaBackground`/`activityImages[index]`) dengan validasi gambar fail-closed; payload `siteContent` juga memuat copy fixed-flow untuk wizard booking (`bookingWizard`) dan feedback (`feedbackWizard`).
+  `UpdateSiteContentRequest` menerima JSON biasa atau multipart (`content` + `navLogo`/`footerLogo`/`ctaBackground`/`activityImages[index]`) dengan validasi gambar fail-closed; payload `siteContent` juga memuat copy fixed-flow untuk wizard booking (`bookingWizard`) dan feedback (`feedbackWizard`). Pada feedback, label enam sumber informasi dapat diedit tetapi kode datanya tetap (`social_media`, `friends_family`, `school_institution`, `web_search`, `previous_visit`, `other`).
 - **Resources** (`app/Http/Resources`): `AuditLogResource`, `BookingResource`, `FaqResource`,
   `FeedbackResource`, `FooterContactResource`, `PublicVisitDayResource`, `UserResource`, `VisitDayResource`, `WaTemplateResource`.
   `VisitDayResource` dan `PublicVisitDayResource` sama-sama membawa metadata hari `closureReason`/`holiday` agar kalender publik/admin tidak kehilangan label alasan tutup saat state jadwal dipakai ulang.
@@ -108,7 +108,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - **console.php** — jadwal: `audit:prune` 03:00, `bookings:expire-pending` tiap 5 menit, `holidays:sync-id` 02:30.
 
 ### 2.6 Database
-- `database/migrations` (~41 file). Tabel inti: users, bookings, booking_sequences, booking_slots, booking_slot_locks, schedule_overrides, feedbacks, faqs, wa_templates, footer_contacts, site_settings, audit_logs, trusted_devices, national_holidays + tabel sistem (sessions, cache, jobs, personal_access_tokens).
+- `database/migrations` (~42 file). Tabel inti: users, bookings, booking_sequences, booking_slots, booking_slot_locks, schedule_overrides, feedbacks, faqs, wa_templates, footer_contacts, site_settings, audit_logs, trusted_devices, national_holidays + tabel sistem (sessions, cache, jobs, personal_access_tokens). `feedbacks` menyimpan dua rating tambahan (`guide_quality`, `facility_comfort`) dan profil kunjungan (`visited_before`, `discovery_source`, `discovery_source_other`); semuanya nullable agar data lama tetap kompatibel.
 - `database/seeders`: `DatabaseSeeder`, `FaqSeeder`, `FooterContactSeeder`, `SiteSettingSeeder`, `UserSeeder`, `WaTemplateSeeder` (+ `seeders/data/*.json`).
 - `database/factories`: `UserFactory`.
 
@@ -140,7 +140,7 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 
 ### 3.5 Components (`components/`)
 - **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx` (preview + upload langsung logo navbar/footer, background CTA, dan foto panel aktivitas; semua aset ikut satu draft/save Landing Page. Tab "Wizard Publik" mengedit copy fixed-flow untuk `BookingWizard` dan `FeedbackScreen` tanpa mengubah step/validasi/ikon/gambar), `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
-- **booking/**: `BookingWizard.tsx` (wizard 8 langkah; teks step, helper, MIKY, label form, upload, persetujuan, sukses, dan tombol berasal dari `siteContent.bookingWizard` dengan fallback default). **feedback/**: `FeedbackScreen.tsx` (copy step/gate/sukses, label rating, dan opsi chip berasal dari `siteContent.feedbackWizard`). **home/**: `HomeScreen.tsx`. **open/**: `IsturaOpenWizard.tsx` (wizard publik Istura Open 5 langkah: pilih hari → data diri → add-on → tinjau → sukses + tombol grup WA; ada lookup/self-cancel via NIK), `IsturaOpenPromo.tsx` (popup sekali per event per pengunjung + banner persisten).
+- **booking/**: `BookingWizard.tsx` (wizard 8 langkah; teks step, helper, MIKY, label form, upload, persetujuan, sukses, dan tombol berasal dari `siteContent.bookingWizard` dengan fallback default). **feedback/**: `FeedbackScreen.tsx` (wizard 4 langkah: penilaian inti → tentang kunjungan → detail pengalaman → komentar; copy, label rating, label sumber informasi, dan opsi chip berasal dari `siteContent.feedbackWizard`). **home/**: `HomeScreen.tsx`. **open/**: `IsturaOpenWizard.tsx` (wizard publik Istura Open 5 langkah: pilih hari → data diri → add-on → tinjau → sukses + tombol grup WA; ada lookup/self-cancel via NIK), `IsturaOpenPromo.tsx` (popup sekali per event per pengunjung + banner persisten).
 - **layout/**: `Navigation.tsx`, `Footer.tsx`, `FloatingContact.tsx` (FAB WhatsApp mengambang di halaman publik selain `booking`; expand jadi kartu MIKY + quick-topic prefill WA + tautan Instagram. Nomor dari `contacts`/CMS; sapaan & daftar topik dari `siteContent.floatingContact` (editable di admin Landing Page → "Widget WhatsApp Mengambang"), subtitle animasi typewriter). **ui/**: `DetailItem`, `LoadingStates`, `Pagination`, `StatCard`, `StatusBadge`. **icons/**: `SocialIcons.tsx`. `MikyGuide.tsx` (maskot).
 
 ### 3.6 Ekspor (browser, root `resources/js`)
@@ -168,7 +168,7 @@ Roadmap: **Istura Open** sudah diimplementasi (modul terpisah — lihat `IsturaO
 ### 5.1 Flow Publik
 - **Lihat info & jadwal:** load `/api/public/bootstrap` → telusuri seksi → kalender slot (Available/Held/Booked/Closed) → "Mulai Booking".
 - **Booking (8 langkah):** Selamat Datang → Contact Person (precheck NIK/WA) → Instansi → Pilih Jadwal → Upload Surat (≤5MB) → Review → Pernyataan → Selesai (kode `ISTURA-YYYY-NNNN`, status Pending). Submit mengunci slot via transaksi DB + broadcast realtime ke admin.
-- **Feedback:** admin klik "Tandai Selesai" → modal isi **link dokumentasi (opsional)** → set Completed (link disimpan di `bookings.documentation_link`) → kirim tautan WA (template `Completed` memakai variabel `{dokumentasi}` = link foto/dokumentasi & `{link}` = kuesioner/feedback kode+token) → pengunjung isi rating dsb → submit sekali per booking.
+- **Feedback:** admin klik "Tandai Selesai" → modal isi **link dokumentasi (opsional)** → set Completed (link disimpan di `bookings.documentation_link`) → kirim tautan WA (template `Completed` memakai variabel `{dokumentasi}` = link foto/dokumentasi & `{link}` = kuesioner/feedback kode+token) → pengunjung mengisi rating keseluruhan/booking/layanan, kualitas pemandu, kebersihan & fasilitas, riwayat kunjungan, sumber informasi, rekomendasi, aspek, dan komentar → submit sekali per booking.
 
 ### 5.2 Flow Admin
 - **Login (+2FA):** email+password (progressive delay) → bila 2FA aktif tampil challenge TOTP/recovery + trusted device → dashboard (absolute session lifetime).

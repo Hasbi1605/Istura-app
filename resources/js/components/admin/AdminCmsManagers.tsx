@@ -60,7 +60,7 @@ const LANDING_TAB_GROUPS = [
 
 type LandingTabGroup = (typeof LANDING_TAB_GROUPS)[number]["id"];
 type FeedbackWizardStepKey = keyof SiteContent["feedbackWizard"]["steps"];
-type FeedbackWizardOptionKey = keyof SiteContent["feedbackWizard"]["options"];
+type FeedbackWizardOptionKey = "highlights" | "improvements";
 
 type ActivityImageUpload = {
   file: File;
@@ -1829,6 +1829,21 @@ export function AdminLandingManager({
     }));
   };
 
+  const updateFeedbackDiscoverySourceLabel = (index: number, value: string) => {
+    setDraft((current) => ({
+      ...current,
+      feedbackWizard: {
+        ...current.feedbackWizard,
+        options: {
+          ...current.feedbackWizard.options,
+          discoverySources: current.feedbackWizard.options.discoverySources.map((option, idx) =>
+            idx === index ? { ...option, label: value } : option,
+          ),
+        },
+      },
+    }));
+  };
+
   const updateFeedbackOption = (group: FeedbackWizardOptionKey, index: number, value: string) => {
     setDraft((current) => ({
       ...current,
@@ -2774,8 +2789,8 @@ export function AdminLandingManager({
         <AdminLandingSectionHead title="Wizard Feedback" />
         <div className="admin-cms-form">
           <p>
-            Alur feedback tetap 3 langkah. Pilihan aspek dapat diubah; data feedback lama tetap
-            tersimpan dengan label lama di laporan.
+            Alur feedback tetap 4 langkah. Copy dan label pilihan dapat diubah, sedangkan tipe
+            pertanyaan dan kode sumber informasi dikunci agar laporan historis tetap konsisten.
           </p>
           <label className="form-field">
             <span>Intro panel kanan</span>
@@ -2805,7 +2820,27 @@ export function AdminLandingManager({
 
             <article className="admin-landing-subcard">
               <div className="admin-landing-subcard-head">
-                <strong>Step 2 - Detail</strong>
+                <strong>Step 2 - Tentang Kunjungan</strong>
+              </div>
+              <label className="form-field">
+                <span>Judul</span>
+                <input value={draft.feedbackWizard.steps.visit.title} onChange={(event) => updateFeedbackWizardStep("visit", "title", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Judul bubble MIKY</span>
+                <input value={draft.feedbackWizard.steps.visit.bubbleTitle} onChange={(event) => updateFeedbackWizardStep("visit", "bubbleTitle", event.target.value)} />
+              </label>
+              {(["bubbleEmpty", "bubbleDone"] as const).map((field) => (
+                <label className="form-field" key={field}>
+                  <span>{field}</span>
+                  <textarea rows={2} value={draft.feedbackWizard.steps.visit[field]} onChange={(event) => updateFeedbackWizardStep("visit", field, event.target.value)} />
+                </label>
+              ))}
+            </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Step 3 - Detail</strong>
               </div>
               <label className="form-field">
                 <span>Judul</span>
@@ -2825,7 +2860,7 @@ export function AdminLandingManager({
 
             <article className="admin-landing-subcard">
               <div className="admin-landing-subcard-head">
-                <strong>Step 3 - Cerita</strong>
+                <strong>Step 4 - Cerita</strong>
               </div>
               <label className="form-field">
                 <span>Judul</span>
@@ -2914,9 +2949,65 @@ export function AdminLandingManager({
                 </label>
               ))}
             </article>
+
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Pertanyaan tentang kunjungan</strong>
+              </div>
+              <label className="form-field">
+                <span>Kualitas pemandu</span>
+                <input value={draft.feedbackWizard.fields.guideQualityLabel} onChange={(event) => updateFeedbackWizardField("guideQualityLabel", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Kebersihan & fasilitas</span>
+                <input value={draft.feedbackWizard.fields.facilityComfortLabel} onChange={(event) => updateFeedbackWizardField("facilityComfortLabel", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Pertanyaan kunjungan sebelumnya</span>
+                <input value={draft.feedbackWizard.fields.visitedBeforeLegend} onChange={(event) => updateFeedbackWizardField("visitedBeforeLegend", event.target.value)} />
+              </label>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Label pertama kali</span>
+                  <input value={draft.feedbackWizard.fields.visitedBeforeFirstLabel} onChange={(event) => updateFeedbackWizardField("visitedBeforeFirstLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Label pernah berkunjung</span>
+                  <input value={draft.feedbackWizard.fields.visitedBeforeReturnLabel} onChange={(event) => updateFeedbackWizardField("visitedBeforeReturnLabel", event.target.value)} />
+                </label>
+              </div>
+              <label className="form-field">
+                <span>Pertanyaan sumber informasi</span>
+                <input value={draft.feedbackWizard.fields.discoverySourceLabel} onChange={(event) => updateFeedbackWizardField("discoverySourceLabel", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Placeholder sumber informasi</span>
+                <input value={draft.feedbackWizard.fields.discoverySourcePlaceholder} onChange={(event) => updateFeedbackWizardField("discoverySourcePlaceholder", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Label sumber lainnya</span>
+                <input value={draft.feedbackWizard.fields.discoverySourceOtherLabel} onChange={(event) => updateFeedbackWizardField("discoverySourceOtherLabel", event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span>Placeholder sumber lainnya</span>
+                <input value={draft.feedbackWizard.fields.discoverySourceOtherPlaceholder} onChange={(event) => updateFeedbackWizardField("discoverySourceOtherPlaceholder", event.target.value)} />
+              </label>
+            </article>
           </div>
 
           <div className="admin-landing-list">
+            <article className="admin-landing-subcard">
+              <div className="admin-landing-subcard-head">
+                <strong>Label pilihan sumber informasi</strong>
+              </div>
+              <p>Kode data dikunci; admin hanya mengubah label yang tampil ke pengunjung.</p>
+              {draft.feedbackWizard.options.discoverySources.map((option, index) => (
+                <label className="form-field" key={option.value}>
+                  <span>{option.value}</span>
+                  <input value={option.label} onChange={(event) => updateFeedbackDiscoverySourceLabel(index, event.target.value)} />
+                </label>
+              ))}
+            </article>
             {(["highlights", "improvements"] as const).map((group) => (
               <article className="admin-landing-subcard" key={`feedback-options-${group}`}>
                 <div className="admin-landing-subcard-head">

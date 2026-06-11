@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, Search, Star, X } from "lucide-react";
-import type { Booking, Feedback } from "../../domain/types";
+import type { Booking, Feedback, FeedbackWizardContent } from "../../domain/types";
 import { formatCount, formatCountShort } from "../../lib/date";
 import { PAGE_SIZE_FEEDBACK } from "../../domain/booking";
 import { useMediaQuery } from "../../hooks";
@@ -12,11 +12,13 @@ import { FeedbackExportModal } from "./ExportModals";
 export function AdminFeedbackList({
   bookings,
   feedbacks,
+  feedbackContent,
   loading = false,
   adminName,
 }: {
   bookings: Booking[];
   feedbacks: Feedback[];
+  feedbackContent: FeedbackWizardContent;
   loading?: boolean;
   adminName?: string;
 }) {
@@ -296,7 +298,7 @@ export function AdminFeedbackList({
 
           <div className="booking-split-detail">
             {selected ? (
-              <FeedbackDetailPanel feedback={selected} />
+              <FeedbackDetailPanel feedback={selected} feedbackContent={feedbackContent} />
             ) : (
               <div className="booking-detail booking-detail--empty">
                 <p>Pilih feedback untuk melihat detail.</p>
@@ -310,6 +312,7 @@ export function AdminFeedbackList({
         <FeedbackExportModal
           bookings={bookings}
           feedbacks={feedbacks}
+          feedbackContent={feedbackContent}
           adminName={adminName}
           onClose={() => setShowExportModal(false)}
         />
@@ -318,6 +321,7 @@ export function AdminFeedbackList({
       {isCompactScreen && showSlideOver && selected && (
         <FeedbackSlideOver
           feedback={selected}
+          feedbackContent={feedbackContent}
           onClose={() => setShowSlideOver(false)}
         />
       )}
@@ -327,15 +331,28 @@ export function AdminFeedbackList({
 
 function FeedbackDetailPanel({
   feedback,
+  feedbackContent,
 }: {
   feedback: Feedback & { institution: string; dateLabel: string; contactName: string };
+  feedbackContent: FeedbackWizardContent;
 }) {
-  const scores: Array<{ label: string; value: number; max: number }> = [
+  const scores: Array<{ label: string; value: number | null; max: number }> = [
     { label: "Kepuasan keseluruhan", value: feedback.rating, max: 5 },
     { label: "Kemudahan booking", value: feedback.bookingEase, max: 5 },
     { label: "Layanan petugas", value: feedback.service, max: 5 },
+    { label: "Kualitas pemandu", value: feedback.guideQuality, max: 5 },
+    { label: "Kebersihan & fasilitas", value: feedback.facilityComfort, max: 5 },
     { label: "Skor rekomendasi", value: feedback.recommend, max: 5 },
   ];
+  const discoverySourceLabel = feedback.discoverySource
+    ? feedbackContent.options.discoverySources.find(
+        (option) => option.value === feedback.discoverySource,
+      )?.label ?? feedback.discoverySource
+    : "—";
+  const discoverySource =
+    feedback.discoverySource === "other" && feedback.discoverySourceOther
+      ? `${discoverySourceLabel}: ${feedback.discoverySourceOther}`
+      : discoverySourceLabel;
 
   return (
     <div className="booking-detail admin-feedback-detail">
@@ -367,7 +384,7 @@ function FeedbackDetailPanel({
             <div className="admin-feedback-score-label">
               <span>{score.label}</span>
               <strong>
-                {score.value}/{score.max}
+                {score.value === null ? "—" : `${score.value}/${score.max}`}
               </strong>
             </div>
             <div
@@ -377,11 +394,28 @@ function FeedbackDetailPanel({
             >
               <div
                 className="admin-feedback-score-fill"
-                style={{ width: `${(score.value / score.max) * 100}%` }}
+                style={{ width: `${score.value === null ? 0 : (score.value / score.max) * 100}%` }}
               />
             </div>
           </div>
         ))}
+      </section>
+
+      <section className="admin-feedback-aspects" aria-label="Profil kunjungan">
+        <div>
+          <span className="admin-feedback-aspect-label">Riwayat kunjungan</span>
+          <p className="admin-feedback-aspect-empty">
+            {feedback.visitedBefore === null
+              ? "—"
+              : feedback.visitedBefore
+                ? feedbackContent.fields.visitedBeforeReturnLabel
+                : feedbackContent.fields.visitedBeforeFirstLabel}
+          </p>
+        </div>
+        <div>
+          <span className="admin-feedback-aspect-label">Sumber informasi</span>
+          <p className="admin-feedback-aspect-empty">{discoverySource}</p>
+        </div>
       </section>
 
       <section className="admin-feedback-aspects">
@@ -436,9 +470,11 @@ function FeedbackDetailPanel({
 // tidak punya cukup ruang horizontal.
 function FeedbackSlideOver({
   feedback,
+  feedbackContent,
   onClose,
 }: {
   feedback: Feedback & { institution: string; dateLabel: string; contactName: string };
+  feedbackContent: FeedbackWizardContent;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -479,7 +515,7 @@ function FeedbackSlideOver({
             <X size={18} aria-hidden="true" />
           </button>
         </header>
-        <FeedbackDetailPanel feedback={feedback} />
+        <FeedbackDetailPanel feedback={feedback} feedbackContent={feedbackContent} />
       </aside>
     </div>
   );

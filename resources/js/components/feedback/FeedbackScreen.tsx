@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  Building2,
   Check,
   Clock3,
   Send,
@@ -11,7 +12,12 @@ import {
   Star,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Booking, Feedback, FeedbackWizardContent } from "../../domain/types";
+import type {
+  Booking,
+  Feedback,
+  FeedbackDiscoverySource,
+  FeedbackWizardContent,
+} from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
 import { DEFAULT_FEEDBACK_WIZARD_CONTENT } from "../../constants";
 import { fetchPublicFeedback, submitPublicFeedback } from "../../api/feedback";
@@ -30,7 +36,12 @@ const apiFeedbackToLocal = (feedback: {
   rating: number;
   bookingEase: number;
   service: number;
+  guideQuality: number | null;
+  facilityComfort: number | null;
   recommend: number;
+  visitedBefore: boolean | null;
+  discoverySource: FeedbackDiscoverySource | null;
+  discoverySourceOther: string | null;
   highlights?: string[];
   improvements?: string[];
   comment: string | null;
@@ -41,7 +52,12 @@ const apiFeedbackToLocal = (feedback: {
   rating: feedback.rating,
   bookingEase: feedback.bookingEase,
   service: feedback.service,
+  guideQuality: feedback.guideQuality,
+  facilityComfort: feedback.facilityComfort,
   recommend: feedback.recommend,
+  visitedBefore: feedback.visitedBefore,
+  discoverySource: feedback.discoverySource,
+  discoverySourceOther: feedback.discoverySourceOther ?? "",
   highlights: feedback.highlights ?? [],
   improvements: feedback.improvements ?? [],
   comment: feedback.comment ?? "",
@@ -62,7 +78,12 @@ const emptyDraft = {
   rating: 0,
   bookingEase: 0,
   service: 0,
+  guideQuality: 0,
+  facilityComfort: 0,
   recommend: null as number | null,
+  visitedBefore: null as boolean | null,
+  discoverySource: "" as FeedbackDiscoverySource | "",
+  discoverySourceOther: "",
   highlights: [] as string[],
   improvements: [] as string[],
   comment: "",
@@ -111,7 +132,12 @@ export function FeedbackScreen({
   const [rating, setRating] = useState(0);
   const [bookingEase, setBookingEase] = useState(0);
   const [service, setService] = useState(0);
+  const [guideQuality, setGuideQuality] = useState(0);
+  const [facilityComfort, setFacilityComfort] = useState(0);
   const [recommend, setRecommend] = useState<number | null>(null);
+  const [visitedBefore, setVisitedBefore] = useState<boolean | null>(null);
+  const [discoverySource, setDiscoverySource] = useState<FeedbackDiscoverySource | "">("");
+  const [discoverySourceOther, setDiscoverySourceOther] = useState("");
   const [highlights, setHighlights] = useState<string[]>([]);
   const [improvements, setImprovements] = useState<string[]>([]);
   const [comment, setComment] = useState("");
@@ -181,7 +207,12 @@ export function FeedbackScreen({
     setRating(emptyDraft.rating);
     setBookingEase(emptyDraft.bookingEase);
     setService(emptyDraft.service);
+    setGuideQuality(emptyDraft.guideQuality);
+    setFacilityComfort(emptyDraft.facilityComfort);
     setRecommend(emptyDraft.recommend);
+    setVisitedBefore(emptyDraft.visitedBefore);
+    setDiscoverySource(emptyDraft.discoverySource);
+    setDiscoverySourceOther(emptyDraft.discoverySourceOther);
     setHighlights(emptyDraft.highlights);
     setImprovements(emptyDraft.improvements);
     setComment(emptyDraft.comment);
@@ -198,7 +229,12 @@ export function FeedbackScreen({
       if (typeof draft.rating === "number") setRating(draft.rating);
       if (typeof draft.bookingEase === "number") setBookingEase(draft.bookingEase);
       if (typeof draft.service === "number") setService(draft.service);
+      if (typeof draft.guideQuality === "number") setGuideQuality(draft.guideQuality);
+      if (typeof draft.facilityComfort === "number") setFacilityComfort(draft.facilityComfort);
       if (typeof draft.recommend === "number") setRecommend(draft.recommend);
+      if (typeof draft.visitedBefore === "boolean") setVisitedBefore(draft.visitedBefore);
+      if (typeof draft.discoverySource === "string") setDiscoverySource(draft.discoverySource);
+      if (typeof draft.discoverySourceOther === "string") setDiscoverySourceOther(draft.discoverySourceOther);
       if (Array.isArray(draft.highlights)) setHighlights(draft.highlights);
       if (Array.isArray(draft.improvements)) setImprovements(draft.improvements);
       if (typeof draft.comment === "string") setComment(draft.comment);
@@ -216,7 +252,12 @@ export function FeedbackScreen({
       rating,
       bookingEase,
       service,
+      guideQuality,
+      facilityComfort,
       recommend,
+      visitedBefore,
+      discoverySource,
+      discoverySourceOther,
       highlights,
       improvements,
       comment,
@@ -233,7 +274,12 @@ export function FeedbackScreen({
     rating,
     bookingEase,
     service,
+    guideQuality,
+    facilityComfort,
     recommend,
+    visitedBefore,
+    discoverySource,
+    discoverySourceOther,
     highlights,
     improvements,
     comment,
@@ -249,8 +295,9 @@ export function FeedbackScreen({
     setter(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
   };
 
-  const totalSteps = 3;
+  const totalSteps = 4;
   const ratingStep = content.steps.rating;
+  const visitStep = content.steps.visit;
   const detailsStep = content.steps.details;
   const commentStep = content.steps.comment;
 
@@ -276,6 +323,20 @@ export function FeedbackScreen({
       image: ASSETS.mikyFeedback,
     },
     {
+      title: visitStep.title,
+      icon: Building2,
+      bubbleTitle: visitStep.bubbleTitle,
+      bubble:
+        guideQuality === 0 ||
+        facilityComfort === 0 ||
+        visitedBefore === null ||
+        discoverySource === "" ||
+        (discoverySource === "other" && discoverySourceOther.trim() === "")
+          ? visitStep.bubbleEmpty
+          : visitStep.bubbleDone,
+      image: ASSETS.mikyFeedback2,
+    },
+    {
       title: detailsStep.title,
       icon: Sparkles,
       bubbleTitle: detailsStep.bubbleTitle,
@@ -285,7 +346,7 @@ export function FeedbackScreen({
           : highlights.length === 0
             ? detailsStep.bubbleHighlightsEmpty
             : detailsStep.bubbleDone,
-      image: ASSETS.mikyFeedback2,
+      image: ASSETS.mikyFeedback3,
     },
     {
       title: commentStep.title,
@@ -301,6 +362,11 @@ export function FeedbackScreen({
 
   const stepReady = [
     rating > 0 && bookingEase > 0 && service > 0,
+    guideQuality > 0 &&
+      facilityComfort > 0 &&
+      visitedBefore !== null &&
+      discoverySource !== "" &&
+      (discoverySource !== "other" || discoverySourceOther.trim().length > 0),
     recommend !== null,
     true,
   ];
@@ -310,6 +376,8 @@ export function FeedbackScreen({
       if (step === 0) {
         setError("Mohon berikan rating untuk ketiga aspek di atas.");
       } else if (step === 1) {
+        setError("Mohon lengkapi penilaian dan informasi kunjungan.");
+      } else if (step === 2) {
         setError("Mohon pilih skor rekomendasi.");
       }
       return;
@@ -332,8 +400,13 @@ export function FeedbackScreen({
       return;
     }
     if (!stepReady[1]) {
-      setError("Mohon pilih skor rekomendasi di langkah 2.");
+      setError("Mohon lengkapi penilaian dan informasi kunjungan di langkah 2.");
       setStep(1);
+      return;
+    }
+    if (!stepReady[2]) {
+      setError("Mohon pilih skor rekomendasi di langkah 3.");
+      setStep(2);
       return;
     }
     if (existing) {
@@ -346,7 +419,13 @@ export function FeedbackScreen({
       rating,
       bookingEase,
       service,
+      guideQuality,
+      facilityComfort,
       recommend: recommend ?? 0,
+      visitedBefore: visitedBefore ?? false,
+      discoverySource: discoverySource as FeedbackDiscoverySource,
+      discoverySourceOther:
+        discoverySource === "other" ? discoverySourceOther.trim() : undefined,
       highlights,
       improvements,
       comment: comment.trim(),
@@ -554,6 +633,82 @@ export function FeedbackScreen({
 
             {step === 1 && (
               <div className="feedback-step">
+                <RatingField
+                  label={content.fields.guideQualityLabel}
+                  value={guideQuality}
+                  labels={content.fields.ratingLabels}
+                  onChange={setGuideQuality}
+                />
+                <RatingField
+                  label={content.fields.facilityComfortLabel}
+                  value={facilityComfort}
+                  labels={content.fields.ratingLabels}
+                  onChange={setFacilityComfort}
+                />
+
+                <fieldset className="recommend-field">
+                  <legend>{content.fields.visitedBeforeLegend}</legend>
+                  <div
+                    className="recommend-scale feedback-binary-choice"
+                    role="radiogroup"
+                    aria-label={content.fields.visitedBeforeLegend}
+                  >
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={visitedBefore === false}
+                      className={visitedBefore === false ? "is-active" : ""}
+                      onClick={() => setVisitedBefore(false)}
+                    >
+                      {content.fields.visitedBeforeFirstLabel}
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={visitedBefore === true}
+                      className={visitedBefore === true ? "is-active" : ""}
+                      onClick={() => setVisitedBefore(true)}
+                    >
+                      {content.fields.visitedBeforeReturnLabel}
+                    </button>
+                  </div>
+                </fieldset>
+
+                <label className="form-field">
+                  <span>{content.fields.discoverySourceLabel}</span>
+                  <select
+                    value={discoverySource}
+                    onChange={(event) => {
+                      const value = event.target.value as FeedbackDiscoverySource | "";
+                      setDiscoverySource(value);
+                      if (value !== "other") setDiscoverySourceOther("");
+                    }}
+                  >
+                    <option value="">{content.fields.discoverySourcePlaceholder}</option>
+                    {content.options.discoverySources.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {discoverySource === "other" && (
+                  <label className="form-field">
+                    <span>{content.fields.discoverySourceOtherLabel}</span>
+                    <input
+                      value={discoverySourceOther}
+                      onChange={(event) => setDiscoverySourceOther(event.target.value)}
+                      placeholder={content.fields.discoverySourceOtherPlaceholder}
+                      maxLength={120}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="feedback-step">
                 <fieldset className="recommend-field">
                   <legend>{content.fields.recommendLegend}</legend>
                   <div
@@ -598,7 +753,7 @@ export function FeedbackScreen({
               </div>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <div className="feedback-step">
                 <label className="form-field">
                   <span>{content.fields.commentLabel}</span>

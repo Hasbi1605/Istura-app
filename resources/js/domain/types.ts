@@ -118,7 +118,12 @@ export type Feedback = {
   rating: number;
   bookingEase: number;
   service: number;
+  guideQuality: number | null;
+  facilityComfort: number | null;
   recommend: number;
+  visitedBefore: boolean | null;
+  discoverySource: FeedbackDiscoverySource | null;
+  discoverySourceOther: string;
   highlights: string[];
   improvements: string[];
   comment: string;
@@ -238,6 +243,19 @@ export type FeedbackWizardStepCopy = {
   bubbleTitle: string;
 };
 
+export type FeedbackDiscoverySource =
+  | "social_media"
+  | "friends_family"
+  | "school_institution"
+  | "web_search"
+  | "previous_visit"
+  | "other";
+
+export type FeedbackDiscoverySourceOption = {
+  value: FeedbackDiscoverySource;
+  label: string;
+};
+
 export type FeedbackWizardContent = {
   intro: string;
   steps: {
@@ -246,6 +264,10 @@ export type FeedbackWizardContent = {
       bubbleLow: string;
       bubbleNeutral: string;
       bubbleHigh: string;
+    };
+    visit: FeedbackWizardStepCopy & {
+      bubbleEmpty: string;
+      bubbleDone: string;
     };
     details: FeedbackWizardStepCopy & {
       bubbleEmpty: string;
@@ -261,6 +283,15 @@ export type FeedbackWizardContent = {
     ratingLabel: string;
     bookingEaseLabel: string;
     serviceLabel: string;
+    guideQualityLabel: string;
+    facilityComfortLabel: string;
+    visitedBeforeLegend: string;
+    visitedBeforeFirstLabel: string;
+    visitedBeforeReturnLabel: string;
+    discoverySourceLabel: string;
+    discoverySourcePlaceholder: string;
+    discoverySourceOtherLabel: string;
+    discoverySourceOtherPlaceholder: string;
     recommendLegend: string;
     recommendLowLabel: string;
     recommendHighLabel: string;
@@ -272,6 +303,7 @@ export type FeedbackWizardContent = {
     ratingLabels: string[];
   };
   options: {
+    discoverySources: FeedbackDiscoverySourceOption[];
     highlights: string[];
     improvements: string[];
   };

@@ -2736,7 +2736,11 @@ class ScheduleSyncTest extends TestCase
             'rating' => 4,
             'bookingEase' => 4,
             'service' => 4,
+            'guideQuality' => 4,
+            'facilityComfort' => 4,
             'recommend' => 4,
+            'visitedBefore' => false,
+            'discoverySource' => 'social_media',
             'highlights' => [],
             'improvements' => [],
             'comment' => 'Duplikat harus ditolak.',
@@ -2773,7 +2777,11 @@ class ScheduleSyncTest extends TestCase
                 'rating' => 5,
                 'bookingEase' => 5,
                 'service' => 5,
+                'guideQuality' => 5,
+                'facilityComfort' => 5,
                 'recommend' => 5,
+                'visitedBefore' => true,
+                'discoverySource' => 'previous_visit',
                 'highlights' => ['Penyambutan'],
                 'improvements' => [],
                 'comment' => 'Rate limit flow tetap terpisah.',
@@ -2816,6 +2824,28 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('booking.code', $booking->code)
             ->assertJsonPath('booking.status', 'Completed')
             ->assertJsonPath('data', null);
+
+        Feedback::create([
+            'booking_id' => $booking->id,
+            'code' => $booking->code,
+            'rating' => 4,
+            'booking_ease' => 4,
+            'service' => 4,
+            'recommend' => 4,
+            'highlights' => [],
+            'improvements' => [],
+            'comment' => null,
+            'allow_publish' => false,
+            'submitted_at' => now(),
+        ]);
+
+        $this->getJson("/api/public/feedback/{$booking->code}?token=fb_show_token")
+            ->assertOk()
+            ->assertJsonPath('data.guideQuality', null)
+            ->assertJsonPath('data.facilityComfort', null)
+            ->assertJsonPath('data.visitedBefore', null)
+            ->assertJsonPath('data.discoverySource', null)
+            ->assertJsonPath('data.discoverySourceOther', null);
     }
 
     public function test_public_feedback_submission_is_blocked_until_booking_completed(): void
@@ -2830,7 +2860,11 @@ class ScheduleSyncTest extends TestCase
             'rating' => 5,
             'bookingEase' => 5,
             'service' => 5,
+            'guideQuality' => 5,
+            'facilityComfort' => 5,
             'recommend' => 5,
+            'visitedBefore' => false,
+            'discoverySource' => 'school_institution',
             'highlights' => ['Penyambutan'],
             'improvements' => [],
             'comment' => 'Belum selesai tidak boleh masuk.',
@@ -2839,6 +2873,58 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('code');
 
         $this->assertDatabaseCount('feedbacks', 0);
+    }
+
+    public function test_public_feedback_stores_visit_insights_and_requires_other_source_detail(): void
+    {
+        $booking = $this->createBooking([
+            'status' => 'Completed',
+            'feedback_token' => 'fb_visit_insights_token',
+        ]);
+
+        $payload = [
+            'token' => 'fb_visit_insights_token',
+            'rating' => 5,
+            'bookingEase' => 4,
+            'service' => 5,
+            'guideQuality' => 4,
+            'facilityComfort' => 3,
+            'recommend' => 5,
+            'visitedBefore' => false,
+            'discoverySource' => 'other',
+            'highlights' => ['Cerita sejarah'],
+            'improvements' => ['Fasilitas'],
+            'comment' => 'Tambahkan tempat duduk di area tunggu.',
+            'allowPublish' => false,
+        ];
+
+        $this->postJson("/api/public/feedback/{$booking->code}", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('discoverySourceOther');
+
+        $response = $this->postJson("/api/public/feedback/{$booking->code}", [
+            ...$payload,
+            'discoverySourceOther' => 'Acara komunitas sejarah',
+        ])->assertCreated()
+            ->assertJsonPath('data.guideQuality', 4)
+            ->assertJsonPath('data.facilityComfort', 3)
+            ->assertJsonPath('data.visitedBefore', false)
+            ->assertJsonPath('data.discoverySource', 'other')
+            ->assertJsonPath('data.discoverySourceOther', 'Acara komunitas sejarah');
+
+        $this->assertDatabaseHas('feedbacks', [
+            'booking_id' => $booking->id,
+            'guide_quality' => 4,
+            'facility_comfort' => 3,
+            'visited_before' => false,
+            'discovery_source' => 'other',
+            'discovery_source_other' => 'Acara komunitas sejarah',
+        ]);
+
+        $this->getJson("/api/public/feedback/{$booking->code}?token=fb_visit_insights_token")
+            ->assertOk()
+            ->assertJsonPath('data.guideQuality', $response->json('data.guideQuality'))
+            ->assertJsonPath('data.discoverySourceOther', 'Acara komunitas sejarah');
     }
 
     private function useFailingBroadcaster(): void

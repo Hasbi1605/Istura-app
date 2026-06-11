@@ -15,7 +15,12 @@ class Feedback extends Model
         'rating',
         'booking_ease',
         'service',
+        'guide_quality',
+        'facility_comfort',
         'recommend',
+        'visited_before',
+        'discovery_source',
+        'discovery_source_other',
         'highlights',
         'improvements',
         'comment',
@@ -31,7 +36,10 @@ class Feedback extends Model
         'rating' => 'integer',
         'booking_ease' => 'integer',
         'service' => 'integer',
+        'guide_quality' => 'integer',
+        'facility_comfort' => 'integer',
         'recommend' => 'integer',
+        'visited_before' => 'boolean',
     ];
 
     public function booking(): BelongsTo

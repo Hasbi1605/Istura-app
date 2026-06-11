@@ -1,12 +1,17 @@
 import { api, fetchAllPages } from "./client";
-import type { BookingStatus } from "../domain/types";
+import type { BookingStatus, FeedbackDiscoverySource } from "../domain/types";
 
 export type ApiFeedback = {
   code: string;
   rating: number;
   bookingEase: number;
   service: number;
+  guideQuality: number | null;
+  facilityComfort: number | null;
   recommend: number;
+  visitedBefore: boolean | null;
+  discoverySource: FeedbackDiscoverySource | null;
+  discoverySourceOther: string | null;
   highlights: string[];
   improvements: string[];
   comment: string | null;
@@ -37,7 +42,12 @@ export const submitPublicFeedback = (
     rating: number;
     bookingEase: number;
     service: number;
+    guideQuality: number;
+    facilityComfort: number;
     recommend: number;
+    visitedBefore: boolean;
+    discoverySource: FeedbackDiscoverySource;
+    discoverySourceOther?: string;
     highlights: string[];
     improvements: string[];
     comment: string;

@@ -32,7 +32,12 @@ export type FeedbackExportInput = {
   rating: number;
   bookingEase: number;
   service: number;
+  guideQuality: number | null;
+  facilityComfort: number | null;
   recommend: number;
+  visitedBefore: boolean | null;
+  discoverySourceLabel: string;
+  discoverySourceOther: string;
   highlights: string[];
   improvements: string[];
   comment: string;
@@ -125,7 +130,11 @@ const DETAIL_COLUMNS: Column[] = [
   { header: "Rating", width: 8 },
   { header: "Booking Ease", width: 14 },
   { header: "Layanan", width: 10 },
+  { header: "Kualitas Pemandu", width: 18 },
+  { header: "Kebersihan & Fasilitas", width: 22 },
   { header: "Recommend", width: 12 },
+  { header: "Pernah Berkunjung", width: 18 },
+  { header: "Sumber Informasi", width: 30 },
   { header: "Highlights", width: 36 },
   { header: "Improvements", width: 36 },
   { header: "Komentar", width: 60 },
@@ -206,6 +215,14 @@ const buildRingkasanSheet = (
     { label: "Overall", values: rows.map((r) => r.rating) },
     { label: "Kemudahan booking", values: rows.map((r) => r.bookingEase) },
     { label: "Layanan", values: rows.map((r) => r.service) },
+    {
+      label: "Kualitas pemandu",
+      values: rows.flatMap((r) => (r.guideQuality === null ? [] : [r.guideQuality])),
+    },
+    {
+      label: "Kebersihan & fasilitas",
+      values: rows.flatMap((r) => (r.facilityComfort === null ? [] : [r.facilityComfort])),
+    },
     { label: "Recommend (NPS-style)", values: rows.map((r) => r.recommend) },
   ];
   dimensions.forEach((d, idx) => {
@@ -263,8 +280,57 @@ const buildRingkasanSheet = (
     [1, 2, 3].forEach((c) => styleDataCell(row.getCell(c), idx % 2 === 1));
   });
 
-  // Section: top tags side-by-side (rows starting after publish section).
-  const tagsRowIdx = publishRowIdx + 5;
+  const visitRowIdx = publishRowIdx + 5;
+  sheet.getCell(`A${visitRowIdx}`).value = "Riwayat kunjungan";
+  sheet.getCell(`A${visitRowIdx}`).font = {
+    name: "Calibri", size: 11, bold: true, color: { argb: THEME.navy },
+  };
+  const visitHeader = sheet.getRow(visitRowIdx + 1);
+  visitHeader.values = ["Status", "Jumlah", "Persentase dari jawaban"];
+  styleHeaderRow(visitHeader, 3);
+  const knownVisits = rows.filter((row) => row.visitedBefore !== null);
+  const visitEntries = [
+    { label: "Pertama kali", count: knownVisits.filter((row) => row.visitedBefore === false).length },
+    { label: "Pernah berkunjung", count: knownVisits.filter((row) => row.visitedBefore === true).length },
+  ];
+  visitEntries.forEach((entry, idx) => {
+    const row = sheet.getRow(visitRowIdx + 2 + idx);
+    row.getCell(1).value = entry.label;
+    row.getCell(2).value = entry.count;
+    row.getCell(3).value = knownVisits.length === 0 ? 0 : entry.count / knownVisits.length;
+    row.getCell(3).numFmt = "0.0%";
+    [1, 2, 3].forEach((column) => styleDataCell(row.getCell(column), idx % 2 === 1));
+  });
+
+  const sourceRowIdx = visitRowIdx + 5;
+  sheet.getCell(`A${sourceRowIdx}`).value = "Sumber informasi";
+  sheet.getCell(`A${sourceRowIdx}`).font = {
+    name: "Calibri", size: 11, bold: true, color: { argb: THEME.navy },
+  };
+  const sourceHeader = sheet.getRow(sourceRowIdx + 1);
+  sourceHeader.values = ["Sumber", "Jumlah", "Persentase dari jawaban"];
+  styleHeaderRow(sourceHeader, 3);
+  const sourceCounts = Array.from(
+    rows.reduce((counts, row) => {
+      const label = row.discoverySourceLabel.trim();
+      if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>()),
+  ).sort((a, b) => b[1] - a[1]);
+  const sourceTotal = sourceCounts.reduce((sum, [, count]) => sum + count, 0);
+  (sourceCounts.length > 0 ? sourceCounts : [["(belum ada data)", 0] as [string, number]]).forEach(
+    ([label, count], idx) => {
+      const row = sheet.getRow(sourceRowIdx + 2 + idx);
+      row.getCell(1).value = label;
+      row.getCell(2).value = count;
+      row.getCell(3).value = sourceTotal === 0 ? 0 : count / sourceTotal;
+      row.getCell(3).numFmt = "0.0%";
+      [1, 2, 3].forEach((column) => styleDataCell(row.getCell(column), idx % 2 === 1));
+    },
+  );
+
+  // Section: top tags side-by-side (rows starting after source distribution).
+  const tagsRowIdx = sourceRowIdx + Math.max(sourceCounts.length, 1) + 4;
   sheet.getCell(`A${tagsRowIdx}`).value = "Top 5 Highlights & Improvements";
   sheet.getCell(`A${tagsRowIdx}`).font = {
     name: "Calibri", size: 11, bold: true, color: { argb: THEME.navy },
@@ -332,11 +398,19 @@ const buildDetailSheet = (
     row.getCell(7).value = feedback.rating;
     row.getCell(8).value = feedback.bookingEase;
     row.getCell(9).value = feedback.service;
-    row.getCell(10).value = feedback.recommend;
-    row.getCell(11).value = feedback.highlights.join(", ");
-    row.getCell(12).value = feedback.improvements.join(", ");
-    row.getCell(13).value = feedback.comment;
-    row.getCell(14).value = feedback.allowPublish ? "Ya" : "Tidak";
+    row.getCell(10).value = feedback.guideQuality ?? "";
+    row.getCell(11).value = feedback.facilityComfort ?? "";
+    row.getCell(12).value = feedback.recommend;
+    row.getCell(13).value =
+      feedback.visitedBefore === null ? "" : feedback.visitedBefore ? "Ya" : "Belum";
+    row.getCell(14).value =
+      feedback.discoverySourceOther && feedback.discoverySourceLabel
+        ? `${feedback.discoverySourceLabel}: ${feedback.discoverySourceOther}`
+        : feedback.discoverySourceLabel;
+    row.getCell(15).value = feedback.highlights.join(", ");
+    row.getCell(16).value = feedback.improvements.join(", ");
+    row.getCell(17).value = feedback.comment;
+    row.getCell(18).value = feedback.allowPublish ? "Ya" : "Tidak";
 
     for (let i = 1; i <= DETAIL_COLUMNS.length; i += 1) {
       styleDataCell(row.getCell(i), zebra);

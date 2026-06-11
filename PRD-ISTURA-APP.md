@@ -158,7 +158,8 @@ merah nasional dari provider eksternal.
 
 ### 3.5 Feedback Kunjungan
 Setelah booking Completed, pengunjung menerima tautan feedback unik (token). Form menilai:
-rating keseluruhan, kemudahan booking, pelayanan, rekomendasi (skala 1–5), highlight,
+rating keseluruhan, kemudahan booking, pelayanan, kualitas pemandu, kebersihan/kenyamanan
+fasilitas, rekomendasi (skala 1–5), riwayat kunjungan, sumber mengetahui ISTURA, highlight,
 area perbaikan, komentar, dan izin publikasi. Admin melihat & mengekspor feedback.
 
 ### 3.6 CMS (Content Management)
@@ -240,8 +241,9 @@ lihat dokumen `IsturaOpen.md`.
 2. Pengunjung menerima pesan WA → membuka tautan feedback (berisi kode + token).
 3. Sistem memvalidasi kode + token + status Completed.
    → Token salah / status belum Completed / feedback sudah ada → tampilkan error.
-4. Pengunjung mengisi: rating, kemudahan booking, pelayanan, rekomendasi (1–5), highlight,
-   area perbaikan, komentar, izin publikasi.
+4. Pengunjung mengisi wizard 4 langkah: penilaian inti; kualitas pemandu + fasilitas +
+   riwayat kunjungan + sumber informasi; rekomendasi + highlight/perbaikan; komentar +
+   izin publikasi.
 5. Pengunjung submit → sistem menyimpan feedback (sekali saja per booking) + audit log.
 6. Tampilkan konfirmasi terima kasih.
 ```
@@ -546,6 +548,10 @@ dihitung runtime.
 | booking_id | FK → bookings nullable (unique) | |
 | code | string (index) | denormalisasi untuk export |
 | rating / booking_ease / service / recommend | tinyint | skala 1–5 |
+| guide_quality / facility_comfort | tinyint nullable | skala 1–5; null untuk data lama |
+| visited_before | bool nullable | pernah berkunjung ke Gedung Agung |
+| discovery_source | string(40) nullable | kode sumber informasi tetap |
+| discovery_source_other | string(120) nullable | detail ketika sumber `other` |
 | highlights | json | aspek positif |
 | improvements | json | area perbaikan |
 | comment | text nullable | |

@@ -45,7 +45,10 @@ class PublicBootstrapTest extends TestCase
                     'letter' => ['image', 'checklist'],
                     'siteContent' => ['nav', 'quickInfo', 'schedule', 'video', 'bookingSteps', 'activities', 'letterSection', 'faq', 'cta', 'footer', 'floatingContact', 'openBanner', 'bookingWizard', 'feedbackWizard'],
                 ],
-            ]);
+            ])
+            ->assertJsonPath('data.siteContent.feedbackWizard.steps.visit.title', 'Tentang Kunjungan')
+            ->assertJsonPath('data.siteContent.feedbackWizard.options.discoverySources.0.value', 'social_media')
+            ->assertJsonPath('data.siteContent.feedbackWizard.options.discoverySources.5.value', 'other');
 
         $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
         $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));

@@ -1,7 +1,7 @@
 // Export modals (Booking ZIP, Feedback XLSX, Monthly PDF). Extracted from App.tsx.
 import { useEffect, useMemo, useState } from "react";
 import { Download, Loader2, X } from "lucide-react";
-import type { Booking, Feedback } from "../../domain/types";
+import type { Booking, Feedback, FeedbackWizardContent } from "../../domain/types";
 import {
   bookingReportDate,
   feedbackReportDate,
@@ -279,11 +279,13 @@ export function BookingExportModal({
 export function FeedbackExportModal({
   bookings,
   feedbacks,
+  feedbackContent,
   adminName,
   onClose,
 }: {
   bookings: Booking[];
   feedbacks: Feedback[];
+  feedbackContent: FeedbackWizardContent;
   adminName?: string;
   onClose: () => void;
 }) {
@@ -311,13 +313,18 @@ export function FeedbackExportModal({
         const booking = bookings.find((b) => b.code === feedback.code);
         return {
           ...feedback,
+          discoverySourceLabel: feedback.discoverySource
+            ? feedbackContent.options.discoverySources.find(
+                (option) => option.value === feedback.discoverySource,
+              )?.label ?? feedback.discoverySource
+            : "",
           institution: booking?.institution,
           contactName: booking?.contactName,
           dateLabel: booking?.dateLabel,
           dateKey: booking?.date,
         };
       }),
-    [feedbacks, bookings],
+    [feedbacks, bookings, feedbackContent.options.discoverySources],
   );
 
   // Hitung perkiraan jumlah baris secara client-side. Logika harus identik

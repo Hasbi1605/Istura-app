@@ -294,6 +294,7 @@ export function AdminApp({
 		<AdminFeedbackList
 			bookings={bookings}
 			feedbacks={feedbacks}
+			feedbackContent={siteContent.feedbackWizard}
 			loading={loading.feedbacks}
 			adminName={session.name}
         />
