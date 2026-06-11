@@ -54,10 +54,26 @@ function OpenStatusBadge({ status }: { status: string }) {
   );
 }
 
-function openRegistrantTotal(registration: OpenRegistrationAdmin): string {
-  return registration.addonCount > 0
-    ? `${registration.headcount} +${registration.addonCount} add-on`
-    : `${registration.headcount}`;
+function OpenRegistrantParticipantCell({ registration }: { registration: OpenRegistrationAdmin }) {
+  return (
+    <span className="open-registrants-participants">
+      <strong>{registration.headcount} orang</strong>
+      <small>
+        {registration.addonCount > 0
+          ? `termasuk ${registration.addonCount} add-on`
+          : "tanpa add-on"}
+      </small>
+    </span>
+  );
+}
+
+function openAddonDetail(registration: OpenRegistrationAdmin): string {
+  if (registration.addonCount === 0) return "0 orang";
+
+  const names = registration.members.filter(Boolean).join(", ");
+  return names
+    ? `${registration.addonCount} orang: ${names}`
+    : `${registration.addonCount} orang`;
 }
 
 type Tab = "settings" | "registrants";
@@ -511,7 +527,7 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
               <span role="columnheader">Hari</span>
               <span role="columnheader">Nama</span>
               <span role="columnheader">WhatsApp</span>
-              <span role="columnheader">Total</span>
+              <span role="columnheader">Peserta</span>
               <span role="columnheader">Status</span>
               <span role="columnheader">Aksi</span>
             </div>
@@ -615,7 +631,9 @@ function RegistrantRow({
           <small>{registration.code} · {longDate(registration.dayDate)}</small>
         </span>
         <span className="open-registrants-grid-cell" role="cell">{registration.whatsapp}</span>
-        <span className="open-registrants-grid-cell" role="cell">{openRegistrantTotal(registration)}</span>
+        <span className="open-registrants-grid-cell" role="cell">
+          <OpenRegistrantParticipantCell registration={registration} />
+        </span>
         <span className="open-registrants-grid-cell" role="cell"><OpenStatusBadge status={registration.status} /></span>
         <span className="open-registrants-grid-cell" role="cell">
           <div className="open-row-actions">
@@ -720,8 +738,8 @@ function OpenRegistrationDetailDrawer({
           <DetailItem label="NIK" value={registration.nik ?? registration.nikMasked} />
           <DetailItem label="WhatsApp" value={registration.whatsapp} />
           <DetailItem label="Hari kunjungan" value={longDate(registration.dayDate)} />
-          <DetailItem label="Jumlah kepala" value={`${registration.headcount}`} />
-          <DetailItem label="Add-on" value={registration.members.length > 0 ? registration.members.join(", ") : "-"} />
+          <DetailItem label="Total peserta" value={`${registration.headcount} orang`} />
+          <DetailItem label="Add-on" value={openAddonDetail(registration)} />
           <DetailItem label="Waktu daftar" value={registration.registeredAt ?? "-"} />
           <DetailItem label="Waktu batal" value={registration.cancelledAt ?? "-"} />
         </div>

@@ -12983,6 +12983,24 @@ a {
   text-overflow: ellipsis;
 }
 
+.open-registrants-participants {
+  display: grid;
+  gap: 2px;
+}
+
+.open-registrants-participants strong {
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.open-registrants-participants small {
+  color: rgba(16, 24, 47, 0.55);
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .open-registrants-empty {
   padding: 24px;
   color: var(--muted);
