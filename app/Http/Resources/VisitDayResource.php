@@ -18,6 +18,8 @@ class VisitDayResource extends JsonResource
             'date' => $this->resource['date'],
             'label' => $this->resource['label'],
             'short' => $this->resource['short'],
+            'closureReason' => $this->resource['closureReason'] ?? null,
+            'holiday' => $this->resource['holiday'] ?? null,
             'slots' => $this->resource['slots'],
         ];
     }

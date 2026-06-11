@@ -517,6 +517,31 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Booked', app(ScheduleService::class)->slotStatusesFor($date, ['08.00'])['08.00']);
     }
 
+    public function test_admin_schedule_keeps_day_closure_metadata_for_calendar_badges(): void
+    {
+        NationalHoliday::create([
+            'date' => '2026-06-01',
+            'year' => 2026,
+            'name' => 'Hari Lahir Pancasila',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+            'tentative' => false,
+            'source' => 'test',
+            'source_url' => 'https://example.test/holidays.json',
+            'synced_at' => now(),
+            'checksum' => hash('sha256', '2026-06-01'),
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/schedule?from=2026-06-01&to=2026-06-01')
+            ->assertOk();
+
+        $this->assertSame('national_holiday', $response->json('data.0.closureReason.type'));
+        $this->assertSame('Libur Nasional: Hari Lahir Pancasila', $response->json('data.0.closureReason.label'));
+        $this->assertSame('national_holiday', $response->json('data.0.holiday.type'));
+        $this->assertSame('Libur Nasional: Hari Lahir Pancasila', $response->json('data.0.holiday.label'));
+    }
+
     public function test_indonesian_holiday_sync_closes_public_schedule_with_reason(): void
     {
         Http::fake([

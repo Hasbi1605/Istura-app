@@ -87,6 +87,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
   `UpdateSiteContentRequest` menerima JSON biasa atau multipart (`content` + `navLogo`/`footerLogo`/`ctaBackground`/`activityImages[index]`) dengan validasi gambar fail-closed.
 - **Resources** (`app/Http/Resources`): `AuditLogResource`, `BookingResource`, `FaqResource`,
   `FeedbackResource`, `FooterContactResource`, `PublicVisitDayResource`, `UserResource`, `VisitDayResource`, `WaTemplateResource`.
+  `VisitDayResource` dan `PublicVisitDayResource` sama-sama membawa metadata hari `closureReason`/`holiday` agar kalender publik/admin tidak kehilangan label alasan tutup saat state jadwal dipakai ulang.
 - **Middleware** (`app/Http/Middleware`): `AddSecurityHeaders`, `EnsureAdmin` (alias `admin-access`),
   `EnsureAdminSessionFresh`, `EnsureSuperAdmin` (alias `super-admin`), `EnsureTwoFactorVerified`.
 - **Events** (`app/Events`): `BookingCreated`, `BookingStatusChanged`, `FeedbackSubmitted`, `ScheduleUpdated` (broadcast ke channel `admin.bookings`).
