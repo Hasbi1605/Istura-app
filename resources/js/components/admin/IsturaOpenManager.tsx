@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Ban, CalendarClock, CalendarDays, Download, Eye, Plus, RefreshCw, X } from "lucide-react";
+import { Ban, CalendarClock, CalendarDays, Download, Eye, Plus, RefreshCw, Search, X } from "lucide-react";
 import type {
   OpenEventAdmin,
   OpenQuotaSummary,
@@ -21,6 +21,7 @@ import { InlineSpinner } from "../ui/LoadingStates";
 import { DetailItem } from "../ui/DetailItem";
 import { Pagination } from "../ui/Pagination";
 import { exportOpenRegistrationsToExcel } from "../../exportOpenRegistrations";
+import { formatCount, formatCountShort } from "../../lib/date";
 
 const MONTHS_ID = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -36,7 +37,7 @@ function longDate(key?: string | null): string {
 
 const OPEN_STATUS_LABELS: Record<string, string> = {
   Registered: "Terdaftar",
-  Confirmed: "Terkonfirmasi",
+  Confirmed: "Terdaftar",
   Cancelled: "Batal",
   Waitlisted: "Daftar tunggu",
 };
@@ -60,6 +61,25 @@ function openRegistrantTotal(registration: OpenRegistrationAdmin): string {
 }
 
 type Tab = "settings" | "registrants";
+type OpenStatusFilter = "" | "Registered" | "Cancelled";
+type OpenRegistrationCounts = { total: number; registered: number; cancelled: number };
+
+const EMPTY_OPEN_REGISTRATION_COUNTS: OpenRegistrationCounts = {
+  total: 0,
+  registered: 0,
+  cancelled: 0,
+};
+
+const OPEN_REGISTRATION_FILTER_CHIPS: Array<{
+  value: OpenStatusFilter;
+  label: string;
+  countKey: keyof OpenRegistrationCounts;
+  className: string;
+}> = [
+  { value: "", label: "Semua", countKey: "total", className: "booking-chip--all" },
+  { value: "Registered", label: "Terdaftar", countKey: "registered", className: "booking-chip--accepted" },
+  { value: "Cancelled", label: "Batal", countKey: "cancelled", className: "booking-chip--rejected" },
+];
 
 export function IsturaOpenManager() {
   const [events, setEvents] = useState<OpenEventAdmin[]>([]);
@@ -359,11 +379,12 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
   const [rows, setRows] = useState<OpenRegistrationAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [dayFilter, setDayFilter] = useState<number | "">("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OpenStatusFilter>("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<OpenRegistrationCounts>(EMPTY_OPEN_REGISTRATION_COUNTS);
   const [detail, setDetail] = useState<OpenRegistrationAdmin | null>(null);
 
   const load = async () => {
@@ -378,8 +399,11 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
       setRows(response.data);
       setLastPage(response.meta.lastPage);
       setTotal(response.meta.total);
+      setCounts(response.meta.counts ?? EMPTY_OPEN_REGISTRATION_COUNTS);
     } catch {
       setRows([]);
+      setLastPage(1);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -405,38 +429,83 @@ function RegistrantsPanel({ event, onChanged }: { event: OpenEventAdmin; onChang
     onChanged();
   };
 
+  const setStatusChip = (value: OpenStatusFilter) => {
+    setPage(1);
+    setStatusFilter((current) => (current === value && value !== "" ? "" : value));
+  };
+
+  const totalLabel =
+    total === counts.total ? (
+      <>
+        <strong>{formatCount(counts.total)}</strong> pendaftar
+      </>
+    ) : (
+      <>
+        <strong>{formatCount(total)}</strong> dari <strong>{formatCount(counts.total)}</strong> pendaftar
+      </>
+    );
+
   return (
     <div className="open-registrants">
-      <div className="booking-toolbar open-registrants-filters">
-        <select value={dayFilter} onChange={(e) => { setPage(1); setDayFilter(e.target.value ? Number(e.target.value) : ""); }}>
-          <option value="">Semua hari</option>
-          {event.days.map((day) => (
-            <option key={day.id} value={day.id}>{longDate(day.date)}</option>
-          ))}
-        </select>
-        <select value={statusFilter} onChange={(e) => { setPage(1); setStatusFilter(e.target.value); }}>
-          <option value="">Semua status</option>
-          <option value="Registered">Terdaftar</option>
-          <option value="Confirmed">Terkonfirmasi</option>
-          <option value="Cancelled">Batal</option>
-        </select>
+      <div className="booking-toolbar open-registrants-filters" role="region" aria-label="Filter pendaftar Istura Open">
+        <div className="booking-chip-group open-registrants-chip-group" role="tablist" aria-label="Filter status pendaftar">
+          {OPEN_REGISTRATION_FILTER_CHIPS.map((chip) => {
+            const isActive = statusFilter === chip.value;
+            const count = counts[chip.countKey];
+
+            return (
+              <button
+                key={chip.value || "all"}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={`booking-chip ${chip.className}${isActive ? " is-active" : ""}`}
+                onClick={() => setStatusChip(chip.value)}
+                title={
+                  chip.value === ""
+                    ? "Tampilkan semua pendaftar"
+                    : isActive
+                      ? "Klik untuk hapus filter"
+                      : `Filter ${chip.label.toLowerCase()}`
+                }
+              >
+                <span>{chip.label}</span>
+                <em>{formatCountShort(count)}</em>
+              </button>
+            );
+          })}
+        </div>
+        <label className="open-registrants-day-filter">
+          <span className="visually-hidden">Filter hari</span>
+          <select value={dayFilter} onChange={(e) => { setPage(1); setDayFilter(e.target.value ? Number(e.target.value) : ""); }}>
+            <option value="">Semua hari</option>
+            {event.days.map((day) => (
+              <option key={day.id} value={day.id}>{longDate(day.date)}</option>
+            ))}
+          </select>
+        </label>
         <form
           className="open-registrants-search"
           onSubmit={(e) => { e.preventDefault(); setPage(1); void load(); }}
         >
-          <input value={search} placeholder="Cari nama / WA / kode" onChange={(e) => setSearch(e.target.value)} />
+          <div className="open-registrants-searchbox">
+            <Search size={16} aria-hidden="true" />
+            <input value={search} placeholder="Cari nama / WA / kode" onChange={(e) => setSearch(e.target.value)} />
+          </div>
           <button type="submit" className="button button-ghost">Cari</button>
         </form>
         <button type="button" className="booking-export-button" onClick={() => void exportAll()}>
           <Download size={15} /> Ekspor
         </button>
+        <div className="booking-summary open-registrants-summary" aria-live="polite">
+          {totalLabel}
+        </div>
       </div>
 
       {loading ? (
         <InlineSpinner label="Memuat pendaftar" />
       ) : (
         <>
-          <p className="open-registrants-count">{total} pendaftar</p>
           <div className="booking-grid open-registrants-grid" role="table" aria-label="Daftar pendaftar Istura Open">
             <div className="open-registrants-grid-head" role="row">
               <span role="columnheader">Hari</span>

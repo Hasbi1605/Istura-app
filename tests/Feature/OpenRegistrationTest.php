@@ -280,13 +280,29 @@ class OpenRegistrationTest extends TestCase
         $this->actingAsAdmin();
         $event = $this->makeActiveEvent();
         $days = $event->days()->orderBy('date')->get();
-        $this->makeRegistration($event, $days[0], '3374010101010050', '081234567050');
-        $this->makeRegistration($event, $days[1], '3374010101010051', '081234567051');
+        $registered = $this->makeRegistration($event, $days[0], '3374010101010050', '081234567050');
+        $cancelled = $this->makeRegistration($event, $days[1], '3374010101010051', '081234567051');
+        $cancelled->status = 'Cancelled';
+        $cancelled->cancelled_at = now();
+        $cancelled->save();
 
         $response = $this->getJson("/api/admin/open-events/{$event->id}/registrations?dayId={$days[0]->id}")
             ->assertOk();
 
         $this->assertSame(1, $response->json('meta.total'));
+        $this->assertSame(2, $response->json('meta.counts.total'));
+        $this->assertSame(1, $response->json('meta.counts.registered'));
+        $this->assertSame(1, $response->json('meta.counts.cancelled'));
+
+        $this->getJson("/api/admin/open-events/{$event->id}/registrations?status=Registered")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.code', $registered->code);
+
+        $this->getJson("/api/admin/open-events/{$event->id}/registrations?status=Cancelled")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.code', $cancelled->code);
     }
 
     public function test_admin_export_and_registrations_expose_full_nik(): void

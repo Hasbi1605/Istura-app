@@ -19,13 +19,18 @@ class OpenRegistrationController extends Controller
     public function index(Request $request, OpenEvent $event): JsonResponse
     {
         $query = $event->registrations()->with('day');
+        $countsQuery = $event->registrations();
 
         if ($dayId = $request->integer('dayId')) {
             $query->where('assigned_event_day_id', $dayId);
         }
 
         if ($status = $request->string('status')->toString()) {
-            $query->where('status', $status);
+            if ($status === 'Registered') {
+                $query->whereIn('status', OpenRegistration::ACTIVE_STATUSES);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if ($search = trim($request->string('search')->toString())) {
@@ -45,6 +50,11 @@ class OpenRegistrationController extends Controller
                 'lastPage' => $registrations->lastPage(),
                 'perPage' => $registrations->perPage(),
                 'total' => $registrations->total(),
+                'counts' => [
+                    'total' => (clone $countsQuery)->count(),
+                    'registered' => (clone $countsQuery)->whereIn('status', OpenRegistration::ACTIVE_STATUSES)->count(),
+                    'cancelled' => (clone $countsQuery)->where('status', 'Cancelled')->count(),
+                ],
             ],
         ]);
     }

@@ -106,7 +106,13 @@ export const fetchAdminOpenRegistrations = (
   const query = search.toString();
   return api<{
     data: OpenRegistrationAdmin[];
-    meta: { currentPage: number; lastPage: number; perPage: number; total: number };
+    meta: {
+      currentPage: number;
+      lastPage: number;
+      perPage: number;
+      total: number;
+      counts: { total: number; registered: number; cancelled: number };
+    };
   }>(`/api/admin/open-events/${eventId}/registrations${query ? `?${query}` : ""}`);
 };
 
