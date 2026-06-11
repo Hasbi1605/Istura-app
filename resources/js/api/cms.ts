@@ -110,11 +110,24 @@ export const updateAdminLetter = (
 
 export const fetchAdminSiteContent = () =>
   api<{ data: SiteContent }>("/api/admin/cms/site-content").then((r) => r.data);
+
+export type SiteContentImageUploads = {
+  activityImages?: Array<File | null>;
+  navLogo?: File | null;
+  footerLogo?: File | null;
+  ctaBackground?: File | null;
+};
+
 export const updateAdminSiteContent = (
   content: SiteContent,
-  activityImages: Array<File | null> = [],
+  uploads: SiteContentImageUploads = {},
 ) => {
-  if (!activityImages.some(Boolean)) {
+  const activityImages = uploads.activityImages ?? [];
+  const hasUploads =
+    activityImages.some(Boolean) ||
+    Boolean(uploads.navLogo || uploads.footerLogo || uploads.ctaBackground);
+
+  if (!hasUploads) {
     return api<{ data: SiteContent }>("/api/admin/cms/site-content", {
       method: "PUT",
       body: content,
@@ -126,6 +139,9 @@ export const updateAdminSiteContent = (
   activityImages.forEach((file, index) => {
     if (file) formData.append(`activityImages[${index}]`, file);
   });
+  if (uploads.navLogo) formData.append("navLogo", uploads.navLogo);
+  if (uploads.footerLogo) formData.append("footerLogo", uploads.footerLogo);
+  if (uploads.ctaBackground) formData.append("ctaBackground", uploads.ctaBackground);
 
   return api<{ data: SiteContent }>("/api/admin/cms/site-content", {
     method: "POST",

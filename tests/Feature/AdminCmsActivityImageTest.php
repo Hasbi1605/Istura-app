@@ -15,6 +15,83 @@ class AdminCmsActivityImageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_can_upload_nav_footer_and_cta_images_as_webp(): void
+    {
+        Storage::fake('public');
+        $this->actingAsAdmin();
+
+        $content = SiteContentDefaults::siteContent();
+        $response = $this->post('/api/admin/cms/site-content', [
+            'content' => json_encode($content, JSON_THROW_ON_ERROR),
+            'navLogo' => UploadedFile::fake()->image('nav-logo.png', 1200, 500)->size(300),
+            'footerLogo' => UploadedFile::fake()->image('footer-logo.png', 1200, 500)->size(300),
+            'ctaBackground' => UploadedFile::fake()->image('cta.jpg', 1800, 1000)->size(500),
+        ]);
+
+        $response->assertOk();
+
+        $stored = SiteSetting::read('site_content');
+        $images = [
+            'cms/branding/nav/' => $stored['nav']['logoSrc'],
+            'cms/branding/footer/' => $stored['footer']['logoSrc'],
+            'cms/cta/' => $stored['cta']['backgroundImage'],
+        ];
+
+        foreach ($images as $directory => $url) {
+            $this->assertStringStartsWith('/storage/'.$directory, $url);
+            $this->assertStringEndsWith('.webp', $url);
+            Storage::disk('public')->assertExists($this->publicDiskPath($url));
+        }
+    }
+
+    public function test_replacing_nav_logo_deletes_only_previous_managed_nav_logo(): void
+    {
+        Storage::fake('public');
+        $this->actingAsAdmin();
+
+        $content = SiteContentDefaults::siteContent();
+        $content['nav']['logoSrc'] = '/storage/cms/branding/nav/old.webp';
+        $content['footer']['logoSrc'] = '/storage/cms/branding/footer/keep.webp';
+        $content['cta']['backgroundImage'] = '/storage/cms/cta/keep.webp';
+        SiteSetting::write('site_content', $content);
+        Storage::disk('public')->put('cms/branding/nav/old.webp', 'old-nav');
+        Storage::disk('public')->put('cms/branding/footer/keep.webp', 'footer');
+        Storage::disk('public')->put('cms/cta/keep.webp', 'cta');
+
+        $this->post('/api/admin/cms/site-content', [
+            'content' => json_encode($content, JSON_THROW_ON_ERROR),
+            'navLogo' => UploadedFile::fake()->image('replacement.png', 1200, 500)->size(300),
+        ])->assertOk();
+
+        $stored = SiteSetting::read('site_content');
+        Storage::disk('public')->assertMissing('cms/branding/nav/old.webp');
+        Storage::disk('public')->assertExists($this->publicDiskPath($stored['nav']['logoSrc']));
+        Storage::disk('public')->assertExists('cms/branding/footer/keep.webp');
+        Storage::disk('public')->assertExists('cms/cta/keep.webp');
+    }
+
+    public function test_invalid_fixed_site_image_rejects_whole_save_without_partial_files(): void
+    {
+        Storage::fake('public');
+        $this->actingAsAdmin();
+
+        $content = SiteContentDefaults::siteContent();
+        SiteSetting::write('site_content', $content);
+
+        $this->post('/api/admin/cms/site-content', [
+            'content' => json_encode($content, JSON_THROW_ON_ERROR),
+            'navLogo' => UploadedFile::fake()->image('valid.png', 1200, 500)->size(300),
+            'ctaBackground' => UploadedFile::fake()->createWithContent(
+                'oversized.png',
+                $this->pngWithDimensions(12000, 12000),
+            ),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('ctaBackground');
+
+        $this->assertSame($content, SiteSetting::read('site_content'));
+        $this->assertEmpty(Storage::disk('public')->allFiles('cms'));
+    }
+
     public function test_admin_can_replace_multiple_activity_images_and_store_them_as_webp(): void
     {
         Storage::fake('public');

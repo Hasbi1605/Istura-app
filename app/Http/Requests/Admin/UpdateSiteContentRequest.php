@@ -38,9 +38,19 @@ class UpdateSiteContentRequest extends FormRequest
     public function rules(): array
     {
         $iconKeys = ['clock', 'file-check', 'message-circle', 'calendar', 'pen', 'upload', 'map-pin', 'image'];
+        $imageRules = [
+            'file',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:5120',
+            'dimensions:max_width='.CmsImageService::MAX_INPUT_WIDTH.',max_height='.CmsImageService::MAX_INPUT_HEIGHT,
+        ];
 
         return [
             'content' => ['sometimes', 'string', 'json', 'max:200000'],
+            'navLogo' => ['sometimes', ...$imageRules],
+            'footerLogo' => ['sometimes', ...$imageRules],
+            'ctaBackground' => ['sometimes', ...$imageRules],
             'nav' => ['required', 'array'],
             'nav.logoSrc' => ['nullable', 'string', 'max:500', SafePublicUrl::image()],
             'nav.logoAlt' => ['nullable', 'string', 'max:120'],
@@ -84,13 +94,7 @@ class UpdateSiteContentRequest extends FormRequest
             'activities.items.*.body' => ['required', 'string', 'max:255'],
             'activities.items.*.image' => ['required', 'string', 'max:500', SafePublicUrl::image()],
             'activityImages' => ['sometimes', 'array', 'max:8'],
-            'activityImages.*' => [
-                'file',
-                'image',
-                'mimes:jpg,jpeg,png,webp',
-                'max:5120',
-                'dimensions:max_width='.CmsImageService::MAX_INPUT_WIDTH.',max_height='.CmsImageService::MAX_INPUT_HEIGHT,
-            ],
+            'activityImages.*' => $imageRules,
 
             'rulesSection' => ['required', 'array'],
             'rulesSection.title' => ['required', 'string', 'max:160'],
@@ -148,6 +152,13 @@ class UpdateSiteContentRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
+                foreach (['navLogo', 'footerLogo', 'ctaBackground'] as $attribute) {
+                    $image = $this->file($attribute);
+                    if ($image instanceof UploadedFile) {
+                        $this->validateImagePixels($validator, $attribute, $image);
+                    }
+                }
+
                 $items = $this->input('activities.items', []);
                 $images = $this->file('activityImages', []);
                 if (! is_array($images)) {
@@ -166,21 +177,30 @@ class UpdateSiteContentRequest extends FormRequest
                         continue;
                     }
 
-                    $realPath = $image->getRealPath();
-                    $dimensions = is_string($realPath) && $realPath !== '' ? @getimagesize($realPath) : false;
-                    if (! is_array($dimensions)) {
-                        $validator->errors()->add($attribute, 'Gambar tidak dapat dibaca.');
-
-                        continue;
-                    }
-
-                    $width = (int) ($dimensions[0] ?? 0);
-                    $height = (int) ($dimensions[1] ?? 0);
-                    if ($width < 1 || $height < 1 || $height > intdiv(CmsImageService::MAX_INPUT_PIXELS, max(1, $width))) {
-                        $validator->errors()->add($attribute, 'Total piksel gambar terlalu besar.');
-                    }
+                    $this->validateImagePixels($validator, $attribute, $image);
                 }
             },
         ];
+    }
+
+    private function validateImagePixels(Validator $validator, string $attribute, UploadedFile $image): void
+    {
+        if (! $image->isValid()) {
+            return;
+        }
+
+        $realPath = $image->getRealPath();
+        $dimensions = is_string($realPath) && $realPath !== '' ? @getimagesize($realPath) : false;
+        if (! is_array($dimensions)) {
+            $validator->errors()->add($attribute, 'Gambar tidak dapat dibaca.');
+
+            return;
+        }
+
+        $width = (int) ($dimensions[0] ?? 0);
+        $height = (int) ($dimensions[1] ?? 0);
+        if ($width < 1 || $height < 1 || $height > intdiv(CmsImageService::MAX_INPUT_PIXELS, max(1, $width))) {
+            $validator->errors()->add($attribute, 'Total piksel gambar terlalu besar.');
+        }
     }
 }

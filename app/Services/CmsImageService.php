@@ -23,6 +23,7 @@ class CmsImageService
         string $attribute,
         int $maxOutputWidth,
         int $maxOutputHeight,
+        bool $preserveTransparency = false,
     ): string {
         $realPath = $this->validatedImagePath($image, $attribute);
 
@@ -62,8 +63,15 @@ class CmsImageService
                 ]);
             }
 
-            $white = imagecolorallocate($target, 255, 255, 255);
-            if ($white === false || ! imagefill($target, 0, 0, $white)) {
+            if ($preserveTransparency) {
+                imagealphablending($target, false);
+                imagesavealpha($target, true);
+                $background = imagecolorallocatealpha($target, 0, 0, 0, 127);
+            } else {
+                $background = imagecolorallocate($target, 255, 255, 255);
+            }
+
+            if ($background === false || ! imagefill($target, 0, 0, $background)) {
                 throw ValidationException::withMessages([
                     $attribute => 'Gambar tidak dapat diproses.',
                 ]);

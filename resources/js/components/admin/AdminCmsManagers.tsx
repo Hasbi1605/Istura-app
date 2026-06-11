@@ -21,6 +21,7 @@ const generateId = (prefix: string) =>
 
 const MAX_ADMIN_LETTER_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_ADMIN_ACTIVITY_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_ADMIN_SITE_IMAGE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_RULES_DESCRIPTION =
   "Setiap rombongan diwajibkan untuk memahami dan menaati seluruh peraturan tata tertib fisik kunjungan demi kenyamanan bersama dan menjaga kehormatan lingkungan Istana Kepresidenan Yogyakarta.";
 const DEFAULT_RULES_IMAGE = "/assets/peraturan-kunjungan.webp";
@@ -62,6 +63,33 @@ type ActivityImageUpload = {
   file: File;
   preview: string;
 };
+
+type SiteImageUploadKey = "navLogo" | "footerLogo" | "ctaBackground";
+type SiteImageUploads = Record<SiteImageUploadKey, ActivityImageUpload | null>;
+type SiteImageErrors = Partial<Record<SiteImageUploadKey, string>>;
+
+const EMPTY_SITE_IMAGE_UPLOADS: SiteImageUploads = {
+  navLogo: null,
+  footerLogo: null,
+  ctaBackground: null,
+};
+
+const SITE_IMAGE_TAB: Record<SiteImageUploadKey, LandingTabGroup> = {
+  navLogo: "navbar-beranda",
+  footerLogo: "footer-widget",
+  ctaBackground: "info-bantuan",
+};
+
+function adminImageFileError(file: File, maxBytes: number): string | null {
+  if (!/\.(jpe?g|png|webp)$/i.test(file.name)) {
+    return "Format gambar harus JPG, PNG, atau WebP.";
+  }
+  if (file.size > maxBytes) {
+    return "Ukuran gambar maksimal 5 MB.";
+  }
+
+  return null;
+}
 
 const WA_TEMPLATE_VARIABLES = [
   "{nama}",
@@ -1188,11 +1216,18 @@ export function AdminLandingManager({
     () => content.activities.items.map(() => null),
   );
   const [activityImageErrors, setActivityImageErrors] = useState<Record<number, string>>({});
+  const [siteImageUploads, setSiteImageUploads] = useState<SiteImageUploads>(EMPTY_SITE_IMAGE_UPLOADS);
+  const [siteImageErrors, setSiteImageErrors] = useState<SiteImageErrors>({});
   const activityUploadsRef = useRef(activityUploads);
+  const siteImageUploadsRef = useRef(siteImageUploads);
 
   useEffect(() => {
     activityUploadsRef.current = activityUploads;
   }, [activityUploads]);
+
+  useEffect(() => {
+    siteImageUploadsRef.current = siteImageUploads;
+  }, [siteImageUploads]);
 
   useEffect(() => {
     setDraft(content);
@@ -1204,11 +1239,22 @@ export function AdminLandingManager({
       return content.activities.items.map(() => null);
     });
     setActivityImageErrors({});
+    setSiteImageUploads((current) => {
+      Object.values(current).forEach((upload) => {
+        if (upload) URL.revokeObjectURL(upload.preview);
+      });
+
+      return { ...EMPTY_SITE_IMAGE_UPLOADS };
+    });
+    setSiteImageErrors({});
   }, [content]);
 
   useEffect(() => {
     return () => {
       activityUploadsRef.current.forEach((upload) => {
+        if (upload) URL.revokeObjectURL(upload.preview);
+      });
+      Object.values(siteImageUploadsRef.current).forEach((upload) => {
         if (upload) URL.revokeObjectURL(upload.preview);
       });
     };
@@ -1424,21 +1470,12 @@ export function AdminLandingManager({
     const nextFile = event.target.files?.[0] ?? null;
     if (!nextFile) return;
 
-    const isSupportedImage = /\.(jpe?g|png|webp)$/i.test(nextFile.name);
-    if (!isSupportedImage) {
+    const fileError = adminImageFileError(nextFile, MAX_ADMIN_ACTIVITY_IMAGE_BYTES);
+    if (fileError) {
       event.currentTarget.value = "";
       setActivityImageErrors((current) => ({
         ...current,
-        [index]: "Format gambar harus JPG, PNG, atau WebP.",
-      }));
-      return;
-    }
-
-    if (nextFile.size > MAX_ADMIN_ACTIVITY_IMAGE_BYTES) {
-      event.currentTarget.value = "";
-      setActivityImageErrors((current) => ({
-        ...current,
-        [index]: "Ukuran gambar maksimal 5 MB.",
+        [index]: fileError,
       }));
       return;
     }
@@ -1477,6 +1514,40 @@ export function AdminLandingManager({
 
       return next;
     });
+  };
+
+  const onSiteImageFileChange = (
+    key: SiteImageUploadKey,
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const nextFile = event.target.files?.[0] ?? null;
+    if (!nextFile) return;
+
+    const fileError = adminImageFileError(nextFile, MAX_ADMIN_SITE_IMAGE_BYTES);
+    if (fileError) {
+      event.currentTarget.value = "";
+      setSiteImageErrors((current) => ({ ...current, [key]: fileError }));
+      return;
+    }
+
+    const nextUpload = { file: nextFile, preview: URL.createObjectURL(nextFile) };
+    setSiteImageUploads((current) => {
+      if (current[key]) URL.revokeObjectURL(current[key].preview);
+
+      return { ...current, [key]: nextUpload };
+    });
+    setSiteImageErrors((current) => ({ ...current, [key]: undefined }));
+    event.currentTarget.value = "";
+    setError(null);
+  };
+
+  const clearSiteImageUpload = (key: SiteImageUploadKey) => {
+    setSiteImageUploads((current) => {
+      if (current[key]) URL.revokeObjectURL(current[key].preview);
+
+      return { ...current, [key]: null };
+    });
+    setSiteImageErrors((current) => ({ ...current, [key]: undefined }));
   };
 
   const updateLetterSection = (field: keyof SiteContent["letterSection"], value: string) => {
@@ -1610,7 +1681,12 @@ export function AdminLandingManager({
     try {
       const data = await updateAdminSiteContent(
         payload,
-        activityUploads.map((upload) => upload?.file ?? null),
+        {
+          activityImages: activityUploads.map((upload) => upload?.file ?? null),
+          navLogo: siteImageUploads.navLogo?.file,
+          footerLogo: siteImageUploads.footerLogo?.file,
+          ctaBackground: siteImageUploads.ctaBackground?.file,
+        },
       );
       setDraft(data);
       setActivityUploads((current) => {
@@ -1621,6 +1697,14 @@ export function AdminLandingManager({
         return data.activities.items.map(() => null);
       });
       setActivityImageErrors({});
+      setSiteImageUploads((current) => {
+        Object.values(current).forEach((upload) => {
+          if (upload) URL.revokeObjectURL(upload.preview);
+        });
+
+        return { ...EMPTY_SITE_IMAGE_UPLOADS };
+      });
+      setSiteImageErrors({});
       onChange?.(data);
       setSavedAt(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
@@ -1634,6 +1718,11 @@ export function AdminLandingManager({
             ...current,
             [Number(activityMatch[1])]: message,
           }));
+        }
+        const siteImageField = firstError?.[0] as SiteImageUploadKey | undefined;
+        if (siteImageField && siteImageField in SITE_IMAGE_TAB) {
+          setActiveGroup(SITE_IMAGE_TAB[siteImageField]);
+          setSiteImageErrors((current) => ({ ...current, [siteImageField]: message }));
         }
         setError(message);
       } else if (err instanceof ApiError) {
@@ -1649,7 +1738,8 @@ export function AdminLandingManager({
   const hasUnsavedChanges =
     JSON.stringify(normalizeLandingContentForSave(draft)) !==
       JSON.stringify(normalizeLandingContentForSave(content)) ||
-    activityUploads.some(Boolean);
+    activityUploads.some(Boolean) ||
+    Object.values(siteImageUploads).some(Boolean);
   const saveStatus = saving
     ? "Menyimpan perubahan..."
     : error
@@ -1702,20 +1792,26 @@ export function AdminLandingManager({
       <div className="admin-landing-sections">
         {activeGroup === "navbar-beranda" && (
           <>
-          <section className="admin-card admin-landing-anchor" id="landing-navbar">
+      <section className="admin-card admin-landing-anchor" id="landing-navbar">
         <AdminLandingSectionHead title="Navbar" actionLabel="Tambah menu" onAction={addNavItem} />
         <div className="admin-cms-form">
+          <AdminSiteImageField
+            id="nav-logo"
+            label="Logo navbar"
+            storedSrc={draft.nav.logoSrc}
+            alt={draft.nav.logoAlt || "Logo navbar"}
+            upload={siteImageUploads.navLogo}
+            error={siteImageErrors.navLogo}
+            variant="logo"
+            hint="Gunakan PNG transparan atau WebP. Sistem menyimpan hasil sebagai WebP."
+            onChange={(event) => onSiteImageFileChange("navLogo", event)}
+            onClear={() => clearSiteImageUpload("navLogo")}
+          />
           <div className="admin-cms-link">
-            <label className="form-field">
-              <span>Logo</span>
-              <input value={draft.nav.logoSrc} onChange={(event) => updateNav("logoSrc", event.target.value)} />
-            </label>
             <label className="form-field">
               <span>Alt logo</span>
               <input value={draft.nav.logoAlt} onChange={(event) => updateNav("logoAlt", event.target.value)} />
             </label>
-          </div>
-          <div className="admin-cms-link">
             <label className="form-field">
               <span>Teks logo</span>
               <input value={draft.nav.brandText} onChange={(event) => updateNav("brandText", event.target.value)} />
@@ -2047,11 +2143,19 @@ export function AdminLandingManager({
               <span>Teks tombol</span>
               <input value={draft.cta.buttonLabel} onChange={(event) => updateCta("buttonLabel", event.target.value)} />
             </label>
-            <label className="form-field">
-              <span>Gambar background</span>
-              <input value={draft.cta.backgroundImage} onChange={(event) => updateCta("backgroundImage", event.target.value)} />
-            </label>
           </div>
+          <AdminSiteImageField
+            id="cta-background"
+            label="Background CTA booking"
+            storedSrc={draft.cta.backgroundImage}
+            alt="Pratinjau background CTA booking"
+            upload={siteImageUploads.ctaBackground}
+            error={siteImageErrors.ctaBackground}
+            variant="cta"
+            hint="Disarankan foto landscape minimal 1600 × 900 piksel. Sistem menyimpan hasil sebagai WebP."
+            onChange={(event) => onSiteImageFileChange("ctaBackground", event)}
+            onClear={() => clearSiteImageUpload("ctaBackground")}
+          />
         </div>
       </section>
           </>
@@ -2062,11 +2166,19 @@ export function AdminLandingManager({
       <section className="admin-card admin-landing-anchor" id="landing-footer">
         <AdminLandingSectionHead title="Footer" />
         <div className="admin-cms-form">
+          <AdminSiteImageField
+            id="footer-logo"
+            label="Logo footer"
+            storedSrc={draft.footer.logoSrc}
+            alt={draft.footer.logoAlt || "Logo footer"}
+            upload={siteImageUploads.footerLogo}
+            error={siteImageErrors.footerLogo}
+            variant="logo"
+            hint="Gunakan PNG transparan atau WebP. Sistem menyimpan hasil sebagai WebP."
+            onChange={(event) => onSiteImageFileChange("footerLogo", event)}
+            onClear={() => clearSiteImageUpload("footerLogo")}
+          />
           <div className="admin-cms-link">
-            <label className="form-field">
-              <span>Logo footer</span>
-              <input value={draft.footer.logoSrc} onChange={(event) => updateFooter("logoSrc", event.target.value)} />
-            </label>
             <label className="form-field">
               <span>Alt logo</span>
               <input value={draft.footer.logoAlt} onChange={(event) => updateFooter("logoAlt", event.target.value)} />
@@ -2188,6 +2300,74 @@ export function AdminLandingManager({
       {error && <p className="admin-form-error">{error}</p>}
       {savedAt && <small className="admin-cms-saved">Tersimpan terakhir pukul {savedAt}.</small>}
         </div>
+    </div>
+  );
+}
+
+function AdminSiteImageField({
+  id,
+  label,
+  storedSrc,
+  alt,
+  upload,
+  error,
+  variant,
+  hint,
+  onChange,
+  onClear,
+}: {
+  id: string;
+  label: string;
+  storedSrc: string;
+  alt: string;
+  upload: ActivityImageUpload | null;
+  error?: string;
+  variant: "logo" | "cta";
+  hint: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onClear: () => void;
+}) {
+  const errorId = `${id}-error`;
+
+  return (
+    <div className={`admin-site-image-editor admin-site-image-editor--${variant}`}>
+      <div className="admin-site-image-preview">
+        <img src={upload?.preview ?? storedSrc} alt={alt} />
+      </div>
+      <div className="admin-file-field">
+        <span className="admin-file-field-label">{label} (JPG/PNG/WebP, maks 5 MB)</span>
+        <div className="admin-file-row">
+          <label className="button button-ghost admin-file-button">
+            <UploadCloud size={16} aria-hidden="true" />
+            {upload ? "Ganti pilihan" : "Pilih gambar"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={onChange}
+              className="admin-file-input"
+              aria-describedby={error ? errorId : undefined}
+            />
+          </label>
+          <span className="admin-file-name">
+            {upload?.file.name ?? "Menggunakan gambar tersimpan"}
+          </span>
+          {upload && (
+            <button
+              type="button"
+              className="button button-ghost admin-activity-image-cancel"
+              onClick={onClear}
+            >
+              Batalkan pilihan
+            </button>
+          )}
+        </div>
+        <small className="admin-activity-image-hint">{hint}</small>
+        {error && (
+          <p id={errorId} className="admin-form-error admin-form-error--field">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

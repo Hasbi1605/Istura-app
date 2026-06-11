@@ -253,12 +253,42 @@ class CmsController extends Controller
     public function updateSiteContent(UpdateSiteContentRequest $request): JsonResponse
     {
         $value = $request->validated();
-        unset($value['content'], $value['activityImages']);
+        unset(
+            $value['content'],
+            $value['activityImages'],
+            $value['navLogo'],
+            $value['footerLogo'],
+            $value['ctaBackground'],
+        );
 
         $current = SiteContentDefaults::mergeSiteContent(SiteSetting::read('site_content'));
         $newImagePaths = [];
 
         try {
+            $siteImages = [
+                'navLogo' => ['target' => 'nav.logoSrc', 'directory' => 'cms/branding/nav', 'width' => 1600, 'height' => 800, 'transparent' => true],
+                'footerLogo' => ['target' => 'footer.logoSrc', 'directory' => 'cms/branding/footer', 'width' => 1600, 'height' => 800, 'transparent' => true],
+                'ctaBackground' => ['target' => 'cta.backgroundImage', 'directory' => 'cms/cta', 'width' => 1920, 'height' => 1920, 'transparent' => false],
+            ];
+
+            foreach ($siteImages as $field => $config) {
+                $image = $request->file($field);
+                if (! $image instanceof UploadedFile) {
+                    continue;
+                }
+
+                $newPath = $this->cmsImages->storePublicWebp(
+                    $image,
+                    $config['directory'],
+                    $field,
+                    $config['width'],
+                    $config['height'],
+                    $config['transparent'],
+                );
+                $newImagePaths[] = $newPath;
+                data_set($value, $config['target'], Storage::disk('public')->url($newPath));
+            }
+
             $activityImages = $request->file('activityImages', []);
             foreach (is_array($activityImages) ? $activityImages : [] as $index => $image) {
                 if (! $image instanceof UploadedFile) {
@@ -285,12 +315,15 @@ class CmsController extends Controller
         }
 
         Storage::disk('public')->delete(array_values(array_diff(
-            $this->managedActivityImagePaths($current),
-            $this->managedActivityImagePaths($value),
+            $this->managedSiteContentImagePaths($current),
+            $this->managedSiteContentImagePaths($value),
         )));
 
         AuditLogger::record($request->user(), 'Memperbarui konten landing page', SiteSetting::class, 'site_content', [
-            'activity_images_updated' => count($newImagePaths),
+            'activity_images_updated' => count(array_filter((array) $request->file('activityImages', []))),
+            'nav_logo_updated' => $request->hasFile('navLogo'),
+            'footer_logo_updated' => $request->hasFile('footerLogo'),
+            'cta_background_updated' => $request->hasFile('ctaBackground'),
         ], $request);
         PublicCache::forgetCms('site-content');
 
@@ -324,9 +357,22 @@ class CmsController extends Controller
     /**
      * @return array<int, string>
      */
-    private function managedActivityImagePaths(array $content): array
+    private function managedSiteContentImagePaths(array $content): array
     {
         $paths = [];
+        $fixedImages = [
+            ['value' => $content['nav']['logoSrc'] ?? null, 'directory' => 'cms/branding/nav'],
+            ['value' => $content['footer']['logoSrc'] ?? null, 'directory' => 'cms/branding/footer'],
+            ['value' => $content['cta']['backgroundImage'] ?? null, 'directory' => 'cms/cta'],
+        ];
+
+        foreach ($fixedImages as $image) {
+            $path = $this->managedPublicDiskPathFromUrl($image['value'], $image['directory']);
+            if ($path) {
+                $paths[] = $path;
+            }
+        }
+
         foreach ($content['activities']['items'] ?? [] as $item) {
             $path = $this->managedPublicDiskPathFromUrl($item['image'] ?? null, 'cms/activities');
             if ($path) {
