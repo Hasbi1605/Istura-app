@@ -1830,6 +1830,35 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_cancelling_accepted_booking_transitions_to_rejected_and_releases_slots(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-01';
+        $booking = $this->createBooking([
+            'date' => $date,
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        // Slot should be booked
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")->json('data');
+        $this->assertSame('Booked', $this->slotFromResponse($schedule, $date, '09.00')['status']);
+
+        // Cancel (reject) the accepted booking
+        $this->postJson("/api/admin/bookings/{$booking->code}/reject", [
+            'note' => 'Dibatalkan karena force majeure.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Rejected');
+
+        $booking->refresh();
+        $this->assertSame('Rejected', $booking->status);
+        $this->assertNotNull($booking->rejected_at);
+
+        // Slot should be released
+        $schedule = $this->getJson("/api/public/schedule?from={$date}&to={$date}")->json('data');
+        $this->assertSame('Available', $this->slotFromResponse($schedule, $date, '09.00')['status']);
+    }
+
     public function test_inactive_admin_cannot_mutate_schedule_or_cms(): void
     {
         ScheduleOverride::create([

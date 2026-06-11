@@ -1096,6 +1096,9 @@ export function BookingActions({
           <button className="button button-outline" type="button" onClick={onEditSegments} disabled={busy}>
             Atur kloter
           </button>
+          <button className="button button-danger" type="button" onClick={onReject} disabled={busy}>
+            Batalkan Jadwal
+          </button>
         </>
       )}
       {booking.status === "Reschedule" && (
@@ -1455,7 +1458,7 @@ export function AdminActionModal({
   const proposed = currentDay && selectedTime ? `${currentDay.label}, ${selectedTime} WIB` : "";
   const titleMap = {
     accept: "Setujui booking",
-    reject: modal.booking.status === "Expired" ? "Tutup kasus" : "Tolak booking",
+    reject: modal.booking.status === "Expired" ? "Tutup kasus" : modal.booking.status === "Accepted" ? "Batalkan jadwal yang disetujui" : "Tolak booking",
     reschedule: "Tawarkan jadwal lain",
     complete: "Tandai selesai",
   };

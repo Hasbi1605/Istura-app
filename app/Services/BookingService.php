@@ -507,7 +507,7 @@ class BookingService
     {
         $allowed = match ($currentStatus) {
             'Pending' => ['Accepted', 'Rejected', 'Reschedule'],
-            'Accepted' => ['Completed', 'Reschedule'],
+            'Accepted' => ['Completed', 'Reschedule', 'Rejected'],
             'Reschedule' => ['Accepted', 'Rejected', 'Reschedule'],
             'Expired' => ['Reschedule', 'Rejected'],
             default => [],
