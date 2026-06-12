@@ -161,10 +161,10 @@ export const DEFAULT_BOOKING_WIZARD_CONTENT: BookingWizardContent = {
     emptyDateLabel: "Pilih tanggal terlebih dahulu",
     emptySlotLabel: "Tidak ada slot pada tanggal ini.",
     legendLabel: "Keterangan:",
-    largeGroupTitle: "Perlu penyesuaian kloter?",
+    largeGroupTitle: "Perlu penyesuaian jadwal?",
     largeGroupBody:
-      "Rombongan Anda dibagi otomatis menjadi {jumlahKloter} kloter sesuai kapasitas layanan. Jika pembagian waktunya belum sesuai kebutuhan, silakan diskusikan dengan Admin ISTURA. Permintaan penyesuaian akan ditinjau berdasarkan ketersediaan jadwal dan kebutuhan operasional.",
-    largeGroupActionLabel: "Diskusikan via WhatsApp",
+      "Jadwal rombongan dibagi menjadi {jumlahKloter} kloter. Diskusikan penyesuaian dengan Admin ISTURA sesuai ketersediaan layanan.",
+    largeGroupActionLabel: "Diskusi dengan Admin",
   },
   upload: {
     readyLabel: "File siap dikirim",

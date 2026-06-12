@@ -773,14 +773,14 @@ async function runBrowserFlows() {
     await page.getByRole("button", { name: /Lanjut/i }).click();
     await page.getByLabel(/Asal Instansi/i).fill("Browser E2E School");
     await page.getByLabel(/Jumlah Rombongan/i).fill("160");
-    expect(
-      await page.getByRole("link", { name: /Diskusikan via WhatsApp/i }).count() === 0,
-      "large-group WhatsApp CTA is not duplicated on institution step",
-    );
+    const institutionKloterWhatsappLink = page.getByRole("link", { name: /Diskusi dengan Admin/i });
+    await expectLocator(institutionKloterWhatsappLink, "large-group WhatsApp CTA appears on institution step");
+    const institutionKloterWhatsappHref = decodeURIComponent((await institutionKloterWhatsappLink.getAttribute("href")) ?? "");
+    expect(institutionKloterWhatsappHref.includes("Kloter 1:"), "institution WhatsApp message includes kloter breakdown");
     await page.getByRole("button", { name: /Lanjut/i }).click();
     await page.locator(`button.calendar-day.is-available:not([disabled])`).first().click();
     await page.locator(`button.time-option:not([disabled])`).first().click();
-    const kloterWhatsappLink = page.getByRole("link", { name: /Diskusikan via WhatsApp/i });
+    const kloterWhatsappLink = page.getByRole("link", { name: /Diskusi dengan Admin/i });
     await expectLocator(kloterWhatsappLink, "large-group WhatsApp CTA appears after selecting schedule");
     const kloterWhatsappHref = decodeURIComponent((await kloterWhatsappLink.getAttribute("href")) ?? "");
     expect(kloterWhatsappHref.includes("Tanggal:"), "large-group WhatsApp message includes visit date");

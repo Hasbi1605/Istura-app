@@ -165,7 +165,31 @@ function getWhatsappNumber(contact?: FooterContact) {
   return normalizeWhatsapp(rawNumber.replace(/\D/g, ""));
 }
 
-function buildLargeGroupDiscussionHref(
+function buildLargeGroupOverviewDiscussionHref(
+  contact: FooterContact | undefined,
+  form: BookingForm,
+  total: number,
+  breakdown: number[],
+) {
+  if (breakdown.length < 2) return "";
+  const phone = getWhatsappNumber(contact);
+  if (!phone) return contact?.href ?? "";
+  const breakdownLines = breakdown.map((size, index) => `- Kloter ${index + 1}: ${size} orang`).join("\n");
+  const message = [
+    "Halo Admin ISTURA, saya ingin mendiskusikan pembagian kloter kunjungan.",
+    "",
+    `Instansi: ${form.institution.trim() || "-"}`,
+    `Jumlah rombongan: ${total} orang`,
+    "",
+    "Pembagian dari sistem:",
+    breakdownLines,
+    "",
+    "Apakah pembagian tersebut dapat disesuaikan? Terima kasih.",
+  ].join("\n");
+  return buildWhatsappTextUrl(phone, message);
+}
+
+function buildLargeGroupScheduleDiscussionHref(
   contact: FooterContact | undefined,
   form: BookingForm,
   total: number,
@@ -318,7 +342,13 @@ export function BookingWizard({
   const groupBreakdown = splitGroupSizes(groupSizeNumber);
   const selectedSegments = previewSegmentsForSelection(selectedDay, form.time, groupSizeNumber);
   const whatsappContact = getWhatsappContact(contacts);
-  const largeGroupDiscussionHref = buildLargeGroupDiscussionHref(
+  const largeGroupOverviewDiscussionHref = buildLargeGroupOverviewDiscussionHref(
+    whatsappContact,
+    form,
+    groupSizeNumber,
+    groupBreakdown,
+  );
+  const largeGroupScheduleDiscussionHref = buildLargeGroupScheduleDiscussionHref(
     whatsappContact,
     form,
     groupSizeNumber,
@@ -638,6 +668,8 @@ export function BookingWizard({
                   <KloterBreakdown
                     total={groupSizeNumber}
                     breakdown={groupBreakdown}
+                    discussionHref={largeGroupOverviewDiscussionHref}
+                    actionLabel={content.schedule.largeGroupActionLabel}
                   />
                 )}
               </>
@@ -652,7 +684,7 @@ export function BookingWizard({
 						requiredSlots={neededSlots}
 						selectedDate={form.date}
 						selectedTime={form.time}
-                largeGroupDiscussionHref={largeGroupDiscussionHref}
+                largeGroupDiscussionHref={largeGroupScheduleDiscussionHref}
                 error={errors.time || errors.submit}
                 onDateChange={(date) => {
                   setField("date", date);
@@ -830,9 +862,13 @@ function validationErrorStep(errors: Record<string, string>): number | null {
 function KloterBreakdown({
   total,
   breakdown,
+  discussionHref,
+  actionLabel,
 }: {
   total: number;
   breakdown: number[];
+  discussionHref: string;
+  actionLabel: string;
 }) {
   return (
     <div className="kloter-breakdown" role="status" aria-live="polite">
@@ -849,7 +885,26 @@ function KloterBreakdown({
           </span>
         ))}
       </div>
+      {discussionHref && (
+        <div className="kloter-breakdown-actions">
+          <LargeGroupDiscussionLink href={discussionHref} label={actionLabel} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function LargeGroupDiscussionLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      className="button button-secondary kloter-whatsapp-link"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <WhatsAppIcon />
+      {label}
+    </a>
   );
 }
 
@@ -1044,24 +1099,19 @@ function SchedulePicker({
               <p className="time-empty">{content.emptySlotLabel}</p>
             )}
           </div>
-          {requiredSlots > 1 && selectedTime && largeGroupDiscussionHref && (
-            <aside className="schedule-kloter-callout" role="status" aria-live="polite">
-              <strong>{content.largeGroupTitle}</strong>
-              <p>{content.largeGroupBody.replace("{jumlahKloter}", String(requiredSlots))}</p>
-              <a
-                className="button button-secondary schedule-kloter-whatsapp-link"
-                href={largeGroupDiscussionHref}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <WhatsAppIcon />
-                {content.largeGroupActionLabel}
-              </a>
-            </aside>
-          )}
         </section>
 			</div>
 			)}
+
+      {requiredSlots > 1 && selectedTime && largeGroupDiscussionHref && (
+        <aside className="schedule-kloter-callout" role="status" aria-live="polite">
+          <div className="schedule-kloter-callout-copy">
+            <strong>{content.largeGroupTitle}</strong>
+            <p>{content.largeGroupBody.replace("{jumlahKloter}", String(requiredSlots))}</p>
+          </div>
+          <LargeGroupDiscussionLink href={largeGroupDiscussionHref} label={content.largeGroupActionLabel} />
+        </aside>
+      )}
 
 			<div className="availability-legend availability-legend--inline" aria-label="Keterangan status jadwal">
         <strong>{content.legendLabel}</strong>

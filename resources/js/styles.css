@@ -2698,51 +2698,53 @@ a {
   font-weight: 800;
 }
 
+.kloter-breakdown-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.kloter-whatsapp-link {
+  min-height: 42px;
+  padding-inline: 14px;
+  color: var(--navy);
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(196, 146, 18, 0.28);
+  white-space: nowrap;
+}
+
+.kloter-whatsapp-link .footer-social-icon {
+  width: 20px;
+  height: 20px;
+}
+
 .schedule-kloter-callout {
-  margin-top: 16px;
-  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 18px;
   color: var(--navy);
   background: rgba(229, 189, 85, 0.14);
   border: 1px solid rgba(196, 146, 18, 0.28);
   border-radius: 8px;
 }
 
-.schedule-kloter-callout strong {
+.schedule-kloter-callout-copy {
+  min-width: 0;
+}
+
+.schedule-kloter-callout-copy strong {
   display: block;
-  font-size: 0.94rem;
-  line-height: 1.35;
+  font-size: 0.98rem;
+  line-height: 1.4;
 }
 
-.schedule-kloter-callout p {
-  margin: 7px 0 12px;
+.schedule-kloter-callout-copy p {
+  margin: 5px 0 0;
   color: rgba(16, 24, 47, 0.74);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   line-height: 1.5;
-}
-
-.schedule-kloter-whatsapp-link {
-  width: 100%;
-  min-height: 40px;
-  justify-content: center;
-  padding-inline: 14px;
-  color: var(--white);
-  background: var(--navy);
-  border-color: var(--navy);
-  font-size: 0.78rem;
-  white-space: normal;
-  text-align: center;
-}
-
-.schedule-kloter-whatsapp-link:hover,
-.schedule-kloter-whatsapp-link:focus-visible {
-  color: var(--navy);
-  background: var(--gold-2);
-  border-color: var(--gold);
-}
-
-.schedule-kloter-whatsapp-link .footer-social-icon {
-  width: 18px;
-  height: 18px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2946,6 +2948,19 @@ a {
 @media (max-width: 640px) {
   .kloter-breakdown-list {
     grid-template-columns: 1fr;
+  }
+
+  .schedule-kloter-callout {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .kloter-whatsapp-link {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
   }
 
   .availability-layout--inline .time-list {

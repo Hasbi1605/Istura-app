@@ -134,8 +134,8 @@ footer dengan kontak & peta lokasi. Seluruh konten dikelola via CMS admin.
 Form pendaftaran bertahap dengan pemandu MIKY di tiap langkah:
 1. **Selamat Datang** — persiapan data.
 2. **Data Contact Person** — nama, NIK, WhatsApp.
-3. **Data Instansi** — nama instansi, jumlah rombongan.
-4. **Pilih Jadwal** — tanggal & jam dari slot tersedia (live status); untuk rombongan >80, setelah jam dipilih tampil callout diskusi penyesuaian kloter via WhatsApp.
+3. **Data Instansi** — nama instansi, jumlah rombongan; rombongan >80 melihat rincian kloter dan CTA diskusi awal dengan admin.
+4. **Pilih Jadwal** — tanggal & jam dari slot tersedia (live status); untuk rombongan >80, setelah jam dipilih tampil card horizontal diskusi penyesuaian kloter via WhatsApp di bawah kalender dan daftar jam.
 5. **Upload Surat** — surat permohonan (PDF/JPG/PNG, ≤5 MB).
 6. **Review Data** — verifikasi seluruh isian.
 7. **Pernyataan** — persetujuan kebenaran data & aturan.
@@ -213,11 +213,13 @@ lihat dokumen `IsturaOpen.md`.
 3. Langkah 2 (Contact Person): isi Nama, NIK (16 digit), WhatsApp (08../628..) → Lanjut.
    → Sistem precheck identitas: bila sudah mencapai batas booking aktif → tampilkan error,
      tidak bisa lanjut.
-4. Langkah 3 (Instansi): isi Nama Instansi, Jumlah Rombongan (1–480) → Lanjut.
+4. Langkah 3 (Instansi): isi Nama Instansi, Jumlah Rombongan (1–480) → bila >80,
+   rincian kloter dan CTA diskusi awal dengan admin ditampilkan → Lanjut.
 5. Langkah 4 (Pilih Jadwal): pilih Tanggal (H-2 s/d +2 bulan) & Jam dari slot Available.
    → Bila rombongan > 80, sistem menyiapkan pembagian kloter otomatis ke slot berurutan.
-   → Setelah jam dipilih, pengunjung dapat membuka WhatsApp berisi instansi, jumlah peserta,
-     tanggal, dan rincian kloter untuk meminta peninjauan manual. Permintaan tidak menjamin
+   → Setelah jam dipilih, card penyesuaian horizontal ditampilkan di bawah kalender dan
+     daftar jam. Pengunjung dapat membuka WhatsApp berisi instansi, jumlah peserta, tanggal,
+     dan rincian kloter untuk meminta peninjauan manual. Permintaan tidak menjamin
      penggabungan; admin menilai ketersediaan jadwal dan kebutuhan operasional.
 6. Langkah 5 (Upload Surat): unggah file PDF/JPG/JPEG/PNG ≤ 5 MB → Lanjut.
 7. Langkah 6 (Review): periksa seluruh data → Lanjut.

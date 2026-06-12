@@ -48,8 +48,8 @@ class PublicBootstrapTest extends TestCase
                     'siteContent' => ['nav', 'quickInfo', 'schedule', 'video', 'bookingSteps', 'activities', 'letterSection', 'faq', 'cta', 'footer', 'floatingContact', 'openBanner', 'bookingWizard', 'feedbackWizard'],
                 ],
             ])
-            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupTitle', 'Perlu penyesuaian kloter?')
-            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusikan via WhatsApp')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupTitle', 'Perlu penyesuaian jadwal?')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusi dengan Admin')
             ->assertJsonPath('data.siteContent.feedbackWizard.steps.visit.title', 'Tentang Kunjungan')
             ->assertJsonPath('data.siteContent.feedbackWizard.options.discoverySources.0.value', 'social_media')
             ->assertJsonPath('data.siteContent.feedbackWizard.options.discoverySources.5.value', 'other');
@@ -84,9 +84,9 @@ class PublicBootstrapTest extends TestCase
 
         $this->getJson('/api/public/bootstrap')
             ->assertOk()
-            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupTitle', 'Perlu penyesuaian kloter?')
-            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupBody', 'Rombongan Anda dibagi otomatis menjadi {jumlahKloter} kloter sesuai kapasitas layanan. Jika pembagian waktunya belum sesuai kebutuhan, silakan diskusikan dengan Admin ISTURA. Permintaan penyesuaian akan ditinjau berdasarkan ketersediaan jadwal dan kebutuhan operasional.')
-            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusikan via WhatsApp');
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupTitle', 'Perlu penyesuaian jadwal?')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupBody', 'Jadwal rombongan dibagi menjadi {jumlahKloter} kloter. Diskusikan penyesuaian dengan Admin ISTURA sesuai ketersediaan layanan.')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusi dengan Admin');
     }
 
     public function test_public_schedule_clamps_requested_start_to_earliest_bookable_date(): void
