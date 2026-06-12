@@ -219,6 +219,9 @@ export type BookingWizardContent = {
     emptyDateLabel: string;
     emptySlotLabel: string;
     legendLabel: string;
+    largeGroupTitle: string;
+    largeGroupBody: string;
+    largeGroupActionLabel: string;
   };
   upload: {
     readyLabel: string;

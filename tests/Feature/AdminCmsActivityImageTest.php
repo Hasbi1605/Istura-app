@@ -51,6 +51,9 @@ class AdminCmsActivityImageTest extends TestCase
         $content = SiteContentDefaults::siteContent();
         $content['bookingWizard']['steps'][0]['title'] = 'Halo Rencang Istana';
         $content['bookingWizard']['fields']['contactNameLabel'] = 'Nama Koordinator';
+        $content['bookingWizard']['schedule']['largeGroupTitle'] = 'Atur ulang kloter kunjungan';
+        $content['bookingWizard']['schedule']['largeGroupBody'] = 'Diskusikan pembagian {jumlahKloter} kloter dengan admin.';
+        $content['bookingWizard']['schedule']['largeGroupActionLabel'] = 'Hubungi Admin';
         $content['feedbackWizard']['intro'] = 'Bagikan cerita kunjunganmu untuk perbaikan layanan.';
         $content['feedbackWizard']['options']['highlights'][0] = 'Sambutan petugas';
         $content['feedbackWizard']['fields']['guideQualityLabel'] = 'Kualitas pemandu kunjungan';
@@ -60,6 +63,9 @@ class AdminCmsActivityImageTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.bookingWizard.steps.0.title', 'Halo Rencang Istana')
             ->assertJsonPath('data.bookingWizard.fields.contactNameLabel', 'Nama Koordinator')
+            ->assertJsonPath('data.bookingWizard.schedule.largeGroupTitle', 'Atur ulang kloter kunjungan')
+            ->assertJsonPath('data.bookingWizard.schedule.largeGroupBody', 'Diskusikan pembagian {jumlahKloter} kloter dengan admin.')
+            ->assertJsonPath('data.bookingWizard.schedule.largeGroupActionLabel', 'Hubungi Admin')
             ->assertJsonPath('data.feedbackWizard.intro', 'Bagikan cerita kunjunganmu untuk perbaikan layanan.')
             ->assertJsonPath('data.feedbackWizard.options.highlights.0', 'Sambutan petugas')
             ->assertJsonPath('data.feedbackWizard.fields.guideQualityLabel', 'Kualitas pemandu kunjungan')
@@ -69,6 +75,9 @@ class AdminCmsActivityImageTest extends TestCase
         $this->getJson('/api/public/bootstrap')
             ->assertOk()
             ->assertJsonPath('data.siteContent.bookingWizard.steps.0.title', 'Halo Rencang Istana')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupTitle', 'Atur ulang kloter kunjungan')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupBody', 'Diskusikan pembagian {jumlahKloter} kloter dengan admin.')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Hubungi Admin')
             ->assertJsonPath('data.siteContent.feedbackWizard.options.highlights.0', 'Sambutan petugas')
             ->assertJsonPath('data.siteContent.feedbackWizard.fields.guideQualityLabel', 'Kualitas pemandu kunjungan')
             ->assertJsonPath('data.siteContent.feedbackWizard.options.discoverySources.0.label', 'Instagram atau media sosial');

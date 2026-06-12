@@ -2717,6 +2717,21 @@ export function AdminLandingManager({
               </div>
               <div className="admin-cms-link">
                 <label className="form-field">
+                  <span>Judul penyesuaian kloter</span>
+                  <input value={draft.bookingWizard.schedule.largeGroupTitle} onChange={(event) => updateBookingWizardSchedule("largeGroupTitle", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Tombol WhatsApp kloter</span>
+                  <input value={draft.bookingWizard.schedule.largeGroupActionLabel} onChange={(event) => updateBookingWizardSchedule("largeGroupActionLabel", event.target.value)} />
+                </label>
+              </div>
+              <label className="form-field">
+                <span>Penjelasan penyesuaian kloter</span>
+                <textarea rows={3} value={draft.bookingWizard.schedule.largeGroupBody} onChange={(event) => updateBookingWizardSchedule("largeGroupBody", event.target.value)} />
+                <small>Gunakan <code>{"{jumlahKloter}"}</code> untuk menampilkan jumlah kloter otomatis.</small>
+              </label>
+              <div className="admin-cms-link">
+                <label className="form-field">
                   <span>Status upload</span>
                   <input value={draft.bookingWizard.upload.readyLabel} onChange={(event) => updateBookingWizardUpload("readyLabel", event.target.value)} />
                 </label>

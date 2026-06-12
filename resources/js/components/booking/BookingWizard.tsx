@@ -169,20 +169,25 @@ function buildLargeGroupDiscussionHref(
   contact: FooterContact | undefined,
   form: BookingForm,
   total: number,
-  breakdown: number[],
+  segments: BookingSegment[],
 ) {
+  if (segments.length < 2) return "";
   const phone = getWhatsappNumber(contact);
   if (!phone) return contact?.href ?? "";
-  const breakdownLines = breakdown.map((size, index) => `- Kloter ${index + 1}: ${size} orang`).join("\n");
+  const breakdownLines = segments
+    .map((segment) => `- Kloter ${segment.order}: ${segment.time} WIB (${segment.groupSize} orang)`)
+    .join("\n");
   const message = [
-    "Halo Admin ISTURA, saya ingin berdiskusi terkait pembagian kloter kunjungan.",
+    "Halo Admin ISTURA, saya ingin mendiskusikan pembagian kloter kunjungan.",
     "",
     `Instansi: ${form.institution.trim() || "-"}`,
     `Jumlah rombongan: ${total} orang`,
-    "Pembagian otomatis dari sistem:",
+    `Tanggal: ${segments[0]?.dateLabel ?? form.date}`,
+    "",
+    "Pembagian dari sistem:",
     breakdownLines,
     "",
-    "Apakah memungkinkan ada penyesuaian pembagian kloter?",
+    "Apakah pembagian tersebut dapat disesuaikan? Terima kasih.",
   ].join("\n");
   return buildWhatsappTextUrl(phone, message);
 }
@@ -313,7 +318,12 @@ export function BookingWizard({
   const groupBreakdown = splitGroupSizes(groupSizeNumber);
   const selectedSegments = previewSegmentsForSelection(selectedDay, form.time, groupSizeNumber);
   const whatsappContact = getWhatsappContact(contacts);
-  const largeGroupDiscussionHref = buildLargeGroupDiscussionHref(whatsappContact, form, groupSizeNumber, groupBreakdown);
+  const largeGroupDiscussionHref = buildLargeGroupDiscussionHref(
+    whatsappContact,
+    form,
+    groupSizeNumber,
+    selectedSegments,
+  );
 
   const setField = <Key extends keyof BookingForm>(key: Key, value: BookingForm[Key]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -628,7 +638,6 @@ export function BookingWizard({
                   <KloterBreakdown
                     total={groupSizeNumber}
                     breakdown={groupBreakdown}
-                    discussionHref={largeGroupDiscussionHref}
                   />
                 )}
               </>
@@ -642,7 +651,8 @@ export function BookingWizard({
 						minDate={minBookingDate}
 						requiredSlots={neededSlots}
 						selectedDate={form.date}
-                selectedTime={form.time}
+						selectedTime={form.time}
+                largeGroupDiscussionHref={largeGroupDiscussionHref}
                 error={errors.time || errors.submit}
                 onDateChange={(date) => {
                   setField("date", date);
@@ -820,11 +830,9 @@ function validationErrorStep(errors: Record<string, string>): number | null {
 function KloterBreakdown({
   total,
   breakdown,
-  discussionHref,
 }: {
   total: number;
   breakdown: number[];
-  discussionHref: string;
 }) {
   return (
     <div className="kloter-breakdown" role="status" aria-live="polite">
@@ -841,19 +849,6 @@ function KloterBreakdown({
           </span>
         ))}
       </div>
-      <div className="kloter-breakdown-actions">
-        {discussionHref && (
-          <a
-            className="button button-secondary kloter-whatsapp-link"
-            href={discussionHref}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <WhatsAppIcon />
-            Diskusi dengan Admin
-          </a>
-        )}
-      </div>
     </div>
   );
 }
@@ -866,6 +861,7 @@ function SchedulePicker({
 	requiredSlots,
 	selectedDate,
   selectedTime,
+  largeGroupDiscussionHref,
   error,
   onDateChange,
   onTimeChange,
@@ -877,6 +873,7 @@ function SchedulePicker({
 	requiredSlots: number;
 	selectedDate: string;
   selectedTime: string;
+  largeGroupDiscussionHref: string;
   error?: string;
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
@@ -1047,6 +1044,21 @@ function SchedulePicker({
               <p className="time-empty">{content.emptySlotLabel}</p>
             )}
           </div>
+          {requiredSlots > 1 && selectedTime && largeGroupDiscussionHref && (
+            <aside className="schedule-kloter-callout" role="status" aria-live="polite">
+              <strong>{content.largeGroupTitle}</strong>
+              <p>{content.largeGroupBody.replace("{jumlahKloter}", String(requiredSlots))}</p>
+              <a
+                className="button button-secondary schedule-kloter-whatsapp-link"
+                href={largeGroupDiscussionHref}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <WhatsAppIcon />
+                {content.largeGroupActionLabel}
+              </a>
+            </aside>
+          )}
         </section>
 			</div>
 			)}

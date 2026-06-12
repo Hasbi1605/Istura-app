@@ -772,10 +772,19 @@ async function runBrowserFlows() {
     await page.getByLabel(/Nomor WhatsApp CP/i).fill("081234567899");
     await page.getByRole("button", { name: /Lanjut/i }).click();
     await page.getByLabel(/Asal Instansi/i).fill("Browser E2E School");
-    await page.getByLabel(/Jumlah Rombongan/i).fill("33");
+    await page.getByLabel(/Jumlah Rombongan/i).fill("160");
+    expect(
+      await page.getByRole("link", { name: /Diskusikan via WhatsApp/i }).count() === 0,
+      "large-group WhatsApp CTA is not duplicated on institution step",
+    );
     await page.getByRole("button", { name: /Lanjut/i }).click();
     await page.locator(`button.calendar-day.is-available:not([disabled])`).first().click();
     await page.locator(`button.time-option:not([disabled])`).first().click();
+    const kloterWhatsappLink = page.getByRole("link", { name: /Diskusikan via WhatsApp/i });
+    await expectLocator(kloterWhatsappLink, "large-group WhatsApp CTA appears after selecting schedule");
+    const kloterWhatsappHref = decodeURIComponent((await kloterWhatsappLink.getAttribute("href")) ?? "");
+    expect(kloterWhatsappHref.includes("Tanggal:"), "large-group WhatsApp message includes visit date");
+    expect(kloterWhatsappHref.includes("Kloter 1:"), "large-group WhatsApp message includes kloter schedule");
     await page.getByRole("button", { name: /Lanjut/i }).click();
     const uploadPath = path.join(ARTIFACT_DIR, "browser-surat.pdf");
     fs.writeFileSync(uploadPath, "%PDF-1.4\n% Browser E2E\n");

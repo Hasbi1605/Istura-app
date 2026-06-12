@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\SiteSetting;
 use App\Services\ScheduleService;
+use App\Support\SiteContentDefaults;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -46,6 +48,8 @@ class PublicBootstrapTest extends TestCase
                     'siteContent' => ['nav', 'quickInfo', 'schedule', 'video', 'bookingSteps', 'activities', 'letterSection', 'faq', 'cta', 'footer', 'floatingContact', 'openBanner', 'bookingWizard', 'feedbackWizard'],
                 ],
             ])
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupTitle', 'Perlu penyesuaian kloter?')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusikan via WhatsApp')
             ->assertJsonPath('data.siteContent.feedbackWizard.steps.visit.title', 'Tentang Kunjungan')
             ->assertJsonPath('data.siteContent.feedbackWizard.options.discoverySources.0.value', 'social_media')
             ->assertJsonPath('data.siteContent.feedbackWizard.options.discoverySources.5.value', 'other');
@@ -66,6 +70,23 @@ class PublicBootstrapTest extends TestCase
         $this->assertSame('2026-06-03', $dates->first());
         $this->assertFalse($dates->contains('2026-06-01'));
         $this->assertFalse($dates->contains('2026-06-02'));
+    }
+
+    public function test_public_bootstrap_backfills_large_group_copy_for_existing_site_content(): void
+    {
+        $content = SiteContentDefaults::siteContent();
+        unset(
+            $content['bookingWizard']['schedule']['largeGroupTitle'],
+            $content['bookingWizard']['schedule']['largeGroupBody'],
+            $content['bookingWizard']['schedule']['largeGroupActionLabel'],
+        );
+        SiteSetting::write('site_content', $content);
+
+        $this->getJson('/api/public/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupTitle', 'Perlu penyesuaian kloter?')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupBody', 'Rombongan Anda dibagi otomatis menjadi {jumlahKloter} kloter sesuai kapasitas layanan. Jika pembagian waktunya belum sesuai kebutuhan, silakan diskusikan dengan Admin ISTURA. Permintaan penyesuaian akan ditinjau berdasarkan ketersediaan jadwal dan kebutuhan operasional.')
+            ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusikan via WhatsApp');
     }
 
     public function test_public_schedule_clamps_requested_start_to_earliest_bookable_date(): void
