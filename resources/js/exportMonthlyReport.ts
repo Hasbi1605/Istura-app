@@ -699,12 +699,28 @@ const buildDimensionsTable = (args: DocBuildArgs): unknown => {
   };
 };
 
+// pdfmake's default Roboto VFS font has no ★ (U+2605) glyph, so a literal
+// star renders as a notdef box. Draw a real vector star via the SVG element
+// instead so the icon prints consistently on every viewer/printer.
+const starSvg = (color: string): string =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.401 8.172L12 18.896l-7.335 3.863 1.401-8.172L.132 9.21l8.2-1.192z" fill="${color}"/></svg>`;
+
+const ratingTierColor = (stars: number): string =>
+  stars >= 4 ? COLOR.positive : stars >= 3 ? COLOR.gold : COLOR.attention;
+
 const buildDistributionRows = (args: DocBuildArgs): unknown => {
   const rows = args.distribution.map(({ stars, count }) => {
     const w = Math.max(0, (count / args.maxDistCount) * 200);
     return {
       columns: [
-        { text: `${stars}★`, width: 26, color: COLOR.navy, bold: true, fontSize: 11 },
+        {
+          width: 26,
+          columns: [
+            { width: "auto", text: `${stars}`, color: COLOR.navy, bold: true, fontSize: 11, margin: [0, 0, 3, 0] },
+            { width: "auto", svg: starSvg(ratingTierColor(stars)), fit: [11, 11], margin: [0, 2, 0, 0] },
+          ],
+          columnGap: 0,
+        },
         {
           width: 220,
           canvas: [
@@ -811,12 +827,15 @@ const buildFollowUpTable = (args: DocBuildArgs): unknown => {
     body.push([
       { text: f.code, style: "tableCell", fillColor: fill },
       {
-        text: `${f.rating}★`,
-        style: "tableCell",
-        alignment: "center",
-        bold: true,
-        color: COLOR.attention,
         fillColor: fill,
+        margin: [0, 2, 0, 2],
+        columns: [
+          { width: "*", text: "" },
+          { width: "auto", text: `${f.rating}`, bold: true, color: COLOR.attention, fontSize: 9, margin: [0, 0, 3, 0] },
+          { width: "auto", svg: starSvg(COLOR.attention), fit: [9, 9], margin: [0, 1, 0, 0] },
+          { width: "*", text: "" },
+        ],
+        columnGap: 0,
       },
       { text: truncate(f.comment, 220), style: "tableCell", fillColor: fill },
       { text: f.improvements.join(", ") || "—", style: "tableCell", fillColor: fill },
