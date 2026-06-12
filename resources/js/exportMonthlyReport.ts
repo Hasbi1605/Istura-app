@@ -54,7 +54,14 @@ export type ReportFeedback = {
   rating: number;
   bookingEase: number;
   service: number;
+  // Dimensi tambahan (kuesioner 2026-06): nullable agar feedback lama tetap
+  // kompatibel. 0/null = belum dijawab → tidak ikut rata-rata.
+  guideQuality?: number | null;
+  facilityComfort?: number | null;
   recommend: number;
+  visitedBefore?: boolean | null;
+  discoverySource?: string | null;
+  discoverySourceOther?: string;
   highlights: string[];
   improvements: string[];
   comment: string;
@@ -97,6 +104,17 @@ const RANGE_TITLE_LABEL: Record<MonthlyReportRange, string> = {
   quarter: "Triwulanan",
   year: "Tahunan",
   custom: "Periode Pilihan",
+};
+
+// Label sumber informasi (selaras dengan default CMS feedback di constants.ts).
+// Report tidak menerima copy CMS, jadi pakai default Indonesia yang sama.
+const DISCOVERY_LABELS: Record<string, string> = {
+  social_media: "Media sosial",
+  friends_family: "Teman atau keluarga",
+  school_institution: "Sekolah atau instansi",
+  web_search: "Situs web atau Google",
+  previous_visit: "Kunjungan sebelumnya",
+  other: "Lainnya",
 };
 
 // Triwulan = 3 bulan kalender berjalan (Jan-Mar, Apr-Jun, Jul-Sep, Okt-Des).
@@ -278,6 +296,29 @@ export const exportMonthlyReport = async (
   const serviceAvg = avg1(periodFeedbacks.map((f) => f.service));
   const recommendAvg = avg1(periodFeedbacks.map((f) => f.recommend));
 
+  // Dimensi tambahan: hanya jawaban valid (>0) yang dirata-rata; null bila
+  // tidak ada satu pun jawaban (mis. periode berisi feedback format lama).
+  const validScore = (v: number | null | undefined): v is number =>
+    typeof v === "number" && v > 0;
+  const guideValues = periodFeedbacks.map((f) => f.guideQuality).filter(validScore);
+  const facilityValues = periodFeedbacks.map((f) => f.facilityComfort).filter(validScore);
+  const guideAvg = guideValues.length > 0 ? avg1(guideValues) : null;
+  const facilityAvg = facilityValues.length > 0 ? avg1(facilityValues) : null;
+
+  // Profil pengunjung: pertama vs pernah berkunjung (abaikan yang null).
+  const firstVisitCount = periodFeedbacks.filter((f) => f.visitedBefore === false).length;
+  const repeatVisitCount = periodFeedbacks.filter((f) => f.visitedBefore === true).length;
+
+  // Distribusi sumber mengetahui ISTURA (urut terbanyak).
+  const discoveryTally = new Map<string, number>();
+  for (const f of periodFeedbacks) {
+    if (!f.discoverySource) continue;
+    discoveryTally.set(f.discoverySource, (discoveryTally.get(f.discoverySource) ?? 0) + 1);
+  }
+  const discoveryDistribution = Array.from(discoveryTally.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([source, count]) => ({ label: DISCOVERY_LABELS[source] ?? source, count }));
+
   // 1-5 star distribution.
   const distribution = [5, 4, 3, 2, 1].map((stars) => ({
     stars,
@@ -332,7 +373,9 @@ export const exportMonthlyReport = async (
     ],
     pct,
     feedbackCount: periodFeedbacks.length,
-    dimensions: { overallAvg, easeAvg, serviceAvg, recommendAvg },
+    dimensions: { overallAvg, easeAvg, serviceAvg, guideAvg, facilityAvg, recommendAvg },
+    visitorProfile: { first: firstVisitCount, repeat: repeatVisitCount },
+    discoveryDistribution,
     distribution,
     maxDistCount,
     topHighlights,
@@ -388,7 +431,16 @@ type DocBuildArgs = {
   statusBreakdown: Array<{ label: string; count: number; color: string }>;
   pct: (count: number) => number;
   feedbackCount: number;
-  dimensions: { overallAvg: number; easeAvg: number; serviceAvg: number; recommendAvg: number };
+  dimensions: {
+    overallAvg: number;
+    easeAvg: number;
+    serviceAvg: number;
+    guideAvg: number | null;
+    facilityAvg: number | null;
+    recommendAvg: number;
+  };
+  visitorProfile: { first: number; repeat: number };
+  discoveryDistribution: Array<{ label: string; count: number }>;
   distribution: Array<{ stars: number; count: number }>;
   maxDistCount: number;
   topHighlights: Array<[string, number]>;
@@ -399,6 +451,21 @@ type DocBuildArgs = {
 
 const buildDocDefinition = (args: DocBuildArgs): unknown => {
   const periodLabelHuman = `${formatLongLabel(args.period.from)} – ${formatLongLabel(args.period.to)}`;
+
+  // Tindak Lanjut mendapat halaman sendiri hanya bila ada isinya; saat kosong
+  // ditempel ringkas di bawah halaman Suara Pengunjung agar tidak boros kertas.
+  const followUpNodes =
+    args.followUps.length > 0
+      ? [
+          { text: "", pageBreak: "before" },
+          { text: "Tindak Lanjut", style: "h1" },
+          { text: "Feedback dengan rating ≤ 2 yang membutuhkan perhatian.", style: "muted", margin: [0, 0, 0, 12] },
+          buildFollowUpTable(args),
+        ]
+      : [
+          { text: "Tindak Lanjut", style: "h2" },
+          buildFollowUpTable(args),
+        ];
 
   // pdfmake is loosely typed; we describe content as plain objects.
   return {
@@ -454,6 +521,12 @@ const buildDocDefinition = (args: DocBuildArgs): unknown => {
       { text: "Distribusi rating overall", style: "h3", margin: [0, 14, 0, 6] },
       buildDistributionRows(args),
 
+      { text: "Profil pengunjung", style: "h3", margin: [0, 14, 0, 6] },
+      buildVisitorProfile(args),
+
+      { text: "Sumber mengetahui ISTURA", style: "h3", margin: [0, 14, 0, 6] },
+      buildDiscoveryRows(args),
+
       { text: "Sorotan & Saran perbaikan", style: "h3", margin: [0, 14, 0, 6] },
       buildTagsTwoColumn(args),
 
@@ -464,11 +537,8 @@ const buildDocDefinition = (args: DocBuildArgs): unknown => {
           ]
         : undefined,
 
-      // ---------- Halaman 3: Tindak Lanjut ----------
-      { text: "", pageBreak: "before" },
-      { text: "Tindak Lanjut", style: "h1" },
-      { text: "Feedback dengan rating ≤ 2 yang membutuhkan perhatian.", style: "muted", margin: [0, 0, 0, 12] },
-      buildFollowUpTable(args),
+      // ---------- Halaman 3: Tindak Lanjut (halaman sendiri bila ada isi) ----------
+      ...followUpNodes,
     ].filter(Boolean),
   };
 };
@@ -649,6 +719,8 @@ const buildDimensionsTable = (args: DocBuildArgs): unknown => {
     { label: "Overall", value: args.dimensions.overallAvg },
     { label: "Kemudahan booking", value: args.dimensions.easeAvg },
     { label: "Layanan", value: args.dimensions.serviceAvg },
+    { label: "Kualitas pemandu", value: args.dimensions.guideAvg },
+    { label: "Kebersihan & kenyamanan", value: args.dimensions.facilityAvg },
     { label: "Recommend (NPS-style)", value: args.dimensions.recommendAvg },
   ];
   const body: unknown[][] = [
@@ -659,13 +731,24 @@ const buildDimensionsTable = (args: DocBuildArgs): unknown => {
     ],
   ];
   dims.forEach((d, idx) => {
+    const value = d.value;
+    const barWidth = value !== null ? Math.max(0, (value / 5) * 140) : 0;
+    const barColor =
+      value === null
+        ? COLOR.whisper
+        : value >= 4
+          ? COLOR.positive
+          : value >= 3
+            ? COLOR.gold
+            : COLOR.attention;
     body.push([
       { text: d.label, style: "tableCell", fillColor: idx % 2 === 1 ? COLOR.goldLight : undefined },
       {
-        text: d.value.toFixed(1),
+        text: value !== null ? value.toFixed(1) : "—",
         style: "tableCell",
         alignment: "right",
         bold: true,
+        color: value !== null ? COLOR.black : COLOR.muted,
         fillColor: idx % 2 === 1 ? COLOR.goldLight : undefined,
       },
       {
@@ -675,10 +758,10 @@ const buildDimensionsTable = (args: DocBuildArgs): unknown => {
             type: "rect",
             x: 0,
             y: 4,
-            w: Math.max(0, (d.value / 5) * 140),
+            w: barWidth,
             h: 6,
-            color: d.value >= 4 ? COLOR.positive : d.value >= 3 ? COLOR.gold : COLOR.attention,
-            lineColor: d.value >= 4 ? COLOR.positive : d.value >= 3 ? COLOR.gold : COLOR.attention,
+            color: barColor,
+            lineColor: barColor,
           },
         ],
         fillColor: idx % 2 === 1 ? COLOR.goldLight : undefined,
@@ -738,6 +821,67 @@ const buildDistributionRows = (args: DocBuildArgs): unknown => {
         },
         { text: String(count), width: 30, color: COLOR.muted, alignment: "right" },
       ],
+      margin: [0, 2, 0, 2],
+    };
+  });
+  return { stack: rows };
+};
+
+// Profil pengunjung: bar perbandingan kunjungan pertama vs pernah berkunjung.
+const buildVisitorProfile = (args: DocBuildArgs): unknown => {
+  const { first, repeat } = args.visitorProfile;
+  const answered = first + repeat;
+  if (answered === 0) {
+    return { text: "Belum ada data profil kunjungan pada periode ini.", style: "muted" };
+  }
+  const row = (label: string, count: number, color: string) => {
+    const pctVal = Math.round((count / answered) * 100);
+    const w = (count / answered) * 200;
+    return {
+      columns: [
+        { width: 120, text: label, color: COLOR.navy, fontSize: 9 },
+        {
+          width: 210,
+          canvas: [
+            { type: "rect", x: 0, y: 4, w: 200, h: 8, color: COLOR.whisper, lineColor: COLOR.whisper },
+            { type: "rect", x: 0, y: 4, w: Math.max(0, w), h: 8, color, lineColor: color },
+          ],
+        },
+        { width: "auto", text: `${count} (${pctVal}%)`, color: COLOR.muted, fontSize: 9 },
+      ],
+      columnGap: 8,
+      margin: [0, 2, 0, 2],
+    };
+  };
+  return {
+    stack: [
+      row("Kunjungan pertama", first, COLOR.gold),
+      row("Pernah berkunjung", repeat, COLOR.positive),
+    ],
+  };
+};
+
+// Distribusi sumber mengetahui ISTURA (peringkat terbanyak).
+const buildDiscoveryRows = (args: DocBuildArgs): unknown => {
+  if (args.discoveryDistribution.length === 0) {
+    return { text: "Belum ada data sumber informasi pada periode ini.", style: "muted" };
+  }
+  const maxCount = Math.max(1, ...args.discoveryDistribution.map((d) => d.count));
+  const rows = args.discoveryDistribution.map(({ label, count }) => {
+    const w = (count / maxCount) * 200;
+    return {
+      columns: [
+        { width: 120, text: label, color: COLOR.navy, fontSize: 9 },
+        {
+          width: 210,
+          canvas: [
+            { type: "rect", x: 0, y: 4, w: 200, h: 8, color: COLOR.whisper, lineColor: COLOR.whisper },
+            { type: "rect", x: 0, y: 4, w: Math.max(0, w), h: 8, color: COLOR.gold, lineColor: COLOR.gold },
+          ],
+        },
+        { width: "auto", text: String(count), color: COLOR.muted, fontSize: 9 },
+      ],
+      columnGap: 8,
       margin: [0, 2, 0, 2],
     };
   });
