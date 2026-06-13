@@ -72,7 +72,7 @@ import { DetailItem } from "../ui/DetailItem";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Pagination } from "../ui/Pagination";
 import { ButtonSpinner, InlineSpinner, StatCardSkeleton, TableSkeleton } from "../ui/LoadingStates";
-import { BookingExportModal, MonthlyReportModal } from "./ExportModals";
+import { BookingExportModal } from "./ExportModals";
 
 export function AdminScreen({
 	schedules,

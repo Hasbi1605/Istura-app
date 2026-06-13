@@ -12,10 +12,16 @@ import {
 import { ASSETS } from "../../lib/assets";
 import { exportBookingsToZip } from "../../exportBookings";
 import type { ExportRange, ExportScope } from "../../exportBookings";
+import { exportBookingReport } from "../../exportBookingReport";
 import { exportFeedbackToXlsx } from "../../exportFeedback";
 import type { FeedbackExportScope } from "../../exportFeedback";
+import { exportFeedbackReport } from "../../exportFeedbackReport";
 import { exportMonthlyReport } from "../../exportMonthlyReport";
 import type { MonthlyReportRange } from "../../exportMonthlyReport";
+
+// Format keluaran untuk modal Booking & Feedback: Excel (data detail) atau
+// PDF (laporan ringkas untuk dibaca/dicetak).
+type ReportFormat = "excel" | "pdf";
 
 // Modal export laporan booking. Lingkup ada 3 (semua/completed/rejected) dan
 // rentang waktu ada 4 preset (minggu ini / bulan ini / tahun ini / custom).
@@ -33,6 +39,7 @@ export function BookingExportModal({
 }) {
   const [scope, setScope] = useState<ExportScope>("all");
   const [range, setRange] = useState<ExportRange>("month");
+  const [format, setFormat] = useState<ReportFormat>("excel");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,6 +81,19 @@ export function BookingExportModal({
     setBusy(true);
     setError(null);
     try {
+      if (format === "pdf") {
+        await exportBookingReport({
+          bookings,
+          scope,
+          range,
+          customFrom: range === "custom" ? customFrom : undefined,
+          customTo: range === "custom" ? customTo : undefined,
+          generatedBy: adminName,
+          logoUrl: ASSETS.logoGold,
+        });
+        onClose();
+        return;
+      }
       const result = await exportBookingsToZip({
         bookings,
         scope,
@@ -220,11 +240,47 @@ export function BookingExportModal({
           )}
         </fieldset>
 
+        <fieldset className="admin-modal-fieldset">
+          <legend>Format</legend>
+          <div className="booking-export-range" role="radiogroup" aria-label="Format keluaran">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={format === "excel"}
+              className={`booking-export-range-button${format === "excel" ? " is-active" : ""}`}
+              onClick={() => setFormat("excel")}
+              disabled={busy}
+            >
+              Excel (ZIP + surat)
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={format === "pdf"}
+              className={`booking-export-range-button${format === "pdf" ? " is-active" : ""}`}
+              onClick={() => setFormat("pdf")}
+              disabled={busy}
+            >
+              PDF (ringkas)
+            </button>
+          </div>
+        </fieldset>
+
         <div className="admin-modal-preview booking-export-preview">
           {previewCount > 0 ? (
             <p>
-              <strong>{previewCount}</strong> baris akan diekspor, diurutkan dari
-              tanggal laporan terbaru ke terlama.
+              {format === "pdf" ? (
+                <>
+                  Laporan PDF ringkas: ringkasan eksekutif, distribusi status,
+                  dan tabel <strong>{Math.min(previewCount, 40)}</strong> permohonan
+                  terbaru. NIK tidak ditampilkan.
+                </>
+              ) : (
+                <>
+                  <strong>{previewCount}</strong> baris akan diekspor, diurutkan dari
+                  tanggal laporan terbaru ke terlama.
+                </>
+              )}
             </p>
           ) : (
             <p className="admin-modal-preview-error">
@@ -262,7 +318,7 @@ export function BookingExportModal({
             ) : (
               <>
                 <Download size={14} aria-hidden="true" />
-                Unduh ZIP
+                {format === "pdf" ? "Unduh PDF" : "Unduh ZIP"}
               </>
             )}
           </button>
@@ -291,6 +347,7 @@ export function FeedbackExportModal({
 }) {
   const [scope, setScope] = useState<FeedbackExportScope>("all");
   const [range, setRange] = useState<ExportRange>("month");
+  const [format, setFormat] = useState<ReportFormat>("excel");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -317,8 +374,7 @@ export function FeedbackExportModal({
             ? feedbackContent.options.discoverySources.find(
                 (option) => option.value === feedback.discoverySource,
               )?.label ?? feedback.discoverySource
-            : "",
-          institution: booking?.institution,
+            : "",          institution: booking?.institution,
           contactName: booking?.contactName,
           dateLabel: booking?.dateLabel,
           dateKey: booking?.date,
@@ -354,6 +410,19 @@ export function FeedbackExportModal({
     setBusy(true);
     setError(null);
     try {
+      if (format === "pdf") {
+        await exportFeedbackReport({
+          feedbacks: enriched,
+          scope,
+          range,
+          customFrom: range === "custom" ? customFrom : undefined,
+          customTo: range === "custom" ? customTo : undefined,
+          generatedBy: adminName,
+          logoUrl: ASSETS.logoGold,
+        });
+        onClose();
+        return;
+      }
       await exportFeedbackToXlsx({
         feedbacks: enriched,
         scope,
@@ -485,11 +554,47 @@ export function FeedbackExportModal({
           )}
         </fieldset>
 
+        <fieldset className="admin-modal-fieldset">
+          <legend>Format</legend>
+          <div className="booking-export-range" role="radiogroup" aria-label="Format keluaran">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={format === "excel"}
+              className={`booking-export-range-button${format === "excel" ? " is-active" : ""}`}
+              onClick={() => setFormat("excel")}
+              disabled={busy}
+            >
+              Excel (detail)
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={format === "pdf"}
+              className={`booking-export-range-button${format === "pdf" ? " is-active" : ""}`}
+              onClick={() => setFormat("pdf")}
+              disabled={busy}
+            >
+              PDF (ringkas)
+            </button>
+          </div>
+        </fieldset>
+
         <div className="admin-modal-preview booking-export-preview">
           {previewCount > 0 ? (
             <p>
-              <strong>{previewCount}</strong> feedback akan diekspor sebagai
-              file Excel berisi 4 sheet: Ringkasan, Detail, Highlights, Improvements.
+              {format === "pdf" ? (
+                <>
+                  Laporan PDF ringkas dari <strong>{previewCount}</strong> feedback:
+                  ringkasan rating, distribusi, profil pengunjung, sumber informasi,
+                  sorotan/saran, dan tindak lanjut.
+                </>
+              ) : (
+                <>
+                  <strong>{previewCount}</strong> feedback akan diekspor sebagai
+                  file Excel berisi 4 sheet: Ringkasan, Detail, Highlights, Improvements.
+                </>
+              )}
             </p>
           ) : (
             <p className="admin-modal-preview-error">
@@ -527,7 +632,7 @@ export function FeedbackExportModal({
             ) : (
               <>
                 <Download size={14} aria-hidden="true" />
-                Unduh Excel
+                {format === "pdf" ? "Unduh PDF" : "Unduh Excel"}
               </>
             )}
           </button>

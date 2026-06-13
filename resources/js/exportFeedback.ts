@@ -36,6 +36,7 @@ export type FeedbackExportInput = {
   facilityComfort: number | null;
   recommend: number;
   visitedBefore: boolean | null;
+  discoverySource?: string | null;
   discoverySourceLabel: string;
   discoverySourceOther: string;
   highlights: string[];

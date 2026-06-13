@@ -145,6 +145,7 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 
 ### 3.6 Ekspor (browser, root `resources/js`)
 - `exportBookings.ts`, `exportFeedback.ts`, `exportMonthlyReport.ts`, `exportWeeklyPoster.ts`, `exportShared.ts`, `exportOpenRegistrations.ts` (Istura Open → Excel `.xlsx` berstilir, per hari/seluruh event; ExcelJS lazy-import).
+- **PDF laporan**: `exportPdfShared.ts` (scaffolding pdfmake bersama: loader+VFS, token warna/style, cover/KPI/footer, tabel status, dan section "Suara Pengunjung" via `computeFeedbackInsights` + `buildFeedbackVoiceBody`/`buildFollowUpNodes`). Dipakai oleh `exportMonthlyReport.ts` (booking+feedback gabung, Dashboard), `exportBookingReport.ts` (booking saja: ringkasan eksekutif + distribusi status + tabel ringkas Top-40, **tanpa NIK**), dan `exportFeedbackReport.ts` (feedback saja: ringkasan + voice of visitor). Modal Booking & Feedback (`ExportModals.tsx`) punya toggle **Excel/PDF** memakai scope+periode yang sama.
 
 ### 3.7 Build/config
 - `package.json` scripts: `dev` (vite), `build` (vite build). `vite.config.js` (root). `tsconfig.json` alias `@/* → resources/js/*`.
