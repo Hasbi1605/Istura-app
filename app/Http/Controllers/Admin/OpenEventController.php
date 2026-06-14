@@ -10,6 +10,8 @@ use App\Http\Requests\Admin\UpdateOpenEventRequest;
 use App\Http\Resources\OpenEventDayResource;
 use App\Http\Resources\OpenEventResource;
 use App\Http\Resources\OpenRegistrationResource;
+use App\Models\Booking;
+use App\Models\BookingSlot;
 use App\Models\OpenEvent;
 use App\Models\OpenEventDay;
 use App\Services\AuditLogger;
@@ -172,6 +174,25 @@ class OpenEventController extends Controller
             ]);
         }
 
+        // Opening a day for Istura Open silently closes it to new rombongan
+        // bookings; warn (non-blocking) if active rombongan bookings already
+        // sit on this date so the admin can reschedule them first.
+        $isOpening = $wantsOpen && ! $day->is_open;
+        $acknowledged = (bool) ($data['acknowledgeConflicts'] ?? false);
+        $conflicts = [];
+
+        if ($isOpening) {
+            $conflicts = $this->bookingConflictsForDate($day->date?->toDateString());
+
+            if ($conflicts !== [] && ! $acknowledged) {
+                return response()->json([
+                    'message' => 'Ada booking rombongan aktif pada tanggal ini.',
+                    'errors' => ['isOpen' => ['Ada booking rombongan aktif pada tanggal ini.']],
+                    'conflicts' => $conflicts,
+                ], 422);
+            }
+        }
+
         if (array_key_exists('quotaOverride', $data)) {
             $day->quota_override = $data['quotaOverride'];
         }
@@ -186,7 +207,12 @@ class OpenEventController extends Controller
         }
         $day->save();
 
-        AuditLogger::record($request->user(), "Memperbarui hari Istura Open {$day->date?->toDateString()}", 'open_event_day', $day->id, [], $request);
+        $auditMeta = [];
+        if ($isOpening && $conflicts !== []) {
+            $auditMeta['acknowledgedConflicts'] = array_column($conflicts, 'code');
+        }
+
+        AuditLogger::record($request->user(), "Memperbarui hari Istura Open {$day->date?->toDateString()}", 'open_event_day', $day->id, $auditMeta, $request);
         PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
 
@@ -274,6 +300,78 @@ class OpenEventController extends Controller
         return response()->json([
             'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
         ]);
+    }
+
+    /**
+     * Active rombongan bookings that already sit on a given date, used to warn
+     * the admin before opening that date for Istura Open. Covers multi-segment
+     * bookings (booking_slots: active + proposed) and legacy single-date rows.
+     *
+     * @return array<int, array{code:string,time:?string,groupSize:int,status:string,statusLabel:string}>
+     */
+    private function bookingConflictsForDate(?string $dateKey): array
+    {
+        if (! $dateKey) {
+            return [];
+        }
+
+        $items = [];
+        $seenSlot = [];
+        $seenBookingIds = [];
+
+        $slots = BookingSlot::with('booking')
+            ->whereDate('date', $dateKey)
+            ->get()
+            ->filter(fn (BookingSlot $slot) => $slot->kind === BookingSlot::KIND_PROPOSED || $slot->booking?->isActiveForSchedule());
+
+        foreach ($slots as $slot) {
+            $booking = $slot->booking;
+            if (! $booking) {
+                continue;
+            }
+
+            $key = $booking->id.'|'.$slot->time;
+            if (isset($seenSlot[$key])) {
+                continue;
+            }
+            $seenSlot[$key] = true;
+            $seenBookingIds[$booking->id] = true;
+
+            $items[] = $this->conflictItem($booking->code, $slot->time, (int) ($slot->group_size ?? $booking->group_size), $booking->status);
+        }
+
+        $bookings = Booking::whereDate('date', $dateKey)
+            ->whereIn('status', Booking::ACTIVE_STATUSES)
+            ->get();
+
+        foreach ($bookings as $booking) {
+            if (isset($seenBookingIds[$booking->id])) {
+                continue;
+            }
+
+            $items[] = $this->conflictItem($booking->code, $booking->time, (int) $booking->group_size, $booking->status);
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return array{code:string,time:?string,groupSize:int,status:string,statusLabel:string}
+     */
+    private function conflictItem(string $code, ?string $time, int $groupSize, string $status): array
+    {
+        return [
+            'code' => $code,
+            'time' => $time,
+            'groupSize' => $groupSize,
+            'status' => $status,
+            'statusLabel' => match ($status) {
+                'Pending' => 'Menunggu',
+                'Accepted' => 'Disetujui',
+                'Reschedule' => 'Reschedule',
+                default => $status,
+            },
+        ];
     }
 
     private function syncDays(OpenEvent $event): void

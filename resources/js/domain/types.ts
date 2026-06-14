@@ -485,6 +485,15 @@ export type OpenEventDayAdmin = {
   hasWhatsappGroupUrl: boolean;
 };
 
+// Active rombongan bookings that collide with a date being opened for Istura Open.
+export type OpenDayBookingConflict = {
+  code: string;
+  time: string | null;
+  groupSize: number;
+  status: string;
+  statusLabel: string;
+};
+
 export type OpenEventAdmin = {
   id: number;
   name: string;

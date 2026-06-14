@@ -12748,6 +12748,28 @@ a {
 .open-poster-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .open-poster-remove { color: var(--danger, #c0392b); }
 
+/* ---- Open day booking-conflict warning ----------------------------------- */
+.open-day-conflict {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: rgba(192, 57, 43, 0.06);
+  border: 1px solid rgba(192, 57, 43, 0.28);
+  border-radius: 12px;
+}
+.open-day-conflict strong { color: var(--danger, #c0392b); }
+.open-day-conflict p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.open-day-conflict ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--navy);
+}
+.open-day-conflict-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
 .open-promo-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .open-banner {

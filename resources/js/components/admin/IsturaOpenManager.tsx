@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import type {
+  OpenDayBookingConflict,
   OpenEventAdmin,
   OpenQuotaSummary,
   OpenRegistrationAdmin,
@@ -408,6 +409,7 @@ function DayCard({
   const [waUrl, setWaUrl] = useState(day.whatsappGroupUrl ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<OpenDayBookingConflict[] | null>(null);
 
   const effectiveQuota = quotaOverride ? Number(quotaOverride) : fallbackQuota;
   const fillPct = effectiveQuota > 0 ? Math.min(100, Math.round((used / effectiveQuota) * 100)) : 0;
@@ -421,6 +423,35 @@ function DayCard({
     } catch (err) {
       if (err instanceof ValidationError) {
         setError(err.errors.whatsappGroupUrl?.[0] ?? err.errors.isOpen?.[0] ?? err.message);
+      } else {
+        setError("Gagal menyimpan perubahan hari.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Toggling open can collide with existing rombongan bookings; on the first
+  // attempt the backend returns a 422 carrying the conflict list so we can warn
+  // before re-sending with acknowledgeConflicts.
+  const toggleOpen = async (acknowledge = false) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await updateOpenEventDay(eventId, day.id, {
+        isOpen: !day.isOpen,
+        ...(acknowledge ? { acknowledgeConflicts: true } : {}),
+      });
+      setConflicts(null);
+      onChanged();
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        const list = (err.body as { conflicts?: OpenDayBookingConflict[] } | null)?.conflicts;
+        if (list && list.length > 0) {
+          setConflicts(list);
+        } else {
+          setError(err.errors.whatsappGroupUrl?.[0] ?? err.errors.isOpen?.[0] ?? err.message);
+        }
       } else {
         setError("Gagal menyimpan perubahan hari.");
       }
@@ -471,7 +502,7 @@ function DayCard({
           type="button"
           className={`button button-ghost open-day-toggle${day.isOpen ? " is-on" : ""}`}
           disabled={busy}
-          onClick={() => persist({ isOpen: !day.isOpen })}
+          onClick={() => void toggleOpen()}
         >
           {day.isOpen ? "● Buka" : "Tutup"}
         </button>
@@ -479,6 +510,31 @@ function DayCard({
           <Download size={14} /> Ekspor hari
         </button>
       </div>
+      {conflicts && (
+        <div className="open-day-conflict" role="alert">
+          <strong>Ada booking rombongan di tanggal ini</strong>
+          <p>
+            Jika hari ini dibuka untuk Istura Open, tanggal tersebut otomatis tertutup untuk booking rombongan
+            baru, tetapi booking berikut tidak ikut dipindahkan. Sebaiknya jadwalkan ulang atau batalkan
+            rombongan ini lebih dulu di halaman Booking.
+          </p>
+          <ul>
+            {conflicts.map((c) => (
+              <li key={`${c.code}-${c.time ?? ""}`}>
+                <strong>{c.code}</strong> · {c.time ?? "-"} · {c.groupSize} orang · {c.statusLabel}
+              </li>
+            ))}
+          </ul>
+          <div className="open-day-conflict-actions">
+            <button type="button" className="button button-ghost" disabled={busy} onClick={() => setConflicts(null)}>
+              Batal
+            </button>
+            <button type="button" className="button button-danger" disabled={busy} onClick={() => void toggleOpen(true)}>
+              Tetap buka
+            </button>
+          </div>
+        </div>
+      )}
       {error && <small className="field-error">{error}</small>}
     </div>
   );

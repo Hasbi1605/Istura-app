@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Booking;
 use App\Models\OpenEvent;
 use App\Models\OpenEventDay;
 use App\Models\OpenRegistration;
@@ -439,6 +440,44 @@ class OpenRegistrationTest extends TestCase
         Storage::disk('public')->assertMissing($path);
     }
 
+    public function test_opening_day_warns_when_active_rombongan_booking_exists(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makeEvent(active: false);
+        $days = $event->days()->orderBy('date')->get();
+        $conflictDay = $days[0];
+        $freeDay = $days[1];
+
+        $this->makeBooking($conflictDay->date->toDateString(), '08.00', 'Accepted', 'ISTURA-2026-9001');
+        // A non-active booking must NOT trigger the warning.
+        $this->makeBooking($freeDay->date->toDateString(), '08.00', 'Rejected', 'ISTURA-2026-9002');
+
+        // First attempt: blocked with the conflict list, day stays closed.
+        $this->putJson("/api/admin/open-events/{$event->id}/days/{$conflictDay->id}", [
+            'isOpen' => true,
+            'whatsappGroupUrl' => 'https://chat.whatsapp.com/conflict',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('conflicts.0.code', 'ISTURA-2026-9001')
+            ->assertJsonPath('conflicts.0.statusLabel', 'Disetujui');
+        $this->assertFalse($conflictDay->fresh()->is_open);
+
+        // Acknowledged: the day opens.
+        $this->putJson("/api/admin/open-events/{$event->id}/days/{$conflictDay->id}", [
+            'isOpen' => true,
+            'whatsappGroupUrl' => 'https://chat.whatsapp.com/conflict',
+            'acknowledgeConflicts' => true,
+        ])->assertOk();
+        $this->assertTrue($conflictDay->fresh()->is_open);
+
+        // Day whose only booking is non-active opens without acknowledgement.
+        $this->putJson("/api/admin/open-events/{$event->id}/days/{$freeDay->id}", [
+            'isOpen' => true,
+            'whatsappGroupUrl' => 'https://chat.whatsapp.com/free',
+        ])->assertOk();
+        $this->assertTrue($freeDay->fresh()->is_open);
+    }
+
     // ----- helpers -----------------------------------------------------------
 
     private function makeActiveEvent(): OpenEvent
@@ -475,6 +514,27 @@ class OpenRegistrationTest extends TestCase
         }
 
         return $event->fresh('days');
+    }
+
+    private function makeBooking(string $date, string $time, string $status, string $code): Booking
+    {
+        $booking = new Booking;
+        $booking->code = $code;
+        $booking->contact_name = 'Rombongan '.substr($code, -4);
+        $booking->nik = '33740101010100'.substr($code, -2);
+        $booking->whatsapp = '0812345670'.substr($code, -2);
+        $booking->institution = 'Instansi '.substr($code, -4);
+        $booking->group_size = 40;
+        $booking->date = $date;
+        $booking->date_label = $date;
+        $booking->time = $time;
+        $booking->status = $status;
+        $booking->document_original_name = 'surat.pdf';
+        $booking->feedback_token = 'fb_'.bin2hex(random_bytes(8));
+        $booking->submitted_at = now();
+        $booking->save();
+
+        return $booking->fresh();
     }
 
     private function makeRegistration(OpenEvent $event, OpenEventDay $day, string $nik, string $whatsapp): OpenRegistration

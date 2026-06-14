@@ -101,6 +101,7 @@ export type UpdateOpenEventDayPayload = {
   whatsappGroupUrl?: string | null;
   opensAt?: string | null;
   isOpen?: boolean;
+  acknowledgeConflicts?: boolean;
 };
 
 export const updateOpenEventDay = (eventId: number, dayId: number, payload: UpdateOpenEventDayPayload) =>

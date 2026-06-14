@@ -19,6 +19,7 @@ class UpdateOpenEventDayRequest extends FormRequest
             'whatsappGroupUrl' => ['sometimes', 'nullable', 'string', 'max:300', new SafePublicUrl(['https'], ['chat.whatsapp.com'], allowRelative: false)],
             'opensAt' => ['sometimes', 'nullable', 'date'],
             'isOpen' => ['sometimes', 'boolean'],
+            'acknowledgeConflicts' => ['sometimes', 'boolean'],
         ];
     }
 
