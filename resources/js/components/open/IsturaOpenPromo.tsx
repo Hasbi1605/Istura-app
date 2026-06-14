@@ -37,8 +37,12 @@ export function IsturaOpenPromo({
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  const tickerText = siteContent.openBanner?.tickerText
+  const tickerText = event.bannerText
+    || siteContent.openBanner?.tickerText
     || "Pendaftaran kunjungan perorangan gratis, tanpa surat. Pilih harimu, siapa cepat dia dapat!";
+
+  const promoSubtitle = event.promoSubtitle
+    || `Kunjungan perorangan ${shortDate(event.startDate)} – ${shortDate(event.endDate)}. Gratis, tanpa surat. Pilih harimu, siapa cepat dia dapat.`;
 
   useEffect(() => {
     if (!showPopup) return;
@@ -94,10 +98,7 @@ export function IsturaOpenPromo({
               <div className="open-promo-badge"><PartyPopper size={24} /></div>
             )}
             <h2 id="open-promo-title">{event.name}</h2>
-            <p className="open-promo-lead">
-              Kunjungan perorangan {shortDate(event.startDate)} – {shortDate(event.endDate)}. Gratis, tanpa surat.
-              Pilih harimu, siapa cepat dia dapat.
-            </p>
+            <p className="open-promo-lead">{promoSubtitle}</p>
             {totalRemaining > 0 && (
               <p className="open-promo-quota">Sisa kuota: {totalRemaining} orang</p>
             )}

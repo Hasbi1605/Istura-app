@@ -461,6 +461,8 @@ export type OpenEventPublic = {
   maxAddons: number;
   agreementText: string | null;
   posterUrl: string | null;
+  promoSubtitle: string | null;
+  bannerText: string | null;
   days: OpenEventDayPublic[];
 };
 
@@ -508,6 +510,8 @@ export type OpenEventAdmin = {
   registrationClosesAt: string | null;
   agreementText: string | null;
   posterUrl: string | null;
+  promoSubtitle: string | null;
+  bannerText: string | null;
   isActive: boolean;
   days: OpenEventDayAdmin[];
 };

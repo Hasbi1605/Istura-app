@@ -478,6 +478,25 @@ class OpenRegistrationTest extends TestCase
         $this->assertTrue($freeDay->fresh()->is_open);
     }
 
+    public function test_admin_can_set_promo_copy_and_public_payload_exposes_it(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makeActiveEvent();
+
+        $this->putJson("/api/admin/open-events/{$event->id}", [
+            'promoSubtitle' => 'Subjudul khusus Agustus.',
+            'bannerText' => 'Banner berjalan kustom!',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.promoSubtitle', 'Subjudul khusus Agustus.')
+            ->assertJsonPath('data.bannerText', 'Banner berjalan kustom!');
+
+        $this->getJson('/api/public/open-event')
+            ->assertOk()
+            ->assertJsonPath('data.promoSubtitle', 'Subjudul khusus Agustus.')
+            ->assertJsonPath('data.bannerText', 'Banner berjalan kustom!');
+    }
+
     // ----- helpers -----------------------------------------------------------
 
     private function makeActiveEvent(): OpenEvent

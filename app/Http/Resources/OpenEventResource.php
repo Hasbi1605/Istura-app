@@ -27,6 +27,8 @@ class OpenEventResource extends JsonResource
             'registrationClosesAt' => $this->registration_closes_at?->toIso8601String(),
             'agreementText' => $this->agreement_text,
             'posterUrl' => $this->resource->posterUrl(),
+            'promoSubtitle' => $this->promo_subtitle,
+            'bannerText' => $this->banner_text,
             'isActive' => (bool) $this->is_active,
             'days' => OpenEventDayResource::collection(
                 $this->whenLoaded('days')

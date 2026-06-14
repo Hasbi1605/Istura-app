@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Megaphone, Plus, Search, Trash2, X } from "lucide-react";
 import type {
   OpenDayBookingConflict,
   OpenEventAdmin,
@@ -17,6 +17,7 @@ import {
   fetchAdminOpenRegistrations,
   fetchOpenEventExport,
   moveOpenRegistration,
+  updateOpenEvent,
   updateOpenEventDay,
   uploadOpenEventPoster,
 } from "../../api/openEvents";
@@ -183,9 +184,6 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
                   ))}
                 </select>
               </label>
-              <button type="button" className="button button-ghost" onClick={() => void reload()}>
-                <RefreshCw size={15} /> Muat ulang
-              </button>
             </div>
             <div className="booking-toolbar-row booking-toolbar-row--secondary open-admin-summary">
               <span>
@@ -212,6 +210,7 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
           {tab === "settings" && (
             <>
               <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
+              <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
               <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} />
             </>
           )}
@@ -285,6 +284,12 @@ function PosterCard({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  const showFlash = (message: string) => {
+    setFlash(message);
+    window.setTimeout(() => setFlash(null), 2000);
+  };
 
   const pick = () => inputRef.current?.click();
 
@@ -294,6 +299,7 @@ function PosterCard({
     setError(null);
     try {
       await uploadOpenEventPoster(event.id, file);
+      showFlash("Poster diperbarui");
       onChanged();
     } catch (err) {
       if (err instanceof ValidationError) {
@@ -313,6 +319,7 @@ function PosterCard({
     setError(null);
     try {
       await deleteOpenEventPoster(event.id);
+      showFlash("Poster dihapus");
       onChanged();
     } catch {
       setError("Gagal menghapus poster.");
@@ -353,9 +360,93 @@ function PosterCard({
                 <Trash2 size={14} /> Hapus
               </button>
             )}
+            {flash && <span className="open-poster-flash">{flash}</span>}
           </div>
         )}
       </div>
+      {error && <small className="field-error">{error}</small>}
+    </div>
+  );
+}
+
+function PromoCard({
+  event,
+  onChanged,
+  readOnly = false,
+}: {
+  event: OpenEventAdmin;
+  onChanged: () => void;
+  readOnly?: boolean;
+}) {
+  const [subtitle, setSubtitle] = useState(event.promoSubtitle ?? "");
+  const [banner, setBanner] = useState(event.bannerText ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
+
+  const dirty = subtitle !== (event.promoSubtitle ?? "") || banner !== (event.bannerText ?? "");
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await updateOpenEvent(event.id, {
+        promoSubtitle: subtitle.trim() || null,
+        bannerText: banner.trim() || null,
+      });
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 2000);
+      onChanged();
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        setError(err.errors.promoSubtitle?.[0] ?? err.errors.bannerText?.[0] ?? err.message);
+      } else {
+        setError("Gagal menyimpan teks promo.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="admin-card open-poster-card">
+      <div className="open-poster-head">
+        <Megaphone size={16} /> Teks Promo (opsional)
+      </div>
+      <p className="open-poster-hint">
+        Mengatur teks popup dan banner berjalan untuk event ini. Dikosongkan = pakai teks default
+        (tanggal otomatis untuk popup, teks global untuk banner).
+      </p>
+      <label className="form-field">
+        <span>Subjudul popup</span>
+        <textarea
+          value={subtitle}
+          rows={2}
+          maxLength={255}
+          placeholder="Contoh: Kunjungan perorangan 14–16 Agustus. Gratis, tanpa surat."
+          onChange={(e) => setSubtitle(e.target.value)}
+          disabled={readOnly}
+        />
+      </label>
+      <label className="form-field">
+        <span>Teks banner berjalan</span>
+        <textarea
+          value={banner}
+          rows={2}
+          maxLength={500}
+          placeholder="Contoh: Pendaftaran Istura Open dibuka! Pilih harimu, siapa cepat dia dapat."
+          onChange={(e) => setBanner(e.target.value)}
+          disabled={readOnly}
+        />
+      </label>
+      {!readOnly && (
+        <div className="open-poster-actions">
+          <button type="button" className="button button-primary" disabled={busy || !dirty} onClick={() => void save()}>
+            {busy ? "Menyimpan..." : "Simpan teks promo"}
+          </button>
+          {flash && <span className="open-poster-flash">Tersimpan</span>}
+        </div>
+      )}
       {error && <small className="field-error">{error}</small>}
     </div>
   );

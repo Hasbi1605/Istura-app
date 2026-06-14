@@ -138,6 +138,8 @@ export interface IsturaData {
   setSiteContent: Dispatch<SetStateAction<SiteContent>>;
   openEvent: OpenEventPublic | null;
   refetchOpenEvent: () => void;
+  reloadAdmin: () => void;
+  adminRefreshing: boolean;
   adminSession: AdminSession | null;
   setAdminSession: Dispatch<SetStateAction<AdminSession | null>>;
   adminTab: AdminTab;
@@ -240,6 +242,10 @@ export function useIsturaData(): IsturaData {
   // Komunikasi antar tab admin: misal Jadwal Kunjungan ingin mengarahkan
   // admin ke booking tertentu di tab Booking.
   const [bookingFocusCode, setBookingFocusCode] = useState<string | null>(null);
+  // Reload global admin: bumping nonce me-refetch bookings/feedbacks/schedule
+  // (effect di bawah depend padanya); adminRefreshing menyetir toast di shell.
+  const [adminReloadNonce, setAdminReloadNonce] = useState(0);
+  const [adminRefreshing, setAdminRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -479,6 +485,7 @@ export function useIsturaData(): IsturaData {
 			pendingAdminRequests -= 1;
 			if (!cancelled && pendingAdminRequests <= 0) {
 				setLoading((current) => ({ ...current, admin: false }));
+				setAdminRefreshing(false);
 			}
 		};
 		void canFetchAdminData().then((allowed) => {
@@ -491,6 +498,7 @@ export function useIsturaData(): IsturaData {
 					feedbacks: false,
 					schedule: false,
 				}));
+				setAdminRefreshing(false);
 				return;
 			}
 			fetchAdminBookings()
@@ -532,7 +540,7 @@ export function useIsturaData(): IsturaData {
     return () => {
       cancelled = true;
     };
-  }, [adminSession]);
+  }, [adminSession, adminReloadNonce]);
 
   // Realtime: jadwal publik ikut berubah saat admin membuka/menutup slot.
   useEffect(() => {
@@ -781,6 +789,16 @@ export function useIsturaData(): IsturaData {
       .catch(() => {});
   };
 
+  // Global admin reload: re-fetch operational data (bookings/feedbacks/schedule
+  // via the nonce-keyed effect) + live open-event quota. Component-owned screens
+  // (Istura Open, Dashboard, Users, Audit) are remounted by AdminApp via key.
+  const reloadAdmin = () => {
+    if (!adminSession) return;
+    setAdminRefreshing(true);
+    setAdminReloadNonce((n) => n + 1);
+    refetchOpenEvent();
+  };
+
   useEffect(() => {
     if (loading.public || import.meta.env.VITE_REVERB_ENABLED !== "true") return;
     if (screen === "admin") return;
@@ -851,6 +869,8 @@ export function useIsturaData(): IsturaData {
     setSiteContent,
     openEvent,
     refetchOpenEvent,
+    reloadAdmin,
+    adminRefreshing,
     adminSession,
     setAdminSession,
     adminTab,

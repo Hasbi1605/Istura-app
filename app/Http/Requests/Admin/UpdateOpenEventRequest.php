@@ -26,6 +26,8 @@ class UpdateOpenEventRequest extends FormRequest
             'registrationOpensAt' => ['sometimes', 'nullable', 'date'],
             'registrationClosesAt' => ['sometimes', 'nullable', 'date', 'after_or_equal:registrationOpensAt'],
             'agreementText' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'promoSubtitle' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'bannerText' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }
 }

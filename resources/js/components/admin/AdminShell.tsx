@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
   ArrowLeft,
@@ -7,6 +7,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  RefreshCw,
   Timer,
 } from "lucide-react";
 import type { AdminSession, AdminTab } from "../../domain/types";
@@ -23,6 +24,8 @@ export function AdminShell({
   tab,
   onTabChange,
   onLogout,
+  onRefresh,
+  refreshing = false,
   onExitToPublic,
   children,
 }: {
@@ -30,10 +33,19 @@ export function AdminShell({
   tab: AdminTab;
   onTabChange: (tab: AdminTab) => void;
   onLogout: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   onExitToPublic: () => void;
   children: ReactNode;
 }) {
   const [isMobileNavOpen, setMobileNavOpen] = useState(false);
+  const [justRefreshed, setJustRefreshed] = useState(false);
+  // Tampilkan konfirmasi singkat "Diperbarui" saat refresh selesai.
+  useEffect(() => {
+    if (refreshing || !justRefreshed) return;
+    const timer = window.setTimeout(() => setJustRefreshed(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [refreshing, justRefreshed]);
   const refreshServerSession = useCallback(async () => {
     const user = await apiMe();
     if (!user) throw new Error("Sesi admin sudah berakhir.");
@@ -131,6 +143,23 @@ export function AdminShell({
             <strong>{currentItem.label}</strong>
           </div>
           <div className="admin-shell-user">
+            {onRefresh && (
+              <button
+                type="button"
+                className="admin-shell-refresh"
+                onClick={() => {
+                  if (refreshing) return;
+                  setJustRefreshed(true);
+                  onRefresh();
+                }}
+                disabled={refreshing}
+                aria-label="Muat ulang data"
+                title="Muat ulang data"
+              >
+                <RefreshCw size={16} aria-hidden="true" className={refreshing ? "is-spinning" : undefined} />
+                <span>Muat ulang</span>
+              </button>
+            )}
             <div className="admin-shell-user-avatar" aria-hidden="true">
               {session.name
                 .split(" ")
@@ -156,6 +185,23 @@ export function AdminShell({
         </header>
 
         <div className="admin-shell-content">{children}</div>
+
+        {(refreshing || justRefreshed) && (
+          <div
+            className={`admin-schedule-toast ${refreshing ? "admin-schedule-toast--saving" : "admin-schedule-toast--saved"}`}
+            role="status"
+            aria-live="polite"
+          >
+            {refreshing ? (
+              <>
+                <RefreshCw size={15} aria-hidden="true" className="is-spinning" />
+                <span>Memuat ulang…</span>
+              </>
+            ) : (
+              <span>Data diperbarui</span>
+            )}
+          </div>
+        )}
       </div>
 
       {showWarning && (

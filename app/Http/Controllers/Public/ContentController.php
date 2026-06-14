@@ -169,6 +169,8 @@ class ContentController extends Controller
             'maxAddons' => (int) $event->max_addons,
             'agreementText' => $event->agreement_text,
             'posterUrl' => $event->posterUrl(),
+            'promoSubtitle' => $event->promo_subtitle,
+            'bannerText' => $event->banner_text,
             'days' => $event->days
                 ->map(function ($day) use ($quota) {
                     $summary = $quota->get($day->id);

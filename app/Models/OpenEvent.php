@@ -26,6 +26,8 @@ class OpenEvent extends Model
         'registration_closes_at',
         'agreement_text',
         'poster_path',
+        'promo_subtitle',
+        'banner_text',
         'whatsapp_template',
         'is_active',
     ];

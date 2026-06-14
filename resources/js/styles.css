@@ -4210,6 +4210,39 @@ a {
   border-color: rgba(16, 24, 47, 0.16);
 }
 
+.admin-shell-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-right: 4px;
+  color: rgba(16, 24, 47, 0.7);
+  background: transparent;
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.admin-shell-refresh:hover:not(:disabled),
+.admin-shell-refresh:focus-visible {
+  outline: none;
+  color: var(--navy);
+  background: rgba(16, 24, 47, 0.05);
+  border-color: rgba(16, 24, 47, 0.16);
+}
+
+.admin-shell-refresh:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.admin-shell-refresh .is-spinning {
+  animation: admin-refresh-spin 0.9s linear infinite;
+}
+
 .admin-shell-content {
   flex: 1;
   padding: 24px;
@@ -8080,6 +8113,23 @@ a {
   margin: 0;
 }
 
+.admin-schedule-toast--saved {
+  background: var(--white);
+  color: var(--positive, #1f7a4d);
+  border: 1px solid rgba(31, 122, 77, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-schedule-toast .is-spinning {
+  animation: admin-refresh-spin 0.9s linear infinite;
+}
+
+@keyframes admin-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ---- Letter / Hero / Users / Audit shared bits ---- */
 
 .admin-letter-preview {
@@ -9159,6 +9209,10 @@ a {
   }
 
   .admin-shell-logout span {
+    display: none;
+  }
+
+  .admin-shell-refresh span {
     display: none;
   }
 
@@ -12745,8 +12799,9 @@ a {
   border: 1px dashed rgba(16, 24, 47, 0.2);
   border-radius: 12px;
 }
-.open-poster-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.open-poster-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .open-poster-remove { color: var(--danger, #c0392b); }
+.open-poster-flash { color: var(--positive, #1f7a4d); font-size: 0.85rem; font-weight: 700; }
 
 /* ---- Open day booking-conflict warning ----------------------------------- */
 .open-day-conflict {

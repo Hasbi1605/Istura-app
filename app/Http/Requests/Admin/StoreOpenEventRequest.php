@@ -26,6 +26,8 @@ class StoreOpenEventRequest extends FormRequest
             'registrationOpensAt' => ['nullable', 'date'],
             'registrationClosesAt' => ['nullable', 'date', 'after_or_equal:registrationOpensAt'],
             'agreementText' => ['nullable', 'string', 'max:5000'],
+            'promoSubtitle' => ['nullable', 'string', 'max:255'],
+            'bannerText' => ['nullable', 'string', 'max:500'],
         ];
     }
 

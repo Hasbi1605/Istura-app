@@ -62,6 +62,8 @@ class OpenEventController extends Controller
             $event->registration_opens_at = $data['registrationOpensAt'] ?? null;
             $event->registration_closes_at = $data['registrationClosesAt'] ?? null;
             $event->agreement_text = $data['agreementText'] ?? null;
+            $event->promo_subtitle = $data['promoSubtitle'] ?? null;
+            $event->banner_text = $data['bannerText'] ?? null;
             $event->is_active = false;
             $event->save();
 
@@ -94,7 +96,7 @@ class OpenEventController extends Controller
                 'release_mode' => $data['releaseMode'] ?? null,
             ], fn ($value) => $value !== null));
 
-            foreach (['registrationOpensAt' => 'registration_opens_at', 'registrationClosesAt' => 'registration_closes_at', 'agreementText' => 'agreement_text'] as $input => $column) {
+            foreach (['registrationOpensAt' => 'registration_opens_at', 'registrationClosesAt' => 'registration_closes_at', 'agreementText' => 'agreement_text', 'promoSubtitle' => 'promo_subtitle', 'bannerText' => 'banner_text'] as $input => $column) {
                 if (array_key_exists($input, $data)) {
                     $event->{$column} = $data[$input];
                 }

@@ -54,6 +54,8 @@ function App() {
     setSiteContent,
     openEvent,
     refetchOpenEvent,
+    reloadAdmin,
+    adminRefreshing,
     adminSession,
     setAdminSession,
     adminTab,
@@ -115,6 +117,8 @@ function App() {
             onBookingFocusCodeChange={setBookingFocusCode}
             loading={loading}
             cmsSync={cmsSync}
+            onReload={reloadAdmin}
+            refreshing={adminRefreshing}
             onExitToPublic={setScreen}
           />
         </Suspense>

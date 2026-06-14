@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Fragment } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
 	AdminSession,
@@ -62,6 +63,8 @@ export function AdminApp({
 	onBookingFocusCodeChange,
 	loading,
 	cmsSync,
+	onReload,
+	refreshing,
 	onExitToPublic,
 }: {
   session: AdminSession | null;
@@ -87,11 +90,14 @@ export function AdminApp({
 	onBookingFocusCodeChange: Dispatch<SetStateAction<string | null>>;
 	loading: DataLoadingState;
 	cmsSync: CmsSyncState;
+	onReload: () => void;
+	refreshing: boolean;
 	onExitToPublic: (screen: Screen) => void;
 	}) {
 	  const [needs2fa, setNeeds2fa] = useState(false);
 	  const [needsSetup, setNeedsSetup] = useState(false);
 	  const [checking2fa, setChecking2fa] = useState(false);
+	  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const sessionFromUser = (user: AuthUser): AdminSession => ({
     email: user.email,
@@ -256,6 +262,11 @@ export function AdminApp({
       session={session}
       tab={safeAdminTab}
       onTabChange={onAdminTabChange}
+      refreshing={refreshing}
+      onRefresh={() => {
+        onReload();
+        setRefreshNonce((n) => n + 1);
+      }}
       onLogout={() => {
         clearAdminSession();
         onSessionChange(null);
@@ -268,6 +279,7 @@ export function AdminApp({
         window.history.replaceState(null, "", "/");
       }}
     >
+      <Fragment key={refreshNonce}>
       {safeAdminTab === "dashboard" && (
 		<AdminDashboard
 			bookings={bookings}
@@ -329,6 +341,7 @@ export function AdminApp({
 		)}
       {safeAdminTab === "users" && <AdminUsersList session={session} />}
       {safeAdminTab === "audit" && <AdminAuditLog />}
+      </Fragment>
     </AdminShell>
   );
 }

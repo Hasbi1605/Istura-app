@@ -62,6 +62,8 @@ export type CreateOpenEventPayload = {
   registrationOpensAt?: string | null;
   registrationClosesAt?: string | null;
   agreementText?: string | null;
+  promoSubtitle?: string | null;
+  bannerText?: string | null;
 };
 
 export const createOpenEvent = (payload: CreateOpenEventPayload) =>
