@@ -137,7 +137,9 @@ function App() {
 
           {screen === "home" && (
             <>
-              {openEvent && <IsturaOpenPromo event={openEvent} siteContent={siteContent} onRegister={() => goToScreen("open")} />}
+              {openEvent?.registrationWindowOpen && (
+                <IsturaOpenPromo event={openEvent} siteContent={siteContent} onRegister={() => goToScreen("open")} />
+              )}
               <HomeScreen
                 contacts={contacts}
                 faqs={faqs}

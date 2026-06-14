@@ -56,6 +56,33 @@ class SeoMetadataTest extends TestCase
         $this->assertFileExists(public_path('assets/istura-home-preview.jpg'));
     }
 
+    public function test_home_page_escapes_html_breakout_characters_in_structured_data(): void
+    {
+        $payload = '</script><meta name="robots" content="noindex">';
+
+        Faq::create([
+            'slug' => 'faq-structured-data-breakout',
+            'question' => 'Apakah konten ini aman?',
+            'answer' => $payload,
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $response->assertDontSee($payload, false);
+        $response->assertSee(
+            '\\u003C/script\\u003E\\u003Cmeta name=\\u0022robots\\u0022 content=\\u0022noindex\\u0022\\u003E',
+            false,
+        );
+
+        $html = $response->getContent();
+        $this->assertSame(1, preg_match('/<script type="application\/ld\+json">(.*?)<\/script>/s', $html, $matches));
+
+        $structuredData = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($payload, $structuredData[3]['mainEntity'][0]['acceptedAnswer']['text']);
+    }
+
     public function test_sitemap_xml_lists_canonical_public_urls(): void
     {
         $response = $this->get('/sitemap.xml');

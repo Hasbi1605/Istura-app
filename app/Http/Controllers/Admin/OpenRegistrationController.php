@@ -11,6 +11,7 @@ use App\Models\OpenRegistration;
 use App\Services\OpenRegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class OpenRegistrationController extends Controller
 {
@@ -61,6 +62,8 @@ class OpenRegistrationController extends Controller
 
     public function move(MoveOpenRegistrationRequest $request, OpenEvent $event, string $code): JsonResponse
     {
+        $this->ensureOperationallyMutable($event);
+
         $registration = $this->resolveRegistration($event, $code);
         $targetDay = OpenEventDay::where('open_event_id', $event->id)
             ->whereKey($request->integer('dayId'))
@@ -82,6 +85,8 @@ class OpenRegistrationController extends Controller
 
     public function cancel(Request $request, OpenEvent $event, string $code): JsonResponse
     {
+        $this->ensureOperationallyMutable($event);
+
         $registration = $this->resolveRegistration($event, $code);
 
         $registration = $this->service->cancel($registration, $request->user(), $request);
@@ -97,5 +102,20 @@ class OpenRegistrationController extends Controller
             ->where('code', $code)
             ->with(['day', 'event'])
             ->firstOrFail();
+    }
+
+    private function ensureOperationallyMutable(OpenEvent $event): void
+    {
+        if ($event->isArchived()) {
+            throw ValidationException::withMessages([
+                'event' => ['Event arsip bersifat baca-saja. Pulihkan arsip sebelum mengubah data operasional.'],
+            ]);
+        }
+
+        if ($event->isPast()) {
+            throw ValidationException::withMessages([
+                'event' => ['Event yang sudah lewat bersifat baca-saja untuk mutasi operasional.'],
+            ]);
+        }
     }
 }

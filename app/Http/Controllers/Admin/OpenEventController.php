@@ -85,6 +85,8 @@ class OpenEventController extends Controller
 
     public function update(UpdateOpenEventRequest $request, OpenEvent $event): JsonResponse
     {
+        $this->ensureOperationallyMutable($event);
+
         $data = $request->validated();
         $updatesDates = array_key_exists('dates', $data) || array_key_exists('startDate', $data) || array_key_exists('endDate', $data);
         $previousScheduleDates = $event->is_active && $updatesDates ? $this->openScheduleDates($event) : [];
@@ -232,6 +234,7 @@ class OpenEventController extends Controller
     public function updateDay(UpdateOpenEventDayRequest $request, OpenEvent $event, OpenEventDay $day): JsonResponse
     {
         abort_unless($day->open_event_id === $event->id, 404);
+        $this->ensureOperationallyMutable($event);
 
         $data = $request->validated();
         $wasOpen = (bool) $day->is_open;
@@ -305,6 +308,8 @@ class OpenEventController extends Controller
             ]);
         }
 
+        $this->ensureOperationallyMutable($event);
+
         if ($event->registrations()->exists()) {
             throw ValidationException::withMessages([
                 'event' => ['Event yang sudah memiliki pendaftar tidak dapat dihapus. Nonaktifkan dan simpan sebagai arsip.'],
@@ -348,6 +353,8 @@ class OpenEventController extends Controller
 
     public function uploadPoster(Request $request, OpenEvent $event): JsonResponse
     {
+        $this->ensureOperationallyMutable($event);
+
         $request->validate([
             'poster' => [
                 'required',
@@ -398,6 +405,8 @@ class OpenEventController extends Controller
 
     public function deletePoster(Request $request, OpenEvent $event): JsonResponse
     {
+        $this->ensureOperationallyMutable($event);
+
         $oldPath = $event->poster_path;
 
         $event->poster_path = null;
@@ -485,6 +494,21 @@ class OpenEventController extends Controller
                 default => $status,
             },
         ];
+    }
+
+    private function ensureOperationallyMutable(OpenEvent $event): void
+    {
+        if ($event->isArchived()) {
+            throw ValidationException::withMessages([
+                'event' => ['Event arsip bersifat baca-saja. Pulihkan arsip sebelum mengubah data operasional.'],
+            ]);
+        }
+
+        if ($event->isPast()) {
+            throw ValidationException::withMessages([
+                'event' => ['Event yang sudah lewat bersifat baca-saja untuk mutasi operasional.'],
+            ]);
+        }
     }
 
     /**

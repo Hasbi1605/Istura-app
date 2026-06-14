@@ -155,24 +155,26 @@ class ContentController extends Controller
         $service = app(OpenRegistrationService::class);
         $event = $service->activeEvent();
 
-        if (! $event || ! $event->registrationWindowOpen()) {
+        if (! $event) {
             return null;
         }
 
         $quota = collect($service->quotaSummary($event))->keyBy('dayId');
+        $registrationWindowOpen = $event->registrationWindowOpen();
 
         return [
             'name' => $event->name,
             'slug' => $event->slug,
             'startDate' => $event->start_date?->toDateString(),
             'endDate' => $event->end_date?->toDateString(),
+            'registrationWindowOpen' => $registrationWindowOpen,
             'maxAddons' => (int) $event->max_addons,
             'agreementText' => $event->agreement_text,
             'posterUrl' => $event->posterUrl(),
             'promoSubtitle' => $event->promo_subtitle,
             'bannerText' => $event->banner_text,
             'days' => $event->days
-                ->map(function ($day) use ($quota) {
+                ->map(function ($day) use ($quota, $registrationWindowOpen) {
                     $summary = $quota->get($day->id);
 
                     return [
@@ -181,7 +183,7 @@ class ContentController extends Controller
                         'quota' => $summary['quota'] ?? 0,
                         'used' => $summary['used'] ?? 0,
                         'remaining' => $summary['remaining'] ?? 0,
-                        'isOpen' => $summary['isOpen'] ?? false,
+                        'isOpen' => $registrationWindowOpen && ($summary['isOpen'] ?? false),
                     ];
                 })
                 ->values()

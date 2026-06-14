@@ -458,6 +458,7 @@ export type OpenEventPublic = {
   slug: string;
   startDate: string;
   endDate: string;
+  registrationWindowOpen: boolean;
   maxAddons: number;
   agreementText: string | null;
   posterUrl: string | null;

@@ -67,25 +67,25 @@ bagian paling rapuh menjadi mendekati nol.
 
 ## 4. Keputusan yang Sudah Dikunci
 
-| # | Keputusan | Nilai |
-|---|-----------|-------|
-| 1 | Penentuan hari | **Peserta memilih sendiri** (`self_select`) |
-| 2 | Periode event Agustus | 3 hari: **14, 15, 16 Agustus** |
-| 3 | Kuota per hari | **100 orang (headcount)**, dapat di-override per hari |
-| 4 | Add-on memenuhi kuota | **Ya** (1 pendaftar + add-on = headcount) |
-| 5 | Add-on | **Nama saja**, maksimal **4**, tanpa NIK |
-| 6 | Identitas (anti-borong) | **1 NIK + 1 WhatsApp** = masing-masing 1 pendaftaran aktif per event |
-| 7 | Surat permohonan | **Tidak ada** |
-| 8 | Persetujuan admin | **Tidak ada** — first-come otomatis |
-| 9 | Output sukses | **Link grup WhatsApp hari terpilih** (bukan nomor pendaftaran) |
-| 10 | Grup WhatsApp | Admin membuat 1 grup per hari, menempel link per hari sebelum membuka |
-| 11 | Verifikasi di lokasi | **Hanya cek kelengkapan/kuota**, tanpa verifikasi identitas per orang |
-| 12 | Pembatalan | Admin penuh **+ self-cancel via lookup NIK** (mengembalikan kuota) |
-| 13 | Setelan grup WA | Join instan (approve OFF); approve/rotasi link sebagai tuas bila bocor |
-| 14 | Modul | **Terisolasi & reusable**, satu event aktif pada satu waktu |
-| 15 | Mode assignment | `assignment_mode` disimpan sebagai kolom; **hanya `self_select` diimplementasi v1** |
-| 16 | Mode pembukaan | **Serentak** (`release_mode = simultaneous`) — 3 hari dibuka bersamaan, bebas pilih selagi kuota ada |
-| 17 | Anti-borong | **1 NIK + 1 WhatsApp**, masing-masing **1 pendaftaran aktif** per event; **IP hanya untuk rate-limit**, bukan kunci keunikan; **email tidak dipakai** |
+| #   | Keputusan               | Nilai                                                                                                                                                 |
+| -----| -------------------------| -------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1   | Penentuan hari          | **Peserta memilih sendiri** (`self_select`)                                                                                                           |
+| 2   | Periode event Agustus   | 3 hari: **14, 15, 16 Agustus**                                                                                                                        |
+| 3   | Kuota per hari          | **100 orang (headcount)**, dapat di-override per hari                                                                                                 |
+| 4   | Add-on memenuhi kuota   | **Ya** (1 pendaftar + add-on = headcount)                                                                                                             |
+| 5   | Add-on                  | **Nama saja**, maksimal **4**, tanpa NIK                                                                                                              |
+| 6   | Identitas (anti-borong) | **1 NIK + 1 WhatsApp** = masing-masing 1 pendaftaran aktif per event                                                                                  |
+| 7   | Surat permohonan        | **Tidak ada**                                                                                                                                         |
+| 8   | Persetujuan admin       | **Tidak ada** — first-come otomatis                                                                                                                   |
+| 9   | Output sukses           | **Link grup WhatsApp hari terpilih** (bukan nomor pendaftaran)                                                                                        |
+| 10  | Grup WhatsApp           | Admin membuat 1 grup per hari, menempel link per hari sebelum membuka                                                                                 |
+| 11  | Verifikasi di lokasi    | **Hanya cek kelengkapan/kuota**, tanpa verifikasi identitas per orang                                                                                 |
+| 12  | Pembatalan              | Admin penuh **+ self-cancel via lookup NIK** (mengembalikan kuota)                                                                                    |
+| 13  | Setelan grup WA         | Join instan (approve OFF); approve/rotasi link sebagai tuas bila bocor                                                                                |
+| 14  | Modul                   | **Terisolasi & reusable**, satu event aktif pada satu waktu                                                                                           |
+| 15  | Mode assignment         | `assignment_mode` disimpan sebagai kolom; **hanya `self_select` diimplementasi v1**                                                                   |
+| 16  | Mode pembukaan          | **Serentak** (`release_mode = simultaneous`) — 3 hari dibuka bersamaan, bebas pilih selagi kuota ada                                                  |
+| 17  | Anti-borong             | **1 NIK + 1 WhatsApp**, masing-masing **1 pendaftaran aktif** per event; **IP hanya untuk rate-limit**, bukan kunci keunikan; **email tidak dipakai** |
 
 ---
 
@@ -109,7 +109,8 @@ Tidak ada keputusan yang masih terbuka.
 - Form pendaftaran publik ringkas + popup/banner event.
 - Panel admin: konfigurasi event, kartu per hari (kuota + link WA + counter), daftar
   pendaftar (pindah hari, batal, export).
-- Self-cancel & pemulihan link via lookup NIK.
+- Self-cancel & pemulihan link via lookup NIK + WhatsApp, termasuk setelah window
+  pendaftaran ditutup selama event masih aktif dan belum lewat.
 
 **Tidak termasuk**
 - Perubahan apa pun pada `bookings`, `BookingService`, `ScheduleService`,
@@ -282,7 +283,8 @@ jam. Reuse regex existing: NIK `/^\d{16}$/`, WhatsApp `/^(08|628)\d{8,13}$/`.
 Layar "Cek pendaftaran" (yang sama untuk pemulihan link) meminta **NIK dan WhatsApp yang
 cocok** sebelum menampilkan detail/link grup. Tombol **"Batalkan pendaftaran"** memakai
 konfirmasi; pembatalan mengubah status → `Cancelled`, mengembalikan kuota & membebaskan
-NIK/WhatsApp.
+NIK/WhatsApp. Lookup/cancel tetap tersedia setelah `registration_closes_at` lewat selama event
+masih aktif, belum arsip, dan belum lewat; form pendaftaran baru tetap ditutup.
 
 ### 9.5 Interaktivitas & Realtime
 

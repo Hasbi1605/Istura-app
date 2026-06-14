@@ -216,6 +216,55 @@ class OpenRegistrationTest extends TestCase
         ])->assertStatus(404);
     }
 
+    public function test_lookup_and_self_cancel_stay_available_after_registration_window_closes(): void
+    {
+        $event = $this->makeActiveEvent();
+        $day = $event->days()->orderBy('date')->first();
+
+        $this->postJson('/api/public/open-registrations', [
+            'contactName' => 'Pemilik Recovery',
+            'nik' => '3374010101010071',
+            'whatsapp' => '081234567071',
+            'city' => 'Yogyakarta',
+            'assignedDayId' => $day->id,
+            'agreement' => true,
+        ])->assertCreated();
+
+        $event->forceFill(['registration_closes_at' => now()->subMinute()])->save();
+
+        $this->getJson('/api/public/open-event')
+            ->assertOk()
+            ->assertJsonPath('data.slug', $event->slug)
+            ->assertJsonPath('data.registrationWindowOpen', false)
+            ->assertJsonPath('data.days.0.isOpen', false);
+
+        $this->getJson('/api/public/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('data.openEvent.registrationWindowOpen', false);
+
+        $this->postJson('/api/public/open-registrations/precheck', [
+            'nik' => '3374010101010072',
+            'whatsapp' => '081234567072',
+        ])->assertNotFound();
+
+        $this->postJson('/api/public/open-registrations/lookup', [
+            'nik' => '3374010101010071',
+            'whatsapp' => '081234567071',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.whatsappGroupUrl', 'https://chat.whatsapp.com/group-14');
+
+        $this->postJson('/api/public/open-registrations/cancel', [
+            'nik' => '3374010101010071',
+            'whatsapp' => '081234567071',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('open_registrations', [
+            'open_event_id' => $event->id,
+            'status' => 'Cancelled',
+        ]);
+    }
+
     public function test_self_cancel_frees_quota_and_identity(): void
     {
         $event = $this->makeActiveEvent();
@@ -366,6 +415,77 @@ class OpenRegistrationTest extends TestCase
             ->assertJsonPath('data.isActive', false)
             ->assertJsonPath('data.isArchived', false)
             ->assertJsonPath('data.lifecycleStatus', 'draft');
+    }
+
+    public function test_archived_event_rejects_operational_mutations_but_allows_export_and_restore(): void
+    {
+        Storage::fake('public');
+        $this->actingAsAdmin();
+        $event = $this->makeActiveEvent();
+        $days = $event->days()->orderBy('date')->get();
+        $registration = $this->makeRegistration($event, $days[0], '3374010101010082', '081234567082');
+
+        $this->postJson("/api/admin/open-events/{$event->id}/archive")->assertOk();
+
+        $this->putJson("/api/admin/open-events/{$event->id}", [
+            'promoSubtitle' => 'Tidak boleh berubah.',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $this->putJson("/api/admin/open-events/{$event->id}/days/{$days[0]->id}", [
+            'isOpen' => false,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $this->post("/api/admin/open-events/{$event->id}/poster", [
+            'poster' => UploadedFile::fake()->image('poster.jpg', 1000, 1400)->size(400),
+        ])->assertStatus(422);
+
+        $this->postJson("/api/admin/open-events/{$event->id}/registrations/{$registration->code}/move", [
+            'dayId' => $days[1]->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $this->postJson("/api/admin/open-events/{$event->id}/registrations/{$registration->code}/cancel")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $this->getJson("/api/admin/open-events/{$event->id}/export")
+            ->assertOk()
+            ->assertJsonPath('data.0.code', $registration->code);
+
+        $this->postJson("/api/admin/open-events/{$event->id}/unarchive")
+            ->assertOk()
+            ->assertJsonPath('data.lifecycleStatus', 'draft');
+    }
+
+    public function test_past_event_rejects_operational_mutations_but_allows_export(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makePastEvent(active: false);
+        $day = $event->days()->orderBy('date')->first();
+
+        $this->putJson("/api/admin/open-events/{$event->id}", [
+            'promoSubtitle' => 'Tidak boleh berubah.',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $this->putJson("/api/admin/open-events/{$event->id}/days/{$day->id}", [
+            'isOpen' => false,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $this->deleteJson("/api/admin/open-events/{$event->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $this->getJson("/api/admin/open-events/{$event->id}/export")
+            ->assertOk();
     }
 
     public function test_admin_cannot_remove_event_date_that_has_registrations(): void

@@ -25,7 +25,7 @@ class OpenRegistrationController extends Controller
     {
         $event = $this->service->activeEvent();
 
-        if (! $event || ! $event->registrationWindowOpen()) {
+        if (! $event) {
             return $this->publicJson(['data' => null]);
         }
 
@@ -36,7 +36,7 @@ class OpenRegistrationController extends Controller
 
     public function precheck(PrecheckOpenRegistrationRequest $request): JsonResponse
     {
-        $event = $this->requireActiveEvent();
+        $event = $this->requireRegistrationOpenEvent();
 
         $result = $this->service->precheck($event, $request->validated('nik'), $request->validated('whatsapp'));
 
@@ -45,7 +45,7 @@ class OpenRegistrationController extends Controller
 
     public function store(StoreOpenRegistrationRequest $request): JsonResponse
     {
-        $event = $this->requireActiveEvent();
+        $event = $this->requireRegistrationOpenEvent();
 
         $registration = $this->service->register($event, $request->validated(), $request);
 
@@ -56,7 +56,7 @@ class OpenRegistrationController extends Controller
 
     public function lookup(LookupOpenRegistrationRequest $request): JsonResponse
     {
-        $event = $this->requireActiveEvent();
+        $event = $this->requireRecoverableEvent();
 
         $registration = $this->service->lookupByIdentity(
             $event,
@@ -73,7 +73,7 @@ class OpenRegistrationController extends Controller
 
     public function cancel(CancelOpenRegistrationRequest $request): JsonResponse
     {
-        $event = $this->requireActiveEvent();
+        $event = $this->requireRecoverableEvent();
 
         $registration = $this->service->lookupByIdentity(
             $event,
@@ -92,7 +92,7 @@ class OpenRegistrationController extends Controller
         return response()->json(['data' => ['cancelled' => true]]);
     }
 
-    private function requireActiveEvent(): OpenEvent
+    private function requireRegistrationOpenEvent(): OpenEvent
     {
         $event = $this->service->activeEvent();
 
@@ -101,22 +101,33 @@ class OpenRegistrationController extends Controller
         return $event;
     }
 
+    private function requireRecoverableEvent(): OpenEvent
+    {
+        $event = $this->service->activeEvent();
+
+        abort_if($event === null, 404, 'Tidak ada event Istura Open yang aktif.');
+
+        return $event;
+    }
+
     private function publicEventPayload(OpenEvent $event): array
     {
         $quota = collect($this->service->quotaSummary($event))->keyBy('dayId');
+        $registrationWindowOpen = $event->registrationWindowOpen();
 
         return [
             'name' => $event->name,
             'slug' => $event->slug,
             'startDate' => $event->start_date?->toDateString(),
             'endDate' => $event->end_date?->toDateString(),
+            'registrationWindowOpen' => $registrationWindowOpen,
             'maxAddons' => (int) $event->max_addons,
             'agreementText' => $event->agreement_text,
             'posterUrl' => $event->posterUrl(),
             'promoSubtitle' => $event->promo_subtitle,
             'bannerText' => $event->banner_text,
             'days' => $event->days
-                ->map(function ($day) use ($quota) {
+                ->map(function ($day) use ($quota, $registrationWindowOpen) {
                     $summary = $quota->get($day->id);
 
                     return [
@@ -125,7 +136,7 @@ class OpenRegistrationController extends Controller
                         'quota' => $summary['quota'] ?? $day->effectiveQuota($day->event),
                         'used' => $summary['used'] ?? 0,
                         'remaining' => $summary['remaining'] ?? 0,
-                        'isOpen' => $summary['isOpen'] ?? false,
+                        'isOpen' => $registrationWindowOpen && ($summary['isOpen'] ?? false),
                     ];
                 })
                 ->values()

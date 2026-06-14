@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, Plus, Trash2, Users, X } from "lucide-react";
 import type { OpenEventPublic, OpenRegistrationResult, Screen } from "../../domain/types";
-import { ValidationError } from "../../api/client";
+import { ApiError, ValidationError } from "../../api/client";
 import {
   cancelOpenRegistration,
   lookupOpenRegistration,
@@ -154,6 +154,8 @@ export function IsturaOpenWizard({
     );
   }
 
+  const registrationOpen = event.registrationWindowOpen;
+
   const setField = (key: string, setter: (value: string) => void) => (value: string) => {
     setter(value);
     setErrors((current) => {
@@ -258,8 +260,8 @@ export function IsturaOpenWizard({
     try {
       const data = await lookupOpenRegistration(lookupNik, lookupWhatsapp);
       setLookupResult(data ?? "none");
-    } catch {
-      setLookupError("Gagal memeriksa pendaftaran.");
+    } catch (error) {
+      setLookupError(error instanceof ApiError ? error.message : "Gagal memeriksa pendaftaran.");
     } finally {
       setLookupPending(null);
     }
@@ -272,8 +274,8 @@ export function IsturaOpenWizard({
       await cancelOpenRegistration(lookupNik, lookupWhatsapp);
       setLookupResult("none");
       onQuotaChanged();
-    } catch {
-      setLookupError("Gagal membatalkan pendaftaran.");
+    } catch (error) {
+      setLookupError(error instanceof ApiError ? error.message : "Gagal membatalkan pendaftaran.");
     } finally {
       setLookupPending(null);
     }
@@ -322,19 +324,43 @@ export function IsturaOpenWizard({
             <div className="open-wizard-head">
               <span className="open-wizard-mobile-kicker">Istura Open</span>
               <h1>{event.name}</h1>
-              <p>Gratis, tanpa surat permohonan. Pilih tanggal yang tersedia dan lengkapi data pendaftar.</p>
-              <ol className="open-stepper" aria-label="Langkah pendaftaran">
-                {STEP_LABELS.map((label, index) => (
-                  <li key={label} className={index === step ? "is-active" : index < step ? "is-done" : ""}>
-                    <span>{index + 1}</span>
-                    {label}
-                  </li>
-                ))}
-              </ol>
+              <p>
+                {registrationOpen
+                  ? "Gratis, tanpa surat permohonan. Pilih tanggal yang tersedia dan lengkapi data pendaftar."
+                  : "Pendaftaran event ini sudah ditutup. Pendaftar yang sudah masuk masih bisa mengecek link grup atau membatalkan pendaftaran."}
+              </p>
+              {registrationOpen && (
+                <ol className="open-stepper" aria-label="Langkah pendaftaran">
+                  {STEP_LABELS.map((label, index) => (
+                    <li key={label} className={index === step ? "is-active" : index < step ? "is-done" : ""}>
+                      <span>{index + 1}</span>
+                      {label}
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
-        {formError && step !== 4 && <p className="open-wizard-alert" role="alert">{formError}</p>}
+        {registrationOpen && formError && step !== 4 && <p className="open-wizard-alert" role="alert">{formError}</p>}
 
-        {step === 0 && (
+        {!registrationOpen && (
+          <div className="open-step">
+            <h2>Pendaftaran sudah ditutup</h2>
+            <p className="open-step-hint">
+              Jika sudah mendaftar, gunakan NIK dan nomor WhatsApp yang sama untuk membuka ulang link grup
+              atau membatalkan pendaftaran sebelum hari kunjungan.
+            </p>
+            <div className="wizard-actions">
+              <button type="button" className="button button-ghost" onClick={() => onNavigate("home")}>
+                Kembali ke Beranda
+              </button>
+              <button type="button" className="button button-primary" onClick={() => setLookupOpen(true)}>
+                Cek / batalkan pendaftaran
+              </button>
+            </div>
+          </div>
+        )}
+
+        {registrationOpen && step === 0 && (
           <div className="open-step">
             <h2>Pilih hari kunjungan</h2>
             <p className="open-step-hint">Kuota dihitung per hari berdasarkan jumlah kepala.</p>
@@ -376,7 +402,7 @@ export function IsturaOpenWizard({
           </div>
         )}
 
-        {step === 1 && (
+        {registrationOpen && step === 1 && (
           <div className="open-step">
             <h2>Data diri pendaftar</h2>
             <div className="form-grid">
@@ -423,7 +449,7 @@ export function IsturaOpenWizard({
           </div>
         )}
 
-        {step === 2 && (
+        {registrationOpen && step === 2 && (
           <div className="open-step">
             <h2>Anggota tambahan</h2>
             <p className="open-step-hint">
@@ -475,7 +501,7 @@ export function IsturaOpenWizard({
           </div>
         )}
 
-        {step === 3 && (
+        {registrationOpen && step === 3 && (
           <div className="open-step">
             <h2>Tinjau pendaftaran</h2>
             <dl className="open-review">
