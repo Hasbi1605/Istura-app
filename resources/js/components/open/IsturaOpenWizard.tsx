@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, Plus, Trash2, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarDays, Check, ChevronLeft, Plus, Trash2, Users, X } from "lucide-react";
 import type { OpenEventPublic, OpenRegistrationResult, Screen } from "../../domain/types";
 import { ValidationError } from "../../api/client";
 import {
@@ -93,6 +93,7 @@ export function IsturaOpenWizard({
   const [lookupResult, setLookupResult] = useState<OpenRegistrationResult | null | "none">(null);
   const [lookupPending, setLookupPending] = useState<"lookup" | "cancel" | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const lookupCloseRef = useRef<HTMLButtonElement>(null);
 
   const selectedDay = useMemo(
     () => event?.days.find((day) => day.id === dayId) ?? null,
@@ -110,6 +111,34 @@ export function IsturaOpenWizard({
     setStep(0);
     setFormError("Hari yang dipilih baru saja ditutup atau kuotanya tidak lagi mencukupi. Silakan pilih hari lain.");
   }, [activeHeadcount, dayId, event]);
+
+  const closeLookup = useCallback(() => {
+    setLookupOpen(false);
+    setLookupResult(null);
+    setLookupNik("");
+    setLookupWhatsapp("");
+    setLookupError(null);
+  }, []);
+
+  useEffect(() => {
+    if (!lookupOpen) return;
+
+    lookupCloseRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (keyboardEvent: KeyboardEvent) => {
+      if (keyboardEvent.key === "Escape" && lookupPending === null) {
+        closeLookup();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [closeLookup, lookupOpen, lookupPending]);
 
   if (!event) {
     return (
@@ -260,7 +289,14 @@ export function IsturaOpenWizard({
     <section className="wizard-page open-wizard-page">
       <div className="wizard-shell open-wizard-shell">
         <aside className="wizard-guide open-wizard-guide">
-          <div className="open-wizard-guide-panel">
+          <div
+            className={`open-wizard-guide-panel${event.posterUrl ? " has-poster" : ""}`}
+            style={event.posterUrl
+              ? {
+                  backgroundImage: `linear-gradient(180deg, rgba(16, 24, 47, 0.9), rgba(16, 24, 47, 0.76)), url("${event.posterUrl}")`,
+                }
+              : undefined}
+          >
             <button type="button" className="open-wizard-back" onClick={() => onNavigate("home")}>
               <ChevronLeft size={18} /> Beranda
             </button>
@@ -508,8 +544,26 @@ export function IsturaOpenWizard({
       </div>
 
       {lookupOpen && (
-        <div className="open-modal-scrim" role="dialog" aria-modal="true" aria-label="Cek pendaftaran">
+        <div
+          className="open-modal-scrim"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Cek pendaftaran"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && lookupPending === null) closeLookup();
+          }}
+        >
           <div className="open-modal">
+            <button
+              ref={lookupCloseRef}
+              type="button"
+              className="open-promo-close"
+              aria-label="Tutup"
+              disabled={lookupPending !== null}
+              onClick={closeLookup}
+            >
+              <X size={18} />
+            </button>
             <h2>Cek / batalkan pendaftaran</h2>
             <p className="open-step-hint">Masukkan NIK dan nomor WhatsApp yang dipakai mendaftar.</p>
             <OpenFormField
@@ -554,13 +608,7 @@ export function IsturaOpenWizard({
               <button
                 type="button"
                 className="button button-ghost"
-                onClick={() => {
-                  setLookupOpen(false);
-                  setLookupResult(null);
-                  setLookupNik("");
-                  setLookupWhatsapp("");
-                  setLookupError(null);
-                }}
+                onClick={closeLookup}
               >
                 Tutup
               </button>

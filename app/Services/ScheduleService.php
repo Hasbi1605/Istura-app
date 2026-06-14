@@ -267,7 +267,7 @@ class ScheduleService
             ->where('is_open', true)
             ->whereDate('date', '>=', $from->toDateString())
             ->whereDate('date', '<=', $to->toDateString())
-            ->whereHas('event', fn ($query) => $query->where('is_active', true))
+            ->whereHas('event', fn ($query) => $query->where('is_active', true)->whereNull('archived_at'))
             ->pluck('date')
             ->mapWithKeys(fn ($date) => [
                 ($date instanceof Carbon ? $date : Carbon::parse($date))->toDateString() => true,
@@ -283,7 +283,7 @@ class ScheduleService
         return OpenEventDay::query()
             ->where('is_open', true)
             ->whereDate('date', $dateKey)
-            ->whereHas('event', fn ($query) => $query->where('is_active', true))
+            ->whereHas('event', fn ($query) => $query->where('is_active', true)->whereNull('archived_at'))
             ->exists();
     }
 

@@ -133,12 +133,15 @@ sisi publik** sampai admin sengaja menyalakannya. Jaminan berlapis:
   hari → Aktifkan** (guard menolak bila ada hari Buka tanpa link WA).
 - Set `is_active = false` kapan pun = **kill-switch**: permukaan publik Istura Open langsung
   hilang, booking reguler tetap jalan.
+- Event yang **diarsipkan** (`archived_at` terisi) atau **sudah lewat** (`end_date` sebelum hari
+  ini) tidak dikembalikan oleh endpoint publik dan tidak menerima pendaftaran baru. Arsip adalah
+  jalur utama untuk event yang sudah punya pendaftar; hapus permanen hanya untuk draft kosong.
 
 ---
 
 ## 7. Model Data
 
-Tidak ada perubahan skema `bookings`. Tiga tabel baru:
+Tidak ada perubahan skema `bookings`. Empat tabel khusus modul:
 
 ### 7.1 `open_events`
 | Kolom | Tipe | Catatan |
@@ -155,8 +158,12 @@ Tidak ada perubahan skema `bookings`. Tiga tabel baru:
 | registration_opens_at | datetime nullable | |
 | registration_closes_at | datetime nullable | |
 | agreement_text | text nullable | teks persetujuan yang ditampilkan |
+| poster_path | string nullable | poster/flyer opsional, disimpan WebP di disk public |
+| promo_subtitle | string nullable | subjudul popup per-event |
+| banner_text | string nullable | teks banner berjalan per-event |
 | whatsapp_template | text nullable | opsional, untuk masa depan |
 | is_active | bool | **default `false`**; **hanya satu boleh true** (lihat §6 Default OFF) |
+| archived_at | datetime nullable | penanda arsip; event arsip tidak tampil di publik |
 | timestamps | | |
 
 ### 7.2 `open_event_days`
@@ -272,9 +279,10 @@ jam. Reuse regex existing: NIK `/^\d{16}$/`, WhatsApp `/^(08|628)\d{8,13}$/`.
   — mencegah pendaftaran tanpa link.
 
 ### 9.4 Self-cancel & pemulihan link
-Layar "Masukkan NIK" (yang sama untuk pemulihan link) menyediakan tombol **"Batalkan
-pendaftaran"** dengan konfirmasi. Pembatalan mengubah status → `Cancelled`,
-mengembalikan kuota & membebaskan NIK.
+Layar "Cek pendaftaran" (yang sama untuk pemulihan link) meminta **NIK dan WhatsApp yang
+cocok** sebelum menampilkan detail/link grup. Tombol **"Batalkan pendaftaran"** memakai
+konfirmasi; pembatalan mengubah status → `Cancelled`, mengembalikan kuota & membebaskan
+NIK/WhatsApp.
 
 ### 9.5 Interaktivitas & Realtime
 
@@ -314,18 +322,17 @@ di `useIsturaData.ts`.
 
 ### 9.6 Koeksistensi dengan Booking Reguler
 
-**Istura Open TIDAK menutup pola booking reguler.** Keduanya berdampingan sebagai entry
-point berbeda.
+**Istura Open TIDAK menutup pola booking reguler secara global.** Keduanya berdampingan sebagai
+entry point berbeda.
 
-- Booking reguler melayani rentang H-2 s/d +2 bulan; pengunjung tetap boleh mendaftarkan
-  rombongan untuk tanggal di luar pekan event. Menutup totalnya akan memblokir pendaftaran sah.
-- Tabrakan tanggal event dicegah **tanpa logika baru**: tanggal event di-`Closed` lewat
-  `POST admin/schedule/range` (existing); `SchedulePicker` wizard reguler otomatis menampilkan
-  hari itu tertutup dan tidak bisa dipilih. 17 Agustus juga auto-closed (libur nasional).
-- Konsisten dengan arsitektur modul terpisah: nol kontaminasi `ScheduleService`.
-- **Opsional (kosmetik):** label alasan penutupan hari event di jadwal reguler dapat diisi
-  "Khusus Istura Open" agar pengunjung wizard reguler paham; status `Closed` sendiri sudah
-  cukup secara fungsi.
+- Booking reguler tetap melayani rentang H-2 s/d +2 bulan untuk tanggal di luar hari Istura Open.
+- Tabrakan tanggal event dicegah oleh `ScheduleService`: hari event yang **aktif, belum arsip,
+  dan `OpenEventDay.is_open = true`** ditampilkan `Closed` dengan alasan `Tutup — Istura Open`
+  di kalender/wizard rombongan. Hari event yang admin set "Tutup" tetap bisa dipakai booking
+  rombongan.
+- Saat admin membuka hari yang sudah memiliki booking rombongan aktif, backend mengembalikan
+  konflik dan UI meminta admin memilih "Batal" atau "Tetap buka"; sistem tidak memindahkan atau
+  membatalkan booking rombongan otomatis.
 
 Pemicu Istura Open di publik: **popup + banner** (§11) dan, opsional, item di `Navigation`
 saat event aktif — mengarah ke `IsturaOpenWizard`, terpisah dari tombol "Daftar Rombongan".
@@ -344,7 +351,7 @@ Satu screen penuh (pola `AdminScheduleManager`) dengan header event + 2 tab.
 
 ```
 ┌─ Istura Open ───────────────────────────────────────────────┐
-│ Event aktif: [ Kemerdekaan 2026 ▾ ]   [+ Buat Event]  ●Aktif │
+│ Event: [ Kemerdekaan 2026 · Aktif ▾ ] [Aktifkan] [Arsipkan] [Hapus draft] │
 │ 14–16 Agt · self-select · 100/hari · maks 4 add-on           │
 ├──────────────────────────────────────────────────────────────┤
 │  [ Pengaturan & Hari ]   [ Pendaftar ]                        │
@@ -356,7 +363,8 @@ Satu screen penuh (pola `AdminScheduleManager`) dengan header event + 2 tab.
 Form event (buat/edit): nama, **tanggal pilihan** (`dates[]`: satu hari, rentang, atau tanggal
 tidak berurutan), kuota/hari, maks add-on, mode pilih hari
 (self_select, terkunci v1), `release_mode` (serentak/bertahap), jendela daftar
-(buka/tutup), teks persetujuan, status aktif.
+(buka/tutup), teks persetujuan, poster/flyer opsional, copy promo, status aktif, dan lifecycle
+draft/aktif/lewat/arsip. Aksi status berada di toolbar atas; bukan card terpisah di bawah tab.
 
 Kartu per hari (jantung operasional, mirip grid slot di ScheduleManager):
 ```
@@ -442,8 +450,8 @@ aktif sebagai jalan masuk permanen. Popup = sekali; banner = selalu selama event
 - `GET  public/open-event` — event aktif + hari + sisa kuota (TANPA link WA).
 - `POST public/open-registrations/precheck` — cek NIK & WhatsApp belum terdaftar + kuota tersedia.
 - `POST public/open-registrations` — store; sukses mengembalikan link grup WA.
-- `POST public/open-registrations/lookup` — input NIK → tampilkan registrasi + link / opsi batal.
-- `POST public/open-registrations/cancel` — self-cancel via NIK.
+- `POST public/open-registrations/lookup` — input NIK + WhatsApp → tampilkan registrasi + link / opsi batal.
+- `POST public/open-registrations/cancel` — self-cancel via NIK + WhatsApp.
 
 **Realtime**
 - Channel publik `PUBLIC_OPEN_CHANNEL`, event `.open.quota-updated` (`OpenQuotaUpdated`)
@@ -453,6 +461,8 @@ aktif sebagai jalan masuk permanen. Popup = sekali; banner = selalu selama event
 - `GET    admin/open-events`, `POST admin/open-events`, `PUT admin/open-events/{event}`
 - `DELETE admin/open-events/{event}` — hanya event nonaktif tanpa riwayat pendaftar
 - `POST   admin/open-events/{event}/activate`
+- `POST   admin/open-events/{event}/archive` — nonaktifkan dan simpan sebagai arsip
+- `POST   admin/open-events/{event}/unarchive` — pulihkan arsip menjadi draft nonaktif
 - `PUT    admin/open-events/{event}/days/{day}` — kuota override, link WA, buka/tutup
 - `GET    admin/open-events/{event}/registrations` — filter hari/status/cari, paginasi
 - `POST   admin/open-registrations/{code}/move` — pindah hari (cek kuota / overbook+alasan)

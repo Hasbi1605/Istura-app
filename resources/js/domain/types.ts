@@ -513,6 +513,11 @@ export type OpenEventAdmin = {
   promoSubtitle: string | null;
   bannerText: string | null;
   isActive: boolean;
+  archivedAt: string | null;
+  isArchived: boolean;
+  isPast: boolean;
+  lifecycleStatus: "draft" | "active" | "past" | "archived";
+  registrationsCount: number;
   days: OpenEventDayAdmin[];
 };
 

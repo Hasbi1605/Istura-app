@@ -11547,6 +11547,11 @@ a {
   box-shadow: var(--shadow);
 }
 
+.open-wizard-guide-panel.has-poster {
+  background-size: cover;
+  background-position: center;
+}
+
 .open-wizard-guide .open-wizard-back {
   width: fit-content;
   margin: 0 0 auto;
@@ -13063,6 +13068,11 @@ a {
   cursor: pointer;
 }
 
+.open-promo-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .open-promo-badge {
   display: grid;
   place-items: center;
@@ -13327,6 +13337,15 @@ a {
   min-width: 0;
 }
 
+.open-admin-event-actions {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .open-admin-event-select {
   flex: 0 1 480px;
   min-width: min(320px, 100%);
@@ -13373,12 +13392,33 @@ a {
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 800;
-  cursor: pointer;
 }
 
 .open-pill.is-on { color: var(--green); background: rgba(45, 118, 84, 0.12); border-color: rgba(45, 118, 84, 0.3); }
+.open-pill.is-past { color: #8a6a09; background: rgba(196, 146, 18, 0.13); border-color: rgba(196, 146, 18, 0.32); }
+.open-pill.is-archived { color: rgba(16, 24, 47, 0.64); background: rgba(16, 24, 47, 0.07); border-color: rgba(16, 24, 47, 0.16); }
 
-.open-activate { display: inline-flex; flex-direction: column; gap: 4px; margin-left: auto; }
+.open-activate,
+.open-toolbar-action {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.open-delete-draft:not(:disabled) {
+  color: var(--red);
+}
+
+.open-archive-note {
+  margin: 0;
+  padding: 12px 14px;
+  color: rgba(16, 24, 47, 0.72);
+  background: rgba(16, 24, 47, 0.045);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
 
 .open-day-admin-grid {
   display: grid;
@@ -13801,12 +13841,16 @@ a {
     align-items: flex-start;
   }
 
-  .open-activate {
+  .open-admin-event-actions,
+  .open-activate,
+  .open-toolbar-action {
     width: 100%;
     margin-left: 0;
   }
 
-  .open-activate .button {
+  .open-admin-event-actions .button,
+  .open-activate .button,
+  .open-toolbar-action .button {
     width: 100%;
   }
 

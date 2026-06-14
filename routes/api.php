@@ -129,6 +129,8 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
         Route::delete('open-events/{event}', [OpenEventController::class, 'destroy']);
         Route::post('open-events/{event}/activate', [OpenEventController::class, 'activate']);
         Route::post('open-events/{event}/deactivate', [OpenEventController::class, 'deactivate']);
+        Route::post('open-events/{event}/archive', [OpenEventController::class, 'archive']);
+        Route::post('open-events/{event}/unarchive', [OpenEventController::class, 'unarchive']);
         Route::post('open-events/{event}/poster', [OpenEventController::class, 'uploadPoster']);
         Route::delete('open-events/{event}/poster', [OpenEventController::class, 'deletePoster']);
         Route::put('open-events/{event}/days/{day}', [OpenEventController::class, 'updateDay']);

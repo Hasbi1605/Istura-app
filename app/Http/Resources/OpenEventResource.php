@@ -13,6 +13,9 @@ class OpenEventResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $isArchived = $this->resource->isArchived();
+        $isPast = $this->resource->isPast();
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -30,6 +33,11 @@ class OpenEventResource extends JsonResource
             'promoSubtitle' => $this->promo_subtitle,
             'bannerText' => $this->banner_text,
             'isActive' => (bool) $this->is_active,
+            'archivedAt' => $this->archived_at?->toIso8601String(),
+            'isArchived' => $isArchived,
+            'isPast' => $isPast,
+            'lifecycleStatus' => $isArchived ? 'archived' : ($isPast ? 'past' : ((bool) $this->is_active ? 'active' : 'draft')),
+            'registrationsCount' => (int) ($this->registrations_count ?? $this->resource->registrations()->count()),
             'days' => OpenEventDayResource::collection(
                 $this->whenLoaded('days')
             ),

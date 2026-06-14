@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Plus, Search, Trash2, X } from "lucide-react";
+import { Archive, Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import type {
   OpenDayBookingConflict,
   OpenEventAdmin,
@@ -9,6 +9,7 @@ import type {
 import { ValidationError } from "../../api/client";
 import {
   activateOpenEvent,
+  archiveOpenEvent,
   cancelAdminOpenRegistration,
   createOpenEvent,
   deactivateOpenEvent,
@@ -18,6 +19,7 @@ import {
   fetchAdminOpenRegistrations,
   fetchOpenEventExport,
   moveOpenRegistration,
+  unarchiveOpenEvent,
   updateOpenEvent,
   updateOpenEventDay,
   uploadOpenEventPoster,
@@ -57,6 +59,20 @@ function eventDatesLabel(event: OpenEventAdmin): string {
   if (dates.length === 0) return "Belum ada tanggal";
   if (dates.length <= 3) return dates.map(longDate).join(" · ");
   return `${longDate(dates[0])} – ${longDate(dates[dates.length - 1])} · ${dates.length} hari pilihan`;
+}
+
+function eventLifecycleLabel(event: OpenEventAdmin): string {
+  if (event.isArchived) return "Arsip";
+  if (event.isPast) return "Lewat";
+  if (event.isActive) return "Aktif";
+  return "Draft";
+}
+
+function eventLifecycleClass(event: OpenEventAdmin): string {
+  if (event.isArchived) return "is-archived";
+  if (event.isPast) return "is-past";
+  if (event.isActive) return "is-on";
+  return "";
 }
 
 const OPEN_STATUS_LABELS: Record<string, string> = {
@@ -173,6 +189,7 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
 
   const selected = useMemo(() => events.find((e) => e.id === selectedId) ?? null, [events, selectedId]);
   const selectedQuota = selectedId ? quota[selectedId] ?? [] : [];
+  const selectedLocked = Boolean(selected?.isArchived || selected?.isPast);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -187,7 +204,10 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
       setQuota(response.quota);
       const currentSelectedId = selectedIdRef.current;
       if (!keepSelection || currentSelectedId === null || !response.data.some((e) => e.id === currentSelectedId)) {
-        const active = response.data.find((e) => e.isActive) ?? response.data[0] ?? null;
+        const active = response.data.find((e) => e.isActive && !e.isArchived && !e.isPast)
+          ?? response.data.find((e) => !e.isArchived)
+          ?? response.data[0]
+          ?? null;
         setSelectedId(active?.id ?? null);
       }
     } catch {
@@ -290,11 +310,21 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
                 >
                   {events.map((event) => (
                     <option key={event.id} value={event.id}>
-                      {event.name} {event.isActive ? "• Aktif" : ""}
+                      {event.name} • {eventLifecycleLabel(event)}
                     </option>
                   ))}
                 </select>
               </label>
+              {!readOnly && (
+                <EventToolbarActions
+                  event={selected}
+                  onChanged={() => void reload()}
+                  onDeleted={async () => {
+                    setSelectedId(null);
+                    await reload(false);
+                  }}
+                />
+              )}
             </div>
             <div className="booking-toolbar-row booking-toolbar-row--secondary open-admin-summary">
               <span>
@@ -302,10 +332,10 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
               </span>
               <span>{selected.perDayQuota}/hari</span>
               <span>maks {selected.maxAddons} add-on</span>
-              <span className={selected.isActive ? "open-pill is-on" : "open-pill"}>
-                {selected.isActive ? "● Aktif" : "Nonaktif"}
+              <span className={`open-pill ${eventLifecycleClass(selected)}`}>
+                {eventLifecycleLabel(selected)}
               </span>
-              <ActivateButton event={selected} onChanged={() => void reload()} readOnly={readOnly} />
+              {selected.registrationsCount > 0 && <span>{selected.registrationsCount} pendaftar</span>}
             </div>
           </section>
 
@@ -320,23 +350,19 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
 
           {tab === "settings" && (
             <>
-              <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} readOnly={readOnly} />
+              <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
               <div className="open-promo-media">
-                <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
-                <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
+                <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
+                <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
               </div>
-              {!readOnly && (
-                <DeleteEventCard
-                  event={selected}
-                  onDeleted={async () => {
-                    setSelectedId(null);
-                    await reload(false);
-                  }}
-                />
+              {selectedLocked && (
+                <p className="open-archive-note">
+                  Event {selected.isArchived ? "arsip" : "yang sudah lewat"} bersifat baca-saja. Data pendaftar tetap bisa dilihat dan diekspor.
+                </p>
               )}
             </>
           )}
-          {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly} />}
+          {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />}
         </>
       )}
 
@@ -391,6 +417,107 @@ function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEve
           ? <ButtonSpinner label={event.isActive ? "Menonaktifkan..." : "Mengaktifkan..."} />
           : event.isActive ? "Nonaktifkan" : "Aktifkan"}
       </button>}
+      {error && <small className="field-error">{error}</small>}
+    </span>
+  );
+}
+
+function EventToolbarActions({
+  event,
+  onChanged,
+  onDeleted,
+}: {
+  event: OpenEventAdmin;
+  onChanged: () => void;
+  onDeleted: () => void;
+}) {
+  return (
+    <div className="open-admin-event-actions">
+      <ActivateButton event={event} onChanged={onChanged} readOnly={event.isArchived || event.isPast} />
+      <ArchiveButton event={event} onChanged={onChanged} />
+      <DeleteDraftButton event={event} onDeleted={onDeleted} />
+    </div>
+  );
+}
+
+function ArchiveButton({ event, onChanged }: { event: OpenEventAdmin; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggleArchive = async () => {
+    if (!event.isArchived) {
+      const message = event.isActive
+        ? `Arsipkan "${event.name}"? Event aktif akan dinonaktifkan dan disimpan sebagai arsip.`
+        : `Arsipkan "${event.name}"? Event tidak akan tampil sebagai event operasional aktif.`;
+      if (!window.confirm(message)) return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      if (event.isArchived) {
+        await unarchiveOpenEvent(event.id);
+      } else {
+        await archiveOpenEvent(event.id);
+      }
+      onChanged();
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        setError(err.errors.event?.[0] ?? err.message);
+      } else {
+        setError(event.isArchived ? "Gagal memulihkan arsip." : "Gagal mengarsipkan event.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className="open-toolbar-action">
+      <button type="button" className="button button-ghost" disabled={busy} onClick={() => void toggleArchive()}>
+        {busy
+          ? <ButtonSpinner label={event.isArchived ? "Memulihkan..." : "Mengarsipkan..."} />
+          : event.isArchived ? <><RotateCcw size={15} /> Pulihkan</> : <><Archive size={15} /> Arsipkan</>}
+      </button>
+      {error && <small className="field-error">{error}</small>}
+    </span>
+  );
+}
+
+function DeleteDraftButton({ event, onDeleted }: { event: OpenEventAdmin; onDeleted: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const disabled = busy || event.isActive || event.registrationsCount > 0;
+  const title = event.isActive
+    ? "Nonaktifkan event sebelum menghapus draft."
+    : event.registrationsCount > 0
+      ? "Event yang sudah memiliki pendaftar disimpan sebagai arsip."
+      : "Hapus draft event secara permanen.";
+
+  const remove = async () => {
+    if (disabled) return;
+    if (!window.confirm(`Hapus draft "${event.name}" secara permanen? Tindakan ini tidak dapat dibatalkan.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteOpenEvent(event.id);
+      onDeleted();
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        setError(err.errors.event?.[0] ?? err.message);
+      } else {
+        setError("Gagal menghapus draft.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className="open-toolbar-action">
+      <button type="button" className="button button-ghost open-delete-draft" disabled={disabled} title={title} onClick={() => void remove()}>
+        {busy ? <ButtonSpinner label="Menghapus..." /> : <><Trash2 size={15} /> Hapus draft</>}
+      </button>
       {error && <small className="field-error">{error}</small>}
     </span>
   );
@@ -576,45 +703,6 @@ function PromoCard({
   );
 }
 
-function DeleteEventCard({ event, onDeleted }: { event: OpenEventAdmin; onDeleted: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const remove = async () => {
-    if (!window.confirm(`Hapus event "${event.name}" secara permanen? Tindakan ini tidak dapat dibatalkan.`)) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await deleteOpenEvent(event.id);
-      onDeleted();
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        setError(err.errors.event?.[0] ?? err.message);
-      } else {
-        setError("Gagal menghapus event.");
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section className="admin-card open-danger-zone">
-      <div>
-        <strong>Hapus event</strong>
-        <p>
-          Hanya event nonaktif tanpa riwayat pendaftar yang dapat dihapus. Event yang sudah dipakai tetap disimpan sebagai arsip.
-        </p>
-      </div>
-      <button type="button" className="button button-danger" disabled={busy || event.isActive} onClick={() => void remove()}>
-        {busy ? <ButtonSpinner label="Menghapus..." /> : <><Trash2 size={15} /> Hapus event</>}
-      </button>
-      {event.isActive && <small>Nonaktifkan event sebelum menghapus.</small>}
-      {error && <small className="field-error">{error}</small>}
-    </section>
-  );
-}
-
 function DaysPanel({
   event,
   quota,
@@ -782,11 +870,12 @@ function DayCard({
           type="button"
           className={`button button-ghost open-day-toggle${day.isOpen ? " is-on" : ""}`}
           disabled={pending !== null}
+          aria-pressed={day.isOpen}
           onClick={() => void toggleOpen()}
         >
           {pending === "toggle"
             ? <ButtonSpinner label={day.isOpen ? "Menutup..." : "Membuka..."} />
-            : day.isOpen ? "● Buka" : "Tutup"}
+            : day.isOpen ? "Tutup hari" : "Buka hari"}
         </button>}
         <button type="button" className="booking-export-button open-day-export" disabled={pending !== null} onClick={() => void exportDay()}>
           {pending === "export" ? <ButtonSpinner label="Mengekspor..." /> : <><Download size={14} /> Ekspor hari</>}
@@ -1224,6 +1313,7 @@ function CreateEventModal({
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [posterError, setPosterError] = useState<string | null>(null);
   const posterInputRef = useRef<HTMLInputElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const [pending, setPending] = useState<"create" | "poster" | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
@@ -1259,6 +1349,22 @@ function CreateEventModal({
     setPosterPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [posterFile]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && pending === null) onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose, pending]);
 
   const submit = async () => {
     if (selectedDates.length === 0) {
@@ -1300,8 +1406,20 @@ function CreateEventModal({
   };
 
   return (
-    <div className="open-modal-scrim" role="dialog" aria-modal="true" aria-label="Buat event">
+    <div className="open-modal-scrim" role="dialog" aria-modal="true" aria-label="Buat event" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && pending === null) onClose();
+    }}>
       <div className="open-modal open-create-event-modal">
+        <button
+          ref={closeRef}
+          type="button"
+          className="open-promo-close"
+          aria-label="Tutup"
+          disabled={pending !== null}
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
         <h2>Buat Event Istura Open</h2>
         <label className="form-field">
           <span>Nama event</span>

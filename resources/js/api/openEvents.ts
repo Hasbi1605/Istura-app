@@ -90,6 +90,16 @@ export const deactivateOpenEvent = (eventId: number) =>
     (r) => r.data,
   );
 
+export const archiveOpenEvent = (eventId: number) =>
+  api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/archive`, { method: "POST" }).then(
+    (r) => r.data,
+  );
+
+export const unarchiveOpenEvent = (eventId: number) =>
+  api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/unarchive`, { method: "POST" }).then(
+    (r) => r.data,
+  );
+
 export const uploadOpenEventPoster = (eventId: number, poster: File) => {
   const formData = new FormData();
   formData.append("poster", poster);

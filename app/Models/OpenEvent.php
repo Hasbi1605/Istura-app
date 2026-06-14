@@ -30,6 +30,7 @@ class OpenEvent extends Model
         'banner_text',
         'whatsapp_template',
         'is_active',
+        'archived_at',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class OpenEvent extends Model
         'registration_opens_at' => 'datetime',
         'registration_closes_at' => 'datetime',
         'is_active' => 'boolean',
+        'archived_at' => 'datetime',
     ];
 
     public function days(): HasMany
@@ -76,5 +78,29 @@ class OpenEvent extends Model
         }
 
         return true;
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    public function isPast(?CarbonInterface $now = null): bool
+    {
+        if (! $this->end_date) {
+            return false;
+        }
+
+        $now = $now ?? now('Asia/Jakarta');
+
+        return $this->end_date->copy()->endOfDay()->lt($now);
+    }
+
+    public function acceptsPublicRegistrations(?CarbonInterface $now = null): bool
+    {
+        return $this->is_active
+            && ! $this->isArchived()
+            && ! $this->isPast($now)
+            && $this->registrationWindowOpen($now);
     }
 }

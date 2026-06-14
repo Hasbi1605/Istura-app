@@ -36,7 +36,7 @@ class OpenEventController extends Controller
 
     public function index(): JsonResponse
     {
-        $events = OpenEvent::with('days')->latest('id')->get();
+        $events = OpenEvent::with('days')->withCount('registrations')->latest('id')->get();
 
         return response()->json([
             'data' => OpenEventResource::collection($events)->resolve(),
@@ -134,6 +134,18 @@ class OpenEventController extends Controller
     {
         $event->loadMissing('days');
 
+        if ($event->isArchived()) {
+            throw ValidationException::withMessages([
+                'event' => ['Pulihkan event dari arsip sebelum mengaktifkannya.'],
+            ]);
+        }
+
+        if ($event->isPast()) {
+            throw ValidationException::withMessages([
+                'event' => ['Event yang sudah lewat tidak dapat diaktifkan kembali.'],
+            ]);
+        }
+
         $openDaysMissingLink = $event->days
             ->filter(fn (OpenEventDay $day) => $day->is_open && blank($day->whatsapp_group_url));
 
@@ -153,6 +165,7 @@ class OpenEventController extends Controller
         DB::transaction(function () use ($event, $request) {
             OpenEvent::where('id', '!=', $event->id)->where('is_active', true)->update(['is_active' => false]);
             $event->is_active = true;
+            $event->archived_at = null;
             $event->save();
 
             AuditLogger::record($request->user(), "Mengaktifkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
@@ -177,6 +190,39 @@ class OpenEventController extends Controller
         PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
         $this->broadcastScheduleForDates($affectedScheduleDates);
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
+        ]);
+    }
+
+    public function archive(Request $request, OpenEvent $event): JsonResponse
+    {
+        $affectedScheduleDates = $event->is_active ? $this->openScheduleDates($event) : [];
+
+        $event->is_active = false;
+        $event->archived_at = now();
+        $event->save();
+
+        AuditLogger::record($request->user(), "Mengarsipkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        PublicCache::bumpScheduleVersion();
+        OpenQuotaUpdated::dispatch($event->slug);
+        $this->broadcastScheduleForDates($affectedScheduleDates);
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
+        ]);
+    }
+
+    public function unarchive(Request $request, OpenEvent $event): JsonResponse
+    {
+        $event->archived_at = null;
+        $event->is_active = false;
+        $event->save();
+
+        AuditLogger::record($request->user(), "Memulihkan arsip event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        PublicCache::bumpScheduleVersion();
+        OpenQuotaUpdated::dispatch($event->slug);
 
         return response()->json([
             'data' => (new OpenEventResource($event->fresh('days')))->resolve(),

@@ -5,7 +5,7 @@ import { ASSETS } from "../../lib/assets";
 
 type NavContent = SiteContent["nav"];
 
-const screenTargets: Screen[] = ["home", "booking", "feedback", "admin"];
+const screenTargets: Screen[] = ["home", "booking", "feedback", "open", "admin"];
 
 export function Navigation({
   screen,

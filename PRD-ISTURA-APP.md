@@ -186,8 +186,10 @@ hari).
 Modul pendaftaran perorangan berbasis kuota harian, terpisah dari booking rombongan dan
 sudah diimplementasikan. Admin dapat memilih satu atau beberapa tanggal (termasuk tanggal
 tidak berurutan), mengatur kuota/link grup per hari, mengaktifkan satu event, memantau dan
-mengekspor pendaftar, serta menghapus draft event nonaktif yang belum pernah memiliki
-pendaftar. Detail aturan ada di `IsturaOpen.md`.
+mengekspor pendaftar, mengarsipkan/memulihkan event yang sudah tidak operasional, serta
+menghapus draft event nonaktif yang belum pernah memiliki pendaftar. Event yang sudah lewat
+atau diarsipkan tidak tampil di publik dan bersifat baca-saja untuk mutasi operasional. Detail
+aturan ada di `IsturaOpen.md`.
 
 ---
 
@@ -752,6 +754,7 @@ bookings *───* schedule (via date/time, dihitung ScheduleService)
 | Lihat event Istura Open aktif | `/api/public/open-event` | GET | Publik |
 | Daftar Istura Open | `/api/public/open-registrations` | POST | Publik |
 | Kelola event Istura Open | `/api/admin/open-events` | GET/POST/PUT/DELETE | Admin |
+| Arsip/pulihkan event Istura Open | `/api/admin/open-events/{event}/archive`, `/api/admin/open-events/{event}/unarchive` | POST | Admin |
 | Kelola pengguna | `/api/admin/users` | GET/POST/PUT/DELETE | Super Admin |
 
 ## Lampiran B — Akun & Peran

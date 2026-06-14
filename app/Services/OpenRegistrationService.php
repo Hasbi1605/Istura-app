@@ -28,6 +28,8 @@ class OpenRegistrationService
     public function activeEvent(): ?OpenEvent
     {
         return OpenEvent::where('is_active', true)
+            ->whereNull('archived_at')
+            ->whereDate('end_date', '>=', now('Asia/Jakarta')->toDateString())
             ->with('days')
             ->latest('id')
             ->first();
@@ -108,7 +110,7 @@ class OpenRegistrationService
             // uniqueness are race-free across days (locks one counter row).
             $lockedEvent = OpenEvent::whereKey($event->id)->lockForUpdate()->firstOrFail();
 
-            if (! $lockedEvent->is_active) {
+            if (! $lockedEvent->is_active || $lockedEvent->isArchived() || $lockedEvent->isPast()) {
                 throw ValidationException::withMessages([
                     'event' => ['Pendaftaran Istura Open sedang tidak aktif.'],
                 ]);

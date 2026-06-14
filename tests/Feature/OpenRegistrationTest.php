@@ -59,6 +59,29 @@ class OpenRegistrationTest extends TestCase
         $this->assertStringNotContainsString('chat.whatsapp.com', json_encode($response->json()));
     }
 
+    public function test_public_surfaces_hide_past_active_event_and_reject_registration(): void
+    {
+        $event = $this->makePastEvent(active: true);
+        $day = $event->days()->firstOrFail();
+
+        $this->getJson('/api/public/open-event')
+            ->assertOk()
+            ->assertJsonPath('data', null);
+
+        $this->getJson('/api/public/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('data.openEvent', null);
+
+        $this->postJson('/api/public/open-registrations', [
+            'contactName' => 'Pendaftar Terlambat',
+            'nik' => '3374010101010188',
+            'whatsapp' => '081234567188',
+            'city' => 'Yogyakarta',
+            'assignedDayId' => $day->id,
+            'agreement' => true,
+        ])->assertNotFound();
+    }
+
     public function test_bootstrap_omits_open_event_when_inactive(): void
     {
         $this->makeEvent(active: false);
@@ -321,6 +344,30 @@ class OpenRegistrationTest extends TestCase
         $this->assertDatabaseHas('open_events', ['id' => $active->id]);
     }
 
+    public function test_admin_can_archive_and_restore_event(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makeActiveEvent();
+
+        $this->postJson("/api/admin/open-events/{$event->id}/archive")
+            ->assertOk()
+            ->assertJsonPath('data.isActive', false)
+            ->assertJsonPath('data.isArchived', true)
+            ->assertJsonPath('data.lifecycleStatus', 'archived');
+
+        $this->assertNotNull($event->fresh()->archived_at);
+
+        $this->getJson('/api/public/open-event')
+            ->assertOk()
+            ->assertJsonPath('data', null);
+
+        $this->postJson("/api/admin/open-events/{$event->id}/unarchive")
+            ->assertOk()
+            ->assertJsonPath('data.isActive', false)
+            ->assertJsonPath('data.isArchived', false)
+            ->assertJsonPath('data.lifecycleStatus', 'draft');
+    }
+
     public function test_admin_cannot_remove_event_date_that_has_registrations(): void
     {
         $this->actingAsAdmin();
@@ -370,6 +417,16 @@ class OpenRegistrationTest extends TestCase
 
         $this->postJson("/api/admin/open-events/{$event->id}/activate")
             ->assertStatus(422);
+    }
+
+    public function test_admin_cannot_activate_past_event(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makePastEvent(active: false);
+
+        $this->postJson("/api/admin/open-events/{$event->id}/activate")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
     }
 
     public function test_admin_cannot_open_day_without_link(): void
@@ -647,6 +704,31 @@ class OpenRegistrationTest extends TestCase
 
         foreach (['2026-08-14', '2026-08-15', '2026-08-16'] as $date) {
             $event->days()->create(['date' => $date, 'is_open' => false]);
+        }
+
+        return $event->fresh('days');
+    }
+
+    private function makePastEvent(bool $active): OpenEvent
+    {
+        $event = new OpenEvent;
+        $event->name = 'Istura Open Lewat';
+        $event->slug = 'istura-open-lewat';
+        $event->start_date = '2026-07-20';
+        $event->end_date = '2026-07-21';
+        $event->per_day_quota = 100;
+        $event->max_addons = 4;
+        $event->assignment_mode = 'self_select';
+        $event->release_mode = 'simultaneous';
+        $event->is_active = $active;
+        $event->save();
+
+        foreach (['2026-07-20', '2026-07-21'] as $date) {
+            $event->days()->create([
+                'date' => $date,
+                'is_open' => true,
+                'whatsapp_group_url' => 'https://chat.whatsapp.com/past',
+            ]);
         }
 
         return $event->fresh('days');
