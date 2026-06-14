@@ -189,6 +189,13 @@ Roadmap: **Istura Open** sudah diimplementasi (modul terpisah — lihat `IsturaO
 - Frontend build: `npm run build`. Dev: `npm run dev` (Vite), `php artisan serve`, `php artisan reverb:start`.
 - QA Playwright: skrip di `scripts/` (mis. `e2e-user-flow.mjs`) saat dev server hidup.
 
+### 6.1 CI/CD production
+
+- Push ke `main` menjalankan `.github/workflows/deploy.yml`: test backend SQLite + build frontend harus lolos sebelum deploy.
+- GitHub Actions memakai OIDC role AWS berumur pendek, mengunggah `git archive` ke bucket S3 privat, lalu menjalankan deploy di EC2 melalui AWS Systems Manager (SSM). Port SSH production tidak dibuka untuk runner GitHub.
+- Script `deploy/aws/deploy.sh` melakukan maintenance mode, sinkronisasi source dengan pengecualian data persisten (`.env`, `storage/app`, session/cache/log), install/build, migration, cache Laravel, restart Supervisor, dan health check origin.
+- Target production: EC2 `i-072b0ca3970f635b6` region `ap-southeast-2`, path `/var/www/istura`; endpoint publik diverifikasi kembali setelah SSM sukses.
+
 ---
 
 ## 7. Catatan Keamanan (ringkas)

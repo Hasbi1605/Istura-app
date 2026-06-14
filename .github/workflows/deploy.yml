@@ -1,4 +1,4 @@
-name: Deploy production
+name: CI/CD production
 
 on:
   push:
@@ -6,246 +6,172 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: production-deploy
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-2
+  AWS_ROLE_ARN: arn:aws:iam::875911184139:role/istura-actions-deploy
+  DEPLOY_BUCKET: istura-deploy-artifacts-875911184139-ap-southeast-2
+  INSTANCE_ID: i-072b0ca3970f635b6
+  DEPLOY_PATH: /var/www/istura
 
 jobs:
-  deploy:
-    name: Deploy to DigitalOcean Droplet
+  quality:
+    name: Test and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Prepare SSH key
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, mbstring, pdo_sqlite, xml
+          coverage: none
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run backend tests
+        run: php artisan test
+
+      - name: Install frontend dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy to AWS EC2 via SSM
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Configure short-lived AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.0
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: istura-${{ github.run_id }}
+
+      - name: Build and upload source artifact
+        id: artifact
         run: |
           set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          if [ -z "$SSH_KNOWN_HOSTS" ]; then
-            echo "SSH_KNOWN_HOSTS secret is required. Pin the production host key instead of using ssh-keyscan." >&2
-            exit 1
-          fi
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+          artifact="$RUNNER_TEMP/istura-${GITHUB_SHA}.tar.gz"
+          git archive --format=tar.gz --output="$artifact" HEAD
+          artifact_uri="s3://${DEPLOY_BUCKET}/deploy/${GITHUB_SHA}.tar.gz"
+          aws s3 cp "$artifact" "$artifact_uri" --only-show-errors
+          echo "uri=$artifact_uri" >> "$GITHUB_OUTPUT"
 
-      - name: Put application in maintenance mode
+      - name: Deploy artifact through SSM
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          ARTIFACT_URI: ${{ steps.artifact.outputs.uri }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
+
+          remote_command="$(cat <<REMOTE
           set -euo pipefail
-          cd "$DEPLOY_PATH"
-          # Pre-render halaman pemeliharaan ber-branding (errors::503) sehingga
-          # public/index.php menyajikannya SEBELUM autoloader/vendor dimuat —
-          # aman walau aset/vendor sedang dibangun ulang. --retry mengirim
-          # header Retry-After. Fallback ke down polos jika view belum ada
-          # (mis. deploy pertama yang memperkenalkan halaman ini).
-          php artisan down --render="errors::503" --retry=15 || php artisan down || true
+          work_dir=/tmp/istura-deploy-${GITHUB_SHA}
+          rm -rf "\$work_dir"
+          mkdir -p "\$work_dir/source"
+          trap 'rm -rf "\$work_dir"' EXIT
+          /usr/local/bin/aws s3 cp '${ARTIFACT_URI}' "\$work_dir/release.tar.gz" --region '${AWS_REGION}' --only-show-errors
+          tar -xzf "\$work_dir/release.tar.gz" -C "\$work_dir/source"
+          SOURCE_DIR="\$work_dir/source" DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_SHA='${GITHUB_SHA}' AWS_REGION='${AWS_REGION}' bash "\$work_dir/source/deploy/aws/deploy.sh"
           REMOTE
+          )"
 
-      - name: Sync files to server
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          encoded_command="$(printf '%s' "$remote_command" | base64 | tr -d '\n')"
+          parameters="$(
+            jq -n \
+              --arg command "printf '%s' '$encoded_command' | base64 --decode | bash" \
+              '{commands: [$command]}'
+          )"
+          command_id="$(aws ssm send-command \
+            --region "$AWS_REGION" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "ISTURA deploy ${GITHUB_SHA}" \
+            --timeout-seconds 1800 \
+            --parameters "$parameters" \
+            --query 'Command.CommandId' \
+            --output text)"
+
+          echo "SSM command: $command_id"
+          status="Pending"
+          for attempt in $(seq 1 180); do
+            status="$(aws ssm get-command-invocation \
+              --region "$AWS_REGION" \
+              --command-id "$command_id" \
+              --instance-id "$INSTANCE_ID" \
+              --query Status \
+              --output text 2>/dev/null || echo Pending)"
+            case "$status" in
+              Success|Cancelled|TimedOut|Failed|Cancelling)
+                break
+                ;;
+            esac
+            sleep 10
+          done
+
+          invocation="$(aws ssm get-command-invocation \
+            --region "$AWS_REGION" \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID" \
+            --output json)"
+          printf '%s\n' "$invocation" | jq -r '.StandardOutputContent'
+          printf '%s\n' "$invocation" | jq -r '.StandardErrorContent' >&2
+
+          if [ "$status" != "Success" ]; then
+            echo "Deployment failed with SSM status: $status" >&2
+            exit 1
+          fi
+
+      - name: Verify public production endpoints
         run: |
           set -euo pipefail
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT" \
-            --exclude='.env' \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='.playwright-cli/' \
-            --exclude='.phpunit.result.cache' \
-            --exclude='node_modules/' \
-            --exclude='vendor/' \
-            --exclude='output/' \
-            --exclude='storage/app/' \
-            --exclude='storage/framework/cache/' \
-            --exclude='storage/framework/sessions/' \
-            --exclude='storage/framework/testing/' \
-            --exclude='storage/framework/views/' \
-            --exclude='storage/framework/down' \
-            --exclude='storage/framework/maintenance.php' \
-            --exclude='storage/logs/' \
-            ./ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+          for endpoint in / /up /api/public/bootstrap /api/public/faqs /robots.txt /sitemap.xml; do
+            url="https://www.isturaiky.page${endpoint}"
+            for attempt in $(seq 1 12); do
+              if curl --fail --silent --show-error --max-time 20 "$url" >/dev/null; then
+                echo "OK $url"
+                break
+              fi
+              if [ "$attempt" -eq 12 ]; then
+                echo "Health check failed: $url" >&2
+                exit 1
+              fi
+              sleep 5
+            done
+          done
 
-      - name: Install and activate application
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          SUPERVISOR_USER: ${{ secrets.SUPERVISOR_USER || 'www-data' }}
-        run: |
-          set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' SUPERVISOR_USER='$SUPERVISOR_USER' bash -s" <<'REMOTE'
-          set -euo pipefail
-
-          cd "$DEPLOY_PATH"
-
-          trap 'php artisan up || true' EXIT
-
-          export COMPOSER_ALLOW_SUPERUSER=1
-
-          configure_trusted_proxies() {
-            fallback_cloudflare_ips="173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22,2400:cb00::/32,2606:4700::/32,2803:f800::/32,2405:b500::/32,2405:8100::/32,2a06:98c0::/29,2c0f:f248::/32"
-            cloudflare_ips=""
-
-            if command -v curl >/dev/null 2>&1; then
-              cloudflare_ips="$(
-                (curl -fsS https://www.cloudflare.com/ips-v4; echo; curl -fsS https://www.cloudflare.com/ips-v6) \
-                  | awk 'NF' \
-                  | paste -sd, -
-              )" || cloudflare_ips=""
-            fi
-
-            if [ -z "$cloudflare_ips" ]; then
-              cloudflare_ips="$fallback_cloudflare_ips"
-            fi
-
-            existing_trusted_proxies=""
-            if [ -f .env ]; then
-              existing_trusted_proxies="$(awk -F= '/^TRUSTED_PROXIES=/{print substr($0, length($1) + 2)}' .env | tail -n 1)"
-            else
-              echo ".env not found in $DEPLOY_PATH." >&2
-              exit 1
-            fi
-
-            trusted_proxies="$(
-              printf '%s,%s,%s\n' "$existing_trusted_proxies" "127.0.0.1,::1" "$cloudflare_ips" \
-                | tr ',' '\n' \
-                | awk 'NF && !seen[$0]++' \
-                | paste -sd, -
-            )"
-
-            cp .env ".env.bak.trusted-proxies.$(date +%Y%m%d%H%M%S)"
-
-            if grep -q '^TRUSTED_PROXIES=' .env; then
-              sed -i "s|^TRUSTED_PROXIES=.*|TRUSTED_PROXIES=${trusted_proxies}|" .env
-            else
-              printf '\nTRUSTED_PROXIES=%s\n' "$trusted_proxies" >> .env
-            fi
-          }
-
-          configure_trusted_proxies
-
-          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
-          npm ci --ignore-scripts
-          npm run build
-
-          php artisan migrate --force
-          php artisan holidays:sync-id
-          php artisan storage:link || true
-          php artisan optimize:clear
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          php artisan event:cache
-          php artisan queue:restart || true
-
-          if command -v systemctl >/dev/null 2>&1; then
-            if command -v sudo >/dev/null 2>&1; then
-              sudo -n systemctl try-reload-or-restart php8.4-fpm || true
-            else
-              systemctl try-reload-or-restart php8.4-fpm || true
-            fi
-          fi
-
-          SUPERVISOR_USER="${SUPERVISOR_USER:-www-data}"
-          PHP_BINARY="$(command -v php)"
-
-          if ! command -v supervisorctl >/dev/null 2>&1; then
-            echo "supervisorctl is required for QUEUE_CONNECTION=database and Reverb realtime." >&2
-            exit 1
-          fi
-
-          if ! id "$SUPERVISOR_USER" >/dev/null 2>&1; then
-            echo "Supervisor user '$SUPERVISOR_USER' does not exist. Set GitHub secret SUPERVISOR_USER or create the user." >&2
-            exit 1
-          fi
-
-          if [ ! -d /etc/supervisor/conf.d ]; then
-            echo "/etc/supervisor/conf.d not found. Install Supervisor before deploying realtime workers." >&2
-            exit 1
-          fi
-
-          run_supervisor() {
-            if command -v sudo >/dev/null 2>&1; then
-              sudo -n supervisorctl "$@"
-            else
-              supervisorctl "$@"
-            fi
-          }
-
-          install_supervisor_config() {
-            source_file="$1"
-            target_file="$2"
-            tmp_file="$(mktemp)"
-            sed \
-              -e "s#__DEPLOY_PATH__#${DEPLOY_PATH}#g" \
-              -e "s#__PHP_BINARY__#${PHP_BINARY}#g" \
-              -e "s#__SUPERVISOR_USER__#${SUPERVISOR_USER}#g" \
-              "$source_file" > "$tmp_file"
-
-            if command -v sudo >/dev/null 2>&1; then
-              sudo -n install -m 0644 "$tmp_file" "$target_file"
-            else
-              install -m 0644 "$tmp_file" "$target_file"
-            fi
-            rm -f "$tmp_file"
-          }
-
-          install_supervisor_config deploy/supervisor/istura-queue.conf /etc/supervisor/conf.d/istura-queue.conf
-          install_supervisor_config deploy/supervisor/istura-reverb.conf /etc/supervisor/conf.d/istura-reverb.conf
-          install_supervisor_config deploy/supervisor/istura-scheduler.conf /etc/supervisor/conf.d/istura-scheduler.conf
-
-          run_supervisor reread
-          run_supervisor update
-          run_supervisor restart istura-queue || run_supervisor start istura-queue
-          run_supervisor restart istura-reverb || run_supervisor start istura-reverb
-          run_supervisor restart istura-scheduler || run_supervisor start istura-scheduler
-          run_supervisor status istura-queue istura-reverb istura-scheduler
-
-          if ! run_supervisor status istura-queue | grep -q RUNNING; then
-            echo "istura-queue is not RUNNING after deploy." >&2
-            exit 1
-          fi
-
-          if ! run_supervisor status istura-reverb | grep -q RUNNING; then
-            echo "istura-reverb is not RUNNING after deploy." >&2
-            exit 1
-          fi
-
-          if ! run_supervisor status istura-scheduler | grep -q RUNNING; then
-            echo "istura-scheduler is not RUNNING after deploy." >&2
-            exit 1
-          fi
-          REMOTE
-
-      - name: Restore application after failure
-        if: failure()
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-        run: |
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "cd '$DEPLOY_PATH' && php artisan up || true"
+      - name: Remove deployment artifact
+        if: always() && steps.artifact.outputs.uri != ''
+        run: aws s3 rm "${{ steps.artifact.outputs.uri }}" --only-show-errors || true
