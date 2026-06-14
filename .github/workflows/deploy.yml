@@ -51,14 +51,14 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      - name: Run backend tests
-        run: php artisan test
-
       - name: Install frontend dependencies
         run: npm ci --ignore-scripts
 
       - name: Build frontend
         run: npm run build
+
+      - name: Run backend tests
+        run: php artisan test
 
   deploy:
     name: Deploy to AWS EC2 via SSM
