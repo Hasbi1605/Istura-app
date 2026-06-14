@@ -249,9 +249,11 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
 
           {tab === "settings" && (
             <>
-              <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
-              <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
               <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} />
+              <div className="open-promo-media">
+                <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
+                <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
+              </div>
             </>
           )}
           {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly} />}

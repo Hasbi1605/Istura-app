@@ -12803,6 +12803,21 @@ a {
 .open-poster-remove { color: var(--danger, #c0392b); }
 .open-poster-flash { color: var(--positive, #1f7a4d); font-size: 0.85rem; font-weight: 700; }
 
+/* Poster + teks promo berdampingan agar tidak boros ke bawah. */
+.open-promo-media {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.open-promo-media > * { margin: 0; }
+
+@media (max-width: 860px) {
+  .open-promo-media {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---- Open day booking-conflict warning ----------------------------------- */
 .open-day-conflict {
   display: grid;
