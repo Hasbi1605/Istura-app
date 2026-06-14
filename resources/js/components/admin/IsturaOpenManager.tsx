@@ -381,10 +381,6 @@ function PosterCard({
       <div className="open-poster-head">
         <ImageIcon size={16} /> Poster / Flyer (opsional)
       </div>
-      <p className="open-poster-hint">
-        Tampil di popup promosi Istura Open. Tanpa poster, popup memakai tampilan ringkas seperti biasa.
-        Potret atau lanskap boleh. JPG/PNG/WebP, maks {POSTER_MAX_WIDTH}×{POSTER_MAX_HEIGHT} piksel, ≤5 MB.
-      </p>
       <div className="open-poster-body">
         {event.posterUrl ? (
           <img className="open-poster-preview" src={event.posterUrl} alt={`Poster ${event.name}`} />
@@ -461,10 +457,6 @@ function PromoCard({
       <div className="open-poster-head">
         <Megaphone size={16} /> Teks Promo (opsional)
       </div>
-      <p className="open-poster-hint">
-        Mengatur teks popup dan banner berjalan untuk event ini. Dikosongkan = pakai teks default
-        (tanggal otomatis untuk popup, teks global untuk banner).
-      </p>
       <label className="form-field">
         <span>Subjudul popup</span>
         <textarea

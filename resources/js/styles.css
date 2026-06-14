@@ -12808,9 +12808,15 @@ a {
   display: grid;
   grid-template-columns: minmax(260px, 320px) 1fr;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
-.open-promo-media > * { margin: 0; }
+.open-promo-media > .open-poster-card {
+  display: flex;
+  flex-direction: column;
+}
+.open-promo-media > .open-poster-card .open-poster-body {
+  flex: 1 1 0;
+}
 
 @media (max-width: 860px) {
   .open-promo-media {
