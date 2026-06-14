@@ -23,7 +23,7 @@ class SeoMeta
         $siteContent = self::siteContentData();
         $faqs = self::faqData();
         $homeUrl = self::url('/');
-        $ogImage = self::assetUrl('/assets/alur-kunjungan.jpg');
+        $ogImage = self::assetUrl('/assets/istura-home-preview.jpg');
 
         $seo = [
             'title' => self::HOME_TITLE,
@@ -31,7 +31,10 @@ class SeoMeta
             'canonicalUrl' => $homeUrl,
             'siteName' => 'ISTURA',
             'image' => $ogImage,
-            'imageAlt' => 'Alur dan peraturan kunjungan ISTURA Gedung Agung Yogyakarta',
+            'imageAlt' => 'Booking kunjungan ISTURA Gedung Agung Yogyakarta',
+            'imageWidth' => 1200,
+            'imageHeight' => 630,
+            'imageType' => 'image/jpeg',
         ];
 
         return [

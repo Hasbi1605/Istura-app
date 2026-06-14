@@ -15,9 +15,9 @@
     <meta property="og:url" content="{{ $seo['canonicalUrl'] }}" />
     <meta property="og:image" content="{{ $seo['image'] }}" />
     <meta property="og:image:secure_url" content="{{ $seo['image'] }}" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="1280" />
+    <meta property="og:image:type" content="{{ $seo['imageType'] ?? 'image/jpeg' }}" />
+    <meta property="og:image:width" content="{{ $seo['imageWidth'] ?? 1200 }}" />
+    <meta property="og:image:height" content="{{ $seo['imageHeight'] ?? 630 }}" />
     <meta property="og:image:alt" content="{{ $seo['imageAlt'] }}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{{ $seo['title'] }}" />

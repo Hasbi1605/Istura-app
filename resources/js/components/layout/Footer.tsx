@@ -1,16 +1,14 @@
 import { Clock3, MapPin } from "lucide-react";
-import type { FooterContact, Screen, SiteContent } from "../../domain/types";
+import type { FooterContact, SiteContent } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
 import { ContactIcon } from "../icons/SocialIcons";
 
 export function Footer({
   contacts,
   content,
-  onNavigate,
 }: {
   contacts: FooterContact[];
   content: SiteContent["footer"];
-  onNavigate: (screen: Screen) => void;
 }) {
   return (
     <footer className="site-footer">
@@ -79,9 +77,6 @@ export function Footer({
 
       <p className="footer-credit">
         {content.copyright}
-        <button type="button" className="footer-admin-link" onClick={() => onNavigate("admin")}>
-          Admin
-        </button>
       </p>
     </footer>
   );

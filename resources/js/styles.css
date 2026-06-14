@@ -2163,25 +2163,6 @@ a {
   letter-spacing: 0.01em;
 }
 
-.footer-admin-link {
-  padding: 0;
-  color: rgba(255, 255, 255, 0.45);
-  background: transparent;
-  border: 0;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.28);
-  font-size: inherit;
-  font-weight: 500;
-  letter-spacing: inherit;
-  transition: color 180ms ease, border-color 180ms ease;
-}
-
-.footer-admin-link:hover,
-.footer-admin-link:focus-visible {
-  color: var(--gold-2);
-  border-bottom-color: var(--gold-2);
-  outline: none;
-}
-
 .wizard-page,
 .feedback-page {
   min-height: 100vh;

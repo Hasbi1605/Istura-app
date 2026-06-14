@@ -40,12 +40,20 @@ class SeoMetadataTest extends TestCase
         $response->assertSee('<title>ISTURA Yogyakarta - Booking Kunjungan Istana Kepresidenan Gedung Agung</title>', false);
         $response->assertSee('<meta name="description" content="Daftar kunjungan ISTURA Gedung Agung Yogyakarta secara online. Cek jadwal, syarat surat permohonan, tata tertib, dan konfirmasi WhatsApp." />', false);
         $response->assertSee('<link rel="canonical" href="https://www.isturaiky.page/" />', false);
+        $response->assertSee('<meta property="og:image" content="https://www.isturaiky.page/assets/istura-home-preview.jpg" />', false);
+        $response->assertSee('<meta property="og:image:width" content="1200" />', false);
+        $response->assertSee('<meta property="og:image:height" content="630" />', false);
+        $response->assertSee('<meta property="og:image:alt" content="Booking kunjungan ISTURA Gedung Agung Yogyakarta" />', false);
+        $response->assertSee('<meta name="twitter:image" content="https://www.isturaiky.page/assets/istura-home-preview.jpg" />', false);
+        $response->assertDontSee('<meta property="og:image" content="https://www.isturaiky.page/assets/alur-kunjungan.jpg" />', false);
+        $response->assertDontSee('<meta property="og:image" content="https://www.isturaiky.page/assets/peraturan-kunjungan.jpg" />', false);
         $response->assertSee('<script type="application/ld+json">', false);
         $response->assertSee('"@type": "FAQPage"', false);
         $response->assertSee('<noscript>', false);
         $response->assertSee('Booking Kunjungan Istana Kepresidenan Yogyakarta');
         $response->assertSee('Jadwal Kunjungan ISTURA');
         $response->assertSee('Apakah kunjungan ISTURA gratis?');
+        $this->assertFileExists(public_path('assets/istura-home-preview.jpg'));
     }
 
     public function test_sitemap_xml_lists_canonical_public_urls(): void

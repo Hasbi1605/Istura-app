@@ -468,7 +468,7 @@ export function HomeScreen({
         </button>
       </section>
 
-      <Footer contacts={contacts} content={siteContent.footer} onNavigate={onNavigate} />
+      <Footer contacts={contacts} content={siteContent.footer} />
     </>
   );
 }
