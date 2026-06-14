@@ -71,15 +71,17 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 > Skema kolom lengkap ada di `PRD-ISTURA-APP.md` §6.
 
 #### Istura Open (modul terpisah, lihat `IsturaOpen.md`)
-- **Tabel:** `open_events`, `open_event_days`, `open_registrations` (termasuk kolom `city` untuk asal kota pendaftar), `open_registration_sequences` (counter kode).
-- **Service:** `OpenRegistrationService` (store atomic dengan `lockForUpdate` baris event → no overbooking, dedup 1 NIK + 1 WhatsApp aktif/event, self/admin cancel, admin move + overbook, quotaSummary live). Isolated penuh dari `BookingService`/`ScheduleService`.
+- **Tabel:** `open_events` (termasuk kolom `poster_path` untuk poster/flyer opsional), `open_event_days`, `open_registrations` (termasuk kolom `city` untuk asal kota pendaftar), `open_registration_sequences` (counter kode).
+- **Service:** `OpenRegistrationService` (store atomic dengan `lockForUpdate` baris event → no overbooking, dedup 1 NIK + 1 WhatsApp aktif/event, self/admin cancel, admin move + overbook, quotaSummary live; `lookupByIdentity` butuh NIK **dan** WhatsApp). Isolated dari `BookingService`.
+- **Pemblokiran jadwal rombongan:** `ScheduleService` menutup tanggal yang dipakai event Istura Open **aktif** untuk booking rombongan, per hari (`OpenEventDay.is_open = true`). Tanggal terblokir tampil `Closed` dengan `closureReason.type = istura_open` (label "Tutup — Istura Open") di kalender publik & wizard, dan `slotStatusFor`/`slotStatusesFor` menolak booking baru (mengalahkan override "Available", tetap menampilkan booking aktif yang sudah ada). Hari yang admin set "Tutup" tetap bisa dibooking rombongan. Mutasi event (store/update/activate/deactivate/updateDay/poster) memanggil `PublicCache::bumpScheduleVersion()` agar kalender ter-refresh.
 - **Kode:** `OpenRegistrationCodeGenerator` → `ISTURA-OPEN-{year}-{NNNN}` (pola `booking_sequences`).
 - **Event broadcast:** `OpenQuotaUpdated` (ShouldBroadcastNow) ke channel publik `public.open`, event `.open.quota-updated` (kuota live). Dipancarkan saat register/cancel/move/admin toggle.
-- **Controllers:** `Public/OpenRegistrationController` (show/precheck/store/lookup/cancel), `Admin/OpenEventController` (index/store/update/activate/deactivate/updateDay/export), `Admin/OpenRegistrationController` (index/move/cancel).
+- **Controllers:** `Public/OpenRegistrationController` (show/precheck/store/lookup/cancel — lookup & cancel butuh NIK + WhatsApp), `Admin/OpenEventController` (index/store/update/activate/deactivate/updateDay/uploadPoster/deletePoster/export), `Admin/OpenRegistrationController` (index/move/cancel).
+- **Poster/flyer (opsional):** `POST/DELETE /api/admin/open-events/{event}/poster` (multipart field `poster`, reuse `CmsImageService` → WebP di `cms/open-posters`, maks 5 MB, rollback + cleanup file lama). `posterUrl` ikut di resource admin + payload publik. Bila ada, `IsturaOpenPromo` menampilkan gambar di atas teks pada popup; bila kosong, popup tetap tampilan ringkas.
 - **Requests:** `Public/{Store,Precheck,Lookup,Cancel}OpenRegistrationRequest`, `Admin/{StoreOpenEvent,UpdateOpenEvent,UpdateOpenEventDay,MoveOpenRegistration}Request`.
-- **Resources:** `OpenEventResource`, `OpenEventDayResource` (link WA hanya admin), `OpenRegistrationResource`.
-- **Keamanan:** link grup WhatsApp tidak pernah muncul di endpoint/bootstrap publik; hanya dikembalikan pada response sukses register/lookup. Hari tak bisa dibuka/diaktifkan tanpa link. Rate limit `public-open`. `is_active` default false (kill-switch).
-- **Bootstrap:** ringkasan event aktif (`openEvent`, tanpa link WA) ikut di `ContentController::bootstrap`.
+- **Resources:** `OpenEventResource` (termasuk `posterUrl`), `OpenEventDayResource` (link WA hanya admin), `OpenRegistrationResource`.
+- **Keamanan:** link grup WhatsApp tidak pernah muncul di endpoint/bootstrap publik; hanya dikembalikan pada response sukses register/lookup, dan lookup/cancel publik kini butuh NIK + WhatsApp yang cocok (mencegah enumerasi via NIK saja). Hari tak bisa dibuka/diaktifkan tanpa link. Rate limit `public-open`. `is_active` default false (kill-switch).
+- **Bootstrap:** ringkasan event aktif (`openEvent`, tanpa link WA, termasuk `posterUrl`) ikut di `ContentController::bootstrap`.
 
 ### 2.4 Requests / Resources / Middleware / lainnya
 - **Requests** (`app/Http/Requests`): root `ScheduleRangeRequest`; `Auth/LoginRequest`;

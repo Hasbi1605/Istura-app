@@ -12697,6 +12697,57 @@ a {
 .open-promo-lead { margin: 0; color: var(--muted); max-width: 44ch; }
 .open-promo-quota { margin: 0; color: var(--navy); font-weight: 800; }
 
+/* Optional poster/flyer: image on top, text + CTA below for legibility. */
+.open-promo-modal.has-poster { padding-top: 0; overflow: hidden; }
+.open-promo-poster {
+  width: calc(100% + 2 * clamp(22px, 4vw, 32px));
+  margin: 0 calc(-1 * clamp(22px, 4vw, 32px));
+  max-height: 46vh;
+  object-fit: contain;
+  background: rgba(16, 24, 47, 0.04);
+  border-radius: 18px 18px 0 0;
+}
+.open-promo-modal.has-poster .open-promo-close {
+  background: rgba(16, 24, 47, 0.55);
+  color: var(--white);
+}
+
+/* ---- Admin poster card --------------------------------------------------- */
+.open-poster-card { display: grid; gap: 10px; }
+.open-poster-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: var(--navy);
+}
+.open-poster-hint { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.open-poster-body { display: grid; gap: 12px; justify-items: start; }
+.open-poster-preview {
+  max-width: 240px;
+  max-height: 320px;
+  width: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  object-fit: contain;
+  background: rgba(16, 24, 47, 0.04);
+}
+.open-poster-empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 240px;
+  min-height: 96px;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+  border: 1px dashed rgba(16, 24, 47, 0.2);
+  border-radius: 12px;
+}
+.open-poster-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.open-poster-remove { color: var(--danger, #c0392b); }
+
 .open-promo-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .open-banner {

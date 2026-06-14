@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class OpenEvent extends Model
 {
@@ -24,6 +25,7 @@ class OpenEvent extends Model
         'registration_opens_at',
         'registration_closes_at',
         'agreement_text',
+        'poster_path',
         'whatsapp_template',
         'is_active',
     ];
@@ -46,6 +48,14 @@ class OpenEvent extends Model
     public function registrations(): HasMany
     {
         return $this->hasMany(OpenRegistration::class);
+    }
+
+    /**
+     * Public URL for the optional poster/flyer, or null when none uploaded.
+     */
+    public function posterUrl(): ?string
+    {
+        return $this->poster_path ? Storage::disk('public')->url($this->poster_path) : null;
     }
 
     /**

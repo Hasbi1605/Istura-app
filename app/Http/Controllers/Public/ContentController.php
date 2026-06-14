@@ -168,6 +168,7 @@ class ContentController extends Controller
             'endDate' => $event->end_date?->toDateString(),
             'maxAddons' => (int) $event->max_addons,
             'agreementText' => $event->agreement_text,
+            'posterUrl' => $event->posterUrl(),
             'days' => $event->days
                 ->map(function ($day) use ($quota) {
                     $summary = $quota->get($day->id);

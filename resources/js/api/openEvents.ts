@@ -35,16 +35,16 @@ export const storeOpenRegistration = (payload: StoreOpenRegistrationPayload) =>
     body: payload,
   }).then((r) => r.data);
 
-export const lookupOpenRegistration = (nik: string) =>
+export const lookupOpenRegistration = (nik: string, whatsapp: string) =>
   api<{ data: OpenRegistrationResult | null }>("/api/public/open-registrations/lookup", {
     method: "POST",
-    body: { nik },
+    body: { nik, whatsapp },
   }).then((r) => r.data);
 
-export const cancelOpenRegistration = (nik: string) =>
+export const cancelOpenRegistration = (nik: string, whatsapp: string) =>
   api<{ data: { cancelled: boolean } }>("/api/public/open-registrations/cancel", {
     method: "POST",
-    body: { nik },
+    body: { nik, whatsapp },
   }).then((r) => r.data);
 
 // ---- Admin ---------------------------------------------------------------
@@ -79,6 +79,20 @@ export const activateOpenEvent = (eventId: number) =>
 
 export const deactivateOpenEvent = (eventId: number) =>
   api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/deactivate`, { method: "POST" }).then(
+    (r) => r.data,
+  );
+
+export const uploadOpenEventPoster = (eventId: number, poster: File) => {
+  const formData = new FormData();
+  formData.append("poster", poster);
+  return api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/poster`, {
+    method: "POST",
+    formData,
+  }).then((r) => r.data);
+};
+
+export const deleteOpenEventPoster = (eventId: number) =>
+  api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/poster`, { method: "DELETE" }).then(
     (r) => r.data,
   );
 

@@ -6,9 +6,12 @@ use App\Models\OpenEvent;
 use App\Models\OpenEventDay;
 use App\Models\OpenRegistration;
 use App\Models\User;
+use App\Services\ScheduleService;
 use App\Services\TwoFactorService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class OpenRegistrationTest extends TestCase
@@ -140,12 +143,50 @@ class OpenRegistrationTest extends TestCase
             'agreement' => true,
         ])->assertStatus(422);
 
-        // Lookup recovers the existing group link.
+        // Lookup recovers the existing group link (NIK + WhatsApp required).
         $this->postJson('/api/public/open-registrations/lookup', [
             'nik' => '3374010101010010',
+            'whatsapp' => '081234567010',
         ])
             ->assertOk()
             ->assertJsonPath('data.whatsappGroupUrl', 'https://chat.whatsapp.com/group-14');
+    }
+
+    public function test_lookup_requires_matching_whatsapp(): void
+    {
+        $event = $this->makeActiveEvent();
+        $day = $event->days()->orderBy('date')->first();
+
+        $this->postJson('/api/public/open-registrations', [
+            'contactName' => 'Pemilik',
+            'nik' => '3374010101010070',
+            'whatsapp' => '081234567070',
+            'city' => 'Klaten',
+            'assignedDayId' => $day->id,
+            'agreement' => true,
+        ])->assertCreated();
+
+        // Correct NIK but wrong WhatsApp must not reveal the registration.
+        $this->postJson('/api/public/open-registrations/lookup', [
+            'nik' => '3374010101010070',
+            'whatsapp' => '081299999999',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data', null);
+
+        // Matching NIK + WhatsApp returns it.
+        $this->postJson('/api/public/open-registrations/lookup', [
+            'nik' => '3374010101010070',
+            'whatsapp' => '081234567070',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.whatsappGroupUrl', 'https://chat.whatsapp.com/group-14');
+
+        // Cancel also requires the matching WhatsApp.
+        $this->postJson('/api/public/open-registrations/cancel', [
+            'nik' => '3374010101010070',
+            'whatsapp' => '081299999999',
+        ])->assertStatus(404);
     }
 
     public function test_self_cancel_frees_quota_and_identity(): void
@@ -165,6 +206,7 @@ class OpenRegistrationTest extends TestCase
 
         $this->postJson('/api/public/open-registrations/cancel', [
             'nik' => '3374010101010020',
+            'whatsapp' => '081234567020',
         ])->assertOk();
 
         $this->assertDatabaseHas('open_registrations', [
@@ -327,6 +369,74 @@ class OpenRegistrationTest extends TestCase
         $this->getJson("/api/admin/open-events/{$event->id}/registrations")
             ->assertOk()
             ->assertJsonPath('data.0.nik', '3374010101010060');
+    }
+
+    public function test_open_day_closes_rombongan_schedule_only_for_opened_days(): void
+    {
+        // Weekday event Mon-Wed; in tests no national holiday is synced so these
+        // are bookable by default. Day 1 is opened for Istura Open, day 2 stays
+        // closed for the open event and must remain bookable for rombongan.
+        $event = new OpenEvent;
+        $event->name = 'Istura Open Weekday';
+        $event->slug = 'istura-open-weekday';
+        $event->start_date = '2026-08-17';
+        $event->end_date = '2026-08-19';
+        $event->per_day_quota = 100;
+        $event->max_addons = 4;
+        $event->assignment_mode = 'self_select';
+        $event->release_mode = 'simultaneous';
+        $event->is_active = true;
+        $event->save();
+        foreach (['2026-08-17', '2026-08-18', '2026-08-19'] as $date) {
+            $event->days()->create(['date' => $date, 'is_open' => false]);
+        }
+        $openDay = $event->days()->whereDate('date', '2026-08-17')->first();
+        $openDay->update(['is_open' => true, 'whatsapp_group_url' => 'https://chat.whatsapp.com/weekday']);
+
+        $service = app(ScheduleService::class);
+
+        // Opened Istura Open day: closed for rombongan with the dedicated reason.
+        $this->assertSame('Closed', $service->slotStatusFor('2026-08-17', '08.00'));
+        $horizon = collect($service->buildHorizon(Carbon::parse('2026-08-17', 'Asia/Jakarta'), Carbon::parse('2026-08-19', 'Asia/Jakarta')));
+        $blocked = $horizon->firstWhere('date', '2026-08-17');
+        $this->assertSame('istura_open', $blocked['closureReason']['type'] ?? null);
+        $this->assertNotContains('Available', array_column($blocked['slots'], 'status'));
+
+        // Day not opened for Istura Open stays bookable for rombongan.
+        $this->assertSame('Available', $service->slotStatusFor('2026-08-18', '08.00'));
+        $open = $horizon->firstWhere('date', '2026-08-18');
+        $this->assertContains('Available', array_column($open['slots'], 'status'));
+    }
+
+    public function test_admin_can_upload_and_remove_event_poster(): void
+    {
+        Storage::fake('public');
+        $this->actingAsAdmin();
+        $event = $this->makeEvent(active: false);
+
+        $upload = $this->post("/api/admin/open-events/{$event->id}/poster", [
+            'poster' => UploadedFile::fake()->image('poster.jpg', 1000, 1400)->size(400),
+        ])->assertOk();
+
+        $posterUrl = $upload->json('data.posterUrl');
+        $this->assertNotNull($posterUrl);
+        $this->assertStringEndsWith('.webp', $posterUrl);
+        $path = ltrim(substr(parse_url($posterUrl, PHP_URL_PATH), strlen('/storage/')), '/');
+        Storage::disk('public')->assertExists($path);
+
+        // Poster surfaces on the public payload too.
+        $event->fresh()->update(['is_active' => true]);
+        foreach ($event->fresh()->days as $day) {
+            $day->update(['is_open' => true, 'whatsapp_group_url' => 'https://chat.whatsapp.com/poster']);
+        }
+        $this->getJson('/api/public/open-event')
+            ->assertOk()
+            ->assertJsonPath('data.posterUrl', $posterUrl);
+
+        $this->deleteJson("/api/admin/open-events/{$event->id}/poster")
+            ->assertOk()
+            ->assertJsonPath('data.posterUrl', null);
+        Storage::disk('public')->assertMissing($path);
     }
 
     // ----- helpers -----------------------------------------------------------

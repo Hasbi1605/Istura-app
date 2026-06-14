@@ -82,6 +82,7 @@ export function IsturaOpenWizard({
   // Lookup / self-cancel sub-flow.
   const [lookupOpen, setLookupOpen] = useState(false);
   const [lookupNik, setLookupNik] = useState("");
+  const [lookupWhatsapp, setLookupWhatsapp] = useState("");
   const [lookupResult, setLookupResult] = useState<OpenRegistrationResult | null | "none">(null);
   const [lookupBusy, setLookupBusy] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -201,10 +202,14 @@ export function IsturaOpenWizard({
       setLookupError("NIK harus 16 digit angka.");
       return;
     }
+    if (!/^(08|628)\d{8,13}$/.test(lookupWhatsapp)) {
+      setLookupError("Nomor WhatsApp tidak valid.");
+      return;
+    }
     setLookupBusy(true);
     setLookupError(null);
     try {
-      const data = await lookupOpenRegistration(lookupNik);
+      const data = await lookupOpenRegistration(lookupNik, lookupWhatsapp);
       setLookupResult(data ?? "none");
     } catch {
       setLookupError("Gagal memeriksa pendaftaran.");
@@ -217,7 +222,7 @@ export function IsturaOpenWizard({
     setLookupBusy(true);
     setLookupError(null);
     try {
-      await cancelOpenRegistration(lookupNik);
+      await cancelOpenRegistration(lookupNik, lookupWhatsapp);
       setLookupResult("none");
       onQuotaChanged();
     } catch {
@@ -227,8 +232,12 @@ export function IsturaOpenWizard({
     }
   };
 
+  const activeHeadcount = 1 + members.filter((m) => m.trim()).length;
+  const dayRemaining = selectedDay?.remaining ?? 0;
+
   const addMember = () => {
     if (members.length >= maxAddons) return;
+    if (selectedDay && 1 + members.length >= dayRemaining) return;
     setMembers((current) => [...current, ""]);
   };
 
@@ -351,6 +360,11 @@ export function IsturaOpenWizard({
             <p className="open-step-hint">
               Opsional, cukup nama (maksimal {maxAddons}). Setiap anggota ikut menghitung kuota.
             </p>
+            {selectedDay && (
+              <p className="open-step-hint">
+                Sisa kuota hari ini {dayRemaining} orang. Total rombonganmu sekarang {activeHeadcount} orang.
+              </p>
+            )}
             {errors.members && <p className="field-error">{errors.members}</p>}
             <div className="open-members">
               {members.map((member, index) => (
@@ -372,10 +386,13 @@ export function IsturaOpenWizard({
                   </button>
                 </div>
               ))}
-              {members.length < maxAddons && (
+              {members.length < maxAddons && 1 + members.length < dayRemaining && (
                 <button type="button" className="open-add-member" onClick={addMember}>
                   <Plus size={16} /> Tambah anggota
                 </button>
+              )}
+              {selectedDay && 1 + members.length >= dayRemaining && members.length < maxAddons && (
+                <p className="open-step-hint">Anggota dibatasi sisa kuota hari ini.</p>
               )}
             </div>
             <div className="open-step-actions">
@@ -459,19 +476,29 @@ export function IsturaOpenWizard({
         <div className="open-modal-scrim" role="dialog" aria-modal="true" aria-label="Cek pendaftaran">
           <div className="open-modal">
             <h2>Cek / batalkan pendaftaran</h2>
-            <p className="open-step-hint">Masukkan NIK yang dipakai mendaftar.</p>
+            <p className="open-step-hint">Masukkan NIK dan nomor WhatsApp yang dipakai mendaftar.</p>
             <OpenFormField
               label="NIK KTP"
               inputMode="numeric"
               maxLength={16}
               value={lookupNik}
-              error={lookupError ?? undefined}
               onChange={(value) => {
                 setLookupNik(value.replace(/\D/g, "").slice(0, 16));
                 setLookupError(null);
               }}
             />
-            {lookupResult === "none" && <p className="open-wizard-alert">Tidak ada pendaftaran aktif untuk NIK ini.</p>}
+            <OpenFormField
+              label="Nomor WhatsApp"
+              inputMode="tel"
+              value={lookupWhatsapp}
+              error={lookupError ?? undefined}
+              helper="Sama dengan yang dipakai saat mendaftar."
+              onChange={(value) => {
+                setLookupWhatsapp(value.replace(/[^\d]/g, "").slice(0, 15));
+                setLookupError(null);
+              }}
+            />
+            {lookupResult === "none" && <p className="open-wizard-alert">Tidak ada pendaftaran aktif untuk data tersebut.</p>}
             {lookupResult && lookupResult !== "none" && (
               <div className="open-lookup-result">
                 <p>
@@ -496,6 +523,7 @@ export function IsturaOpenWizard({
                   setLookupOpen(false);
                   setLookupResult(null);
                   setLookupNik("");
+                  setLookupWhatsapp("");
                   setLookupError(null);
                 }}
               >

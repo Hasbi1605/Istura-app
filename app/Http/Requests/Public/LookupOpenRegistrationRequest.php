@@ -15,6 +15,7 @@ class LookupOpenRegistrationRequest extends FormRequest
     {
         return [
             'nik' => ['required', 'string', 'regex:/^\d{16}$/'],
+            'whatsapp' => ['required', 'string', 'regex:/^(08|628)\d{8,13}$/'],
         ];
     }
 
@@ -22,6 +23,7 @@ class LookupOpenRegistrationRequest extends FormRequest
     {
         return [
             'nik.regex' => 'NIK harus 16 digit angka.',
+            'whatsapp.regex' => 'Nomor WhatsApp tidak valid.',
         ];
     }
 }

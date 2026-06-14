@@ -13,17 +13,23 @@ use App\Http\Resources\OpenRegistrationResource;
 use App\Models\OpenEvent;
 use App\Models\OpenEventDay;
 use App\Services\AuditLogger;
+use App\Services\CmsImageService;
 use App\Services\OpenRegistrationService;
+use App\Support\PublicCache;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OpenEventController extends Controller
 {
-    public function __construct(private readonly OpenRegistrationService $service) {}
+    public function __construct(
+        private readonly OpenRegistrationService $service,
+        private readonly CmsImageService $cmsImages,
+    ) {}
 
     public function index(): JsonResponse
     {
@@ -64,6 +70,8 @@ class OpenEventController extends Controller
             return $event;
         });
 
+        PublicCache::bumpScheduleVersion();
+
         return response()->json([
             'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
         ], 201);
@@ -99,6 +107,8 @@ class OpenEventController extends Controller
             AuditLogger::record($request->user(), "Memperbarui event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
         });
 
+        PublicCache::bumpScheduleVersion();
+
         return response()->json([
             'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
         ]);
@@ -125,6 +135,7 @@ class OpenEventController extends Controller
             AuditLogger::record($request->user(), "Mengaktifkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
         });
 
+        PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
 
         return response()->json([
@@ -138,6 +149,7 @@ class OpenEventController extends Controller
         $event->save();
 
         AuditLogger::record($request->user(), "Menonaktifkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
 
         return response()->json([
@@ -175,6 +187,7 @@ class OpenEventController extends Controller
         $day->save();
 
         AuditLogger::record($request->user(), "Memperbarui hari Istura Open {$day->date?->toDateString()}", 'open_event_day', $day->id, [], $request);
+        PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
 
         $day->setRelation('event', $event);
@@ -198,6 +211,68 @@ class OpenEventController extends Controller
         return response()->json([
             'data' => OpenRegistrationResource::collection($registrations)->resolve(),
             'event' => (new OpenEventResource($event->loadMissing('days')))->resolve(),
+        ]);
+    }
+
+    public function uploadPoster(Request $request, OpenEvent $event): JsonResponse
+    {
+        $request->validate([
+            'poster' => [
+                'required',
+                'file',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+                'dimensions:max_width='.CmsImageService::MAX_INPUT_WIDTH.',max_height='.CmsImageService::MAX_INPUT_HEIGHT,
+            ],
+        ]);
+
+        $oldPath = $event->poster_path;
+        $newPath = $this->cmsImages->storePublicWebp(
+            $request->file('poster'),
+            'cms/open-posters',
+            'poster',
+            1280,
+            1600,
+        );
+
+        try {
+            $event->poster_path = $newPath;
+            $event->save();
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($newPath);
+
+            throw $exception;
+        }
+
+        if ($oldPath && $oldPath !== $newPath) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        AuditLogger::record($request->user(), "Mengunggah poster Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        OpenQuotaUpdated::dispatch($event->slug);
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
+        ]);
+    }
+
+    public function deletePoster(Request $request, OpenEvent $event): JsonResponse
+    {
+        $oldPath = $event->poster_path;
+
+        $event->poster_path = null;
+        $event->save();
+
+        if ($oldPath) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        AuditLogger::record($request->user(), "Menghapus poster Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+        OpenQuotaUpdated::dispatch($event->slug);
+
+        return response()->json([
+            'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
         ]);
     }
 

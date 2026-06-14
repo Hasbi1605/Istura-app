@@ -172,11 +172,23 @@ class OpenRegistrationService
         return $registration->fresh(['day', 'event']);
     }
 
-    public function lookupByNik(OpenEvent $event, string $nik): ?OpenRegistration
+    /**
+     * Public lookup that requires BOTH the NIK and the WhatsApp number used at
+     * registration. Knowing only a NIK must not reveal a registration or leak
+     * the private WhatsApp group link.
+     */
+    public function lookupByIdentity(OpenEvent $event, string $nik, string $whatsapp): ?OpenRegistration
     {
+        $normalizedWhatsapp = Booking::normalizeWhatsapp($whatsapp);
+
+        if (! $normalizedWhatsapp) {
+            return null;
+        }
+
         return OpenRegistration::where('open_event_id', $event->id)
             ->whereIn('status', OpenRegistration::ACTIVE_STATUSES)
             ->where('nik_hash', Booking::identityHash($nik))
+            ->where('whatsapp_normalized', $normalizedWhatsapp)
             ->with('day')
             ->latest('id')
             ->first();

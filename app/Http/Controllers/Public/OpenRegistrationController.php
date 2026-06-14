@@ -58,7 +58,11 @@ class OpenRegistrationController extends Controller
     {
         $event = $this->requireActiveEvent();
 
-        $registration = $this->service->lookupByNik($event, $request->validated('nik'));
+        $registration = $this->service->lookupByIdentity(
+            $event,
+            $request->validated('nik'),
+            $request->validated('whatsapp'),
+        );
 
         if (! $registration) {
             return response()->json(['data' => null]);
@@ -71,11 +75,15 @@ class OpenRegistrationController extends Controller
     {
         $event = $this->requireActiveEvent();
 
-        $registration = $this->service->lookupByNik($event, $request->validated('nik'));
+        $registration = $this->service->lookupByIdentity(
+            $event,
+            $request->validated('nik'),
+            $request->validated('whatsapp'),
+        );
 
         if (! $registration) {
             return response()->json([
-                'message' => 'Pendaftaran tidak ditemukan untuk NIK tersebut.',
+                'message' => 'Pendaftaran tidak ditemukan untuk NIK dan WhatsApp tersebut.',
             ], 404);
         }
 
@@ -104,6 +112,7 @@ class OpenRegistrationController extends Controller
             'endDate' => $event->end_date?->toDateString(),
             'maxAddons' => (int) $event->max_addons,
             'agreementText' => $event->agreement_text,
+            'posterUrl' => $event->posterUrl(),
             'days' => $event->days
                 ->map(function ($day) use ($quota) {
                     $summary = $quota->get($day->id);

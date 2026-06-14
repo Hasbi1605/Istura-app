@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\NationalHoliday;
+use App\Models\OpenEventDay;
 use App\Models\ScheduleOverride;
 use App\Support\PublicCache;
 use Carbon\Carbon;
@@ -70,11 +71,19 @@ class ScheduleService
             ->get()
             ->groupBy(fn ($slot) => $slot->date->toDateString());
 
+        $isturaOpenDates = $this->isturaOpenBlockedDates($from, $to);
+
         $days = [];
         foreach (CarbonPeriod::create($from, '1 day', $to) as $cursor) {
             $key = $cursor->toDateString();
             $holiday = $nationalHolidays->get($key);
             $defaultClosure = $this->defaultClosureFor($cursor, $holiday, true);
+            $isturaOpenBlocked = isset($isturaOpenDates[$key]);
+            if ($isturaOpenBlocked) {
+                // Reserved for Istura Open: surface the dedicated badge and
+                // force the day Closed for rombongan bookings.
+                $defaultClosure = $this->isturaOpenClosureReason();
+            }
             $closedByDefault = $defaultClosure !== null;
             $times = collect(self::TIME_SLOTS)
                 ->merge($overrides->get($key)?->pluck('time') ?? [])
@@ -84,10 +93,10 @@ class ScheduleService
                 ->sort()
                 ->values();
 
-            $slots = $times->map(function (string $time) use ($key, $closedByDefault, $defaultClosure, $overrides, $bookings, $bookingSlots) {
+            $slots = $times->map(function (string $time) use ($key, $closedByDefault, $defaultClosure, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked) {
                 $bookingCount = $this->activeBookingCount($key, $time, $bookings, $bookingSlots);
                 $override = $overrides->get($key)?->firstWhere('time', $time);
-                $status = $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots);
+                $status = $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked);
 
                 return [
                     'time' => $time,
@@ -229,6 +238,56 @@ class ScheduleService
     }
 
     /**
+     * Closure reason payload used when a date is reserved for an active
+     * Istura Open event (per-day, only days the admin has opened).
+     *
+     * @return array{type:string,name:string,label:string,tentative:bool}
+     */
+    private function isturaOpenClosureReason(): array
+    {
+        return [
+            'type' => 'istura_open',
+            'name' => 'Istura Open',
+            'label' => 'Tutup — Istura Open',
+            'tentative' => false,
+        ];
+    }
+
+    /**
+     * Dates within [$from, $to] reserved by the active Istura Open event.
+     * Only days the admin has explicitly opened (is_open) count, matching the
+     * "hari yang dibuka untuk Istura Open" rule. Returns a lookup map keyed by
+     * Y-m-d for O(1) membership checks.
+     *
+     * @return array<string, bool>
+     */
+    private function isturaOpenBlockedDates(Carbon $from, Carbon $to): array
+    {
+        return OpenEventDay::query()
+            ->where('is_open', true)
+            ->whereDate('date', '>=', $from->toDateString())
+            ->whereDate('date', '<=', $to->toDateString())
+            ->whereHas('event', fn ($query) => $query->where('is_active', true))
+            ->pluck('date')
+            ->mapWithKeys(fn ($date) => [
+                ($date instanceof Carbon ? $date : Carbon::parse($date))->toDateString() => true,
+            ])
+            ->all();
+    }
+
+    /**
+     * Whether a single date is reserved by the active Istura Open event.
+     */
+    private function isturaOpenBlocksDate(string $dateKey): bool
+    {
+        return OpenEventDay::query()
+            ->where('is_open', true)
+            ->whereDate('date', $dateKey)
+            ->whereHas('event', fn ($query) => $query->where('is_active', true))
+            ->exists();
+    }
+
+    /**
      * @return array{type:string,name:string,label:string,tentative:bool,source:string,sourceUrl:string}|null
      */
     private function holidayPayload(?NationalHoliday $holiday): ?array
@@ -348,6 +407,10 @@ class ScheduleService
             return $this->statusFromBooking($booking);
         }
 
+        if ($this->isturaOpenBlocksDate($dateKey)) {
+            return 'Closed';
+        }
+
         if ($override?->status === 'Closed') {
             return $override->status;
         }
@@ -381,6 +444,7 @@ class ScheduleService
         }
 
         $defaultStatus = $this->defaultClosureFor($date) !== null ? 'Closed' : 'Available';
+        $isturaOpenBlocked = $this->isturaOpenBlocksDate($dateKey);
         $statuses = $times
             ->mapWithKeys(fn (string $time): array => [
                 $time => in_array($time, self::TIME_SLOTS, true) ? $defaultStatus : 'Closed',
@@ -394,6 +458,17 @@ class ScheduleService
 
         foreach ($overrides as $time => $override) {
             $statuses[$time] = $override->status;
+        }
+
+        // Days reserved for an active Istura Open event close to rombongan
+        // bookings even if an admin override marked them Available. Existing
+        // bookings (Held/Booked/Reschedule Hold) are applied later and win.
+        if ($isturaOpenBlocked) {
+            foreach ($statuses as $time => $status) {
+                if ($status === 'Available') {
+                    $statuses[$time] = 'Closed';
+                }
+            }
         }
 
         $slotKeys = $times
@@ -452,6 +527,7 @@ class ScheduleService
         Collection $overrides,
         Collection $bookings,
         Collection $bookingSlots,
+        bool $isturaOpenBlocked = false,
     ): string {
         $override = $overrides->get($dateKey)?->firstWhere('time', $time);
 
@@ -467,6 +543,12 @@ class ScheduleService
         );
         if ($booking) {
             return $this->statusFromBooking($booking);
+        }
+
+        // Istura Open reservation overrides any admin "Available" override so
+        // rombongan cannot be booked on a day used for the open event.
+        if ($isturaOpenBlocked) {
+            return 'Closed';
         }
 
         if ($override?->status === 'Closed') {

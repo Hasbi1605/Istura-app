@@ -84,11 +84,15 @@ export function IsturaOpenPromo({
             if (e.target === e.currentTarget) dismissPopup();
           }}
         >
-          <div className="open-promo-modal">
+          <div className={`open-promo-modal${event.posterUrl ? " has-poster" : ""}`}>
             <button ref={closeRef} type="button" className="open-promo-close" aria-label="Tutup" onClick={dismissPopup}>
               <X size={18} />
             </button>
-            <div className="open-promo-badge"><PartyPopper size={24} /></div>
+            {event.posterUrl ? (
+              <img className="open-promo-poster" src={event.posterUrl} alt={`Poster ${event.name}`} />
+            ) : (
+              <div className="open-promo-badge"><PartyPopper size={24} /></div>
+            )}
             <h2 id="open-promo-title">{event.name}</h2>
             <p className="open-promo-lead">
               Kunjungan perorangan {shortDate(event.startDate)} – {shortDate(event.endDate)}. Gratis, tanpa surat.

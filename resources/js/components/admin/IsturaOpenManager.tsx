@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Ban, CalendarClock, CalendarDays, Download, Eye, Plus, RefreshCw, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import type {
   OpenEventAdmin,
   OpenQuotaSummary,
@@ -11,11 +11,13 @@ import {
   cancelAdminOpenRegistration,
   createOpenEvent,
   deactivateOpenEvent,
+  deleteOpenEventPoster,
   fetchAdminOpenEvents,
   fetchAdminOpenRegistrations,
   fetchOpenEventExport,
   moveOpenRegistration,
   updateOpenEventDay,
+  uploadOpenEventPoster,
 } from "../../api/openEvents";
 import { InlineSpinner } from "../ui/LoadingStates";
 import { DetailItem } from "../ui/DetailItem";
@@ -207,7 +209,10 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
           </div>
 
           {tab === "settings" && (
-            <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} />
+            <>
+              <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
+              <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} />
+            </>
           )}
           {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly} />}
         </>
@@ -264,6 +269,94 @@ function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEve
       </button>}
       {error && <small className="field-error">{error}</small>}
     </span>
+  );
+}
+
+function PosterCard({
+  event,
+  onChanged,
+  readOnly = false,
+}: {
+  event: OpenEventAdmin;
+  onChanged: () => void;
+  readOnly?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pick = () => inputRef.current?.click();
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await uploadOpenEventPoster(event.id, file);
+      onChanged();
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        setError(err.errors.poster?.[0] ?? err.message);
+      } else {
+        setError("Gagal mengunggah poster.");
+      }
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm("Hapus poster event ini?")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteOpenEventPoster(event.id);
+      onChanged();
+    } catch {
+      setError("Gagal menghapus poster.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="admin-card open-poster-card">
+      <div className="open-poster-head">
+        <ImageIcon size={16} /> Poster / Flyer (opsional)
+      </div>
+      <p className="open-poster-hint">
+        Tampil di popup promosi Istura Open. Tanpa poster, popup memakai tampilan ringkas seperti biasa.
+        JPG/PNG/WebP, maks 5 MB.
+      </p>
+      <div className="open-poster-body">
+        {event.posterUrl ? (
+          <img className="open-poster-preview" src={event.posterUrl} alt={`Poster ${event.name}`} />
+        ) : (
+          <div className="open-poster-empty">Belum ada poster.</div>
+        )}
+        {!readOnly && (
+          <div className="open-poster-actions">
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+              onChange={(e) => void onFile(e.target.files?.[0])}
+            />
+            <button type="button" className="button button-ghost" disabled={busy} onClick={pick}>
+              {busy ? "Memproses..." : event.posterUrl ? "Ganti poster" : "Unggah poster"}
+            </button>
+            {event.posterUrl && (
+              <button type="button" className="button button-ghost open-poster-remove" disabled={busy} onClick={() => void remove()}>
+                <Trash2 size={14} /> Hapus
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {error && <small className="field-error">{error}</small>}
+    </div>
   );
 }
 
@@ -767,8 +860,21 @@ function CreateEventModal({
   const [perDayQuota, setPerDayQuota] = useState("100");
   const [maxAddons, setMaxAddons] = useState("4");
   const [agreementText, setAgreementText] = useState("");
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const posterInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!posterFile) {
+      setPosterPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(posterFile);
+    setPosterPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [posterFile]);
 
   const submit = async () => {
     setBusy(true);
@@ -782,6 +888,13 @@ function CreateEventModal({
         maxAddons: Number(maxAddons) || 0,
         agreementText: agreementText || null,
       });
+      if (posterFile) {
+        try {
+          await uploadOpenEventPoster(event.id, posterFile);
+        } catch {
+          // Event is created; poster can still be added from settings.
+        }
+      }
       onCreated(event.id);
     } catch (err) {
       if (err instanceof ValidationError) {
@@ -813,7 +926,7 @@ function CreateEventModal({
           </label>
           <label className="form-field">
             <span>Tanggal akhir</span>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <input type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} />
             {errors.endDate && <small className="field-error">{errors.endDate}</small>}
           </label>
           <label className="form-field">
@@ -828,7 +941,36 @@ function CreateEventModal({
         <label className="form-field">
           <span>Teks persetujuan (opsional)</span>
           <textarea value={agreementText} onChange={(e) => setAgreementText(e.target.value)} rows={3} />
+          <small>Muncul di langkah "Tinjau" pada wizard pendaftaran, tepat di atas kotak centang persetujuan. Kosongkan untuk memakai teks default.</small>
         </label>
+        <div className="form-field">
+          <span>Poster / Flyer (opsional)</span>
+          <div className="open-poster-body">
+            {posterPreview ? (
+              <img className="open-poster-preview" src={posterPreview} alt="Pratinjau poster" />
+            ) : (
+              <div className="open-poster-empty">Belum ada poster. Popup memakai tampilan ringkas.</div>
+            )}
+            <div className="open-poster-actions">
+              <input
+                ref={posterInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                onChange={(e) => setPosterFile(e.target.files?.[0] ?? null)}
+              />
+              <button type="button" className="button button-ghost" onClick={() => posterInputRef.current?.click()}>
+                {posterFile ? "Ganti poster" : "Pilih poster"}
+              </button>
+              {posterFile && (
+                <button type="button" className="button button-ghost open-poster-remove" onClick={() => setPosterFile(null)}>
+                  <Trash2 size={14} /> Batalkan
+                </button>
+              )}
+            </div>
+          </div>
+          <small>JPG/PNG/WebP, maks 5 MB. Bisa juga ditambahkan nanti dari Pengaturan event.</small>
+        </div>
         <div className="open-step-actions">
           <button type="button" className="button button-ghost" onClick={onClose}>Batal</button>
           <button type="button" className="button button-primary" disabled={busy} onClick={submit}>
