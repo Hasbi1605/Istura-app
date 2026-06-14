@@ -169,6 +169,31 @@ for process in istura-queue istura-reverb istura-scheduler; do
     fi
 done
 
+configure_php_upload_limits() {
+    target_conf_dir="/etc/php/8.4/fpm/conf.d"
+    if [ ! -d "$target_conf_dir" ]; then
+        # Fall back to whatever PHP-FPM conf.d exists (resilient to version path differences).
+        target_conf_dir="$(find /etc/php -type d -path '*/fpm/conf.d' 2>/dev/null | sort | tail -n 1)"
+    fi
+
+    if [ -z "$target_conf_dir" ] || [ ! -d "$target_conf_dir" ]; then
+        echo "PHP-FPM conf.d directory not found; skipping upload-limit tuning." >&2
+        return 0
+    fi
+
+    # Keep PHP upload limits comfortably above the 5 MB app-level cap so poster /
+    # letter uploads are not silently rejected at the PHP layer ("failed to upload").
+    cat > "$target_conf_dir/99-istura-upload.ini" <<'PHPINI'
+; Managed by ISTURA deploy. Do not edit by hand.
+upload_max_filesize = 8M
+post_max_size = 10M
+PHPINI
+    chmod 0644 "$target_conf_dir/99-istura-upload.ini"
+    echo "Configured PHP upload limits in $target_conf_dir/99-istura-upload.ini"
+}
+
+configure_php_upload_limits
+
 systemctl try-reload-or-restart php8.4-fpm
 systemctl reload nginx
 sudo -u "$DEPLOY_OWNER" -H php artisan up

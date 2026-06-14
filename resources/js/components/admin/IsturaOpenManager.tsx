@@ -50,6 +50,46 @@ function openStatusLabel(status: string): string {
   return OPEN_STATUS_LABELS[status] ?? status;
 }
 
+// Poster upload limits — must mirror the server (CmsImageService + uploadPoster
+// validation) so admins get instant, clear feedback before the request.
+const POSTER_MAX_BYTES = 5 * 1024 * 1024;
+const POSTER_MAX_WIDTH = 2800;
+const POSTER_MAX_HEIGHT = 3600;
+const POSTER_ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/**
+ * Client-side guard so landscape/large images fail fast with a clear reason
+ * instead of an opaque "failed to upload" from the server. Returns an error
+ * message, or null when the file is acceptable.
+ */
+function validatePosterFile(file: File): Promise<string | null> {
+  if (!POSTER_ACCEPTED_TYPES.includes(file.type)) {
+    return Promise.resolve("Format gambar harus JPG, PNG, atau WebP.");
+  }
+  if (file.size > POSTER_MAX_BYTES) {
+    return Promise.resolve("Ukuran gambar maksimal 5 MB. Kompres atau perkecil gambar dulu.");
+  }
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (img.naturalWidth > POSTER_MAX_WIDTH || img.naturalHeight > POSTER_MAX_HEIGHT) {
+        resolve(
+          `Dimensi gambar maksimal ${POSTER_MAX_WIDTH}×${POSTER_MAX_HEIGHT} piksel (potret atau lanskap sama-sama boleh). Gambarmu ${img.naturalWidth}×${img.naturalHeight}.`,
+        );
+      } else {
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve("Gambar tidak dapat dibaca. Coba file lain.");
+    };
+    img.src = url;
+  });
+}
+
 function OpenStatusBadge({ status }: { status: string }) {
   return (
     <span className={`open-status open-status-${status.toLowerCase()}`}>
@@ -295,6 +335,12 @@ function PosterCard({
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
+    const validationError = await validatePosterFile(file);
+    if (validationError) {
+      setError(validationError);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -335,7 +381,7 @@ function PosterCard({
       </div>
       <p className="open-poster-hint">
         Tampil di popup promosi Istura Open. Tanpa poster, popup memakai tampilan ringkas seperti biasa.
-        JPG/PNG/WebP, maks 5 MB.
+        Potret atau lanskap boleh. JPG/PNG/WebP, maks {POSTER_MAX_WIDTH}×{POSTER_MAX_HEIGHT} piksel, ≤5 MB.
       </p>
       <div className="open-poster-body">
         {event.posterUrl ? (
@@ -1009,6 +1055,7 @@ function CreateEventModal({
   const [agreementText, setAgreementText] = useState("");
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [posterError, setPosterError] = useState<string | null>(null);
   const posterInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -1104,19 +1151,32 @@ function CreateEventModal({
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 hidden
-                onChange={(e) => setPosterFile(e.target.files?.[0] ?? null)}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  if (posterInputRef.current) posterInputRef.current.value = "";
+                  if (!file) return;
+                  const validationError = await validatePosterFile(file);
+                  if (validationError) {
+                    setPosterError(validationError);
+                    setPosterFile(null);
+                    return;
+                  }
+                  setPosterError(null);
+                  setPosterFile(file);
+                }}
               />
               <button type="button" className="button button-ghost" onClick={() => posterInputRef.current?.click()}>
                 {posterFile ? "Ganti poster" : "Pilih poster"}
               </button>
               {posterFile && (
-                <button type="button" className="button button-ghost open-poster-remove" onClick={() => setPosterFile(null)}>
+                <button type="button" className="button button-ghost open-poster-remove" onClick={() => { setPosterFile(null); setPosterError(null); }}>
                   <Trash2 size={14} /> Batalkan
                 </button>
               )}
             </div>
           </div>
-          <small>JPG/PNG/WebP, maks 5 MB. Bisa juga ditambahkan nanti dari Pengaturan event.</small>
+          {posterError && <small className="field-error">{posterError}</small>}
+          <small>Potret atau lanskap boleh. JPG/PNG/WebP, maks {POSTER_MAX_WIDTH}×{POSTER_MAX_HEIGHT} piksel, ≤5 MB. Bisa juga ditambahkan nanti dari Pengaturan event.</small>
         </div>
         <div className="open-step-actions">
           <button type="button" className="button button-ghost" onClick={onClose}>Batal</button>

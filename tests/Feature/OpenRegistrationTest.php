@@ -440,6 +440,21 @@ class OpenRegistrationTest extends TestCase
         Storage::disk('public')->assertMissing($path);
     }
 
+    public function test_poster_rejects_oversized_dimensions_with_clear_message(): void
+    {
+        Storage::fake('public');
+        $this->actingAsAdmin();
+        $event = $this->makeEvent(active: false);
+
+        // 3000px wide exceeds the 2800px max — must fail with the dimensions message.
+        $response = $this->post("/api/admin/open-events/{$event->id}/poster", [
+            'poster' => UploadedFile::fake()->image('wide.jpg', 3000, 1200),
+        ])->assertStatus(422);
+
+        $this->assertStringContainsString('Dimensi gambar maksimal', $response->json('errors.poster.0'));
+        $this->assertNull($event->fresh()->poster_path);
+    }
+
     public function test_opening_day_warns_when_active_rombongan_booking_exists(): void
     {
         $this->actingAsAdmin();

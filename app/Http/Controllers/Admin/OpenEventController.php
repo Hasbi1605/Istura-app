@@ -253,6 +253,13 @@ class OpenEventController extends Controller
                 'max:5120',
                 'dimensions:max_width='.CmsImageService::MAX_INPUT_WIDTH.',max_height='.CmsImageService::MAX_INPUT_HEIGHT,
             ],
+        ], [
+            'poster.required' => 'Pilih gambar poster terlebih dahulu.',
+            'poster.uploaded' => 'Gambar gagal diunggah — ukuran melebihi batas server. Coba kompres atau perkecil gambar.',
+            'poster.image' => 'File harus berupa gambar.',
+            'poster.mimes' => 'Format gambar harus JPG, PNG, atau WebP.',
+            'poster.max' => 'Ukuran gambar maksimal 5 MB.',
+            'poster.dimensions' => 'Dimensi gambar maksimal '.CmsImageService::MAX_INPUT_WIDTH.'×'.CmsImageService::MAX_INPUT_HEIGHT.' piksel (potret atau lanskap sama-sama boleh).',
         ]);
 
         $oldPath = $event->poster_path;
