@@ -56,6 +56,8 @@ function App() {
     refetchOpenEvent,
     reloadAdmin,
     adminRefreshing,
+    realtimeStatus,
+    adminRealtimeReady,
     adminSession,
     setAdminSession,
     adminTab,
@@ -119,6 +121,8 @@ function App() {
             cmsSync={cmsSync}
             onReload={reloadAdmin}
             refreshing={adminRefreshing}
+            realtimeStatus={realtimeStatus}
+            adminRealtimeReady={adminRealtimeReady}
             onExitToPublic={setScreen}
           />
         </Suspense>

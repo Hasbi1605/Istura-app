@@ -18,7 +18,7 @@ import type {
 import type { ApiHero, ApiLetter } from "../../api/cms";
 import { logout as apiLogout, me as apiMe, twoFactorChallenge, twoFactorStatus } from "../../api/auth";
 import type { AuthUser } from "../../api/auth";
-import { destroyEcho } from "../../realtime/echo";
+import { destroyEcho, type RealtimeConnectionStatus } from "../../realtime/echo";
 import { clearAdminSession, writeAdminSession } from "../../lib/legacyShims";
 import { AdminShell, AdminLogin } from "./AdminShell";
 import { TwoFactorChallenge } from "./TwoFactorChallenge";
@@ -65,6 +65,8 @@ export function AdminApp({
 	cmsSync,
 	onReload,
 	refreshing,
+	realtimeStatus,
+	adminRealtimeReady,
 	onExitToPublic,
 }: {
   session: AdminSession | null;
@@ -92,6 +94,8 @@ export function AdminApp({
 	cmsSync: CmsSyncState;
 	onReload: () => void;
 	refreshing: boolean;
+	realtimeStatus: RealtimeConnectionStatus;
+	adminRealtimeReady: boolean | null;
 	onExitToPublic: (screen: Screen) => void;
 	}) {
 	  const [needs2fa, setNeeds2fa] = useState(false);
@@ -263,6 +267,8 @@ export function AdminApp({
       tab={safeAdminTab}
       onTabChange={onAdminTabChange}
       refreshing={refreshing}
+      realtimeStatus={realtimeStatus}
+      adminRealtimeReady={adminRealtimeReady}
       onRefresh={() => {
         onReload();
         setRefreshNonce((n) => n + 1);

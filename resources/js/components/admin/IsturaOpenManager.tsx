@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Megaphone, Plus, Search, Trash2, X } from "lucide-react";
+import { Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Plus, Search, Trash2, X } from "lucide-react";
 import type {
   OpenDayBookingConflict,
   OpenEventAdmin,
@@ -12,6 +12,7 @@ import {
   cancelAdminOpenRegistration,
   createOpenEvent,
   deactivateOpenEvent,
+  deleteOpenEvent,
   deleteOpenEventPoster,
   fetchAdminOpenEvents,
   fetchAdminOpenRegistrations,
@@ -21,7 +22,7 @@ import {
   updateOpenEventDay,
   uploadOpenEventPoster,
 } from "../../api/openEvents";
-import { InlineSpinner } from "../ui/LoadingStates";
+import { ButtonSpinner, InlineSpinner, SavingStatus } from "../ui/LoadingStates";
 import { DetailItem } from "../ui/DetailItem";
 import { Pagination } from "../ui/Pagination";
 import { exportOpenRegistrationsToExcel } from "../../exportOpenRegistrations";
@@ -37,6 +38,25 @@ function longDate(key?: string | null): string {
   const [year, month, day] = key.split("-").map(Number);
   if (!year || !month || !day) return key;
   return `${day} ${MONTHS_ID[month - 1]} ${year}`;
+}
+
+function dateKeysInRange(start: string, end: string): string[] {
+  if (!start || !end || end < start) return [];
+  const dates: string[] = [];
+  const cursor = new Date(`${start}T00:00:00Z`);
+  const last = new Date(`${end}T00:00:00Z`);
+  while (cursor <= last && dates.length < 366) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+function eventDatesLabel(event: OpenEventAdmin): string {
+  const dates = event.days.map((day) => day.date).sort();
+  if (dates.length === 0) return "Belum ada tanggal";
+  if (dates.length <= 3) return dates.map(longDate).join(" · ");
+  return `${longDate(dates[0])} – ${longDate(dates[dates.length - 1])} · ${dates.length} hari pilihan`;
 }
 
 const OPEN_STATUS_LABELS: Record<string, string> = {
@@ -149,9 +169,14 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const selectedIdRef = useRef<number | null>(null);
 
   const selected = useMemo(() => events.find((e) => e.id === selectedId) ?? null, [events, selectedId]);
   const selectedQuota = selectedId ? quota[selectedId] ?? [] : [];
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   const reload = async (keepSelection = true) => {
     setLoading(true);
@@ -160,7 +185,8 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
       const response = await fetchAdminOpenEvents();
       setEvents(response.data);
       setQuota(response.quota);
-      if (!keepSelection || selectedId === null || !response.data.some((e) => e.id === selectedId)) {
+      const currentSelectedId = selectedIdRef.current;
+      if (!keepSelection || currentSelectedId === null || !response.data.some((e) => e.id === currentSelectedId)) {
         const active = response.data.find((e) => e.isActive) ?? response.data[0] ?? null;
         setSelectedId(active?.id ?? null);
       }
@@ -173,6 +199,50 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
 
   useEffect(() => {
     void reload(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let cleanupChannel: (() => void) | undefined;
+    let fallbackTimer: number | undefined;
+    let unsubscribeStatus: (() => void) | undefined;
+
+    const setFallback = (status: string) => {
+      if (fallbackTimer !== undefined) window.clearInterval(fallbackTimer);
+      fallbackTimer = undefined;
+      if (!["disabled", "unavailable", "failed", "disconnected"].includes(status)) return;
+      fallbackTimer = window.setInterval(() => {
+        if (active && document.visibilityState === "visible") void reload();
+      }, 60_000);
+    };
+
+    void import("../../realtime/echo").then(({ getEcho, PUBLIC_OPEN_CHANNEL, subscribeRealtimeStatus }) => {
+      if (!active) return;
+      unsubscribeStatus = subscribeRealtimeStatus(setFallback);
+      const echo = getEcho();
+      if (!echo) return;
+      const channel = echo.channel(PUBLIC_OPEN_CHANNEL);
+      channel.subscribed(() => {
+        if (active) void reload();
+      });
+      channel.listen(".open.quota-updated", () => {
+        if (active) void reload();
+      });
+      cleanupChannel = () => {
+        channel.stopListening(".open.quota-updated");
+        echo.leave(PUBLIC_OPEN_CHANNEL);
+      };
+    });
+
+    return () => {
+      active = false;
+      if (fallbackTimer !== undefined) window.clearInterval(fallbackTimer);
+      unsubscribeStatus?.();
+      cleanupChannel?.();
+    };
+    // reload intentionally reads the latest selected id without reconnecting
+    // the channel whenever the event selector changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -199,6 +269,7 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
       </div>
 
       {error && <p className="open-wizard-alert" role="alert">{error}</p>}
+      {loading && events.length > 0 && <InlineSpinner label="Menyinkronkan Istura Open" />}
 
       {!selected && !showCreate && (
         <div className="open-admin-empty">
@@ -227,7 +298,7 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
             </div>
             <div className="booking-toolbar-row booking-toolbar-row--secondary open-admin-summary">
               <span>
-                {longDate(selected.startDate)} – {longDate(selected.endDate)}
+                {eventDatesLabel(selected)}
               </span>
               <span>{selected.perDayQuota}/hari</span>
               <span>maks {selected.maxAddons} add-on</span>
@@ -249,11 +320,20 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
 
           {tab === "settings" && (
             <>
-              <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} />
+              <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} readOnly={readOnly} />
               <div className="open-promo-media">
                 <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
                 <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly} />
               </div>
+              {!readOnly && (
+                <DeleteEventCard
+                  event={selected}
+                  onDeleted={async () => {
+                    setSelectedId(null);
+                    await reload(false);
+                  }}
+                />
+              )}
             </>
           )}
           {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly} />}
@@ -307,7 +387,9 @@ function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEve
         disabled={busy}
         onClick={toggle}
       >
-        {event.isActive ? "Nonaktifkan" : "Aktifkan"}
+        {busy
+          ? <ButtonSpinner label={event.isActive ? "Menonaktifkan..." : "Mengaktifkan..."} />
+          : event.isActive ? "Nonaktifkan" : "Aktifkan"}
       </button>}
       {error && <small className="field-error">{error}</small>}
     </span>
@@ -324,7 +406,7 @@ function PosterCard({
   readOnly?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"upload" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -343,7 +425,7 @@ function PosterCard({
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
-    setBusy(true);
+    setPending("upload");
     setError(null);
     try {
       await uploadOpenEventPoster(event.id, file);
@@ -356,14 +438,14 @@ function PosterCard({
         setError("Gagal mengunggah poster.");
       }
     } finally {
-      setBusy(false);
+      setPending(null);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
 
   const remove = async () => {
     if (!window.confirm("Hapus poster event ini?")) return;
-    setBusy(true);
+    setPending("delete");
     setError(null);
     try {
       await deleteOpenEventPoster(event.id);
@@ -372,7 +454,7 @@ function PosterCard({
     } catch {
       setError("Gagal menghapus poster.");
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
@@ -396,12 +478,14 @@ function PosterCard({
               hidden
               onChange={(e) => void onFile(e.target.files?.[0])}
             />
-            <button type="button" className="button button-ghost" disabled={busy} onClick={pick}>
-              {busy ? "Memproses..." : event.posterUrl ? "Ganti poster" : "Unggah poster"}
+            <button type="button" className="button button-ghost" disabled={pending !== null} onClick={pick}>
+              {pending === "upload"
+                ? <ButtonSpinner label="Mengunggah..." />
+                : event.posterUrl ? "Ganti poster" : "Unggah poster"}
             </button>
             {event.posterUrl && (
-              <button type="button" className="button button-ghost open-poster-remove" disabled={busy} onClick={() => void remove()}>
-                <Trash2 size={14} /> Hapus
+              <button type="button" className="button button-ghost open-poster-remove" disabled={pending !== null} onClick={() => void remove()}>
+                {pending === "delete" ? <ButtonSpinner label="Menghapus..." /> : <><Trash2 size={14} /> Hapus</>}
               </button>
             )}
             {flash && <span className="open-poster-flash">{flash}</span>}
@@ -482,7 +566,7 @@ function PromoCard({
       {!readOnly && (
         <div className="open-poster-actions">
           <button type="button" className="button button-primary" disabled={busy || !dirty} onClick={() => void save()}>
-            {busy ? "Menyimpan..." : "Simpan teks promo"}
+            {busy ? <ButtonSpinner label="Menyimpan..." /> : "Simpan teks promo"}
           </button>
           {flash && <span className="open-poster-flash">Tersimpan</span>}
         </div>
@@ -492,14 +576,55 @@ function PromoCard({
   );
 }
 
+function DeleteEventCard({ event, onDeleted }: { event: OpenEventAdmin; onDeleted: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const remove = async () => {
+    if (!window.confirm(`Hapus event "${event.name}" secara permanen? Tindakan ini tidak dapat dibatalkan.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteOpenEvent(event.id);
+      onDeleted();
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        setError(err.errors.event?.[0] ?? err.message);
+      } else {
+        setError("Gagal menghapus event.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="admin-card open-danger-zone">
+      <div>
+        <strong>Hapus event</strong>
+        <p>
+          Hanya event nonaktif tanpa riwayat pendaftar yang dapat dihapus. Event yang sudah dipakai tetap disimpan sebagai arsip.
+        </p>
+      </div>
+      <button type="button" className="button button-danger" disabled={busy || event.isActive} onClick={() => void remove()}>
+        {busy ? <ButtonSpinner label="Menghapus..." /> : <><Trash2 size={15} /> Hapus event</>}
+      </button>
+      {event.isActive && <small>Nonaktifkan event sebelum menghapus.</small>}
+      {error && <small className="field-error">{error}</small>}
+    </section>
+  );
+}
+
 function DaysPanel({
   event,
   quota,
   onChanged,
+  readOnly = false,
 }: {
   event: OpenEventAdmin;
   quota: OpenQuotaSummary[];
   onChanged: () => void;
+  readOnly?: boolean;
 }) {
   const usedByDay = useMemo(() => {
     const map: Record<number, number> = {};
@@ -517,6 +642,7 @@ function DaysPanel({
           fallbackQuota={event.perDayQuota}
           used={usedByDay[day.id] ?? 0}
           onChanged={onChanged}
+          readOnly={readOnly}
         />
       ))}
     </div>
@@ -529,27 +655,38 @@ function DayCard({
   fallbackQuota,
   used,
   onChanged,
+  readOnly = false,
 }: {
   eventId: number;
   day: OpenEventAdmin["days"][number];
   fallbackQuota: number;
   used: number;
   onChanged: () => void;
+  readOnly?: boolean;
 }) {
   const [quotaOverride, setQuotaOverride] = useState(day.quotaOverride?.toString() ?? "");
   const [waUrl, setWaUrl] = useState(day.whatsappGroupUrl ?? "");
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"save" | "toggle" | "export" | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<OpenDayBookingConflict[] | null>(null);
+
+  useEffect(() => {
+    setQuotaOverride(day.quotaOverride?.toString() ?? "");
+    setWaUrl(day.whatsappGroupUrl ?? "");
+  }, [day.id, day.quotaOverride, day.whatsappGroupUrl]);
 
   const effectiveQuota = quotaOverride ? Number(quotaOverride) : fallbackQuota;
   const fillPct = effectiveQuota > 0 ? Math.min(100, Math.round((used / effectiveQuota) * 100)) : 0;
 
   const persist = async (payload: Parameters<typeof updateOpenEventDay>[2]) => {
-    setBusy(true);
+    setPending("save");
+    setSaveStatus("saving");
     setError(null);
     try {
       await updateOpenEventDay(eventId, day.id, payload);
+      setSaveStatus("saved");
+      window.setTimeout(() => setSaveStatus((current) => current === "saved" ? "idle" : current), 2_000);
       onChanged();
     } catch (err) {
       if (err instanceof ValidationError) {
@@ -557,8 +694,9 @@ function DayCard({
       } else {
         setError("Gagal menyimpan perubahan hari.");
       }
+      setSaveStatus("error");
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
@@ -566,7 +704,7 @@ function DayCard({
   // attempt the backend returns a 422 carrying the conflict list so we can warn
   // before re-sending with acknowledgeConflicts.
   const toggleOpen = async (acknowledge = false) => {
-    setBusy(true);
+    setPending("toggle");
     setError(null);
     try {
       await updateOpenEventDay(eventId, day.id, {
@@ -587,18 +725,26 @@ function DayCard({
         setError("Gagal menyimpan perubahan hari.");
       }
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
   const exportDay = async () => {
-    const { data, event } = await fetchOpenEventExport(eventId);
-    await exportOpenRegistrationsToExcel({
-      registrations: data,
-      eventName: event.name,
-      eventSlug: event.slug,
-      dayDate: day.date,
-    });
+    setPending("export");
+    setError(null);
+    try {
+      const { data, event } = await fetchOpenEventExport(eventId);
+      await exportOpenRegistrationsToExcel({
+        registrations: data,
+        eventName: event.name,
+        eventSlug: event.slug,
+        dayDate: day.date,
+      });
+    } catch {
+      setError("Gagal mengekspor data hari ini.");
+    } finally {
+      setPending(null);
+    }
   };
 
   return (
@@ -612,7 +758,8 @@ function DayCard({
           inputMode="numeric"
           value={quotaOverride}
           onChange={(e) => setQuotaOverride(e.target.value.replace(/\D/g, ""))}
-          onBlur={() => persist({ quotaOverride: quotaOverride ? Number(quotaOverride) : null })}
+          onBlur={() => quotaOverride !== (day.quotaOverride?.toString() ?? "") && void persist({ quotaOverride: quotaOverride ? Number(quotaOverride) : null })}
+          disabled={readOnly || pending !== null}
         />
       </label>
       <div className="open-day-fill">
@@ -625,20 +772,24 @@ function DayCard({
           value={waUrl}
           placeholder="https://chat.whatsapp.com/..."
           onChange={(e) => setWaUrl(e.target.value)}
-          onBlur={() => waUrl !== (day.whatsappGroupUrl ?? "") && persist({ whatsappGroupUrl: waUrl || null })}
+          onBlur={() => waUrl !== (day.whatsappGroupUrl ?? "") && void persist({ whatsappGroupUrl: waUrl || null })}
+          disabled={readOnly || pending !== null}
         />
       </label>
+      <SavingStatus status={saveStatus} />
       <div className="open-day-admin-actions">
-        <button
+        {!readOnly && <button
           type="button"
           className={`button button-ghost open-day-toggle${day.isOpen ? " is-on" : ""}`}
-          disabled={busy}
+          disabled={pending !== null}
           onClick={() => void toggleOpen()}
         >
-          {day.isOpen ? "● Buka" : "Tutup"}
-        </button>
-        <button type="button" className="booking-export-button open-day-export" onClick={() => void exportDay()}>
-          <Download size={14} /> Ekspor hari
+          {pending === "toggle"
+            ? <ButtonSpinner label={day.isOpen ? "Menutup..." : "Membuka..."} />
+            : day.isOpen ? "● Buka" : "Tutup"}
+        </button>}
+        <button type="button" className="booking-export-button open-day-export" disabled={pending !== null} onClick={() => void exportDay()}>
+          {pending === "export" ? <ButtonSpinner label="Mengekspor..." /> : <><Download size={14} /> Ekspor hari</>}
         </button>
       </div>
       {conflicts && (
@@ -657,11 +808,11 @@ function DayCard({
             ))}
           </ul>
           <div className="open-day-conflict-actions">
-            <button type="button" className="button button-ghost" disabled={busy} onClick={() => setConflicts(null)}>
+            <button type="button" className="button button-ghost" disabled={pending !== null} onClick={() => setConflicts(null)}>
               Batal
             </button>
-            <button type="button" className="button button-danger" disabled={busy} onClick={() => void toggleOpen(true)}>
-              Tetap buka
+            <button type="button" className="button button-danger" disabled={pending !== null} onClick={() => void toggleOpen(true)}>
+              {pending === "toggle" ? <ButtonSpinner label="Membuka..." /> : "Tetap buka"}
             </button>
           </div>
         </div>
@@ -682,6 +833,8 @@ function RegistrantsPanel({ event, onChanged, readOnly = false }: { event: OpenE
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<OpenRegistrationCounts>(EMPTY_OPEN_REGISTRATION_COUNTS);
   const [detail, setDetail] = useState<OpenRegistrationAdmin | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -711,12 +864,20 @@ function RegistrantsPanel({ event, onChanged, readOnly = false }: { event: OpenE
   }, [event.id, dayFilter, statusFilter, page]);
 
   const exportAll = async () => {
-    const { data, event: eventMeta } = await fetchOpenEventExport(event.id);
-    await exportOpenRegistrationsToExcel({
-      registrations: data,
-      eventName: eventMeta.name,
-      eventSlug: eventMeta.slug,
-    });
+    setExporting(true);
+    setExportError(null);
+    try {
+      const { data, event: eventMeta } = await fetchOpenEventExport(event.id);
+      await exportOpenRegistrationsToExcel({
+        registrations: data,
+        eventName: eventMeta.name,
+        eventSlug: eventMeta.slug,
+      });
+    } catch {
+      setExportError("Gagal mengekspor pendaftar.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleChanged = () => {
@@ -788,15 +949,19 @@ function RegistrantsPanel({ event, onChanged, readOnly = false }: { event: OpenE
             <Search size={16} aria-hidden="true" />
             <input value={search} placeholder="Cari nama / WA / kode" onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <button type="submit" className="button button-ghost">Cari</button>
+          <button type="submit" className="button button-ghost" disabled={loading}>
+            {loading ? <ButtonSpinner label="Mencari..." /> : "Cari"}
+          </button>
         </form>
-        <button type="button" className="booking-export-button" onClick={() => void exportAll()}>
-          <Download size={15} /> Ekspor
+        <button type="button" className="booking-export-button" disabled={exporting} onClick={() => void exportAll()}>
+          {exporting ? <ButtonSpinner label="Mengekspor..." /> : <><Download size={15} /> Ekspor</>}
         </button>
         <div className="booking-summary open-registrants-summary" aria-live="polite">
           {totalLabel}
         </div>
       </div>
+
+      {exportError && <small className="field-error">{exportError}</small>}
 
       {loading ? (
         <InlineSpinner label="Memuat pendaftar" />
@@ -865,14 +1030,14 @@ function RegistrantRow({
   const [moveDay, setMoveDay] = useState<number | "">("");
   const [allowOverbook, setAllowOverbook] = useState(false);
   const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"move" | "cancel" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isActive = registration.status === "Registered" || registration.status === "Confirmed";
 
   const doMove = async () => {
     if (!moveDay) return;
-    setBusy(true);
+    setPending("move");
     setError(null);
     try {
       await moveOpenRegistration(eventId, registration.code, {
@@ -889,20 +1054,21 @@ function RegistrantRow({
         setError("Gagal memindahkan pendaftar.");
       }
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
   const doCancel = async () => {
     if (!window.confirm(`Batalkan pendaftaran ${registration.contactName}?`)) return;
-    setBusy(true);
+    setPending("cancel");
+    setError(null);
     try {
       await cancelAdminOpenRegistration(eventId, registration.code);
       onChanged();
     } catch {
       setError("Gagal membatalkan.");
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
@@ -936,6 +1102,7 @@ function RegistrantRow({
                 <button
                   type="button"
                   className="open-icon-action"
+                  disabled={pending !== null}
                   onClick={() => setMoving((m) => !m)}
                   aria-label={`Pindahkan ${registration.contactName}`}
                   aria-pressed={moving}
@@ -946,12 +1113,14 @@ function RegistrantRow({
                 <button
                   type="button"
                   className="open-icon-action open-icon-action--danger"
-                  disabled={busy}
+                  disabled={pending !== null}
                   onClick={doCancel}
                   aria-label={`Batalkan ${registration.contactName}`}
                   title="Batalkan"
                 >
-                  <Ban size={16} aria-hidden="true" />
+                  {pending === "cancel"
+                    ? <Loader2 size={16} aria-hidden="true" className="button-spinner" />
+                    : <Ban size={16} aria-hidden="true" />}
                 </button>
               </>
             )}
@@ -972,7 +1141,9 @@ function RegistrantRow({
               Izinkan overbook
             </label>
             <input placeholder="Catatan (wajib jika overbook)" value={note} onChange={(e) => setNote(e.target.value)} />
-            <button type="button" className="button button-primary" disabled={busy || !moveDay} onClick={doMove}>Pindahkan</button>
+            <button type="button" className="button button-primary" disabled={pending !== null || !moveDay} onClick={doMove}>
+              {pending === "move" ? <ButtonSpinner label="Memindahkan..." /> : "Pindahkan"}
+            </button>
             {error && <small className="field-error">{error}</small>}
           </div>
         </div>
@@ -1042,8 +1213,10 @@ function CreateEventModal({
   onCreated: (id: number) => void;
 }) {
   const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [dateToAdd, setDateToAdd] = useState("");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const [perDayQuota, setPerDayQuota] = useState("100");
   const [maxAddons, setMaxAddons] = useState("4");
   const [agreementText, setAgreementText] = useState("");
@@ -1051,8 +1224,31 @@ function CreateEventModal({
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [posterError, setPosterError] = useState<string | null>(null);
   const posterInputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"create" | "poster" | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+
+  const addDates = (dates: string[]) => {
+    setSelectedDates((current) => Array.from(new Set([...current, ...dates])).sort());
+    setErrors((current) => ({ ...current, dates: "" }));
+  };
+
+  const addSingleDate = () => {
+    if (!dateToAdd) return;
+    addDates([dateToAdd]);
+    setDateToAdd("");
+  };
+
+  const addRange = () => {
+    const dates = dateKeysInRange(rangeStart, rangeEnd);
+    if (dates.length === 0) {
+      setErrors((current) => ({ ...current, dates: "Tanggal akhir rentang harus sama atau setelah tanggal mulai." }));
+      return;
+    }
+    addDates(dates);
+    setRangeStart("");
+    setRangeEnd("");
+  };
 
   useEffect(() => {
     if (!posterFile) {
@@ -1065,18 +1261,22 @@ function CreateEventModal({
   }, [posterFile]);
 
   const submit = async () => {
-    setBusy(true);
+    if (selectedDates.length === 0) {
+      setErrors((current) => ({ ...current, dates: "Pilih minimal satu tanggal event." }));
+      return;
+    }
+    setPending("create");
     setErrors({});
     try {
       const event = await createOpenEvent({
         name: name.trim(),
-        startDate,
-        endDate,
+        dates: selectedDates,
         perDayQuota: Number(perDayQuota) || 0,
         maxAddons: Number(maxAddons) || 0,
         agreementText: agreementText || null,
       });
       if (posterFile) {
+        setPending("poster");
         try {
           await uploadOpenEventPoster(event.id, posterFile);
         } catch {
@@ -1087,48 +1287,86 @@ function CreateEventModal({
     } catch (err) {
       if (err instanceof ValidationError) {
         const flat: Record<string, string> = {};
-        Object.entries(err.errors).forEach(([key, messages]) => (flat[key] = messages[0]));
+        Object.entries(err.errors).forEach(([key, messages]) => {
+          flat[key.startsWith("dates.") ? "dates" : key] = messages[0];
+        });
         setErrors(flat);
       } else {
         setErrors({ name: "Gagal membuat event." });
       }
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
   return (
     <div className="open-modal-scrim" role="dialog" aria-modal="true" aria-label="Buat event">
-      <div className="open-modal">
+      <div className="open-modal open-create-event-modal">
         <h2>Buat Event Istura Open</h2>
         <label className="form-field">
           <span>Nama event</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} />
+          <input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} disabled={pending !== null} />
           {errors.name && <small className="field-error">{errors.name}</small>}
         </label>
+        <div className="open-date-builder">
+          <div className="open-date-builder-head">
+            <span>Tanggal event</span>
+            <small>Pilih satu hari, beberapa hari tidak berurutan, atau tambahkan satu rentang sekaligus.</small>
+          </div>
+          <div className="open-date-single-row">
+            <label className="form-field">
+              <span>Tambah satu tanggal</span>
+              <input type="date" min={todayKey} value={dateToAdd} disabled={pending !== null} onChange={(e) => setDateToAdd(e.target.value)} />
+            </label>
+            <button type="button" className="button button-ghost" disabled={!dateToAdd || pending !== null} onClick={addSingleDate}>
+              <Plus size={14} /> Tambah tanggal
+            </button>
+          </div>
+          <div className="open-date-range-row">
+            <label className="form-field">
+              <span>Dari</span>
+              <input type="date" min={todayKey} value={rangeStart} disabled={pending !== null} onChange={(e) => setRangeStart(e.target.value)} />
+            </label>
+            <label className="form-field">
+              <span>Sampai</span>
+              <input type="date" min={rangeStart || todayKey} value={rangeEnd} disabled={pending !== null} onChange={(e) => setRangeEnd(e.target.value)} />
+            </label>
+            <button type="button" className="button button-ghost" disabled={!rangeStart || !rangeEnd || pending !== null} onClick={addRange}>
+              Tambah rentang
+            </button>
+          </div>
+          <div className="open-selected-dates" aria-live="polite">
+            {selectedDates.length === 0 ? (
+              <span className="open-selected-dates-empty">Belum ada tanggal dipilih.</span>
+            ) : selectedDates.map((date) => (
+              <span className="open-date-chip" key={date}>
+                {longDate(date)}
+                <button
+                  type="button"
+                  disabled={pending !== null}
+                  aria-label={`Hapus ${longDate(date)}`}
+                  onClick={() => setSelectedDates((current) => current.filter((item) => item !== date))}
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+          {errors.dates && <small className="field-error">{errors.dates}</small>}
+        </div>
         <div className="form-grid">
           <label className="form-field">
-            <span>Tanggal mulai</span>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            {errors.startDate && <small className="field-error">{errors.startDate}</small>}
-          </label>
-          <label className="form-field">
-            <span>Tanggal akhir</span>
-            <input type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} />
-            {errors.endDate && <small className="field-error">{errors.endDate}</small>}
-          </label>
-          <label className="form-field">
             <span>Kuota / hari</span>
-            <input inputMode="numeric" value={perDayQuota} onChange={(e) => setPerDayQuota(e.target.value.replace(/\D/g, ""))} />
+            <input inputMode="numeric" value={perDayQuota} disabled={pending !== null} onChange={(e) => setPerDayQuota(e.target.value.replace(/\D/g, ""))} />
           </label>
           <label className="form-field">
             <span>Maks add-on</span>
-            <input inputMode="numeric" value={maxAddons} onChange={(e) => setMaxAddons(e.target.value.replace(/\D/g, ""))} />
+            <input inputMode="numeric" value={maxAddons} disabled={pending !== null} onChange={(e) => setMaxAddons(e.target.value.replace(/\D/g, ""))} />
           </label>
         </div>
         <label className="form-field">
           <span>Teks persetujuan (opsional)</span>
-          <textarea value={agreementText} onChange={(e) => setAgreementText(e.target.value)} rows={3} />
+          <textarea value={agreementText} disabled={pending !== null} onChange={(e) => setAgreementText(e.target.value)} rows={3} />
           <small>Muncul di langkah "Tinjau" pada wizard pendaftaran, tepat di atas kotak centang persetujuan. Kosongkan untuk memakai teks default.</small>
         </label>
         <div className="form-field">
@@ -1159,11 +1397,11 @@ function CreateEventModal({
                   setPosterFile(file);
                 }}
               />
-              <button type="button" className="button button-ghost" onClick={() => posterInputRef.current?.click()}>
+              <button type="button" className="button button-ghost" disabled={pending !== null} onClick={() => posterInputRef.current?.click()}>
                 {posterFile ? "Ganti poster" : "Pilih poster"}
               </button>
               {posterFile && (
-                <button type="button" className="button button-ghost open-poster-remove" onClick={() => { setPosterFile(null); setPosterError(null); }}>
+                <button type="button" className="button button-ghost open-poster-remove" disabled={pending !== null} onClick={() => { setPosterFile(null); setPosterError(null); }}>
                   <Trash2 size={14} /> Batalkan
                 </button>
               )}
@@ -1173,9 +1411,11 @@ function CreateEventModal({
           <small>Potret atau lanskap boleh. JPG/PNG/WebP, maks {POSTER_MAX_WIDTH}×{POSTER_MAX_HEIGHT} piksel, ≤5 MB. Bisa juga ditambahkan nanti dari Pengaturan event.</small>
         </div>
         <div className="open-step-actions">
-          <button type="button" className="button button-ghost" onClick={onClose}>Batal</button>
-          <button type="button" className="button button-primary" disabled={busy} onClick={submit}>
-            {busy ? "Menyimpan..." : "Buat Event"}
+          <button type="button" className="button button-ghost" disabled={pending !== null} onClick={onClose}>Batal</button>
+          <button type="button" className="button button-primary" disabled={pending !== null || selectedDates.length === 0} onClick={submit}>
+            {pending
+              ? <ButtonSpinner label={pending === "poster" ? "Mengunggah poster..." : "Membuat event..."} />
+              : "Buat Event"}
           </button>
         </div>
       </div>

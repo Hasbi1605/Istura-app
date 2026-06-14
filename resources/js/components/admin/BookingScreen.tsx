@@ -13,6 +13,7 @@ import {
   FileText,
   Filter,
   Image as ImageIcon,
+  Loader2,
   Plus,
   Rows3,
   Rows4,
@@ -113,6 +114,7 @@ export function AdminScreen({
 	const [segmentModal, setSegmentModal] = useState<{ booking: Booking } | null>(null);
 	const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
 	const [pendingAction, setPendingAction] = useState<{ code: string; label: string } | null>(null);
+	const [downloadingCode, setDownloadingCode] = useState<string | null>(null);
 	const [actionError, setActionError] = useState("");
   // Mobile breakpoint: split-pane tidak punya cukup ruang untuk dua kolom,
   // jadi kita reuse pola SlideOver (yang sudah dipakai di mode "table" desktop)
@@ -124,26 +126,34 @@ export function AdminScreen({
     `/api/admin/bookings/${encodeURIComponent(booking.code)}/document${inline ? "?disposition=inline" : ""}`;
 
   const handleDownloadDocument = async (booking: Booking) => {
+    if (downloadingCode) return;
+    setDownloadingCode(booking.code);
     setActionError("");
-    const response = await fetch(documentUrlFor(booking), {
-      credentials: "include",
-      headers: { "X-Requested-With": "XMLHttpRequest" },
-    });
-    if (!response.ok) {
-      setActionError(response.status === 403 ? "Sesi admin tidak valid atau tidak berwenang." : `Gagal mengunduh dokumen (${response.status}).`);
-      return;
-    }
+    try {
+      const response = await fetch(documentUrlFor(booking), {
+        credentials: "include",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!response.ok) {
+        setActionError(response.status === 403 ? "Sesi admin tidak valid atau tidak berwenang." : `Gagal mengunduh dokumen (${response.status}).`);
+        return;
+      }
 
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = booking.documentName;
-    link.rel = "noopener";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = booking.documentName;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      setActionError("Gagal mengunduh dokumen. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setDownloadingCode(null);
+    }
   };
 
   // Saat ada permintaan fokus dari modul lain (misal dari Jadwal Kunjungan),
@@ -634,6 +644,7 @@ export function AdminScreen({
                 onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
                 onPreviewDocument={(booking) => setPreviewBooking(booking)}
                 onDownloadDocument={handleDownloadDocument}
+                downloadingDocument={downloadingCode === selectedBooking.code}
                 readOnly={readOnly}
               />
             ) : (
@@ -687,6 +698,7 @@ export function AdminScreen({
           onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
           onPreviewDocument={(booking) => setPreviewBooking(booking)}
           onDownloadDocument={handleDownloadDocument}
+          downloadingDocument={downloadingCode === selectedBooking.code}
           readOnly={readOnly}
         />
       )}
@@ -719,6 +731,7 @@ export function AdminScreen({
           documentUrl={documentUrlFor(previewBooking, true)}
           onClose={() => setPreviewBooking(null)}
           onDownload={() => handleDownloadDocument(previewBooking)}
+          downloading={downloadingCode === previewBooking.code}
         />
       )}
 
@@ -933,6 +946,7 @@ export function BookingDetailPanel({
   onResendReschedule,
   onPreviewDocument,
   onDownloadDocument,
+  downloadingDocument = false,
   readOnly = false,
 }: {
   booking: Booking;
@@ -948,6 +962,7 @@ export function BookingDetailPanel({
   onResendReschedule?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
+  downloadingDocument?: boolean;
   readOnly?: boolean;
 }) {
   return (
@@ -984,6 +999,7 @@ export function BookingDetailPanel({
           hasDocument={booking.hasDocument ?? true}
           onPreview={() => onPreviewDocument(booking)}
           onDownload={() => onDownloadDocument(booking)}
+          downloading={downloadingDocument}
         />
       </div>
       <BookingActions
@@ -1348,6 +1364,7 @@ export function BookingSlideOver({
   onResendReschedule,
   onPreviewDocument,
   onDownloadDocument,
+  downloadingDocument = false,
   readOnly = false,
 }: {
   booking: Booking;
@@ -1364,6 +1381,7 @@ export function BookingSlideOver({
   onResendReschedule?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
+  downloadingDocument?: boolean;
   readOnly?: boolean;
 }) {
   // Close on Escape so power users can navigate the table without leaving the
@@ -1419,6 +1437,7 @@ export function BookingSlideOver({
             hasDocument={booking.hasDocument ?? true}
             onPreview={() => onPreviewDocument(booking)}
             onDownload={() => onDownloadDocument(booking)}
+            downloading={downloadingDocument}
           />
         </div>
         <BookingActions
@@ -2055,12 +2074,14 @@ export function DocumentDetailItem({
   hasDocument,
   onPreview,
   onDownload,
+  downloading = false,
 }: {
   label: string;
   documentName: string;
   hasDocument: boolean;
   onPreview: () => void;
   onDownload: () => void;
+  downloading?: boolean;
 }) {
   // Icon picker keyed off the file extension. PDFs get the document icon,
   // anything else (jpg/png) gets the image icon. Keeps the row visually
@@ -2086,11 +2107,13 @@ export function DocumentDetailItem({
           type="button"
           className="document-detail-download"
           onClick={onDownload}
-          disabled={!hasDocument}
+          disabled={!hasDocument || downloading}
           aria-label={`Unduh ${documentName}`}
           title="Unduh surat"
         >
-          <Download size={16} aria-hidden="true" />
+          {downloading
+            ? <Loader2 size={16} aria-hidden="true" className="button-spinner" />
+            : <Download size={16} aria-hidden="true" />}
         </button>
       </div>
     </div>
@@ -2102,11 +2125,13 @@ export function DocumentPreviewModal({
   documentUrl,
   onClose,
   onDownload,
+  downloading = false,
 }: {
   documentName: string;
   documentUrl: string;
   onClose: () => void;
   onDownload: () => void;
+  downloading?: boolean;
 }) {
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState(false);
@@ -2211,9 +2236,11 @@ export function DocumentPreviewModal({
             className="button button-primary"
             type="button"
             onClick={onDownload}
+            disabled={downloading}
           >
-            <Download size={16} aria-hidden="true" />
-            Unduh
+            {downloading
+              ? <><Loader2 size={16} aria-hidden="true" className="button-spinner" /> Mengunduh...</>
+              : <><Download size={16} aria-hidden="true" /> Unduh</>}
           </button>
         </div>
       </div>

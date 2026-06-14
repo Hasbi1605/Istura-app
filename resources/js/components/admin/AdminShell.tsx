@@ -11,6 +11,7 @@ import {
   Timer,
 } from "lucide-react";
 import type { AdminSession, AdminTab } from "../../domain/types";
+import type { RealtimeConnectionStatus } from "../../realtime/echo";
 import { ASSETS } from "../../lib/assets";
 import { ADMIN_MENU } from "../../constants";
 import type { AdminMenuItem } from "../../constants";
@@ -26,6 +27,8 @@ export function AdminShell({
   onLogout,
   onRefresh,
   refreshing = false,
+  realtimeStatus,
+  adminRealtimeReady,
   onExitToPublic,
   children,
 }: {
@@ -35,6 +38,8 @@ export function AdminShell({
   onLogout: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  realtimeStatus: RealtimeConnectionStatus;
+  adminRealtimeReady: boolean | null;
   onExitToPublic: () => void;
   children: ReactNode;
 }) {
@@ -66,6 +71,12 @@ export function AdminShell({
     },
   );
   const currentItem = visibleMenu.find((item) => item.key === tab) ?? visibleMenu[0];
+  const realtimeConnected = realtimeStatus === "connected" && adminRealtimeReady === true;
+  const realtimeLabel = realtimeConnected
+    ? "Realtime aktif"
+    : realtimeStatus === "connecting" || adminRealtimeReady === null
+      ? "Menghubungkan"
+      : "Sinkronisasi cadangan";
 
   // Group menu by section header
   const grouped = visibleMenu.reduce<Record<string, AdminMenuItem[]>>((acc, item) => {
@@ -138,28 +149,41 @@ export function AdminShell({
           >
             <Menu size={20} aria-hidden="true" />
           </button>
-          <div className="admin-shell-crumb">
-            <small>Dashboard</small>
-            <strong>{currentItem.label}</strong>
+          <div className="admin-shell-context">
+            <div className="admin-shell-crumb">
+              <small>Dashboard</small>
+              <strong>{currentItem.label}</strong>
+            </div>
+            <div className="admin-shell-page-actions">
+              {onRefresh && (
+                <button
+                  type="button"
+                  className="admin-shell-refresh"
+                  onClick={() => {
+                    if (refreshing) return;
+                    setJustRefreshed(true);
+                    onRefresh();
+                  }}
+                  disabled={refreshing}
+                  aria-label="Muat ulang data"
+                  title="Muat ulang data"
+                >
+                  <RefreshCw size={16} aria-hidden="true" className={refreshing ? "is-spinning" : undefined} />
+                  <span>Muat ulang</span>
+                </button>
+              )}
+              <span
+                className={`admin-realtime-status${realtimeConnected ? " is-connected" : " is-fallback"}`}
+                role="status"
+                aria-label={realtimeLabel}
+                title={realtimeLabel}
+              >
+                <span aria-hidden="true" />
+                <em>{realtimeLabel}</em>
+              </span>
+            </div>
           </div>
           <div className="admin-shell-user">
-            {onRefresh && (
-              <button
-                type="button"
-                className="admin-shell-refresh"
-                onClick={() => {
-                  if (refreshing) return;
-                  setJustRefreshed(true);
-                  onRefresh();
-                }}
-                disabled={refreshing}
-                aria-label="Muat ulang data"
-                title="Muat ulang data"
-              >
-                <RefreshCw size={16} aria-hidden="true" className={refreshing ? "is-spinning" : undefined} />
-                <span>Muat ulang</span>
-              </button>
-            )}
             <div className="admin-shell-user-avatar" aria-hidden="true">
               {session.name
                 .split(" ")

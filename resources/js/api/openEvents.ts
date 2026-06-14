@@ -54,8 +54,9 @@ export const fetchAdminOpenEvents = () =>
 
 export type CreateOpenEventPayload = {
   name: string;
-  startDate: string;
-  endDate: string;
+  dates: string[];
+  startDate?: string;
+  endDate?: string;
   perDayQuota: number;
   maxAddons: number;
   releaseMode?: string;
@@ -71,6 +72,11 @@ export const createOpenEvent = (payload: CreateOpenEventPayload) =>
 
 export const updateOpenEvent = (eventId: number, payload: Partial<CreateOpenEventPayload>) =>
   api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}`, { method: "PUT", body: payload }).then(
+    (r) => r.data,
+  );
+
+export const deleteOpenEvent = (eventId: number) =>
+  api<{ data: { deleted: boolean } }>(`/api/admin/open-events/${eventId}`, { method: "DELETE" }).then(
     (r) => r.data,
   );
 

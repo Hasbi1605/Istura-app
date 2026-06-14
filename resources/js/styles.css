@@ -11380,6 +11380,331 @@ a {
   }
 }
 
+/* ---- Admin topbar context + realtime health ----------------------------- */
+.admin-shell-context {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 18px;
+}
+
+.admin-shell-context .admin-shell-crumb {
+  flex: 0 1 auto;
+}
+
+.admin-shell-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-shell-page-actions .admin-shell-refresh {
+  margin-right: 0;
+}
+
+.admin-realtime-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 10px;
+  color: rgba(16, 24, 47, 0.66);
+  background: rgba(16, 24, 47, 0.035);
+  border: 1px solid rgba(16, 24, 47, 0.09);
+  border-radius: 8px;
+}
+
+.admin-realtime-status > span {
+  width: 8px;
+  height: 8px;
+  background: #b5771c;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(181, 119, 28, 0.12);
+}
+
+.admin-realtime-status.is-connected > span {
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(45, 118, 84, 0.13);
+}
+
+.admin-realtime-status em {
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---- Istura Open date builder + guarded deletion ------------------------ */
+.open-create-event-modal {
+  width: min(720px, 100%);
+}
+
+.open-date-builder {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(16, 24, 47, 0.025);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 12px;
+}
+
+.open-date-builder-head {
+  display: grid;
+  gap: 3px;
+}
+
+.open-date-builder-head > span {
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.open-date-builder-head small,
+.open-selected-dates-empty {
+  color: var(--muted);
+}
+
+.open-date-single-row,
+.open-date-range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.open-date-range-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.open-selected-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 32px;
+  align-items: center;
+}
+
+.open-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 6px 11px;
+  color: var(--navy);
+  background: rgba(229, 189, 85, 0.16);
+  border: 1px solid rgba(196, 146, 18, 0.3);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.open-date-chip button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.7);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.open-danger-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 20px;
+  border-color: rgba(161, 61, 54, 0.24);
+  background: rgba(161, 61, 54, 0.035);
+}
+
+.open-danger-zone strong {
+  color: var(--red);
+}
+
+.open-danger-zone p {
+  max-width: 72ch;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.open-danger-zone > small {
+  grid-column: 1 / -1;
+}
+
+/* ---- Istura Open wizard aligned with the regular booking wizard --------- */
+.open-wizard-guide-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 28px;
+  color: var(--white);
+  background: var(--navy);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.open-wizard-guide .open-wizard-back {
+  width: fit-content;
+  margin: 0 0 auto;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.open-wizard-guide-kicker,
+.open-wizard-mobile-kicker {
+  color: var(--gold-2);
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.open-wizard-guide-panel h2 {
+  margin: 18px 0 8px;
+  color: var(--white);
+  font-size: clamp(1.8rem, 3vw, 2.7rem);
+  line-height: 1.05;
+}
+
+.open-wizard-guide-panel > p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.6;
+}
+
+.open-wizard-guide-facts {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.open-wizard-guide-facts span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.open-wizard-guide-selection {
+  display: grid;
+  gap: 5px;
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(229, 189, 85, 0.3);
+  border-radius: 8px;
+}
+
+.open-wizard-guide-selection small,
+.open-wizard-guide-selection span {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.open-wizard-content > .open-wizard-head h1 {
+  margin: 7px 0 10px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.open-wizard-content > .open-wizard-head > p {
+  margin: 0 0 22px;
+  color: var(--muted);
+}
+
+.open-wizard-mobile-kicker {
+  display: none;
+}
+
+.open-wizard-panel .open-step {
+  display: flex;
+  min-height: 320px;
+  flex-direction: column;
+}
+
+.open-wizard-panel .wizard-actions {
+  margin-top: auto;
+}
+
+.open-wizard-panel .open-join {
+  justify-content: center;
+  text-decoration: none;
+}
+
+@media (max-width: 980px) {
+  .admin-shell-context {
+    gap: 10px;
+  }
+
+  .admin-realtime-status em {
+    display: none;
+  }
+
+  .admin-realtime-status {
+    min-width: 32px;
+    justify-content: center;
+    padding: 6px;
+  }
+
+  .open-wizard-guide-panel {
+    min-height: 250px;
+  }
+
+  .open-wizard-guide .open-wizard-back {
+    margin-bottom: 42px;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-shell-context {
+    gap: 6px;
+  }
+
+  .admin-shell-page-actions {
+    gap: 5px;
+  }
+
+  .admin-shell-page-actions .admin-shell-refresh,
+  .admin-realtime-status {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .open-date-single-row,
+  .open-date-range-row,
+  .open-danger-zone {
+    grid-template-columns: 1fr;
+  }
+
+  .open-date-single-row .button,
+  .open-date-range-row .button,
+  .open-danger-zone .button {
+    width: 100%;
+  }
+
+  .open-wizard-guide {
+    display: none;
+  }
+
+  .open-wizard-mobile-kicker {
+    display: inline-block;
+  }
+
+  .open-stepper {
+    gap: 7px 10px;
+  }
+
+  .open-stepper li {
+    font-size: 0.74rem;
+  }
+}
+
 /* --- Idle Timeout Warning --- */
 .admin-idle-overlay {
   position: fixed;
@@ -13524,4 +13849,8 @@ a {
   .open-registrants-filters > .booking-export-button {
     width: 100%;
   }
+}
+
+.open-modal.open-create-event-modal {
+  width: min(720px, 100%);
 }

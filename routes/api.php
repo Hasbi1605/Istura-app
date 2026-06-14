@@ -126,6 +126,7 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
         // Istura Open mutations
         Route::post('open-events', [OpenEventController::class, 'store']);
         Route::put('open-events/{event}', [OpenEventController::class, 'update']);
+        Route::delete('open-events/{event}', [OpenEventController::class, 'destroy']);
         Route::post('open-events/{event}/activate', [OpenEventController::class, 'activate']);
         Route::post('open-events/{event}/deactivate', [OpenEventController::class, 'deactivate']);
         Route::post('open-events/{event}/poster', [OpenEventController::class, 'uploadPoster']);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, Plus, Trash2, Users } from "lucide-react";
 import type { OpenEventPublic, OpenRegistrationResult, Screen } from "../../domain/types";
 import { ValidationError } from "../../api/client";
@@ -8,6 +8,7 @@ import {
   precheckOpenRegistration,
   storeOpenRegistration,
 } from "../../api/openEvents";
+import { ButtonSpinner } from "../ui/LoadingStates";
 
 const MONTHS_ID = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -18,6 +19,12 @@ function formatLongDate(key: string): string {
   const [year, month, day] = key.split("-").map(Number);
   if (!year || !month || !day) return key;
   return `${day} ${MONTHS_ID[month - 1]} ${year}`;
+}
+
+function formatEventDates(event: OpenEventPublic): string {
+  const dates = event.days.map((day) => day.date).sort();
+  if (dates.length <= 3) return dates.map(formatLongDate).join(" · ");
+  return `${formatLongDate(dates[0])} – ${formatLongDate(dates[dates.length - 1])} · ${dates.length} hari pilihan`;
 }
 
 function OpenFormField({
@@ -84,7 +91,7 @@ export function IsturaOpenWizard({
   const [lookupNik, setLookupNik] = useState("");
   const [lookupWhatsapp, setLookupWhatsapp] = useState("");
   const [lookupResult, setLookupResult] = useState<OpenRegistrationResult | null | "none">(null);
-  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupPending, setLookupPending] = useState<"lookup" | "cancel" | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   const selectedDay = useMemo(
@@ -92,14 +99,25 @@ export function IsturaOpenWizard({
     [event, dayId],
   );
   const maxAddons = event?.maxAddons ?? 0;
+  const activeHeadcount = 1 + members.filter((member) => member.trim()).length;
+  const dayRemaining = selectedDay?.remaining ?? 0;
+
+  useEffect(() => {
+    if (!dayId || !event) return;
+    const currentDay = event.days.find((day) => day.id === dayId);
+    if (currentDay?.isOpen && currentDay.remaining >= activeHeadcount) return;
+    setDayId(null);
+    setStep(0);
+    setFormError("Hari yang dipilih baru saja ditutup atau kuotanya tidak lagi mencukupi. Silakan pilih hari lain.");
+  }, [activeHeadcount, dayId, event]);
 
   if (!event) {
     return (
-      <section className="open-wizard">
-        <div className="open-wizard-card open-wizard-empty">
+      <section className="wizard-page open-wizard-page">
+        <div className="wizard-panel open-wizard-empty">
           <h1>Istura Open belum dibuka</h1>
           <p>Saat ini tidak ada event pendaftaran perorangan yang aktif. Silakan cek kembali nanti.</p>
-          <button type="button" className="btn-primary" onClick={() => onNavigate("home")}>
+          <button type="button" className="button button-primary" onClick={() => onNavigate("home")}>
             Kembali ke Beranda
           </button>
         </div>
@@ -206,7 +224,7 @@ export function IsturaOpenWizard({
       setLookupError("Nomor WhatsApp tidak valid.");
       return;
     }
-    setLookupBusy(true);
+    setLookupPending("lookup");
     setLookupError(null);
     try {
       const data = await lookupOpenRegistration(lookupNik, lookupWhatsapp);
@@ -214,12 +232,12 @@ export function IsturaOpenWizard({
     } catch {
       setLookupError("Gagal memeriksa pendaftaran.");
     } finally {
-      setLookupBusy(false);
+      setLookupPending(null);
     }
   };
 
   const runCancel = async () => {
-    setLookupBusy(true);
+    setLookupPending("cancel");
     setLookupError(null);
     try {
       await cancelOpenRegistration(lookupNik, lookupWhatsapp);
@@ -228,12 +246,9 @@ export function IsturaOpenWizard({
     } catch {
       setLookupError("Gagal membatalkan pendaftaran.");
     } finally {
-      setLookupBusy(false);
+      setLookupPending(null);
     }
   };
-
-  const activeHeadcount = 1 + members.filter((m) => m.trim()).length;
-  const dayRemaining = selectedDay?.remaining ?? 0;
 
   const addMember = () => {
     if (members.length >= maxAddons) return;
@@ -242,27 +257,45 @@ export function IsturaOpenWizard({
   };
 
   return (
-    <section className="open-wizard">
-      <div className="open-wizard-head">
-        <button type="button" className="open-wizard-back" onClick={() => onNavigate("home")}>
-          <ChevronLeft size={18} /> Beranda
-        </button>
-        <h1>{event.name}</h1>
-        <p>
-          Kunjungan perorangan {formatLongDate(event.startDate)} – {formatLongDate(event.endDate)}. Gratis, tanpa
-          surat. Siapa cepat dia dapat.
-        </p>
-        <ol className="open-stepper" aria-label="Langkah pendaftaran">
-          {STEP_LABELS.map((label, index) => (
-            <li key={label} className={index === step ? "is-active" : index < step ? "is-done" : ""}>
-              <span>{index + 1}</span>
-              {label}
-            </li>
-          ))}
-        </ol>
-      </div>
+    <section className="wizard-page open-wizard-page">
+      <div className="wizard-shell open-wizard-shell">
+        <aside className="wizard-guide open-wizard-guide">
+          <div className="open-wizard-guide-panel">
+            <button type="button" className="open-wizard-back" onClick={() => onNavigate("home")}>
+              <ChevronLeft size={18} /> Beranda
+            </button>
+            <span className="open-wizard-guide-kicker">Istura Open</span>
+            <h2>{event.name}</h2>
+            <p>{formatEventDates(event)}</p>
+            <div className="open-wizard-guide-facts">
+              <span><CalendarDays size={16} /> {event.days.length} hari pilihan</span>
+              <span><Users size={16} /> Maks. {event.maxAddons} anggota tambahan</span>
+            </div>
+            {selectedDay && (
+              <div className="open-wizard-guide-selection">
+                <small>Hari dipilih</small>
+                <strong>{formatLongDate(selectedDay.date)}</strong>
+                <span>Sisa {selectedDay.remaining} dari {selectedDay.quota} tempat</span>
+              </div>
+            )}
+          </div>
+        </aside>
 
-      <div className="open-wizard-card">
+        <div className="wizard-panel open-wizard-panel">
+          <div className="wizard-content open-wizard-content">
+            <div className="open-wizard-head">
+              <span className="open-wizard-mobile-kicker">Istura Open</span>
+              <h1>{event.name}</h1>
+              <p>Gratis, tanpa surat permohonan. Pilih tanggal yang tersedia dan lengkapi data pendaftar.</p>
+              <ol className="open-stepper" aria-label="Langkah pendaftaran">
+                {STEP_LABELS.map((label, index) => (
+                  <li key={label} className={index === step ? "is-active" : index < step ? "is-done" : ""}>
+                    <span>{index + 1}</span>
+                    {label}
+                  </li>
+                ))}
+              </ol>
+            </div>
         {formError && step !== 4 && <p className="open-wizard-alert" role="alert">{formError}</p>}
 
         {step === 0 && (
@@ -296,11 +329,11 @@ export function IsturaOpenWizard({
               })}
             </div>
             {errors.day && <p className="field-error">{errors.day}</p>}
-            <div className="open-step-actions">
-              <button type="button" className="btn-link" onClick={() => setLookupOpen(true)}>
+            <div className="wizard-actions">
+              <button type="button" className="button button-ghost" onClick={() => setLookupOpen(true)}>
                 Sudah daftar? Cek / batalkan pendaftaran
               </button>
-              <button type="button" className="btn-primary" disabled={!dayId} onClick={() => setStep(1)}>
+              <button type="button" className="button button-primary" disabled={!dayId} onClick={() => setStep(1)}>
                 Lanjut
               </button>
             </div>
@@ -343,12 +376,12 @@ export function IsturaOpenWizard({
                 onChange={setField("city", setCity)}
               />
             </div>
-            <div className="open-step-actions">
-              <button type="button" className="btn-secondary" onClick={() => setStep(0)}>
+            <div className="wizard-actions">
+              <button type="button" className="button button-ghost" onClick={() => setStep(0)}>
                 Kembali
               </button>
-              <button type="button" className="btn-primary" disabled={submitting} onClick={goNextFromIdentity}>
-                {submitting ? "Memeriksa..." : "Lanjut"}
+              <button type="button" className="button button-primary" disabled={submitting} onClick={goNextFromIdentity}>
+                {submitting ? <ButtonSpinner label="Memeriksa..." /> : "Lanjut"}
               </button>
             </div>
           </div>
@@ -395,11 +428,11 @@ export function IsturaOpenWizard({
                 <p className="open-step-hint">Anggota dibatasi sisa kuota hari ini.</p>
               )}
             </div>
-            <div className="open-step-actions">
-              <button type="button" className="btn-secondary" onClick={() => setStep(1)}>
+            <div className="wizard-actions">
+              <button type="button" className="button button-ghost" onClick={() => setStep(1)}>
                 Kembali
               </button>
-              <button type="button" className="btn-primary" onClick={() => setStep(3)}>
+              <button type="button" className="button button-primary" onClick={() => setStep(3)}>
                 Lanjut
               </button>
             </div>
@@ -438,12 +471,12 @@ export function IsturaOpenWizard({
               <span>Saya menyetujui ketentuan kunjungan dan data yang saya isi benar.</span>
             </label>
             {errors.agreement && <p className="field-error">{errors.agreement}</p>}
-            <div className="open-step-actions">
-              <button type="button" className="btn-secondary" onClick={() => setStep(2)}>
+            <div className="wizard-actions">
+              <button type="button" className="button button-ghost" onClick={() => setStep(2)}>
                 Kembali
               </button>
-              <button type="button" className="btn-primary" disabled={submitting} onClick={submitRegistration}>
-                {submitting ? "Mendaftar..." : "Daftar Sekarang"}
+              <button type="button" className="button button-primary" disabled={submitting} onClick={submitRegistration}>
+                {submitting ? <ButtonSpinner label="Mendaftar..." /> : "Daftar Sekarang"}
               </button>
             </div>
           </div>
@@ -459,17 +492,19 @@ export function IsturaOpenWizard({
               ({result.headcount} orang). Kode: <code>{result.code}</code>
             </p>
             {result.whatsappGroupUrl ? (
-              <a className="btn-primary open-join" href={result.whatsappGroupUrl} target="_blank" rel="noopener noreferrer">
+              <a className="button button-primary open-join" href={result.whatsappGroupUrl} target="_blank" rel="noopener noreferrer">
                 Gabung Grup WhatsApp
               </a>
             ) : (
               <p className="open-wizard-alert">Link grup akan diberikan admin. Simpan kode pendaftaranmu.</p>
             )}
-            <button type="button" className="btn-link" onClick={() => onNavigate("home")}>
+            <button type="button" className="button button-ghost" onClick={() => onNavigate("home")}>
               Kembali ke Beranda
             </button>
           </div>
         )}
+          </div>
+        </div>
       </div>
 
       {lookupOpen && (
@@ -506,19 +541,19 @@ export function IsturaOpenWizard({
                   <strong>{lookupResult.dayDate ? formatLongDate(lookupResult.dayDate) : "hari terpilih"}</strong>.
                 </p>
                 {lookupResult.whatsappGroupUrl && (
-                  <a className="btn-secondary" href={lookupResult.whatsappGroupUrl} target="_blank" rel="noopener noreferrer">
+                  <a className="button button-ghost" href={lookupResult.whatsappGroupUrl} target="_blank" rel="noopener noreferrer">
                     Buka Grup WhatsApp
                   </a>
                 )}
-                <button type="button" className="btn-danger" disabled={lookupBusy} onClick={runCancel}>
-                  Batalkan pendaftaran
+                <button type="button" className="button button-danger" disabled={lookupPending !== null} onClick={runCancel}>
+                  {lookupPending === "cancel" ? <ButtonSpinner label="Membatalkan..." /> : "Batalkan pendaftaran"}
                 </button>
               </div>
             )}
-            <div className="open-step-actions">
+            <div className="wizard-actions">
               <button
                 type="button"
-                className="btn-secondary"
+                className="button button-ghost"
                 onClick={() => {
                   setLookupOpen(false);
                   setLookupResult(null);
@@ -529,8 +564,8 @@ export function IsturaOpenWizard({
               >
                 Tutup
               </button>
-              <button type="button" className="btn-primary" disabled={lookupBusy} onClick={runLookup}>
-                {lookupBusy ? "Memeriksa..." : "Cek"}
+              <button type="button" className="button button-primary" disabled={lookupPending !== null} onClick={runLookup}>
+                {lookupPending === "lookup" ? <ButtonSpinner label="Memeriksa..." /> : "Cek"}
               </button>
             </div>
           </div>

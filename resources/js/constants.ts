@@ -730,10 +730,10 @@ export type AdminMenuItem = {
 
 export const ADMIN_MENU: AdminMenuItem[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, status: "ready" },
-  { key: "bookings", label: "Booking", icon: ClipboardCheck, status: "ready" },
   { key: "schedule", label: "Jadwal Kunjungan", icon: CalendarDays, status: "ready" },
-  { key: "istura-open", label: "Istura Open", icon: Ticket, status: "ready" },
+  { key: "bookings", label: "Booking", icon: ClipboardCheck, status: "ready" },
   { key: "feedback", label: "Feedback", icon: Inbox, status: "ready" },
+  { key: "istura-open", label: "Istura Open", icon: Ticket, status: "ready" },
   { key: "cms-faq", label: "FAQ", icon: MessageSquare, group: "Konten Web", status: "ready" },
   { key: "cms-letter", label: "Ketentuan Kunjungan", icon: ClipboardCheck, group: "Konten Web", status: "ready" },
   { key: "cms-contacts", label: "Kontak Footer", icon: Phone, group: "Konten Web", status: "ready" },

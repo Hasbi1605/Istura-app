@@ -17,6 +17,8 @@ class UpdateOpenEventRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:150'],
+            'dates' => ['sometimes', 'array', 'min:1', 'max:366'],
+            'dates.*' => ['required', 'date_format:Y-m-d', 'distinct'],
             'startDate' => ['sometimes', 'required', 'date_format:Y-m-d'],
             'endDate' => ['sometimes', 'required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
             'perDayQuota' => ['sometimes', 'required', 'integer', 'min:1', 'max:100000'],
@@ -28,6 +30,15 @@ class UpdateOpenEventRequest extends FormRequest
             'agreementText' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'promoSubtitle' => ['sometimes', 'nullable', 'string', 'max:255'],
             'bannerText' => ['sometimes', 'nullable', 'string', 'max:500'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'endDate.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
+            'dates.min' => 'Pilih minimal satu tanggal event.',
+            'dates.*.distinct' => 'Tanggal event tidak boleh duplikat.',
         ];
     }
 }

@@ -353,7 +353,8 @@ Satu screen penuh (pola `AdminScheduleManager`) dengan header event + 2 tab.
 
 **Tab A — Pengaturan & Hari**
 
-Form event (buat/edit): nama, rentang tanggal, kuota/hari, maks add-on, mode pilih hari
+Form event (buat/edit): nama, **tanggal pilihan** (`dates[]`: satu hari, rentang, atau tanggal
+tidak berurutan), kuota/hari, maks add-on, mode pilih hari
 (self_select, terkunci v1), `release_mode` (serentak/bertahap), jendela daftar
 (buka/tutup), teks persetujuan, status aktif.
 
@@ -367,7 +368,7 @@ Kartu per hari (jantung operasional, mirip grid slot di ScheduleManager):
 └───────────────────────────────────┘ └───────────────────────────────────┘
 ```
 - **Guard aktivasi:** "Aktifkan" ditolak bila ada hari Buka dengan link WA kosong.
-- Counter `Terisi x/100` (refresh saat buka tab; opsional realtime via channel existing).
+- Counter `Terisi x/100` tersinkron realtime; saat Reverb gagal tersedia polling fallback.
 
 **Tab B — Pendaftar** (pola `BookingScreen`: tabel + filter + export)
 ```
@@ -450,6 +451,7 @@ aktif sebagai jalan masuk permanen. Popup = sekali; banner = selalu selama event
 
 **Admin** (prefix `admin`, middleware `admin-access`)
 - `GET    admin/open-events`, `POST admin/open-events`, `PUT admin/open-events/{event}`
+- `DELETE admin/open-events/{event}` — hanya event nonaktif tanpa riwayat pendaftar
 - `POST   admin/open-events/{event}/activate`
 - `PUT    admin/open-events/{event}/days/{day}` — kuota override, link WA, buka/tutup
 - `GET    admin/open-events/{event}/registrations` — filter hari/status/cari, paginasi

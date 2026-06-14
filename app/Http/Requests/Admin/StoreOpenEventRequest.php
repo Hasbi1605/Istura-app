@@ -17,8 +17,10 @@ class StoreOpenEventRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:150'],
-            'startDate' => ['required', 'date_format:Y-m-d'],
-            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'dates' => ['sometimes', 'array', 'min:1', 'max:366'],
+            'dates.*' => ['required', 'date_format:Y-m-d', 'distinct'],
+            'startDate' => ['required_without:dates', 'date_format:Y-m-d'],
+            'endDate' => ['required_without:dates', 'date_format:Y-m-d', 'after_or_equal:startDate'],
             'perDayQuota' => ['required', 'integer', 'min:1', 'max:100000'],
             'maxAddons' => ['required', 'integer', 'min:0', 'max:50'],
             'assignmentMode' => ['sometimes', Rule::in(OpenEvent::ASSIGNMENT_MODES)],
@@ -35,6 +37,8 @@ class StoreOpenEventRequest extends FormRequest
     {
         return [
             'endDate.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
+            'dates.min' => 'Pilih minimal satu tanggal event.',
+            'dates.*.distinct' => 'Tanggal event tidak boleh duplikat.',
         ];
     }
 }

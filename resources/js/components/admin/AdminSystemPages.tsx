@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { PenLine, Plus, X } from "lucide-react";
+import { Loader2, PenLine, Plus, X } from "lucide-react";
 import type { AdminSession } from "../../domain/types";
 import {
   createAdminUser,
@@ -46,6 +46,7 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<UserDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -135,11 +136,14 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
 
   const remove = async (user: ApiAdminUser) => {
     if (!window.confirm(`Hapus akun ${user.name}?`)) return;
+    setDeletingId(user.id);
     try {
       await deleteAdminUser(user.id);
       load();
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : "Gagal menghapus pengguna.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -304,6 +308,7 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
                         <button
                           type="button"
                           className="admin-icon-btn"
+                          disabled={deletingId !== null}
                           onClick={() => startEdit(user)}
                           aria-label={`Edit ${user.name}`}
                         >
@@ -312,10 +317,13 @@ export function AdminUsersList({ session }: { session: AdminSession | null }) {
                         <button
                           type="button"
                           className="admin-icon-btn admin-icon-btn--danger"
+                          disabled={deletingId !== null}
                           onClick={() => remove(user)}
                           aria-label={`Hapus ${user.name}`}
                         >
-                          <X size={16} aria-hidden="true" />
+                          {deletingId === user.id
+                            ? <Loader2 size={16} aria-hidden="true" className="button-spinner" />
+                            : <X size={16} aria-hidden="true" />}
                         </button>
                       </div>
                     </td>

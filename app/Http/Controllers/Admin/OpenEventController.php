@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Events\OpenQuotaUpdated;
+use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreOpenEventRequest;
 use App\Http\Requests\Admin\UpdateOpenEventDayRequest;
@@ -48,13 +49,14 @@ class OpenEventController extends Controller
     public function store(StoreOpenEventRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $dates = $this->selectedDates($data);
 
-        $event = DB::transaction(function () use ($data, $request) {
+        $event = DB::transaction(function () use ($data, $dates, $request) {
             $event = new OpenEvent;
             $event->name = $data['name'];
             $event->slug = $this->uniqueSlug($data['name']);
-            $event->start_date = $data['startDate'];
-            $event->end_date = $data['endDate'];
+            $event->start_date = $dates[0];
+            $event->end_date = $dates[array_key_last($dates)];
             $event->per_day_quota = $data['perDayQuota'];
             $event->max_addons = $data['maxAddons'];
             $event->assignment_mode = $data['assignmentMode'] ?? 'self_select';
@@ -67,7 +69,7 @@ class OpenEventController extends Controller
             $event->is_active = false;
             $event->save();
 
-            $this->syncDays($event);
+            $this->syncDays($event, $dates);
 
             AuditLogger::record($request->user(), "Membuat event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
 
@@ -84,12 +86,16 @@ class OpenEventController extends Controller
     public function update(UpdateOpenEventRequest $request, OpenEvent $event): JsonResponse
     {
         $data = $request->validated();
+        $updatesDates = array_key_exists('dates', $data) || array_key_exists('startDate', $data) || array_key_exists('endDate', $data);
+        $previousScheduleDates = $event->is_active && $updatesDates ? $this->openScheduleDates($event) : [];
 
         DB::transaction(function () use ($event, $data, $request) {
+            $selectedDates = array_key_exists('dates', $data) ? $this->selectedDates($data) : null;
+
             $event->fill(array_filter([
                 'name' => $data['name'] ?? null,
-                'start_date' => $data['startDate'] ?? null,
-                'end_date' => $data['endDate'] ?? null,
+                'start_date' => $selectedDates[0] ?? $data['startDate'] ?? null,
+                'end_date' => $selectedDates !== null ? $selectedDates[array_key_last($selectedDates)] : ($data['endDate'] ?? null),
                 'per_day_quota' => $data['perDayQuota'] ?? null,
                 'max_addons' => $data['maxAddons'] ?? null,
                 'assignment_mode' => $data['assignmentMode'] ?? null,
@@ -104,7 +110,9 @@ class OpenEventController extends Controller
 
             $event->save();
 
-            if (array_key_exists('startDate', $data) || array_key_exists('endDate', $data)) {
+            if ($selectedDates !== null) {
+                $this->syncDays($event, $selectedDates);
+            } elseif (array_key_exists('startDate', $data) || array_key_exists('endDate', $data)) {
                 $this->syncDays($event);
             }
 
@@ -112,6 +120,10 @@ class OpenEventController extends Controller
         });
 
         PublicCache::bumpScheduleVersion();
+        OpenQuotaUpdated::dispatch($event->slug);
+        if ($event->is_active && $updatesDates) {
+            $this->broadcastScheduleForDates([...$previousScheduleDates, ...$this->openScheduleDates($event->fresh('days'))]);
+        }
 
         return response()->json([
             'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
@@ -131,6 +143,13 @@ class OpenEventController extends Controller
             ]);
         }
 
+        $affectedScheduleDates = OpenEvent::query()
+            ->where('is_active', true)
+            ->with('days')
+            ->get()
+            ->flatMap(fn (OpenEvent $activeEvent) => $this->openScheduleDates($activeEvent))
+            ->all();
+
         DB::transaction(function () use ($event, $request) {
             OpenEvent::where('id', '!=', $event->id)->where('is_active', true)->update(['is_active' => false]);
             $event->is_active = true;
@@ -141,6 +160,7 @@ class OpenEventController extends Controller
 
         PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
+        $this->broadcastScheduleForDates([...$affectedScheduleDates, ...$this->openScheduleDates($event->fresh('days'))]);
 
         return response()->json([
             'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
@@ -149,12 +169,14 @@ class OpenEventController extends Controller
 
     public function deactivate(Request $request, OpenEvent $event): JsonResponse
     {
+        $affectedScheduleDates = $this->openScheduleDates($event);
         $event->is_active = false;
         $event->save();
 
         AuditLogger::record($request->user(), "Menonaktifkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
         PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
+        $this->broadcastScheduleForDates($affectedScheduleDates);
 
         return response()->json([
             'data' => (new OpenEventResource($event->fresh('days')))->resolve(),
@@ -166,6 +188,7 @@ class OpenEventController extends Controller
         abort_unless($day->open_event_id === $event->id, 404);
 
         $data = $request->validated();
+        $wasOpen = (bool) $day->is_open;
 
         $wantsOpen = array_key_exists('isOpen', $data) ? (bool) $data['isOpen'] : $day->is_open;
         $resultingUrl = array_key_exists('whatsappGroupUrl', $data) ? $data['whatsappGroupUrl'] : $day->whatsapp_group_url;
@@ -217,12 +240,47 @@ class OpenEventController extends Controller
         AuditLogger::record($request->user(), "Memperbarui hari Istura Open {$day->date?->toDateString()}", 'open_event_day', $day->id, $auditMeta, $request);
         PublicCache::bumpScheduleVersion();
         OpenQuotaUpdated::dispatch($event->slug);
+        if ($event->is_active && array_key_exists('isOpen', $data) && $wantsOpen !== $wasOpen) {
+            $this->broadcastScheduleForDates([$day->date?->toDateString()]);
+        }
 
         $day->setRelation('event', $event);
 
         return response()->json([
             'data' => (new OpenEventDayResource($day))->resolve(),
         ]);
+    }
+
+    public function destroy(Request $request, OpenEvent $event): JsonResponse
+    {
+        if ($event->is_active) {
+            throw ValidationException::withMessages([
+                'event' => ['Nonaktifkan event sebelum menghapusnya.'],
+            ]);
+        }
+
+        if ($event->registrations()->exists()) {
+            throw ValidationException::withMessages([
+                'event' => ['Event yang sudah memiliki pendaftar tidak dapat dihapus. Nonaktifkan dan simpan sebagai arsip.'],
+            ]);
+        }
+
+        $posterPath = $event->poster_path;
+        $eventName = $event->name;
+        $eventId = $event->id;
+
+        DB::transaction(function () use ($event, $eventName, $eventId, $request) {
+            AuditLogger::record($request->user(), "Menghapus draft event Istura Open {$eventName}", 'open_event', $eventId, [], $request);
+            $event->delete();
+        });
+
+        if ($posterPath) {
+            Storage::disk('public')->delete($posterPath);
+        }
+
+        PublicCache::bumpScheduleVersion();
+
+        return response()->json(['data' => ['deleted' => true]]);
     }
 
     /**
@@ -383,17 +441,22 @@ class OpenEventController extends Controller
         ];
     }
 
-    private function syncDays(OpenEvent $event): void
+    /**
+     * @param  array<int, string>|null  $selectedDates
+     */
+    private function syncDays(OpenEvent $event, ?array $selectedDates = null): void
     {
-        $start = Carbon::parse($event->start_date, 'Asia/Jakarta')->startOfDay();
-        $end = Carbon::parse($event->end_date, 'Asia/Jakarta')->startOfDay();
-
-        $wanted = [];
-        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-            $wanted[] = $date->toDateString();
+        $wanted = $selectedDates;
+        if ($wanted === null) {
+            $start = Carbon::parse($event->start_date, 'Asia/Jakarta')->startOfDay();
+            $end = Carbon::parse($event->end_date, 'Asia/Jakarta')->startOfDay();
+            $wanted = [];
+            for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                $wanted[] = $date->toDateString();
+            }
         }
 
-        $existingDays = $event->days()->get();
+        $existingDays = $event->days()->withCount('registrations')->get();
         $existing = $existingDays
             ->map(fn (OpenEventDay $day) => $day->date?->toDateString())
             ->filter()
@@ -408,16 +471,76 @@ class OpenEventController extends Controller
             }
         }
 
-        // Drop out-of-range days that never received registrations.
-        $staleIds = $existingDays
-            ->filter(fn (OpenEventDay $day) => ! in_array($day->date?->toDateString(), $wanted, true))
-            ->filter(fn (OpenEventDay $day) => $day->registrations()->count() === 0)
+        $staleDays = $existingDays
+            ->filter(fn (OpenEventDay $day) => ! in_array($day->date?->toDateString(), $wanted, true));
+        $lockedDates = $staleDays
+            ->filter(fn (OpenEventDay $day) => $day->registrations_count > 0)
+            ->map(fn (OpenEventDay $day) => $day->date?->toDateString())
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($lockedDates !== []) {
+            throw ValidationException::withMessages([
+                'dates' => ['Tanggal yang sudah memiliki pendaftar tidak dapat dihapus: '.implode(', ', $lockedDates).'.'],
+            ]);
+        }
+
+        $staleIds = $staleDays
             ->pluck('id')
             ->all();
 
         if ($staleIds !== []) {
             OpenEventDay::whereIn('id', $staleIds)->delete();
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, string>
+     */
+    private function selectedDates(array $data): array
+    {
+        if (isset($data['dates'])) {
+            return collect($data['dates'])->unique()->sort()->values()->all();
+        }
+
+        $start = Carbon::parse($data['startDate'], 'Asia/Jakarta')->startOfDay();
+        $end = Carbon::parse($data['endDate'], 'Asia/Jakarta')->startOfDay();
+        $dates = [];
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            $dates[] = $date->toDateString();
+        }
+
+        return $dates;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function openScheduleDates(OpenEvent $event): array
+    {
+        $event->loadMissing('days');
+
+        return $event->days
+            ->filter(fn (OpenEventDay $day) => $day->is_open)
+            ->map(fn (OpenEventDay $day) => $day->date?->toDateString())
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string|null>  $dates
+     */
+    private function broadcastScheduleForDates(array $dates): void
+    {
+        $dates = collect($dates)->filter()->unique()->sort()->values();
+        if ($dates->isEmpty()) {
+            return;
+        }
+
+        ScheduleUpdated::dispatch($dates->first(), $dates->last());
     }
 
     private function uniqueSlug(string $name): string

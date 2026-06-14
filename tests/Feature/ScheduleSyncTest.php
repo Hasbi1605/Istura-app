@@ -66,8 +66,8 @@ class ScheduleSyncTest extends TestCase
             $interfaces = class_implements($eventClass) ?: [];
 
             $this->assertContains(ShouldBroadcast::class, $interfaces);
+            $this->assertContains(ShouldBroadcastNow::class, $interfaces);
             $this->assertContains(ShouldRescue::class, $interfaces);
-            $this->assertNotContains(ShouldBroadcastNow::class, $interfaces);
         }
 
         $scheduleInterfaces = class_implements(ScheduleUpdated::class) ?: [];

@@ -182,10 +182,12 @@ Pencatatan otomatis seluruh aksi penting (booking baru, perubahan status, feedba
 dengan aktor, target, payload, dan konteks request. Retensi dipangkas otomatis (default 180
 hari).
 
-### 3.10 (Roadmap) Istura Open
-Modul terencana untuk pendaftaran perorangan berbasis kuota harian (event seperti pekan
-kemerdekaan), terpisah dari booking rombongan. Belum diimplementasikan pada versi ini —
-lihat dokumen `IsturaOpen.md`.
+### 3.10 Istura Open
+Modul pendaftaran perorangan berbasis kuota harian, terpisah dari booking rombongan dan
+sudah diimplementasikan. Admin dapat memilih satu atau beberapa tanggal (termasuk tanggal
+tidak berurutan), mengatur kuota/link grup per hari, mengaktifkan satu event, memantau dan
+mengekspor pendaftar, serta menghapus draft event nonaktif yang belum pernah memiliki
+pendaftar. Detail aturan ada di `IsturaOpen.md`.
 
 ---
 
@@ -439,6 +441,8 @@ GET/POST/PUT/DELETE /users
 **Realtime Channels** (`routes/channels.php`)
 ```
 private-admin.bookings           # hanya user admin (broadcast booking & jadwal)
+public.schedule                  # perubahan jadwal publik
+public.open                      # kuota/status/copy Istura Open
 ```
 
 ### 5.4 Middleware Keamanan
@@ -719,7 +723,6 @@ bookings *───* schedule (via date/time, dihitung ScheduleService)
 - Akun admin awal dibuat via seeder (`SEED_ADMIN_PASSWORD`), lalu password dirotasi.
 
 ### 7.6 Out of Scope (Versi Ini)
-- Pendaftaran perorangan berbasis kuota harian (modul **Istura Open** — masih roadmap).
 - Pengiriman pesan WhatsApp otomatis / integrasi WA API.
 - Pembayaran (kunjungan gratis).
 - Check-in / scan di lokasi.
@@ -746,6 +749,9 @@ bookings *───* schedule (via date/time, dihitung ScheduleService)
 | Reschedule booking | `/api/admin/bookings/{code}/reschedule` | POST | Admin |
 | Complete booking | `/api/admin/bookings/{code}/complete` | POST | Admin |
 | Tutup rentang jadwal | `/api/admin/schedule/range` | POST | Admin |
+| Lihat event Istura Open aktif | `/api/public/open-event` | GET | Publik |
+| Daftar Istura Open | `/api/public/open-registrations` | POST | Publik |
+| Kelola event Istura Open | `/api/admin/open-events` | GET/POST/PUT/DELETE | Admin |
 | Kelola pengguna | `/api/admin/users` | GET/POST/PUT/DELETE | Super Admin |
 
 ## Lampiran B — Akun & Peran

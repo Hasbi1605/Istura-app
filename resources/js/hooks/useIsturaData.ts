@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
 	AdminSession,
@@ -69,6 +69,11 @@ const PUBLIC_SCHEDULE_FALLBACK_FOCUS_MIN_MS = 15_000;
 // Jeda minimum antar full-refetch jadwal agar resync-on-connect dan refetch
 // setelah subscribe tidak menembak request ganda saat koneksi pertama terbentuk.
 const PUBLIC_SCHEDULE_RESYNC_MIN_MS = 3_000;
+const PUBLIC_OPEN_FALLBACK_BASE_INTERVAL_MS = 30_000;
+const ADMIN_FALLBACK_BASE_INTERVAL_MS = 45_000;
+const REALTIME_FALLBACK_MAX_INTERVAL_MS = 180_000;
+const REALTIME_FALLBACK_JITTER_MS = 10_000;
+const REALTIME_FALLBACK_FOCUS_MIN_MS = 15_000;
 const PUBLIC_SCHEDULE_FALLBACK_STATUSES = new Set<RealtimeConnectionStatus>([
   "disabled",
   "unavailable",
@@ -140,6 +145,8 @@ export interface IsturaData {
   refetchOpenEvent: () => void;
   reloadAdmin: () => void;
   adminRefreshing: boolean;
+  realtimeStatus: RealtimeConnectionStatus;
+  adminRealtimeReady: boolean | null;
   adminSession: AdminSession | null;
   setAdminSession: Dispatch<SetStateAction<AdminSession | null>>;
   adminTab: AdminTab;
@@ -236,9 +243,12 @@ export function useIsturaData(): IsturaData {
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>(
     import.meta.env.VITE_REVERB_ENABLED === "true" ? "idle" : "disabled",
   );
+  const [adminRealtimeReady, setAdminRealtimeReady] = useState<boolean | null>(null);
   // Timestamp full-refetch jadwal terakhir, dipakai bersama oleh refetch
   // setelah subscribe dan resync-on-(re)connect untuk mencegah request ganda.
   const lastScheduleResyncAtRef = useRef(0);
+  const lastOpenResyncAtRef = useRef(0);
+  const lastAdminResyncAtRef = useRef(0);
   // Komunikasi antar tab admin: misal Jadwal Kunjungan ingin mengarahkan
   // admin ke booking tertentu di tab Booking.
   const [bookingFocusCode, setBookingFocusCode] = useState<string | null>(null);
@@ -246,6 +256,13 @@ export function useIsturaData(): IsturaData {
   // (effect di bawah depend padanya); adminRefreshing menyetir toast di shell.
   const [adminReloadNonce, setAdminReloadNonce] = useState(0);
   const [adminRefreshing, setAdminRefreshing] = useState(false);
+
+  const refetchOpenEvent = useCallback(() => {
+    lastOpenResyncAtRef.current = Date.now();
+    fetchPublicOpenEvent()
+      .then((data) => setOpenEvent(data ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -692,9 +709,13 @@ export function useIsturaData(): IsturaData {
 
   // Realtime: subscribe ke channel admin.bookings ketika admin login.
   useEffect(() => {
-    if (!adminSession) return;
+    if (!adminSession) {
+      setAdminRealtimeReady(null);
+      return;
+    }
     let active = true;
     let cleanup: (() => void) | undefined;
+    setAdminRealtimeReady(null);
     const refreshSchedule = (from?: string, to?: string) => {
       fetchAdminSchedule(from, to)
         .then((days) => {
@@ -753,8 +774,22 @@ export function useIsturaData(): IsturaData {
     void import("../realtime/echo").then(({ getEcho, ADMIN_BOOKINGS_CHANNEL }) => {
       if (!active) return;
       const echo = getEcho();
-      if (!echo) return;
+      if (!echo) {
+        setAdminRealtimeReady(false);
+        return;
+      }
       const channel = echo.private(ADMIN_BOOKINGS_CHANNEL);
+      channel.subscribed(() => {
+        if (!active) return;
+        setAdminRealtimeReady(true);
+        if (Date.now() - lastAdminResyncAtRef.current >= PUBLIC_SCHEDULE_RESYNC_MIN_MS) {
+          lastAdminResyncAtRef.current = Date.now();
+          setAdminReloadNonce((nonce) => nonce + 1);
+        }
+      });
+      channel.error(() => {
+        if (active) setAdminRealtimeReady(false);
+      });
       channel.listen(".booking.created", onCreated);
       channel.listen(".booking.status-changed", onChanged);
       channel.listen(".feedback.submitted", onFeedback);
@@ -775,19 +810,66 @@ export function useIsturaData(): IsturaData {
     };
   }, [adminSession]);
 
+  // Channel admin bersifat privat. Bila socket atau autentikasi channel gagal,
+  // lakukan resync berkala agar booking/feedback baru tetap muncul tanpa refresh.
+  useEffect(() => {
+    if (!adminSession) return;
+    if (!shouldUsePublicScheduleFallback(realtimeStatus) && adminRealtimeReady !== false) return;
+
+    let active = true;
+    let inFlight = false;
+    let failureCount = 0;
+    let lastRefreshAt = 0;
+    let timeoutId: number | undefined;
+
+    const nextDelay = () => Math.min(
+      REALTIME_FALLBACK_MAX_INTERVAL_MS,
+      ADMIN_FALLBACK_BASE_INTERVAL_MS * 2 ** Math.min(failureCount, 2),
+    ) + Math.floor(Math.random() * REALTIME_FALLBACK_JITTER_MS);
+
+    const queueNext = (delay: number) => {
+      if (active) timeoutId = window.setTimeout(() => refresh("timer"), delay);
+    };
+
+    const refresh = (reason: "timer" | "focus" | "visibility") => {
+      if (inFlight || document.visibilityState === "hidden") {
+        if (reason === "timer") queueNext(nextDelay());
+        return;
+      }
+      if (reason !== "timer" && Date.now() - lastRefreshAt < REALTIME_FALLBACK_FOCUS_MIN_MS) return;
+
+      inFlight = true;
+      lastRefreshAt = Date.now();
+      lastAdminResyncAtRef.current = Date.now();
+      setAdminReloadNonce((nonce) => nonce + 1);
+      window.setTimeout(() => {
+        inFlight = false;
+        failureCount = 0;
+        if (active && reason === "timer") queueNext(nextDelay());
+      }, 1_000);
+    };
+
+    queueNext(Math.floor(Math.random() * REALTIME_FALLBACK_JITTER_MS));
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refresh("visibility");
+    };
+    const handleFocus = () => refresh("focus");
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      active = false;
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [adminRealtimeReady, adminSession, realtimeStatus]);
+
   useEffect(() => {
     if (window.location.pathname.startsWith("/admin")) {
       setScreen("admin");
     }
   }, []);
-
-  // Istura Open: refetch live quota when an active event changes (register /
-  // cancel / move / admin toggle). Mirrors the schedule.updated pattern.
-  const refetchOpenEvent = () => {
-    fetchPublicOpenEvent()
-      .then((data) => setOpenEvent(data ?? null))
-      .catch(() => {});
-  };
 
   // Global admin reload: re-fetch operational data (bookings/feedbacks/schedule
   // via the nonce-keyed effect) + live open-event quota. Component-owned screens
@@ -815,6 +897,11 @@ export function useIsturaData(): IsturaData {
         const echo = getEcho();
         if (!echo) return;
         const channel = echo.channel(PUBLIC_OPEN_CHANNEL);
+        channel.subscribed(() => {
+          if (active && Date.now() - lastOpenResyncAtRef.current >= PUBLIC_SCHEDULE_RESYNC_MIN_MS) {
+            refetchOpenEvent();
+          }
+        });
         channel.listen(".open.quota-updated", onQuotaUpdated);
         cleanup = () => {
           try {
@@ -832,7 +919,70 @@ export function useIsturaData(): IsturaData {
       window.clearTimeout(timerId);
       cleanup?.();
     };
-  }, [loading.public, screen]);
+  }, [loading.public, refetchOpenEvent, screen]);
+
+  useEffect(() => {
+    if (loading.public || screen === "admin" || realtimeStatus !== "connected") return;
+    if (Date.now() - lastOpenResyncAtRef.current < PUBLIC_SCHEDULE_RESYNC_MIN_MS) return;
+    refetchOpenEvent();
+  }, [loading.public, realtimeStatus, refetchOpenEvent, screen]);
+
+  useEffect(() => {
+    if (loading.public || screen === "admin" || !shouldUsePublicScheduleFallback(realtimeStatus)) return;
+
+    let active = true;
+    let inFlight = false;
+    let failureCount = 0;
+    let lastRefreshAt = 0;
+    let timeoutId: number | undefined;
+
+    const nextDelay = () => Math.min(
+      REALTIME_FALLBACK_MAX_INTERVAL_MS,
+      PUBLIC_OPEN_FALLBACK_BASE_INTERVAL_MS * 2 ** Math.min(failureCount, 2),
+    ) + Math.floor(Math.random() * REALTIME_FALLBACK_JITTER_MS);
+    const queueNext = (delay: number) => {
+      if (active) timeoutId = window.setTimeout(() => refresh("timer"), delay);
+    };
+    const refresh = (reason: "timer" | "focus" | "visibility") => {
+      if (inFlight || document.visibilityState === "hidden") {
+        if (reason === "timer") queueNext(nextDelay());
+        return;
+      }
+      if (reason !== "timer" && Date.now() - lastRefreshAt < REALTIME_FALLBACK_FOCUS_MIN_MS) return;
+
+      inFlight = true;
+      lastRefreshAt = Date.now();
+      fetchPublicOpenEvent()
+        .then((data) => {
+          if (!active) return;
+          failureCount = 0;
+          lastOpenResyncAtRef.current = Date.now();
+          setOpenEvent(data ?? null);
+        })
+        .catch(() => {
+          failureCount = Math.min(failureCount + 1, 3);
+        })
+        .finally(() => {
+          inFlight = false;
+          if (active && reason === "timer") queueNext(nextDelay());
+        });
+    };
+
+    queueNext(Math.floor(Math.random() * REALTIME_FALLBACK_JITTER_MS));
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refresh("visibility");
+    };
+    const handleFocus = () => refresh("focus");
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      active = false;
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loading.public, realtimeStatus, screen]);
 
   useEffect(() => {
     const match = window.location.pathname.match(/^\/feedback\/([^/]+)\/?$/);
@@ -871,6 +1021,8 @@ export function useIsturaData(): IsturaData {
     refetchOpenEvent,
     reloadAdmin,
     adminRefreshing,
+    realtimeStatus,
+    adminRealtimeReady,
     adminSession,
     setAdminSession,
     adminTab,

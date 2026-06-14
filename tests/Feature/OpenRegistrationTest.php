@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Events\OpenQuotaUpdated;
+use App\Events\ScheduleUpdated;
 use App\Models\Booking;
 use App\Models\OpenEvent;
 use App\Models\OpenEventDay;
@@ -12,6 +14,7 @@ use App\Services\TwoFactorService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -257,6 +260,105 @@ class OpenRegistrationTest extends TestCase
         $eventId = $response->json('data.id');
         $this->assertDatabaseCount('open_event_days', 3);
         $this->assertSame(3, OpenEventDay::where('open_event_id', $eventId)->count());
+    }
+
+    public function test_admin_can_create_event_with_nonconsecutive_dates(): void
+    {
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/open-events', [
+            'name' => 'Istura Open Tanggal Pilihan',
+            'dates' => ['2026-08-20', '2026-08-14', '2026-08-17'],
+            'perDayQuota' => 100,
+            'maxAddons' => 4,
+        ])->assertCreated();
+
+        $eventId = $response->json('data.id');
+        $event = OpenEvent::findOrFail($eventId);
+
+        $this->assertSame('2026-08-14', $event->start_date->toDateString());
+        $this->assertSame('2026-08-20', $event->end_date->toDateString());
+        $this->assertSame(
+            ['2026-08-14', '2026-08-17', '2026-08-20'],
+            $event->days()->orderBy('date')->get()->map(fn (OpenEventDay $day) => $day->date->toDateString())->all(),
+        );
+    }
+
+    public function test_admin_can_delete_empty_inactive_event_and_poster(): void
+    {
+        Storage::fake('public');
+        $this->actingAsAdmin();
+        $event = $this->makeEvent(active: false);
+        $posterPath = 'cms/open-posters/draft.webp';
+        Storage::disk('public')->put($posterPath, 'poster');
+        $event->update(['poster_path' => $posterPath]);
+
+        $this->deleteJson("/api/admin/open-events/{$event->id}")
+            ->assertOk()
+            ->assertJsonPath('data.deleted', true);
+
+        $this->assertDatabaseMissing('open_events', ['id' => $event->id]);
+        $this->assertDatabaseMissing('open_event_days', ['open_event_id' => $event->id]);
+        Storage::disk('public')->assertMissing($posterPath);
+    }
+
+    public function test_admin_cannot_delete_active_or_registered_event(): void
+    {
+        $this->actingAsAdmin();
+        $active = $this->makeActiveEvent();
+
+        $this->deleteJson("/api/admin/open-events/{$active->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+
+        $active->update(['is_active' => false]);
+        $day = $active->days()->firstOrFail();
+        $this->makeRegistration($active, $day, '3374010101010080', '081234567080');
+
+        $this->deleteJson("/api/admin/open-events/{$active->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event');
+        $this->assertDatabaseHas('open_events', ['id' => $active->id]);
+    }
+
+    public function test_admin_cannot_remove_event_date_that_has_registrations(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makeEvent(active: false);
+        $registeredDay = $event->days()->whereDate('date', '2026-08-15')->firstOrFail();
+        $this->makeRegistration($event, $registeredDay, '3374010101010081', '081234567081');
+
+        $this->putJson("/api/admin/open-events/{$event->id}", [
+            'dates' => ['2026-08-14', '2026-08-16'],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('dates');
+
+        $this->assertDatabaseHas('open_event_days', ['id' => $registeredDay->id]);
+        $this->assertSame('2026-08-14', $event->fresh()->start_date->toDateString());
+        $this->assertSame('2026-08-16', $event->fresh()->end_date->toDateString());
+    }
+
+    public function test_open_event_mutations_broadcast_public_and_schedule_updates(): void
+    {
+        Event::fake([OpenQuotaUpdated::class, ScheduleUpdated::class]);
+        $this->actingAsAdmin();
+        $event = $this->makeActiveEvent();
+        $day = $event->days()->orderBy('date')->firstOrFail();
+
+        $this->putJson("/api/admin/open-events/{$event->id}", [
+            'promoSubtitle' => 'Promo realtime',
+        ])->assertOk();
+        Event::assertDispatched(OpenQuotaUpdated::class, fn (OpenQuotaUpdated $broadcast) => $broadcast->eventSlug === $event->slug);
+
+        $this->putJson("/api/admin/open-events/{$event->id}/days/{$day->id}", [
+            'isOpen' => false,
+        ])->assertOk();
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $broadcast) => $broadcast->from === '2026-08-14' && $broadcast->to === '2026-08-14');
+
+        $this->postJson("/api/admin/open-events/{$event->id}/deactivate")->assertOk();
+        Event::assertDispatched(OpenQuotaUpdated::class);
+        Event::assertDispatched(ScheduleUpdated::class, fn (ScheduleUpdated $broadcast) => $broadcast->from === '2026-08-15' && $broadcast->to === '2026-08-16');
     }
 
     public function test_admin_cannot_activate_event_with_open_day_missing_link(): void
