@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\OpenEvent;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,16 +11,18 @@ class StoreOpenEventRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user()?->isAdmin();
+        return (bool) $this->user()?->isOperator();
     }
 
     public function rules(): array
     {
+        $today = Carbon::today('Asia/Jakarta')->toDateString();
+
         return [
             'name' => ['required', 'string', 'max:150'],
             'dates' => ['sometimes', 'array', 'min:1', 'max:366'],
-            'dates.*' => ['required', 'date_format:Y-m-d', 'distinct'],
-            'startDate' => ['required_without:dates', 'date_format:Y-m-d'],
+            'dates.*' => ['required', 'date_format:Y-m-d', 'distinct', 'after_or_equal:'.$today],
+            'startDate' => ['required_without:dates', 'date_format:Y-m-d', 'after_or_equal:'.$today],
             'endDate' => ['required_without:dates', 'date_format:Y-m-d', 'after_or_equal:startDate'],
             'perDayQuota' => ['required', 'integer', 'min:1', 'max:100000'],
             'maxAddons' => ['required', 'integer', 'min:0', 'max:50'],
@@ -39,6 +42,8 @@ class StoreOpenEventRequest extends FormRequest
             'endDate.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
             'dates.min' => 'Pilih minimal satu tanggal event.',
             'dates.*.distinct' => 'Tanggal event tidak boleh duplikat.',
+            'dates.*.after_or_equal' => 'Tanggal event tidak boleh sudah lewat.',
+            'startDate.after_or_equal' => 'Tanggal mulai event tidak boleh sudah lewat.',
         ];
     }
 }

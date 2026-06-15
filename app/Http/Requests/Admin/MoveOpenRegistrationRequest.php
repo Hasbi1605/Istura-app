@@ -8,7 +8,7 @@ class MoveOpenRegistrationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user()?->isAdmin();
+        return (bool) $this->user()?->isOperator();
     }
 
     public function rules(): array

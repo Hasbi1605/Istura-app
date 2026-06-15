@@ -1633,7 +1633,7 @@ export function AdminActionModal({
               value={documentationLink}
               onChange={(event) => setDocumentationLink(event.target.value)}
             />
-            <small>Tautan folder foto/dokumentasi kunjungan. Akan disisipkan pada pesan WhatsApp lewat variabel {"{dokumentasi}"}.</small>
+            <small>Gunakan tautan HTTPS dari penyedia dokumentasi yang disetujui. Tautan akan disisipkan pada pesan WhatsApp lewat variabel {"{dokumentasi}"}.</small>
           </label>
         )}
         {modal.action !== "complete" && (

@@ -43,6 +43,21 @@ class SafePublicUrl implements ValidationRule
         return new self(['https'], ['www.google.com', 'maps.google.com'], false);
     }
 
+    public static function documentation(): self
+    {
+        $hosts = collect(config('security.documentation_link_hosts', []))
+            ->map(fn (string $host): string => strtolower(trim($host)))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($hosts === []) {
+            $hosts = ['drive.google.com', 'docs.google.com', 'photos.google.com', 'photos.app.goo.gl'];
+        }
+
+        return new self(['https'], $hosts, false);
+    }
+
     public static function navTarget(): self
     {
         return new self(['https'], allowRelative: true, allowFragment: true);

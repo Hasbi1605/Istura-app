@@ -366,7 +366,9 @@ Form event (buat/edit): nama, **tanggal pilihan** (`dates[]`: satu hari, rentang
 tidak berurutan), kuota/hari, maks add-on, mode pilih hari
 (self_select, terkunci v1), `release_mode` (serentak/bertahap), jendela daftar
 (buka/tutup), teks persetujuan, poster/flyer opsional, copy promo, status aktif, dan lifecycle
-draft/aktif/lewat/arsip. Aksi status berada di toolbar atas; bukan card terpisah di bawah tab.
+draft/aktif/lewat/arsip. Event baru/tanggal baru tidak boleh berada di masa lampau; tanggal lampau
+yang sudah menjadi bagian event berjalan boleh dipertahankan saat edit. Aksi status berada di
+toolbar atas; bukan card terpisah di bawah tab.
 
 Kartu per hari (jantung operasional, mirip grid slot di ScheduleManager):
 ```

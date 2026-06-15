@@ -14,11 +14,11 @@ class ScheduleOverridePolicy
 
     public function update(User $user, ?ScheduleOverride $scheduleOverride = null): bool
     {
-        return $user->isAdmin();
+        return $user->isOperator();
     }
 
     public function delete(User $user, ?ScheduleOverride $scheduleOverride = null): bool
     {
-        return $user->isAdmin();
+        return $user->isOperator();
     }
 }

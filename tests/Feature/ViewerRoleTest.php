@@ -2,8 +2,30 @@
 
 namespace Tests\Feature;
 
+use App\Http\Requests\Admin\DestroyScheduleSlotRequest;
+use App\Http\Requests\Admin\IndexAuditLogsRequest;
+use App\Http\Requests\Admin\MoveOpenRegistrationRequest;
+use App\Http\Requests\Admin\RescheduleBookingRequest;
+use App\Http\Requests\Admin\StoreOpenEventRequest;
+use App\Http\Requests\Admin\StoreScheduleRangeRequest;
+use App\Http\Requests\Admin\StoreScheduleSlotRequest;
+use App\Http\Requests\Admin\UpdateBookingSegmentsRequest;
+use App\Http\Requests\Admin\UpdateBookingStatusRequest;
+use App\Http\Requests\Admin\UpdateFaqsRequest;
+use App\Http\Requests\Admin\UpdateFooterContactsRequest;
+use App\Http\Requests\Admin\UpdateHeroRequest;
+use App\Http\Requests\Admin\UpdateLetterRequest;
+use App\Http\Requests\Admin\UpdateOpenEventDayRequest;
+use App\Http\Requests\Admin\UpdateOpenEventRequest;
+use App\Http\Requests\Admin\UpdateSiteContentRequest;
+use App\Http\Requests\Admin\UpdateWaTemplatesRequest;
+use App\Models\Booking;
+use App\Models\ScheduleOverride;
 use App\Models\User;
+use App\Policies\BookingPolicy;
+use App\Policies\ScheduleOverridePolicy;
 use App\Services\TwoFactorService;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -132,6 +154,51 @@ class ViewerRoleTest extends TestCase
     {
         $this->actingAsAdminSession($this->viewer);
         $this->getJson('/api/admin/users')->assertForbidden();
+    }
+
+    public function test_mutation_requests_reject_viewer_without_relying_on_route_middleware(): void
+    {
+        $requestClasses = [
+            DestroyScheduleSlotRequest::class,
+            IndexAuditLogsRequest::class,
+            MoveOpenRegistrationRequest::class,
+            RescheduleBookingRequest::class,
+            StoreOpenEventRequest::class,
+            StoreScheduleRangeRequest::class,
+            StoreScheduleSlotRequest::class,
+            UpdateBookingSegmentsRequest::class,
+            UpdateBookingStatusRequest::class,
+            UpdateFaqsRequest::class,
+            UpdateFooterContactsRequest::class,
+            UpdateHeroRequest::class,
+            UpdateLetterRequest::class,
+            UpdateOpenEventDayRequest::class,
+            UpdateOpenEventRequest::class,
+            UpdateSiteContentRequest::class,
+            UpdateWaTemplatesRequest::class,
+        ];
+
+        foreach ($requestClasses as $requestClass) {
+            /** @var FormRequest $request */
+            $request = new $requestClass;
+            $request->setUserResolver(fn (): User => $this->viewer);
+
+            $this->assertFalse($request->authorize(), $requestClass.' must reject viewers.');
+        }
+    }
+
+    public function test_mutation_policies_reject_viewer_but_allow_operator(): void
+    {
+        $operator = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $bookingPolicy = new BookingPolicy;
+        $schedulePolicy = new ScheduleOverridePolicy;
+
+        $this->assertFalse($bookingPolicy->update($this->viewer, new Booking));
+        $this->assertTrue($bookingPolicy->update($operator, new Booking));
+        $this->assertFalse($schedulePolicy->update($this->viewer, new ScheduleOverride));
+        $this->assertFalse($schedulePolicy->delete($this->viewer, new ScheduleOverride));
+        $this->assertTrue($schedulePolicy->update($operator, new ScheduleOverride));
+        $this->assertTrue($schedulePolicy->delete($operator, new ScheduleOverride));
     }
 
     // ---- ROLE creation ----

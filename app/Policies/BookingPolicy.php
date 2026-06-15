@@ -19,7 +19,7 @@ class BookingPolicy
 
     public function update(User $user, Booking $booking): bool
     {
-        return $user->isAdmin();
+        return $user->isOperator();
     }
 
     public function downloadDocument(User $user, Booking $booking): bool

@@ -12,7 +12,7 @@ class StoreScheduleSlotRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAdmin() ?? false;
+        return $this->user()?->isOperator() ?? false;
     }
 
     public function rules(): array

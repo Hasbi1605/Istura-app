@@ -160,7 +160,8 @@ merah nasional dari provider eksternal.
 Setelah booking Completed, pengunjung menerima tautan feedback unik (token). Form menilai:
 rating keseluruhan, kemudahan booking, pelayanan, kualitas pemandu, kebersihan/kenyamanan
 fasilitas, rekomendasi (skala 1–5), riwayat kunjungan, sumber mengetahui ISTURA, highlight,
-area perbaikan, komentar, dan izin publikasi. Admin melihat & mengekspor feedback.
+area perbaikan, komentar, dan izin publikasi. Highlight dan area perbaikan masing-masing
+dibatasi maksimal 12 item dengan panjang 80 karakter per item. Admin melihat & mengekspor feedback.
 
 ### 3.6 CMS (Content Management)
 Admin mengelola seluruh konten publik tanpa deploy: FAQ, ketentuan kunjungan/surat, kontak
@@ -190,8 +191,9 @@ mengekspor pendaftar, mengarsipkan/memulihkan event yang sudah tidak operasional
 menghapus draft event nonaktif yang belum pernah memiliki pendaftar. Event yang sudah lewat
 atau diarsipkan tidak tampil di publik dan bersifat baca-saja untuk mutasi operasional di UI
 dan API. Saat window pendaftaran sudah ditutup tetapi event masih aktif/belum lewat, pendaftar
-lama tetap bisa lookup link grup atau self-cancel dengan NIK + WhatsApp. Detail aturan ada di
-`IsturaOpen.md`.
+lama tetap bisa lookup link grup atau self-cancel dengan NIK + WhatsApp. Event baru tidak dapat
+dibuat dengan tanggal lampau; edit event berjalan tetap dapat mempertahankan tanggal lampau yang
+sudah ada, tetapi tidak dapat menambahkan tanggal lampau baru. Detail aturan ada di `IsturaOpen.md`.
 
 ---
 
@@ -697,6 +699,10 @@ bookings *───* schedule (via date/time, dihitung ScheduleService)
 - Security headers + CORS dibatasi origin terdaftar (`SANCTUM_STATEFUL_DOMAINS`,
   `CORS_ALLOWED_ORIGINS`).
 - Upload divalidasi MIME + ukuran ≤ 5 MB.
+- Link dokumentasi yang disisipkan ke WhatsApp wajib HTTPS dan host-nya harus ada di
+  `DOCUMENTATION_LINK_HOSTS` (default Google Drive/Photos).
+- FormRequest/policy mutasi admin menegakkan role operator selain middleware route, sehingga
+  viewer tetap read-only bila routing berubah di masa depan.
 
 ### 7.3 Constraints Teknis
 - **Single origin:** frontend & backend satu domain; SPA router berbasis state (bukan path

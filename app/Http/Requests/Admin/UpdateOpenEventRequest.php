@@ -3,14 +3,16 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\OpenEvent;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateOpenEventRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user()?->isAdmin();
+        return (bool) $this->user()?->isOperator();
     }
 
     public function rules(): array
@@ -30,6 +32,47 @@ class UpdateOpenEventRequest extends FormRequest
             'agreementText' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'promoSubtitle' => ['sometimes', 'nullable', 'string', 'max:255'],
             'bannerText' => ['sometimes', 'nullable', 'string', 'max:500'],
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                if (! $this->hasAny(['dates', 'startDate', 'endDate'])) {
+                    return;
+                }
+
+                $today = Carbon::today('Asia/Jakarta');
+                $event = $this->route('event');
+                $existingDates = $event instanceof OpenEvent
+                    ? $event->days()->get(['date'])->map(fn ($day): string => $day->date->toDateString())->all()
+                    : [];
+
+                foreach ($this->input('dates', []) as $index => $date) {
+                    $parsedDate = Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
+                    if ($parsedDate->lt($today) && ! in_array($date, $existingDates, true)) {
+                        $validator->errors()->add("dates.{$index}", 'Tanggal event baru tidak boleh sudah lewat.');
+                    }
+                }
+
+                foreach (['startDate' => 'start_date', 'endDate' => 'end_date'] as $input => $column) {
+                    if (! $this->has($input)) {
+                        continue;
+                    }
+
+                    $date = (string) $this->input($input);
+                    $existingDate = $event instanceof OpenEvent ? $event->{$column}?->toDateString() : null;
+                    $parsedDate = Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
+                    if ($parsedDate->lt($today) && $date !== $existingDate) {
+                        $validator->errors()->add($input, 'Tanggal event baru tidak boleh sudah lewat.');
+                    }
+                }
+            },
         ];
     }
 

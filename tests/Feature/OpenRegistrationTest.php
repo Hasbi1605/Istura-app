@@ -356,6 +356,69 @@ class OpenRegistrationTest extends TestCase
         );
     }
 
+    public function test_admin_cannot_create_event_with_past_dates(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/open-events', [
+            'name' => 'Istura Open Tanggal Lampau',
+            'dates' => ['2026-07-31', '2026-08-14'],
+            'perDayQuota' => 100,
+            'maxAddons' => 4,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('dates.0');
+
+        $this->postJson('/api/admin/open-events', [
+            'name' => 'Istura Open Rentang Lampau',
+            'startDate' => '2026-07-31',
+            'endDate' => '2026-08-14',
+            'perDayQuota' => 100,
+            'maxAddons' => 4,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('startDate');
+
+        $this->assertDatabaseMissing('open_events', [
+            'name' => 'Istura Open Tanggal Lampau',
+        ]);
+    }
+
+    public function test_admin_cannot_add_past_date_when_updating_event(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makeEvent(active: false);
+
+        $this->putJson("/api/admin/open-events/{$event->id}", [
+            'dates' => ['2026-07-31', '2026-08-14', '2026-08-15'],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('dates.0');
+    }
+
+    public function test_admin_can_retain_existing_past_date_when_updating_ongoing_event(): void
+    {
+        $this->actingAsAdmin();
+
+        $event = OpenEvent::create([
+            'name' => 'Istura Open Berjalan',
+            'slug' => 'istura-open-berjalan',
+            'start_date' => '2026-07-31',
+            'end_date' => '2026-08-02',
+            'per_day_quota' => 100,
+            'max_addons' => 4,
+            'assignment_mode' => 'self_select',
+            'release_mode' => 'simultaneous',
+            'is_active' => false,
+        ]);
+        foreach (['2026-07-31', '2026-08-01', '2026-08-02'] as $date) {
+            $event->days()->create(['date' => $date, 'is_open' => false]);
+        }
+
+        $this->putJson("/api/admin/open-events/{$event->id}", [
+            'name' => 'Istura Open Berjalan Diperbarui',
+            'dates' => ['2026-07-31', '2026-08-01', '2026-08-02'],
+        ])->assertOk()
+            ->assertJsonPath('data.name', 'Istura Open Berjalan Diperbarui');
+    }
+
     public function test_admin_can_delete_empty_inactive_event_and_poster(): void
     {
         Storage::fake('public');

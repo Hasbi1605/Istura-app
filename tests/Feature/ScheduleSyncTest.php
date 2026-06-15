@@ -971,6 +971,34 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('documentationLink');
     }
 
+    public function test_complete_booking_rejects_insecure_or_unapproved_documentation_link(): void
+    {
+        config(['security.documentation_link_hosts' => []]);
+
+        $booking = $this->createBooking([
+            'date' => '2026-05-28',
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->actingAsAdmin();
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete", [
+            'documentationLink' => 'http://drive.google.com/drive/folders/insecure',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('documentationLink');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete", [
+            'documentationLink' => 'https://phishing.example/dokumentasi',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('documentationLink');
+
+        $this->assertDatabaseHas('bookings', [
+            'code' => $booking->code,
+            'status' => 'Accepted',
+            'documentation_link' => null,
+        ]);
+    }
+
     public function test_admin_cannot_complete_future_booking(): void
     {
         $booking = $this->createBooking([
@@ -2925,6 +2953,45 @@ class ScheduleSyncTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.guideQuality', $response->json('data.guideQuality'))
             ->assertJsonPath('data.discoverySourceOther', 'Acara komunitas sejarah');
+    }
+
+    public function test_public_feedback_rejects_oversized_tag_payloads(): void
+    {
+        $booking = $this->createBooking([
+            'status' => 'Completed',
+            'feedback_token' => 'fb_oversized_tags_token',
+        ]);
+
+        $payload = [
+            'token' => 'fb_oversized_tags_token',
+            'rating' => 5,
+            'bookingEase' => 5,
+            'service' => 5,
+            'guideQuality' => 5,
+            'facilityComfort' => 5,
+            'recommend' => 5,
+            'visitedBefore' => false,
+            'discoverySource' => 'social_media',
+            'highlights' => array_map(fn (int $index): string => "Aspek {$index}", range(1, 13)),
+            'improvements' => [],
+            'comment' => null,
+            'allowPublish' => false,
+        ];
+
+        $this->postJson("/api/public/feedback/{$booking->code}", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('highlights');
+
+        $this->postJson("/api/public/feedback/{$booking->code}", [
+            ...$payload,
+            'highlights' => ['Penyambutan'],
+            'improvements' => [str_repeat('A', 81)],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('improvements.0');
+
+        $this->assertDatabaseMissing('feedbacks', [
+            'booking_id' => $booking->id,
+        ]);
     }
 
     private function useFailingBroadcaster(): void

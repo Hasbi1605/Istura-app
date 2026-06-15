@@ -14,7 +14,7 @@ class UpdateSiteContentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAdmin() ?? false;
+        return $this->user()?->isOperator() ?? false;
     }
 
     protected function prepareForValidation(): void
