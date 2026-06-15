@@ -154,7 +154,8 @@ total peserta kecuali mode koreksi diaktifkan. **Pindah Jadwal Langsung** dapat 
 menolak jam hari ini yang sudah lewat, dan hanya tersedia untuk booking Pending/Accepted.
 Pada booking Accepted, admin menerima peringatan bahwa jadwal langsung berubah dan tamu harus
 sudah diberi tahu; booking berstatus Reschedule tetap diselesaikan melalui alur penjadwalan ulang.
-Booking yang dibuat admin tidak membutuhkan surat tetapi tetap mengenkripsi NIK. Tiap aksi
+Pindah Jadwal Langsung menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking yang dibuat
+admin tidak membutuhkan surat tetapi tetap mengenkripsi NIK. Aksi lifecycle utama tetap
 menghasilkan pesan WhatsApp siap kirim dan audit.
 
 ### 3.4 Booking Dadakan

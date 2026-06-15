@@ -417,9 +417,7 @@ export function AdminScreen({
 				note,
 				allowOverbook: allowOverbook || undefined,
 			});
-			const localBooking = await syncBookingFromApi(updated);
-			const messageStatus = localBooking.status === "Pending" ? "Pending" : "Accepted";
-			openWhatsApp(localBooking, createWhatsappMessage(localBooking, messageStatus, note));
+			await syncBookingFromApi(updated);
 			setMoveModal(null);
 		});
 	};
@@ -1799,42 +1797,132 @@ export function DirectMoveModal({
   const requiredSlots = splitGroupSizes(booking.groupSize).length;
   const ownKeys = new Set(bookingSegments(booking).map((segment) => `${segment.date}|${segment.time}`));
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
+  const hasPast = candidates.some(({ slot }) => isPastVisitTime(date, slot.time));
   const conflicts = candidates.filter(({ slot }) => slot.status !== "Available" && !ownKeys.has(`${date}|${slot.time}`));
   const sameSchedule = date === booking.date && time === booking.time;
   const busy = Boolean(pendingLabel);
   const invalid = !date || !time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(date, time)
-    || conflicts.length > 0 && !allowOverbook || !note.trim() || sameSchedule;
+    || hasPast || conflicts.length > 0 && !allowOverbook || !note.trim() || sameSchedule;
+
+  const startCandidates = (startTime: string) => candidateSlots(day, startTime, booking.groupSize);
+  const canSelectStart = (slot: VisitDay["slots"][number]) => {
+    const group = startCandidates(slot.time);
+    return group.length === requiredSlots
+      && !isPastVisitTime(date, slot.time)
+      && group.every(({ slot: item }) => item.status !== "Closed" && !isPastVisitTime(date, item.time));
+  };
+
+  const selectedSlotSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!day || !time) return set;
+    const startIndex = day.slots.findIndex((slot) => slot.time === time);
+    if (startIndex < 0) return set;
+    for (let index = 0; index < requiredSlots && startIndex + index < day.slots.length; index += 1) {
+      set.add(day.slots[startIndex + index].time);
+    }
+    return set;
+  }, [day, requiredSlots, time]);
+
+  const slotChipClass = (slot: VisitDay["slots"][number]) => {
+    const selected = selectedSlotSet.has(slot.time);
+    const own = ownKeys.has(`${date}|${slot.time}`);
+    const available = slot.status === "Available";
+    const closed = slot.status === "Closed";
+    const selectable = canSelectStart(slot);
+    return [
+      "segment-slot-chip",
+      selected ? "is-selected" : "",
+      !selected && own ? "is-own" : "",
+      !selected && available && selectable ? "is-available" : "",
+      !selected && available && !selectable ? "is-full" : "",
+      !selected && !available && !closed && !own ? "is-occupied" : "",
+      !selected && (closed || isPastVisitTime(date, slot.time)) ? "is-closed" : "",
+    ].filter(Boolean).join(" ");
+  };
+
+  const slotLabel = (slot: VisitDay["slots"][number]) => {
+    if (selectedSlotSet.has(slot.time) && requiredSlots > 1) {
+      const startIndex = day ? day.slots.findIndex((item) => item.time === time) : -1;
+      const slotIndex = day ? day.slots.findIndex((item) => item.time === slot.time) : -1;
+      if (startIndex >= 0 && slotIndex >= 0) return `Kloter ${slotIndex - startIndex + 1}`;
+    }
+    if (isPastVisitTime(date, slot.time)) return "Lewat";
+    if (slot.status === "Available") return canSelectStart(slot) ? "Tersedia" : "Tidak cukup";
+    if (slot.status === "Closed") return "Tutup";
+    if (slot.status === "Booked") return "Penuh";
+    if (slot.status === "Held" || slot.status === "Reschedule Hold") return "Diproses";
+    return segmentStatusLabel[slot.status] ?? "Terisi";
+  };
 
   useModalEscape(onClose, busy);
 
   useEffect(() => {
-    const first = day?.slots.find((slot) => !isPastVisitTime(date, slot.time) && slot.status === "Available")
-      ?? day?.slots.find((slot) => !isPastVisitTime(date, slot.time) && slot.status !== "Closed");
+    const first = day?.slots.find((slot) => slot.status === "Available" && canSelectStart(slot))
+      ?? day?.slots.find((slot) => canSelectStart(slot));
     setTime(first?.time ?? "");
     setAllowOverbook(false);
-  }, [date, day]);
+  }, [date, day, requiredSlots]);
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <div className="modal-card admin-flex-modal" role="dialog" aria-modal="true" aria-label="Pindah jadwal langsung">
+      <div className="modal-card" role="dialog" aria-modal="true" aria-label="Pindah jadwal langsung">
         <button className="modal-close" type="button" onClick={onClose} disabled={busy} aria-label="Tutup modal"><X size={18} /></button>
-        <header className="segment-modal-head">
-          <span className="segment-modal-kicker">{booking.code}</span>
-          <h2>Pindah jadwal langsung</h2>
-          <p>Gunakan untuk perubahan operasional yang langsung berlaku. Jika perlu meminta persetujuan tamu, gunakan Jadwalkan ulang.</p>
-        </header>
-        <div className="admin-flex-grid">
-          <label className="form-field"><span>Tanggal tujuan</span><select value={date} onChange={(event) => setDate(event.target.value)}>{days.map((item) => <option key={item.date} value={item.date}>{item.label}</option>)}</select></label>
-          <label className="form-field"><span>Jam mulai</span><select value={time} onChange={(event) => { setTime(event.target.value); setAllowOverbook(false); }}><option value="">Pilih jam</option>{day?.slots.map((slot) => <option key={slot.time} value={slot.time} disabled={slot.status === "Closed" || isPastVisitTime(date, slot.time)}>{slot.time} - {segmentStatusLabel[slot.status] ?? slot.status}</option>)}</select></label>
+        <h2>Pindah jadwal langsung</h2>
+        <p>{booking.code} - {booking.institution}</p>
+        <div className="segment-slot-picker">
+          <p className="segment-slot-picker-context">
+            Jadwal saat ini: <strong>{booking.dateLabel}, {booking.time} WIB</strong>
+            {requiredSlots > 1 && <> ({requiredSlots} kloter)</>}
+          </p>
+          <label className="form-field">
+            <span>Pilih tanggal tujuan</span>
+            <select value={date} onChange={(event) => setDate(event.target.value)}>
+              {days.map((item) => {
+                const openSlots = item.slots.filter((slot) => slot.status !== "Closed" && !isPastVisitTime(item.date, slot.time)).length;
+                return (
+                  <option key={item.date} value={item.date}>
+                    {item.label} - {openSlots > 0 ? `${openSlots} slot terbuka` : "tidak ada slot"}
+                  </option>
+                );
+              })}
+            </select>
+            {days.length === 0 && <small>Tidak ada tanggal tujuan yang tersedia.</small>}
+          </label>
+          {day && (
+            <>
+              <div className="segment-slot-picker-head">
+                <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
+                <small>Slot terisi butuh persetujuan overbook.</small>
+              </div>
+              <div className="segment-slot-grid">
+                {day.slots.map((slot) => {
+                  const selected = selectedSlotSet.has(slot.time);
+                  const disabled = !selected && !canSelectStart(slot);
+                  return (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      className={slotChipClass(slot)}
+                      onClick={() => { setTime(slot.time); setAllowOverbook(false); }}
+                      disabled={disabled}
+                    >
+                      <strong>{slot.time}</strong>
+                      <small>{slotLabel(slot)}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
         {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
         {booking.status === "Accepted" && <div className="admin-flex-warning" role="note"><AlertTriangle size={17} aria-hidden="true" /><div><strong>Jadwal akan langsung berubah</strong><span>Tindakan ini tidak melalui proses usulan ulang. Pastikan tamu sudah diberi tahu.</span></div></div>}
         <label className="form-field"><span>Alasan perubahan</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: penyesuaian operasional dan tamu sudah diberi tahu." /></label>
         {sameSchedule && <strong className="form-message form-message--error">Pilih jadwal yang berbeda dari jadwal saat ini.</strong>}
-        {isPastVisitTime(date, time) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
+        {(isPastVisitTime(date, time) || hasPast) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
         {error && <strong className="form-message form-message--error">{error}</strong>}
-        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, note, allowOverbook)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan & buka WhatsApp"}</button></div>
+        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, note, allowOverbook)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan jadwal"}</button></div>
       </div>
     </div>
   );
