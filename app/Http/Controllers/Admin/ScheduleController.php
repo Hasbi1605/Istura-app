@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DestroyScheduleSlotRequest;
+use App\Http\Requests\Admin\DestroyShortNoticeSlotRequest;
 use App\Http\Requests\Admin\StoreScheduleRangeRequest;
 use App\Http\Requests\Admin\StoreScheduleSlotRequest;
+use App\Http\Requests\Admin\StoreShortNoticeSlotRequest;
 use App\Http\Requests\ScheduleRangeRequest;
 use App\Http\Resources\VisitDayResource;
 use App\Models\ScheduleOverride;
@@ -18,6 +20,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class ScheduleController extends Controller
 {
@@ -129,6 +132,59 @@ class ScheduleController extends Controller
             'time' => $data['time'] ?? null,
             'status' => $data['status'],
             'weekdays' => $weekdays,
+        ], $request);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function storeShortNotice(StoreShortNoticeSlotRequest $request): JsonResponse
+    {
+        Gate::authorize('update', ScheduleOverride::class);
+        $data = $request->validated();
+        $mode = $data['audience'];
+        $participantCount = $this->service->activeParticipantCountForSlot($data['date'], $data['time']);
+        if ((int) $data['capacity'] < $participantCount) {
+            throw ValidationException::withMessages([
+                'capacity' => ["Kapasitas tidak boleh lebih kecil dari {$participantCount} peserta yang sudah tercatat pada slot."],
+            ]);
+        }
+        $override = $this->upsertOverride($data['date'], $data['time'], [
+            'status' => 'Available',
+            'custom' => ! in_array($data['time'], ScheduleService::TIME_SLOTS, true),
+            'note' => $data['note'],
+            'short_notice_mode' => $mode,
+            'short_notice_closes_at' => $mode === 'public' ? $data['closesAt'] : null,
+            'short_notice_capacity' => $data['capacity'],
+        ]);
+
+        PublicCache::bumpScheduleVersion();
+        ScheduleUpdated::dispatch($data['date'], $data['date']);
+        AuditLogger::record($request->user(), "Membuka booking dadakan {$data['date']} {$data['time']}", ScheduleOverride::class, $override->id, [
+            'audience' => $mode,
+            'capacity' => $data['capacity'],
+            'closes_at' => $mode === 'public' ? $data['closesAt'] : null,
+            'note' => $data['note'],
+        ], $request);
+
+        return response()->json(['data' => $override]);
+    }
+
+    public function destroyShortNotice(DestroyShortNoticeSlotRequest $request): JsonResponse
+    {
+        Gate::authorize('update', ScheduleOverride::class);
+        $data = $request->validated();
+        $override = ScheduleOverride::whereDate('date', $data['date'])->where('time', $data['time'])->firstOrFail();
+        $override->forceFill([
+            'short_notice_mode' => null,
+            'short_notice_closes_at' => null,
+            'short_notice_capacity' => null,
+        ])->save();
+
+        PublicCache::bumpScheduleVersion();
+        ScheduleUpdated::dispatch($data['date'], $data['date']);
+        AuditLogger::record($request->user(), "Menutup booking dadakan {$data['date']} {$data['time']}", ScheduleOverride::class, $override->id, [
+            'date' => $data['date'],
+            'time' => $data['time'],
         ], $request);
 
         return response()->json(['ok' => true]);

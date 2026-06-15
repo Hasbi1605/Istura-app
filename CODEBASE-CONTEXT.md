@@ -47,16 +47,16 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
   - `FeedbackController.php` — `show`/`store` feedback by booking code+token.
 - **Admin/** :
   - `DashboardController.php` — KPI dashboard (invokable).
-  - `BookingController.php` — index/show + aksi: accept, reject, reschedule, cancelReschedule, segments, complete, document.
-  - `ScheduleController.php` — index, storeSlot, destroySlot, storeRange.
+  - `BookingController.php` — index/show/store booking admin + aksi: accept, reject, reschedule, cancelReschedule, segments, move langsung, complete, document.
+  - `ScheduleController.php` — index, storeSlot, destroySlot, storeRange, store/destroy short-notice slot.
   - `FeedbackController.php` — index/show.
   - `CmsController.php` — CRUD faqs, contacts, wa-templates, hero, letter, site-content; upload aset landing (logo navbar/footer, background CTA, dan foto aktivitas) dalam satu save multipart.
   - `UserController.php` — manajemen admin (super-admin only).
   - `AuditLogController.php` — index audit log.
 
 ### 2.2 Services (`app/Services`) — logika domain
-- `BookingService.php` — siklus hidup booking, split kloter (`SLOT_CAPACITY = 80`), anti-overbook (transaksi + `active_slot_key`).
-- `ScheduleService.php` — perhitungan horizon/slot, status default runtime, `buildHorizon()`.
+- `BookingService.php` — siklus hidup booking, split kloter (`SLOT_CAPACITY = 80`), booking manual admin, pindah langsung, koreksi total eksplisit, dan overbook terkontrol memakai transaksi + `booking_slot_locks`.
+- `ScheduleService.php` — perhitungan horizon/slot, status default runtime, `buildHorizon()`, kapasitas peserta per slot, serta validasi atomik slot dadakan publik H/H+1.
 - `BookingCodeGenerator.php` — kode unik `ISTURA-YYYY-NNNN` (via `booking_sequences` lock).
 - `TwoFactorService.php` — TOTP + recovery code + trusted device.
 - `NationalHolidaySyncService.php` — sinkron tanggal merah dari provider.
@@ -117,7 +117,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - **console.php** — jadwal: `audit:prune` 03:00, `bookings:expire-pending` tiap 5 menit, `holidays:sync-id` 02:30.
 
 ### 2.6 Database
-- `database/migrations` (~42 file). Tabel inti: users, bookings, booking_sequences, booking_slots, booking_slot_locks, schedule_overrides, feedbacks, faqs, wa_templates, footer_contacts, site_settings, audit_logs, trusted_devices, national_holidays + tabel sistem (sessions, cache, jobs, personal_access_tokens). `feedbacks` menyimpan dua rating tambahan (`guide_quality`, `facility_comfort`) dan profil kunjungan (`visited_before`, `discovery_source`, `discovery_source_other`); semuanya nullable agar data lama tetap kompatibel.
+- `database/migrations` (~43 file). Tabel inti: users, bookings, booking_sequences, booking_slots, booking_slot_locks, schedule_overrides, feedbacks, faqs, wa_templates, footer_contacts, site_settings, audit_logs, trusted_devices, national_holidays + tabel sistem (sessions, cache, jobs, personal_access_tokens). `bookings.source`/`created_by_admin_id` membedakan booking publik dan buatan admin. `schedule_overrides.short_notice_*` menyimpan audience admin/publik, tenggat, dan kapasitas booking dadakan. `feedbacks` menyimpan dua rating tambahan (`guide_quality`, `facility_comfort`) dan profil kunjungan (`visited_before`, `discovery_source`, `discovery_source_other`); semuanya nullable agar data lama tetap kompatibel.
 - `database/seeders`: `DatabaseSeeder`, `FaqSeeder`, `FooterContactSeeder`, `SiteSettingSeeder`, `UserSeeder`, `WaTemplateSeeder` (+ `seeders/data/*.json`).
 - `database/factories`: `UserFactory`.
 
@@ -148,7 +148,7 @@ non-API (halaman OG info). Auth via cookie Sanctum.
 - `animations/`: `HomeAnimationLayer.tsx`, `useHomeAnimations.ts` (GSAP).
 
 ### 3.5 Components (`components/`)
-- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx` (preview + upload langsung logo navbar/footer, background CTA, dan foto panel aktivitas; semua aset ikut satu draft/save Landing Page. Tab "Wizard Publik" mengedit copy fixed-flow untuk `BookingWizard` dan `FeedbackScreen` tanpa mengubah step/validasi/ikon/gambar), `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx`, `ScheduleManager.tsx`, `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
+- **admin/**: `AdminApp.tsx`, `AdminShell.tsx`, `AdminDashboard.tsx`, `AdminCmsManagers.tsx` (preview + upload langsung logo navbar/footer, background CTA, dan foto panel aktivitas; semua aset ikut satu draft/save Landing Page. Tab "Wizard Publik" mengedit copy fixed-flow untuk `BookingWizard` dan `FeedbackScreen` tanpa mengubah step/validasi/ikon/gambar), `AdminFeedbackList.tsx`, `AdminSystemPages.tsx`, `BookingScreen.tsx` (Atur Kloter dengan total terkunci/koreksi eksplisit, Pindah Jadwal Langsung, Buat Booking Admin), `ScheduleManager.tsx` (termasuk konfigurasi Booking Dadakan admin/publik per slot), `IsturaOpenManager.tsx` (2 tab: Pengaturan & Hari + Pendaftar), `ExportModals.tsx`, `WeeklyPosterModal.tsx`, `TwoFactorChallenge.tsx`, `TwoFactorSetup.tsx`.
 - **booking/**: `BookingWizard.tsx` (wizard 8 langkah; teks step, helper, MIKY, label form, upload, persetujuan, sukses, dan tombol berasal dari `siteContent.bookingWizard` dengan fallback default. Rombongan >80 mendapat rincian kloter + CTA diskusi awal di Data Instansi; setelah memilih jam, callout penyesuaian + CTA yang sama tampil sebagai card horizontal di bawah kalender dan daftar jam, dengan pesan terisi instansi, jumlah peserta, tanggal, dan jadwal per kloter). **feedback/**: `FeedbackScreen.tsx` (wizard 4 langkah: penilaian inti → tentang kunjungan → detail pengalaman → komentar; copy, label rating, label sumber informasi, dan opsi chip berasal dari `siteContent.feedbackWizard`). **home/**: `HomeScreen.tsx`. **open/**: `IsturaOpenWizard.tsx` (wizard publik 5 langkah dalam shell/action bar yang sama dengan wizard rombongan, tetapi panel konteks event menggantikan MIKY; pilih hari → data diri → add-on → tinjau → sukses + tombol grup WA; ada lookup/self-cancel via NIK+WhatsApp dan pilihan hari direset otomatis bila realtime menutup/menghabiskan kuota), `IsturaOpenPromo.tsx` (popup sekali per event per pengunjung + banner persisten).
 - **layout/**: `Navigation.tsx`, `Footer.tsx` (footer publik tanpa shortcut admin), `FloatingContact.tsx` (FAB WhatsApp mengambang di halaman publik selain `booking`; expand jadi kartu MIKY + quick-topic prefill WA + tautan Instagram. Nomor dari `contacts`/CMS; sapaan & daftar topik dari `siteContent.floatingContact` (editable di admin Landing Page → "Widget WhatsApp Mengambang"), subtitle animasi typewriter). **ui/**: `DetailItem`, `LoadingStates`, `Pagination`, `StatCard`, `StatusBadge`. **icons/**: `SocialIcons.tsx`. `MikyGuide.tsx` (maskot).
 

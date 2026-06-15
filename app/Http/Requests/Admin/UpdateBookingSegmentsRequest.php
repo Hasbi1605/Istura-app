@@ -23,6 +23,7 @@ class UpdateBookingSegmentsRequest extends FormRequest
             'segments.*.time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
             'segments.*.groupSize' => ['required', 'integer', 'min:1', 'max:560'],
             'allowOverbook' => ['sometimes', 'boolean'],
+            'correctGroupSize' => ['sometimes', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -49,9 +50,16 @@ class UpdateBookingSegmentsRequest extends FormRequest
                     if ($date->gt($maxDate)) {
                         $validator->errors()->add("segments.{$index}.date", 'Tanggal kloter maksimal 2 bulan dari hari ini.');
                     }
+
+                    $startsAt = Carbon::createFromFormat('Y-m-d H.i', $segment['date'].' '.$segment['time'], 'Asia/Jakarta');
+                    if ($startsAt->lte(now('Asia/Jakarta'))) {
+                        $validator->errors()->add("segments.{$index}.time", 'Jam kloter harus berada setelah waktu saat ini.');
+                    }
                 }
 
-                $requiresNote = $this->boolean('allowOverbook') || collect($groupedSizes)->contains(fn (int $size): bool => $size > 80);
+                $requiresNote = $this->boolean('allowOverbook')
+                    || $this->boolean('correctGroupSize')
+                    || collect($groupedSizes)->contains(fn (int $size): bool => $size > 80);
                 if ($requiresNote && trim((string) $this->input('note', '')) === '') {
                     $validator->errors()->add('note', 'Catatan wajib diisi saat mengizinkan overbook atau menggabungkan kloter besar.');
                 }

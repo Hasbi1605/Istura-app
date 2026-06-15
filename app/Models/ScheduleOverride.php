@@ -14,10 +14,15 @@ class ScheduleOverride extends Model
         'status',
         'custom',
         'note',
+        'short_notice_mode',
+        'short_notice_closes_at',
+        'short_notice_capacity',
     ];
 
     protected $casts = [
         'date' => 'date',
         'custom' => 'boolean',
+        'short_notice_closes_at' => 'datetime',
+        'short_notice_capacity' => 'integer',
     ];
 }

@@ -97,13 +97,19 @@ class ScheduleService
                 $bookingCount = $this->activeBookingCount($key, $time, $bookings, $bookingSlots);
                 $override = $overrides->get($key)?->firstWhere('time', $time);
                 $status = $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked);
+                $participantCount = $this->activeParticipantCount($key, $time, $bookings, $bookingSlots);
+                $shortNotice = $this->shortNoticePayload($key, $time, $override, $participantCount);
 
                 return [
                     'time' => $time,
                     'status' => $status,
+                    'publicStatus' => $this->publicStatusForSlot($key, $time, $status, $override, $participantCount, $isturaOpenBlocked),
                     'custom' => ! in_array($time, self::TIME_SLOTS, true),
                     'bookingCount' => $bookingCount,
+                    'participantCount' => $participantCount,
                     'overbooked' => $bookingCount > 1,
+                    'bookingConflicts' => $this->bookingConflictSummaries($key, $time, $bookings, $bookingSlots),
+                    'shortNotice' => $shortNotice,
                     'closureReason' => $this->slotClosureReason($status, $override, $defaultClosure),
                 ];
             })->all();
@@ -520,6 +526,55 @@ class ScheduleService
         return $statuses;
     }
 
+    /**
+     * Validate the exact participant allocation used by a public booking.
+     * H/H+1 only pass when every segment has an active public short-notice
+     * override with enough remaining capacity. H+2 and later keep the normal
+     * single-booking slot rule.
+     *
+     * @param  array<int, array{date:string,time:string,group_size:int}>  $segments
+     */
+    public function publicSegmentsAreAvailable(array $segments, bool $lockBookings = false): bool
+    {
+        $today = Carbon::today('Asia/Jakarta');
+        $normalBookingFrom = $today->copy()->addDays(2);
+
+        foreach ($segments as $segment) {
+            $date = Carbon::createFromFormat('Y-m-d', $segment['date'], 'Asia/Jakarta')->startOfDay();
+            $time = $segment['time'];
+
+            if ($date->gte($normalBookingFrom)) {
+                if ($this->slotStatusFor($date, $time, $lockBookings) !== 'Available') {
+                    return false;
+                }
+
+                continue;
+            }
+
+            $startsAt = Carbon::createFromFormat('Y-m-d H.i', $date->toDateString().' '.$time, 'Asia/Jakarta');
+            if ($startsAt->lte(now('Asia/Jakarta')) || $this->isturaOpenBlocksDate($date->toDateString())) {
+                return false;
+            }
+
+            $overrideQuery = ScheduleOverride::whereDate('date', $date->toDateString())->where('time', $time);
+            if ($lockBookings) {
+                $overrideQuery->lockForUpdate();
+            }
+            $override = $overrideQuery->first();
+
+            if (! $this->publicShortNoticeIsActive($override, $startsAt)) {
+                return false;
+            }
+
+            $used = $this->activeParticipantCountForSlot($date->toDateString(), $time, $lockBookings);
+            if ($used + (int) $segment['group_size'] > (int) $override->short_notice_capacity) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private function resolveSlotStatus(
         string $dateKey,
         string $time,
@@ -586,6 +641,142 @@ class ScheduleService
             ->merge($legacyBookingIds)
             ->unique()
             ->count();
+    }
+
+    private function activeParticipantCount(
+        string $dateKey,
+        string $time,
+        Collection $bookings,
+        Collection $bookingSlots,
+    ): int {
+        $slots = $bookingSlots->get($dateKey)
+            ?->filter(fn ($entry) => $entry->time === $time && $this->bookingSlotBlocksSchedule($entry))
+            ->unique('booking_id') ?? collect();
+        $slotBookingIds = $slots->pluck('booking_id');
+        $slotParticipants = $slots->sum('group_size');
+
+        $legacyParticipants = $bookings->get($dateKey)
+            ?->filter(fn ($entry) => $entry->time === $time
+                && in_array($entry->status, Booking::ACTIVE_STATUSES, true)
+                && ! $slotBookingIds->contains($entry->id))
+            ->sum('group_size') ?? 0;
+
+        return (int) $slotParticipants + (int) $legacyParticipants;
+    }
+
+    public function activeParticipantCountForSlot(string $dateKey, string $time, bool $lockBookings = false): int
+    {
+        $slotQuery = BookingSlot::with('booking')
+            ->where('active_slot_key', BookingSlot::slotKey($dateKey, $time));
+        if ($lockBookings) {
+            $slotQuery->lockForUpdate();
+        }
+        $slots = $slotQuery->get()
+            ->filter(fn (BookingSlot $slot): bool => $this->bookingSlotBlocksSchedule($slot))
+            ->unique('booking_id');
+        $slotBookingIds = $slots->pluck('booking_id');
+
+        $bookingQuery = Booking::whereDate('date', $dateKey)
+            ->where('time', $time)
+            ->whereIn('status', Booking::ACTIVE_STATUSES)
+            ->whereNotIn('id', $slotBookingIds->all());
+        if ($lockBookings) {
+            $bookingQuery->lockForUpdate();
+        }
+
+        return (int) $slots->sum('group_size') + (int) $bookingQuery->sum('group_size');
+    }
+
+    /**
+     * @return array<int, array{code:string,groupSize:int,status:string}>
+     */
+    private function bookingConflictSummaries(
+        string $dateKey,
+        string $time,
+        Collection $bookings,
+        Collection $bookingSlots,
+    ): array {
+        $summaries = collect();
+
+        $bookingSlots->get($dateKey)
+            ?->filter(fn ($entry) => $entry->time === $time && $this->bookingSlotBlocksSchedule($entry))
+            ->each(function (BookingSlot $slot) use ($summaries): void {
+                if (! $slot->booking) {
+                    return;
+                }
+                $summaries->put($slot->booking_id, [
+                    'code' => $slot->booking->code,
+                    'groupSize' => (int) $slot->group_size,
+                    'status' => $slot->booking->status,
+                ]);
+            });
+
+        $bookings->get($dateKey)
+            ?->filter(fn ($booking) => $booking->time === $time && in_array($booking->status, Booking::ACTIVE_STATUSES, true))
+            ->each(function (Booking $booking) use ($summaries): void {
+                $summaries->put($booking->id, $summaries->get($booking->id) ?? [
+                    'code' => $booking->code,
+                    'groupSize' => (int) $booking->group_size,
+                    'status' => $booking->status,
+                ]);
+            });
+
+        return $summaries->values()->all();
+    }
+
+    private function publicStatusForSlot(
+        string $dateKey,
+        string $time,
+        string $status,
+        ?ScheduleOverride $override,
+        int $participantCount,
+        bool $isturaOpenBlocked,
+    ): string {
+        $date = Carbon::createFromFormat('Y-m-d', $dateKey, 'Asia/Jakarta')->startOfDay();
+        if ($date->gte(Carbon::today('Asia/Jakarta')->addDays(2))) {
+            return $status;
+        }
+
+        $startsAt = Carbon::createFromFormat('Y-m-d H.i', $dateKey.' '.$time, 'Asia/Jakarta');
+        if ($isturaOpenBlocked || ! $this->publicShortNoticeIsActive($override, $startsAt)) {
+            return 'Closed';
+        }
+
+        return $participantCount < (int) $override->short_notice_capacity ? 'Available' : 'Closed';
+    }
+
+    /**
+     * @return array{mode:string,closesAt:?string,capacity:int,remainingCapacity:int,active:bool}|null
+     */
+    private function shortNoticePayload(string $dateKey, string $time, ?ScheduleOverride $override, int $participantCount): ?array
+    {
+        if (! $override?->short_notice_mode) {
+            return null;
+        }
+
+        $startsAt = Carbon::createFromFormat('Y-m-d H.i', $dateKey.' '.$time, 'Asia/Jakarta');
+        $capacity = (int) ($override->short_notice_capacity ?? BookingService::SLOT_CAPACITY);
+
+        return [
+            'mode' => $override->short_notice_mode,
+            'closesAt' => $override->short_notice_closes_at?->copy()->timezone('Asia/Jakarta')->toIso8601String(),
+            'capacity' => $capacity,
+            'remainingCapacity' => max(0, $capacity - $participantCount),
+            'active' => $override->short_notice_mode === 'admin'
+                ? $startsAt->gt(now('Asia/Jakarta'))
+                : $this->publicShortNoticeIsActive($override, $startsAt),
+        ];
+    }
+
+    private function publicShortNoticeIsActive(?ScheduleOverride $override, Carbon $startsAt): bool
+    {
+        return $override?->status === 'Available'
+            && $override->short_notice_mode === 'public'
+            && $override->short_notice_closes_at !== null
+            && $override->short_notice_closes_at->copy()->timezone('Asia/Jakarta')->gt(now('Asia/Jakarta'))
+            && $override->short_notice_closes_at->copy()->timezone('Asia/Jakarta')->lt($startsAt)
+            && $startsAt->gt(now('Asia/Jakarta'))
+            && (int) $override->short_notice_capacity > 0;
     }
 
     private function statusFromBooking(Booking $booking): string

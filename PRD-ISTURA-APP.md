@@ -80,7 +80,7 @@ WebSocket (Laravel Reverb).
 | FR-A3 | Admin dapat melihat dashboard berisi KPI (pending, booking hari ini/minggu/bulan, total selesai, jumlah & rata-rata feedback). |
 | FR-A4 | Admin dapat melihat daftar booking dengan filter status, rentang tanggal, pencarian, dan paginasi. |
 | FR-A5 | Admin dapat menyetujui (accept), menolak (reject), menjadwalkan ulang (reschedule), membatalkan usulan reschedule, dan menandai selesai (complete) sebuah booking. |
-| FR-A6 | Admin dapat mengubah pembagian kloter (segments) sebuah booking, termasuk overbook manual dengan catatan wajib. |
+| FR-A6 | Admin dapat menggabungkan/memecah pembagian kloter pada tanggal yang sama. Total peserta terkunci secara default; koreksi total harus diaktifkan eksplisit dan memakai alasan. Overbook manual serta kloter >80 wajib memakai catatan. |
 | FR-A7 | Admin dapat mengunduh surat permohonan booking (inline preview atau download). |
 | FR-A8 | Admin dapat mengelola jadwal: menutup/membuka slot tertentu, dan menutup/membuka rentang tanggal. |
 | FR-A9 | Admin dapat melihat & mengekspor feedback. |
@@ -89,6 +89,7 @@ WebSocket (Laravel Reverb).
 | FR-A12 | Admin dapat mengekspor data booking (Excel/PDF/ZIP), laporan bulanan, dan poster mingguan. |
 | FR-A13 | **Super Admin** dapat mengelola akun admin (buat, ubah, hapus). |
 | FR-A14 | Admin dapat melihat riwayat aktivitas (audit log) dengan filter. |
+| FR-A15 | Admin dapat membuka slot booking dadakan H/H+1 untuk admin saja atau publik dengan tenggat dan kapasitas, membuat booking tamu khusus tanpa surat, serta memindahkan booking aktif langsung ke jadwal H/H+1 setelah persetujuan tamu. |
 
 ### 2.3 Non-Functional Requirements
 
@@ -99,7 +100,7 @@ WebSocket (Laravel Reverb).
 | NFR-3 | Keamanan | Endpoint publik dibatasi rate-limit (booking, feedback, schedule, login, 2FA). |
 | NFR-4 | Keamanan | Session admin punya absolute lifetime (default 720 menit); auto-logout saat kedaluwarsa. |
 | NFR-5 | Keamanan | Security headers ditambahkan di seluruh respons (middleware AddSecurityHeaders). |
-| NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + unique constraint `active_slot_key` untuk mencegah overbooking. |
+| NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + `booking_slot_locks`; overbook hanya boleh melalui aksi admin eksplisit dan tercatat di audit. Kapasitas slot dadakan publik dihitung ulang di dalam transaksi. |
 | NFR-7 | Realtime | Perubahan booking/jadwal dipancarkan via WebSocket; dashboard admin auto-update. Dapat dimatikan via `VITE_REVERB_ENABLED=false` (degradasi anggun). |
 | NFR-8 | Lokalisasi | Seluruh teks UI & tanggal dalam Bahasa Indonesia, timezone Asia/Jakarta. |
 | NFR-9 | Aksesibilitas | Komponen interaktif harus accessibility-compliant (role, aria, focus trap pada modal). |
@@ -109,8 +110,8 @@ WebSocket (Laravel Reverb).
 
 | ID | Aturan |
 |----|--------|
-| BR-1 | Tanggal kunjungan paling cepat **H-2** dan paling lambat **2 bulan** ke depan. |
-| BR-2 | Kapasitas per slot jam (kloter) = **80 orang**. Rombongan > 80 dipecah otomatis ke beberapa slot berurutan. |
+| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 hanya tampil bila admin membuka slot **Booking Dadakan Publik** yang masih dalam tenggat dan memiliki kapasitas. Admin dapat memakai H/H+1 melalui booking admin atau pindah jadwal langsung. |
+| BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 atau menetapkan kapasitas dadakan lebih besar dengan alasan dan audit. |
 | BR-3 | Jumlah rombongan: minimal 1, maksimal **480 orang** per hari kunjungan. |
 | BR-4 | NIK wajib 16 digit angka. WhatsApp wajib format `08...` atau `628...` (8–13 digit setelah prefix). |
 | BR-5 | Jam operasional default: **Senin–Kamis**, slot 08.00, 09.00, 10.00, 11.00, 13.00, 14.00. Jam 12.00 = istirahat (tidak tersedia). |
@@ -147,8 +148,18 @@ untuk rombongan besar.
 ### 3.3 Manajemen Booking (Admin)
 Tabel booking dengan filter (status, rentang tanggal, sort), pencarian (kode/nama/instansi),
 mode tampilan (split/table), dan aksi siklus hidup: accept, reject, reschedule, cancel
-reschedule, complete, ubah kloter (segments), unduh surat. Tiap aksi menghasilkan pesan
-WhatsApp tergenerasi siap salin & entri audit log.
+reschedule, complete, ubah kloter (segments), pindah jadwal langsung, buat booking admin,
+dan unduh surat. **Atur Kloter** hanya mengubah alokasi jam pada tanggal yang sama dan menjaga
+total peserta kecuali mode koreksi diaktifkan. **Pindah Jadwal Langsung** dapat memilih H/H+1,
+menolak jam hari ini yang sudah lewat, membersihkan proposal reschedule, dan mewajibkan
+konfirmasi persetujuan untuk booking Accepted. Booking yang dibuat admin tidak membutuhkan
+surat tetapi tetap mengenkripsi NIK. Tiap aksi menghasilkan pesan WhatsApp siap kirim dan audit.
+
+### 3.4 Booking Dadakan
+Admin mengatur slot dadakan dari Jadwal Kunjungan dengan pilihan **Admin saja** atau
+**Publik + admin**. Mode publik wajib memiliki batas waktu dan kapasitas total. Kalender publik
+memuat H/H+1 sebagai tertutup secara default dan hanya mengubah slot dadakan publik aktif menjadi
+tersedia; sisa kapasitas dihitung dari peserta booking aktif dan dikunci ulang saat submit.
 
 ### 3.4 Manajemen Jadwal (Admin)
 Grid kalender dengan status per slot (Available, Held, Booked, Closed, Reschedule Hold).

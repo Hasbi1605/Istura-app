@@ -113,7 +113,10 @@ class ViewerRoleTest extends TestCase
         $this->postJson('/api/admin/bookings/ISTURA-0000/accept')->assertForbidden();
         $this->postJson('/api/admin/bookings/ISTURA-0000/reject')->assertForbidden();
         $this->postJson('/api/admin/bookings/ISTURA-0000/reschedule')->assertForbidden();
+        $this->postJson('/api/admin/bookings/ISTURA-0000/move')->assertForbidden();
+        $this->postJson('/api/admin/bookings/ISTURA-0000/segments')->assertForbidden();
         $this->postJson('/api/admin/bookings/ISTURA-0000/complete')->assertForbidden();
+        $this->postJson('/api/admin/bookings')->assertForbidden();
     }
 
     public function test_viewer_cannot_mutate_schedule(): void
@@ -125,6 +128,8 @@ class ViewerRoleTest extends TestCase
             'status' => 'Available',
         ])->assertForbidden();
         $this->postJson('/api/admin/schedule/range', [])->assertForbidden();
+        $this->postJson('/api/admin/schedule/short-notice', [])->assertForbidden();
+        $this->deleteJson('/api/admin/schedule/short-notice', [])->assertForbidden();
     }
 
     public function test_viewer_cannot_mutate_cms(): void

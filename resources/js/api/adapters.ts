@@ -9,6 +9,7 @@ import type { ApiVisitDay } from "./schedule";
 export function apiBookingToLocal(b: ApiBooking): Booking {
   return {
     code: b.code,
+    source: b.source ?? "public",
     contactName: b.contactName,
     nik: b.nik ?? b.nikMasked ?? "",
     nikMasked: b.nikMasked,
@@ -54,6 +55,10 @@ export function apiVisitDayToLocal(day: ApiVisitDay): VisitDay {
       custom: slot.custom,
       bookingCount: slot.bookingCount,
       overbooked: slot.overbooked,
+      participantCount: slot.participantCount,
+      bookingConflicts: slot.bookingConflicts,
+      shortNotice: slot.shortNotice ?? undefined,
+      remainingCapacity: slot.remainingCapacity ?? undefined,
       closureReason: slot.closureReason ?? undefined,
     })),
   };

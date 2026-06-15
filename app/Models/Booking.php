@@ -26,6 +26,8 @@ class Booking extends Model
         'date',
         'date_label',
         'time',
+        'source',
+        'created_by_admin_id',
     ];
 
     protected $casts = [

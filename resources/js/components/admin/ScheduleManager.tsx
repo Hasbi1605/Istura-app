@@ -1,6 +1,6 @@
 // Admin schedule manager + sub-dialogs. Extracted from App.tsx.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Lock, X } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Lock, X } from "lucide-react";
 import type { Booking, Slot, VisitDay, VisitStatus } from "../../domain/types";
 import { bookingKloterSummary, bookingSegments, bookingTimeSummary } from "../../domain/booking";
 import {
@@ -18,9 +18,11 @@ import {
 } from "../../lib/date";
 import {
   deleteScheduleSlot,
+  deleteShortNoticeSlot,
   fetchAdminSchedule,
   upsertScheduleRange,
   upsertScheduleSlot,
+  upsertShortNoticeSlot,
 } from "../../api/schedule";
 import { apiVisitDayToLocal } from "../../api/adapters";
 import { StatCard } from "../ui/StatCard";
@@ -95,6 +97,7 @@ export function AdminScheduleManager({
   // Default ke hari ini agar sinkron dengan highlight kalender.
   // Fallback ke hari aktif terdekat jika hari ini tidak ada di daftar jadwal.
   const todayKey = formatDateKey(today);
+  const shortNoticeMaxDateKey = formatDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
   const firstActive =
     schedules.find(
       (day) =>
@@ -114,6 +117,7 @@ export function AdminScheduleManager({
   const [slotInfoTime, setSlotInfoTime] = useState<string | null>(null);
   // Range modal (#1) state.
   const [showRangeModal, setShowRangeModal] = useState(false);
+  const [shortNoticeSlot, setShortNoticeSlot] = useState<{ date: string; slot: Slot } | null>(null);
   // Confirm dialog generic (#3).
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string;
@@ -377,6 +381,36 @@ export function AdminScheduleManager({
       next,
       () => deleteScheduleSlot(dayDate, time),
     );
+  };
+
+  const saveShortNotice = async (payload: Parameters<typeof upsertShortNoticeSlot>[0]) => {
+    if (savingLabel) return;
+    setSavingLabel("Menyimpan booking dadakan...");
+    setCustomError(null);
+    try {
+      await upsertShortNoticeSlot(payload);
+      await refreshFromApi();
+      setShortNoticeSlot(null);
+    } catch (error) {
+      setCustomError(error instanceof Error ? error.message : "Gagal menyimpan booking dadakan.");
+    } finally {
+      setSavingLabel(null);
+    }
+  };
+
+  const removeShortNotice = async (date: string, time: string) => {
+    if (savingLabel) return;
+    setSavingLabel("Menutup booking dadakan...");
+    setCustomError(null);
+    try {
+      await deleteShortNoticeSlot(date, time);
+      await refreshFromApi();
+      setShortNoticeSlot(null);
+    } catch (error) {
+      setCustomError(error instanceof Error ? error.message : "Gagal menutup booking dadakan.");
+    } finally {
+      setSavingLabel(null);
+    }
   };
 
   // Apply pengaturan rentang (#1): rentang tanggal + hari minggu yang
@@ -778,6 +812,23 @@ export function AdminScheduleManager({
                               Khusus
                             </span>
                           )}
+                          {slot.shortNotice && (
+                            <span className={`admin-schedule-slot-tag admin-schedule-slot-tag--urgent is-${slot.shortNotice.mode}`}>
+                              Dadakan {slot.shortNotice.mode === "public" ? "publik" : "admin"}
+                            </span>
+                          )}
+                          {!past && selectedDay.date <= shortNoticeMaxDateKey && !readOnly && (
+                            <button
+                              type="button"
+                              className="admin-schedule-slot-urgent"
+                              onClick={() => setShortNoticeSlot({ date: selectedDay.date, slot })}
+                              disabled={scheduleBusy}
+                              aria-label={`Atur booking dadakan ${slot.time}`}
+                            >
+                              <CalendarClock size={13} aria-hidden="true" />
+                              Dadakan
+                            </button>
+                          )}
                           {slot.custom && !locked && !past && !readOnly && (
                             <button
                               type="button"
@@ -894,6 +945,19 @@ export function AdminScheduleManager({
         />
       )}
 
+      {shortNoticeSlot && (
+        <ShortNoticeSlotModal
+          date={shortNoticeSlot.date}
+          dayLabel={scheduleByDate.get(shortNoticeSlot.date)?.label ?? shortNoticeSlot.date}
+          slot={shortNoticeSlot.slot}
+          busy={scheduleBusy}
+          error={customError}
+          onClose={() => setShortNoticeSlot(null)}
+          onSave={saveShortNotice}
+          onRemove={shortNoticeSlot.slot.shortNotice ? () => removeShortNotice(shortNoticeSlot.date, shortNoticeSlot.slot.time) : undefined}
+        />
+      )}
+
       {confirmDialog && (
         <ScheduleConfirmDialog
           title={confirmDialog.title}
@@ -987,6 +1051,79 @@ export function SlotBookingPopover({
         >
           Buka di Booking
         </button>
+      </div>
+    </div>
+  );
+}
+
+function toLocalDateTimeInput(value: Date) {
+  const offset = value.getTimezoneOffset() * 60_000;
+  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+}
+
+export function ShortNoticeSlotModal({
+  date,
+  dayLabel,
+  slot,
+  busy,
+  error,
+  onClose,
+  onSave,
+  onRemove,
+}: {
+  date: string;
+  dayLabel: string;
+  slot: Slot;
+  busy: boolean;
+  error?: string | null;
+  onClose: () => void;
+  onSave: (payload: Parameters<typeof upsertShortNoticeSlot>[0]) => void;
+  onRemove?: () => void;
+}) {
+  const visitAt = parseDateKey(date);
+  const [visitHour, visitMinute] = slot.time.split(".").map(Number);
+  visitAt.setHours(visitHour, visitMinute, 0, 0);
+  const defaultClose = new Date(Math.max(Date.now() + 15 * 60_000, visitAt.getTime() - 60 * 60_000));
+  const [audience, setAudience] = useState<"admin" | "public">(slot.shortNotice?.mode ?? "admin");
+  const [capacity, setCapacity] = useState(String(slot.shortNotice?.capacity ?? Math.max(80, slot.participantCount ?? 0)));
+  const [closesAt, setClosesAt] = useState(() => slot.shortNotice?.closesAt ? toLocalDateTimeInput(new Date(slot.shortNotice.closesAt)) : toLocalDateTimeInput(defaultClose));
+  const [note, setNote] = useState("");
+  const numericCapacity = Number(capacity);
+  const closeTimestamp = closesAt ? new Date(closesAt).getTime() : 0;
+  const publicDeadlineInvalid = audience === "public" && (!closesAt || closeTimestamp <= Date.now() || closeTimestamp >= visitAt.getTime());
+  const invalid = !Number.isInteger(numericCapacity) || numericCapacity < 1 || numericCapacity > 560 || !note.trim() || publicDeadlineInvalid;
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [busy, onClose]);
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="modal-card admin-flex-modal" role="dialog" aria-modal="true" aria-label="Atur booking dadakan">
+        <button className="modal-close" type="button" onClick={onClose} disabled={busy} aria-label="Tutup modal"><X size={18} /></button>
+        <header className="segment-modal-head">
+          <span className="segment-modal-kicker">{dayLabel}</span>
+          <h2>Booking dadakan · {slot.time}</h2>
+          <p>Buka slot H/H+1 hanya untuk operator atau tampilkan juga pada wizard publik.</p>
+        </header>
+        <div className="admin-flex-grid">
+          <label className="form-field"><span>Akses slot</span><select value={audience} onChange={(event) => setAudience(event.target.value as "admin" | "public")}><option value="admin">Admin saja</option><option value="public">Publik + admin</option></select></label>
+          <label className="form-field"><span>Kapasitas total slot</span><input type="number" min={1} max={560} value={capacity} onChange={(event) => setCapacity(event.target.value)} /><small>Saat ini tercatat {slot.participantCount ?? 0} peserta pada slot ini.</small></label>
+          {audience === "public" && <label className="form-field"><span>Batas booking publik</span><input type="datetime-local" value={closesAt} onChange={(event) => setClosesAt(event.target.value)} /><small>Harus sebelum {dayLabel}, {slot.time} WIB.</small></label>}
+        </div>
+        {slot.bookingConflicts?.length ? <div className="admin-flex-warning"><CalendarClock size={17} /><div><strong>Booking aktif pada slot</strong>{slot.bookingConflicts.map((item) => <span key={item.code}>{item.code} · {item.groupSize} peserta · {item.status}</span>)}</div></div> : null}
+        <label className="form-field"><span>Alasan pembukaan</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: permintaan kunjungan mendadak yang sudah dikoordinasikan." /></label>
+        {publicDeadlineInvalid && <strong className="form-message form-message--error">Batas publik harus setelah sekarang dan sebelum jam kunjungan.</strong>}
+        {error && <strong className="form-message form-message--error">{error}</strong>}
+        <div className="modal-actions">
+          {onRemove && <button className="button button-danger" type="button" onClick={onRemove} disabled={busy}>Nonaktifkan dadakan</button>}
+          <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button>
+          <button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onSave({ date, time: slot.time, audience, closesAt: audience === "public" ? new Date(closesAt).toISOString() : undefined, capacity: numericCapacity, note })}>Simpan dadakan</button>
+        </div>
       </div>
     </div>
   );

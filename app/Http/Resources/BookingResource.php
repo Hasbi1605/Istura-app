@@ -18,6 +18,7 @@ class BookingResource extends JsonResource
 
         return [
             'code' => $this->code,
+            'source' => $this->source ?? 'public',
             'contactName' => $this->contact_name,
             'nik' => $this->when($this->shouldExposeNik($request), fn () => $this->nik),
             'nikMasked' => $this->nik_masked,

@@ -271,7 +271,12 @@ export function BookingWizard({
   // menampilkan nama file.
   const documentFileRef = useRef<File | null>(null);
   const [today] = useState(jakartaToday);
-  const minBookingDate = addDays(today, 2);
+  const normalMinBookingDate = addDays(today, 2);
+  const normalMinBookingDateKey = formatDateKey(normalMinBookingDate);
+  const shortNoticeDateKey = schedules.find((day) =>
+    day.date < normalMinBookingDateKey && day.slots.some((slot) => slot.status === "Available" && slot.shortNotice?.mode === "public"),
+  )?.date;
+  const minBookingDate = shortNoticeDateKey ? parseDateKey(shortNoticeDateKey) : normalMinBookingDate;
   const minBookingDateKey = formatDateKey(minBookingDate);
   const initialDate = firstAvailableScheduleDate(schedules, minBookingDateKey);
   const [form, setForm] = useState<BookingForm>(() =>
@@ -395,12 +400,12 @@ export function BookingWizard({
     if (step === 3) {
       if (!form.date || !form.time) nextErrors.time = "Pilih tanggal dan jam kunjungan.";
       if (form.date && form.date < minBookingDateKey) {
-        nextErrors.time = "Tanggal kunjungan paling cepat H-2.";
+        nextErrors.time = "Tanggal tersebut belum dibuka untuk booking.";
       }
       if (selectedSlot && selectedSlot.status !== "Available") {
         nextErrors.time = "Jadwal ini baru saja tidak tersedia. Pilih slot lain.";
       }
-      if (form.date && form.time && !canFitConsecutiveSlots(selectedDay, form.time, neededSlots)) {
+      if (form.date && form.time && !canFitConsecutiveSlots(selectedDay, form.time, neededSlots, groupBreakdown)) {
         nextErrors.time = `Rombongan ini membutuhkan ${neededSlots} slot layanan tersedia. Pilih jam mulai lain.`;
       }
     }
@@ -464,7 +469,7 @@ export function BookingWizard({
 		const day = schedules.find((schedule) => schedule.date === form.date);
     const slot = day?.slots.find((item) => item.time === form.time);
 
-    if (!day || !slot || slot.status !== "Available" || !canFitConsecutiveSlots(day, slot.time, neededSlots)) {
+    if (!day || !slot || slot.status !== "Available" || !canFitConsecutiveSlots(day, slot.time, neededSlots, groupBreakdown)) {
       setErrors({
         submit: "Mohon maaf, slot layanan untuk jumlah rombongan ini tidak tersedia. Silakan pilih jam mulai lain.",
       });
@@ -682,6 +687,7 @@ export function BookingWizard({
             content={content.schedule}
 						minDate={minBookingDate}
 						requiredSlots={neededSlots}
+						segmentSizes={groupBreakdown}
 						selectedDate={form.date}
 						selectedTime={form.time}
                 largeGroupDiscussionHref={largeGroupScheduleDiscussionHref}
@@ -914,6 +920,7 @@ function SchedulePicker({
   content,
 	minDate,
 	requiredSlots,
+	segmentSizes,
 	selectedDate,
   selectedTime,
   largeGroupDiscussionHref,
@@ -926,6 +933,7 @@ function SchedulePicker({
   content: BookingWizardContent["schedule"];
 	minDate: Date;
 	requiredSlots: number;
+	segmentSizes: number[];
 	selectedDate: string;
   selectedTime: string;
   largeGroupDiscussionHref: string;
@@ -933,7 +941,7 @@ function SchedulePicker({
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
 }) {
-  const [today] = useState(() => addDays(minDate, -1));
+  const [today] = useState(jakartaToday);
   const minMonth = startOfMonth(minDate);
   const maxScheduleDate = addMonths(today, 2);
   const maxMonth = startOfMonth(maxScheduleDate);
@@ -951,7 +959,7 @@ function SchedulePicker({
     const found = scheduleByKey.get(formatDateKey(date));
     if (!found) return "closed";
 
-    const hasAvailable = hasConsecutiveAvailableSlots(found, requiredSlots);
+    const hasAvailable = hasConsecutiveAvailableSlots(found, requiredSlots, segmentSizes);
     const hasPending = found.slots.some(
       (slot) => slot.status === "Held" || slot.status === "Reschedule Hold",
     );
@@ -1066,13 +1074,15 @@ function SchedulePicker({
           <div className="time-list time-list--hourly">
             {selectedDay ? (
               selectedDay.slots.map((slot) => {
-                const isClickable = canFitConsecutiveSlots(selectedDay, slot.time, requiredSlots);
+                const isClickable = canFitConsecutiveSlots(selectedDay, slot.time, requiredSlots, segmentSizes);
                 const klass = slot.status === "Available" && !isClickable ? "full" : publicSlotStatusToClass(slot.status);
                 const closedLabel = slotClosureLabel(slot, selectedDay);
                 const selectedOrder = selectedSlotOrders.get(slot.time);
                 const isSelected = selectedTime === slot.time;
                 const isAutoSelected = requiredSlots > 1 && Boolean(selectedOrder);
-                const availableLabel = requiredSlots > 1 ? "Pilih jam mulai" : publicSlotStatusLabel[slot.status];
+                const availableLabel = slot.shortNotice?.mode === "public"
+                  ? `Dadakan · sisa ${slot.remainingCapacity ?? slot.shortNotice.remainingCapacity}`
+                  : requiredSlots > 1 ? "Pilih jam mulai" : publicSlotStatusLabel[slot.status];
                 const disabledLabel = slot.status === "Available" && !isClickable
                   ? `Butuh ${requiredSlots} slot layanan`
                   : slot.status === "Closed" && closedLabel

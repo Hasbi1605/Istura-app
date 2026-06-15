@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\IndexBookingsRequest;
+use App\Http\Requests\Admin\MoveBookingDirectlyRequest;
 use App\Http\Requests\Admin\RescheduleBookingRequest;
+use App\Http\Requests\Admin\StoreAdminBookingRequest;
 use App\Http\Requests\Admin\UpdateBookingSegmentsRequest;
 use App\Http\Requests\Admin\UpdateBookingStatusRequest;
 use App\Http\Resources\BookingResource;
@@ -54,6 +56,16 @@ class BookingController extends Controller
         Gate::authorize('view', $booking);
 
         return response()->json(['data' => (new BookingResource($booking))->resolve()]);
+    }
+
+    public function store(StoreAdminBookingRequest $request): JsonResponse
+    {
+        Gate::authorize('create', Booking::class);
+        $booking = $this->bookings->createFromAdmin($request->validated(), $request->user(), $request);
+
+        return response()->json([
+            'data' => (new BookingResource($booking))->resolve(),
+        ], 201);
     }
 
     public function accept(UpdateBookingStatusRequest $request, string $code): JsonResponse
@@ -120,6 +132,26 @@ class BookingController extends Controller
             $request->validated('segments'),
             $request->validated('groupSize'),
             $request->input('note'),
+            $request->boolean('allowOverbook'),
+            $request->boolean('correctGroupSize'),
+            $request,
+        );
+
+        return response()->json(['data' => (new BookingResource($updated))->resolve()]);
+    }
+
+    public function move(MoveBookingDirectlyRequest $request, string $code): JsonResponse
+    {
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
+        Gate::authorize('update', $booking);
+        $payload = $request->validated();
+        $updated = $this->bookings->moveDirectly(
+            $booking,
+            $request->user(),
+            $payload['date'],
+            $payload['time'],
+            $payload['note'],
+            $request->boolean('confirmedWithGuest'),
             $request->boolean('allowOverbook'),
             $request,
         );

@@ -21,8 +21,20 @@ class PublicVisitDayResource extends JsonResource
                 ->reject(fn (array $slot): bool => in_array($slot['time'], self::HIDDEN_TIMES, true))
                 ->map(fn (array $slot) => [
                     'time' => $slot['time'],
-                    'status' => $slot['status'],
+                    'status' => $slot['publicStatus'] ?? $slot['status'],
                     'custom' => $slot['custom'],
+                    'shortNotice' => ($slot['shortNotice']['mode'] ?? null) === 'public'
+                        && ($slot['shortNotice']['active'] ?? false)
+                            ? [
+                                'mode' => 'public',
+                                'capacity' => $slot['shortNotice']['capacity'],
+                                'remainingCapacity' => $slot['shortNotice']['remainingCapacity'],
+                                'active' => true,
+                            ]
+                            : null,
+                    'remainingCapacity' => ($slot['shortNotice']['mode'] ?? null) === 'public'
+                        ? ($slot['shortNotice']['remainingCapacity'] ?? null)
+                        : null,
                     'closureReason' => $slot['closureReason'] ?? null,
                 ])
                 ->values()

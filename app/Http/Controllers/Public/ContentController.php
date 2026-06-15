@@ -197,7 +197,10 @@ class ContentController extends Controller
     private function scheduleRange(ScheduleRangeRequest $request): array
     {
         $today = Carbon::today('Asia/Jakarta');
-        $earliestBookableDate = $today->copy()->addDays(2)->startOfDay();
+        // Include H/H+1 in the payload so explicitly opened short-notice slots
+        // can appear. PublicVisitDayResource keeps every non-exception slot in
+        // that window closed, so the normal H+2 policy remains intact.
+        $earliestBookableDate = $today->copy()->startOfDay();
         $latestBookableDate = $today->copy()->addMonths(2)->startOfDay();
         $from = $request->validated('from') ? $request->startDate() : $earliestBookableDate->copy();
 

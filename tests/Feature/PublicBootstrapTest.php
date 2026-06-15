@@ -60,16 +60,18 @@ class PublicBootstrapTest extends TestCase
         $this->assertStringContainsString('must-revalidate', $response->headers->get('Cache-Control'));
     }
 
-    public function test_public_bootstrap_schedule_starts_from_earliest_bookable_date(): void
+    public function test_public_bootstrap_includes_short_notice_window_but_keeps_unopened_slots_closed(): void
     {
         $response = $this->getJson('/api/public/bootstrap')
             ->assertOk();
 
         $dates = collect($response->json('data.schedule'))->pluck('date');
 
-        $this->assertSame('2026-06-03', $dates->first());
-        $this->assertFalse($dates->contains('2026-06-01'));
-        $this->assertFalse($dates->contains('2026-06-02'));
+        $this->assertSame('2026-06-01', $dates->first());
+        $this->assertTrue($dates->contains('2026-06-02'));
+        $today = collect($response->json('data.schedule'))->firstWhere('date', '2026-06-01');
+        $this->assertNotNull($today);
+        $this->assertTrue(collect($today['slots'])->every(fn (array $slot): bool => $slot['status'] === 'Closed'));
     }
 
     public function test_public_bootstrap_backfills_large_group_copy_for_existing_site_content(): void
@@ -89,20 +91,21 @@ class PublicBootstrapTest extends TestCase
             ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusi dengan Admin');
     }
 
-    public function test_public_schedule_clamps_requested_start_to_earliest_bookable_date(): void
+    public function test_public_schedule_includes_h_and_h_plus_one_for_explicit_short_notice_openings(): void
     {
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-03')
             ->assertOk();
 
-        $this->assertSame(['2026-06-03'], collect($response->json('data'))->pluck('date')->all());
+        $this->assertSame(['2026-06-01', '2026-06-02', '2026-06-03'], collect($response->json('data'))->pluck('date')->all());
     }
 
-    public function test_public_schedule_returns_empty_when_requested_range_is_only_today(): void
+    public function test_public_schedule_returns_today_as_closed_without_short_notice_override(): void
     {
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01')
             ->assertOk();
 
-        $this->assertSame([], $response->json('data'));
+        $this->assertSame(['2026-06-01'], collect($response->json('data'))->pluck('date')->all());
+        $this->assertTrue(collect($response->json('data.0.slots'))->every(fn (array $slot): bool => $slot['status'] === 'Closed'));
     }
 
     public function test_public_schedule_clamps_requested_end_to_latest_bookable_date(): void

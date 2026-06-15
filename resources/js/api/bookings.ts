@@ -12,6 +12,7 @@ export type ApiBookingSegment = {
 // langsung oleh komponen admin dan public flow.
 export type ApiBooking = {
   code: string;
+  source?: "public" | "admin";
   contactName: string;
   nik?: string;
   nikMasked: string;
@@ -106,9 +107,43 @@ export const updateBookingSegments = (
     segments: Array<{ date: string; time: string; groupSize: number }>;
     note?: string;
     allowOverbook?: boolean;
+    correctGroupSize?: boolean;
   },
 ) =>
   api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/segments`, {
+    method: "POST",
+    body: payload,
+  }).then((r) => r.data);
+
+export const createAdminBooking = (payload: {
+  contactName: string;
+  nik: string;
+  whatsapp: string;
+  institution: string;
+  groupSize: number;
+  date: string;
+  time: string;
+  status: "Pending" | "Accepted";
+  confirmedWithGuest?: boolean;
+  allowOverbook?: boolean;
+  note: string;
+}) =>
+  api<{ data: ApiBooking }>("/api/admin/bookings", {
+    method: "POST",
+    body: payload,
+  }).then((r) => r.data);
+
+export const moveBookingDirectly = (
+  code: string,
+  payload: {
+    date: string;
+    time: string;
+    confirmedWithGuest?: boolean;
+    allowOverbook?: boolean;
+    note: string;
+  },
+) =>
+  api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/move`, {
     method: "POST",
     body: payload,
   }).then((r) => r.data);

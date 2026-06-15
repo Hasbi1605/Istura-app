@@ -102,16 +102,20 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
 
     // === MUTATION routes (admin + super_admin only) ===
     Route::middleware('operator')->group(function () {
+        Route::post('bookings', [AdminBookingController::class, 'store']);
         Route::post('bookings/{code}/accept', [AdminBookingController::class, 'accept']);
         Route::post('bookings/{code}/reject', [AdminBookingController::class, 'reject']);
         Route::post('bookings/{code}/reschedule', [AdminBookingController::class, 'reschedule']);
         Route::post('bookings/{code}/reschedule/cancel', [AdminBookingController::class, 'cancelReschedule']);
         Route::post('bookings/{code}/segments', [AdminBookingController::class, 'segments']);
+        Route::post('bookings/{code}/move', [AdminBookingController::class, 'move']);
         Route::post('bookings/{code}/complete', [AdminBookingController::class, 'complete']);
 
         Route::post('schedule/slot', [ScheduleController::class, 'storeSlot']);
         Route::delete('schedule/slot', [ScheduleController::class, 'destroySlot']);
         Route::post('schedule/range', [ScheduleController::class, 'storeRange']);
+        Route::post('schedule/short-notice', [ScheduleController::class, 'storeShortNotice']);
+        Route::delete('schedule/short-notice', [ScheduleController::class, 'destroyShortNotice']);
 
         Route::put('cms/faqs', [CmsController::class, 'updateFaqs']);
         Route::put('cms/contacts', [CmsController::class, 'updateContacts']);

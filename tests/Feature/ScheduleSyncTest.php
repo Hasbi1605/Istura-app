@@ -2214,8 +2214,8 @@ class ScheduleSyncTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.kloterCount', 2)
             ->assertJsonPath('data.segments.0.groupSize', 100)
-            ->assertJsonPath('data.segments.1.groupSize', 100)
-            ->assertJsonPath('data.note', 'User meminta penggabungan dari 3 kloter menjadi 2 kloter.');
+            ->assertJsonPath('data.segments.1.groupSize', 100);
+        $this->assertStringContainsString('User meminta penggabungan dari 3 kloter menjadi 2 kloter.', (string) Booking::where('code', $code)->value('note'));
 
         $booking = Booking::where('code', $code)->firstOrFail();
         $this->assertDatabaseCount('booking_slots', 2);
@@ -2273,8 +2273,8 @@ class ScheduleSyncTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.kloterCount', 1)
             ->assertJsonPath('data.segments.0.time', '08.00')
-            ->assertJsonPath('data.segments.0.groupSize', 160)
-            ->assertJsonPath('data.note', 'Admin menggabungkan dua kloter karena rombongan meminta satu sesi.');
+            ->assertJsonPath('data.segments.0.groupSize', 160);
+        $this->assertStringContainsString('Admin menggabungkan dua kloter karena rombongan meminta satu sesi.', (string) Booking::where('code', $code)->value('note'));
     }
 
     public function test_admin_manual_segments_can_correct_booking_group_size_with_note(): void
@@ -2291,6 +2291,7 @@ class ScheduleSyncTest extends TestCase
 
         $payload = [
             'groupSize' => 30,
+            'correctGroupSize' => true,
             'segments' => [
                 ['date' => $date, 'time' => '08.00', 'groupSize' => 30],
             ],
@@ -2304,14 +2305,11 @@ class ScheduleSyncTest extends TestCase
             'note' => 'User salah input jumlah peserta, admin koreksi manual.',
         ])->assertOk()
             ->assertJsonPath('data.groupSize', 30)
-            ->assertJsonPath('data.segments.0.groupSize', 30)
-            ->assertJsonPath('data.note', 'User salah input jumlah peserta, admin koreksi manual.');
+            ->assertJsonPath('data.segments.0.groupSize', 30);
 
-        $this->assertDatabaseHas('bookings', [
-            'id' => $booking->id,
-            'group_size' => 30,
-            'note' => 'User salah input jumlah peserta, admin koreksi manual.',
-        ]);
+        $booking->refresh();
+        $this->assertSame(30, $booking->group_size);
+        $this->assertStringContainsString('User salah input jumlah peserta, admin koreksi manual.', (string) $booking->note);
 
         $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
         $this->assertSame(2, $log->payload['old_group_size']);
@@ -2333,6 +2331,7 @@ class ScheduleSyncTest extends TestCase
 
         $payload = [
             'groupSize' => 120,
+            'correctGroupSize' => true,
             'segments' => [
                 ['date' => $date, 'time' => '08.00', 'groupSize' => 60],
                 ['date' => $date, 'time' => '09.00', 'groupSize' => 60],
@@ -2349,14 +2348,11 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonPath('data.groupSize', 120)
             ->assertJsonPath('data.kloterCount', 2)
             ->assertJsonPath('data.segments.0.groupSize', 60)
-            ->assertJsonPath('data.segments.1.groupSize', 60)
-            ->assertJsonPath('data.note', 'Jumlah peserta bertambah setelah konfirmasi ulang.');
+            ->assertJsonPath('data.segments.1.groupSize', 60);
 
-        $this->assertDatabaseHas('bookings', [
-            'id' => $booking->id,
-            'group_size' => 120,
-            'note' => 'Jumlah peserta bertambah setelah konfirmasi ulang.',
-        ]);
+        $booking->refresh();
+        $this->assertSame(120, $booking->group_size);
+        $this->assertStringContainsString('Jumlah peserta bertambah setelah konfirmasi ulang.', (string) $booking->note);
         $this->assertDatabaseHas('booking_slots', [
             'booking_id' => $booking->id,
             'slot_order' => 1,
@@ -2392,6 +2388,7 @@ class ScheduleSyncTest extends TestCase
 
         $payload = [
             'groupSize' => 70,
+            'correctGroupSize' => true,
             'segments' => [
                 ['date' => $date, 'time' => '10.00', 'groupSize' => 70],
             ],
@@ -2406,14 +2403,11 @@ class ScheduleSyncTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.groupSize', 70)
             ->assertJsonPath('data.kloterCount', 1)
-            ->assertJsonPath('data.segments.0.groupSize', 70)
-            ->assertJsonPath('data.note', 'Jumlah peserta berkurang setelah konfirmasi ulang.');
+            ->assertJsonPath('data.segments.0.groupSize', 70);
 
-        $this->assertDatabaseHas('bookings', [
-            'id' => $booking->id,
-            'group_size' => 70,
-            'note' => 'Jumlah peserta berkurang setelah konfirmasi ulang.',
-        ]);
+        $booking->refresh();
+        $this->assertSame(70, $booking->group_size);
+        $this->assertStringContainsString('Jumlah peserta berkurang setelah konfirmasi ulang.', (string) $booking->note);
         $this->assertDatabaseHas('booking_slots', [
             'booking_id' => $booking->id,
             'slot_order' => 1,

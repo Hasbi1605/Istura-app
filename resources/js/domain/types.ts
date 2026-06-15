@@ -50,6 +50,16 @@ export type Slot = {
   custom?: boolean;
   bookingCount?: number;
   overbooked?: boolean;
+  participantCount?: number;
+  bookingConflicts?: Array<{ code: string; groupSize: number; status: string }>;
+  shortNotice?: {
+    mode: "admin" | "public";
+    closesAt?: string | null;
+    capacity: number;
+    remainingCapacity: number;
+    active: boolean;
+  } | null;
+  remainingCapacity?: number | null;
   closureReason?: ClosureReason | null;
 };
 
@@ -71,6 +81,7 @@ export type AdminSession = {
 
 export type Booking = {
   code: string;
+  source?: "public" | "admin";
   contactName: string;
   nik: string;
   nikMasked: string;
