@@ -182,7 +182,7 @@ Modul terpisah **Istura Open** sudah diimplementasi (lihat `IsturaOpen.md` & §2
 
 ### 5.2 Flow Admin
 - **Login (+2FA):** email+password (progressive delay) → bila 2FA aktif tampil challenge TOTP/recovery + trusted device → dashboard (absolute session lifetime).
-- **Booking lifecycle:** Pending → Accept/Reject/Reschedule; Accepted → Complete/Reschedule; Reschedule → Accept/Reject/Cancel; Expired → Reschedule/Reject. Tiap aksi: audit log + broadcast + invalidasi cache + pesan WA siap salin.
+- **Booking lifecycle:** Pending → Accept/Reject/Reschedule; Accepted → Complete/Reschedule; Reschedule → Accept/Reject/Cancel; Expired → Reschedule/Reject. Pindah Jadwal Langsung hanya untuk Pending/Accepted, tidak meminta persetujuan formal kedua, dan menampilkan peringatan pada Accepted; status Reschedule tetap memakai aksi konfirmasi/tawarkan ulang/batal. Tiap aksi: audit log + broadcast + invalidasi cache + pesan WA siap salin.
 - **Jadwal:** tutup/buka slot tunggal atau rentang tanggal (override); default dihitung runtime; slot ber-booking aktif terlindungi.
 - **CMS:** edit FAQ/ketentuan/kontak/hero/landing/template WA → simpan → bump cache publik. Logo navbar/footer, background CTA, dan foto panel "Aktivitas di Istana" dipilih langsung di editor Landing Page, dipreview lokal, lalu saat save dikonversi otomatis ke WebP; file lama dibersihkan setelah konfigurasi baru berhasil tersimpan. Copy wizard publik (booking + feedback), termasuk judul/isi/tombol callout penyesuaian kloter (`{jumlahKloter}`), diedit dari tab "Wizard Publik" di Landing Page dengan struktur step tetap.
 - **Users (super-admin):** CRUD akun admin. **Dashboard/Feedback/Audit/Ekspor:** lihat KPI, feedback, audit dengan filter, ekspor data.

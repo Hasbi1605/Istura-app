@@ -138,7 +138,6 @@ export const moveBookingDirectly = (
   payload: {
     date: string;
     time: string;
-    confirmedWithGuest?: boolean;
     allowOverbook?: boolean;
     note: string;
   },

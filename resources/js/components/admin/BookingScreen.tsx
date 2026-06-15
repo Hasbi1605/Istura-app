@@ -409,13 +409,12 @@ export function AdminScreen({
 		});
 		};
 
-	const handleMoveDirectly = (booking: Booking, date: string, time: string, note: string, confirmedWithGuest: boolean, allowOverbook: boolean) => {
+	const handleMoveDirectly = (booking: Booking, date: string, time: string, note: string, allowOverbook: boolean) => {
 		void runBookingAction(booking, "Memindahkan jadwal...", async () => {
 			const updated = await apiMoveBookingDirectly(booking.code, {
 				date,
 				time,
 				note,
-				confirmedWithGuest: confirmedWithGuest || undefined,
 				allowOverbook: allowOverbook || undefined,
 			});
 			const localBooking = await syncBookingFromApi(updated);
@@ -1228,10 +1227,6 @@ export function BookingActions({
           >
             User setuju, konfirmasi
           </button>
-          <button className="button button-outline" type="button" onClick={onMoveDirectly} disabled={busy}>
-            <CalendarClock size={16} aria-hidden="true" />
-            Pindah langsung
-          </button>
           <button
             className="button button-outline"
             type="button"
@@ -1790,7 +1785,7 @@ export function DirectMoveModal({
   pendingLabel?: string | null;
   error?: string;
   onClose: () => void;
-  onConfirm: (booking: Booking, date: string, time: string, note: string, confirmedWithGuest: boolean, allowOverbook: boolean) => void;
+  onConfirm: (booking: Booking, date: string, time: string, note: string, allowOverbook: boolean) => void;
 }) {
   const todayKey = formatDateKey(jakartaToday());
   const maxDateKey = formatDateKey(addMonths(jakartaToday(), 2));
@@ -1798,7 +1793,6 @@ export function DirectMoveModal({
   const [date, setDate] = useState(booking.date >= todayKey ? booking.date : days[0]?.date ?? "");
   const [time, setTime] = useState("");
   const [note, setNote] = useState("");
-  const [confirmedWithGuest, setConfirmedWithGuest] = useState(false);
   const [allowOverbook, setAllowOverbook] = useState(false);
   const day = days.find((item) => item.date === date);
   const candidates = candidateSlots(day, time, booking.groupSize);
@@ -1806,11 +1800,10 @@ export function DirectMoveModal({
   const ownKeys = new Set(bookingSegments(booking).map((segment) => `${segment.date}|${segment.time}`));
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
   const conflicts = candidates.filter(({ slot }) => slot.status !== "Available" && !ownKeys.has(`${date}|${slot.time}`));
-  const requiresAgreement = booking.status === "Accepted" || booking.status === "Reschedule";
   const sameSchedule = date === booking.date && time === booking.time;
   const busy = Boolean(pendingLabel);
   const invalid = !date || !time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(date, time)
-    || conflicts.length > 0 && !allowOverbook || !note.trim() || requiresAgreement && !confirmedWithGuest || sameSchedule;
+    || conflicts.length > 0 && !allowOverbook || !note.trim() || sameSchedule;
 
   useModalEscape(onClose, busy);
 
@@ -1828,7 +1821,7 @@ export function DirectMoveModal({
         <header className="segment-modal-head">
           <span className="segment-modal-kicker">{booking.code}</span>
           <h2>Pindah jadwal langsung</h2>
-          <p>Gunakan setelah jadwal baru disepakati. Proposal reschedule yang aktif akan dibersihkan.</p>
+          <p>Gunakan untuk perubahan operasional yang langsung berlaku. Jika perlu meminta persetujuan tamu, gunakan Jadwalkan ulang.</p>
         </header>
         <div className="admin-flex-grid">
           <label className="form-field"><span>Tanggal tujuan</span><select value={date} onChange={(event) => setDate(event.target.value)}>{days.map((item) => <option key={item.date} value={item.date}>{item.label}</option>)}</select></label>
@@ -1836,12 +1829,12 @@ export function DirectMoveModal({
         </div>
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
         {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
-        {requiresAgreement && <label className="form-check"><input type="checkbox" checked={confirmedWithGuest} onChange={(event) => setConfirmedWithGuest(event.target.checked)} /><span>Jadwal baru sudah disepakati dengan tamu</span></label>}
-        <label className="form-field"><span>Alasan perubahan</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: perubahan telah disepakati melalui WhatsApp." /></label>
+        {booking.status === "Accepted" && <div className="admin-flex-warning" role="note"><AlertTriangle size={17} aria-hidden="true" /><div><strong>Jadwal akan langsung berubah</strong><span>Tindakan ini tidak melalui proses usulan ulang. Pastikan tamu sudah diberi tahu.</span></div></div>}
+        <label className="form-field"><span>Alasan perubahan</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: penyesuaian operasional dan tamu sudah diberi tahu." /></label>
         {sameSchedule && <strong className="form-message form-message--error">Pilih jadwal yang berbeda dari jadwal saat ini.</strong>}
         {isPastVisitTime(date, time) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
         {error && <strong className="form-message form-message--error">{error}</strong>}
-        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, note, confirmedWithGuest, allowOverbook)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan & buka WhatsApp"}</button></div>
+        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, note, allowOverbook)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan & buka WhatsApp"}</button></div>
       </div>
     </div>
   );

@@ -151,7 +151,6 @@ class BookingController extends Controller
             $payload['date'],
             $payload['time'],
             $payload['note'],
-            $request->boolean('confirmedWithGuest'),
             $request->boolean('allowOverbook'),
             $request,
         );

@@ -457,23 +457,14 @@ class BookingService
         string $date,
         string $time,
         string $note,
-        bool $confirmedWithGuest = false,
         bool $allowOverbook = false,
         ?Request $request = null,
     ): Booking {
-        return DB::transaction(function () use ($booking, $actor, $date, $time, $note, $confirmedWithGuest, $allowOverbook, $request) {
+        return DB::transaction(function () use ($booking, $actor, $date, $time, $note, $allowOverbook, $request) {
             $booking = Booking::with('slots')->whereKey($booking->id)->lockForUpdate()->firstOrFail();
-            if (! in_array($booking->status, ['Pending', 'Accepted', 'Reschedule'], true)) {
+            if (! in_array($booking->status, ['Pending', 'Accepted'], true)) {
                 throw ValidationException::withMessages([
                     'status' => ["Status {$booking->status} tidak dapat dipindahkan langsung."],
-                ]);
-            }
-
-            $requiresAgreement = $booking->status === 'Accepted'
-                || ($booking->status === 'Reschedule' && ($booking->reschedule_previous_status ?: 'Accepted') === 'Accepted');
-            if ($requiresAgreement && ! $confirmedWithGuest) {
-                throw ValidationException::withMessages([
-                    'confirmedWithGuest' => ['Konfirmasi bahwa jadwal baru sudah disepakati dengan tamu.'],
                 ]);
             }
 
@@ -491,28 +482,17 @@ class BookingService
 
             $affectedScheduleDates = $this->scheduleDatesForBooking($booking);
             $previousStatus = $booking->status;
-            $restoredStatus = $booking->status === 'Reschedule'
-                ? (in_array($booking->reschedule_previous_status, ['Pending', 'Accepted'], true) ? $booking->reschedule_previous_status : 'Accepted')
-                : $booking->status;
             $first = $segments[0];
             $booking->date = $targetDate;
             $booking->date_label = $first['date_label'];
             $booking->time = $first['time'];
-            $booking->status = $restoredStatus;
-            $booking->proposed_date = null;
-            $booking->proposed_time = null;
-            $booking->proposed_date_label = null;
-            $booking->proposed_segments = null;
-            $booking->proposed_at = null;
-            $booking->reschedule_previous_status = null;
             $booking->note = $this->appendAdminNote($booking->note, $note);
             $booking->save();
             $this->persistBookingSlots($booking, $segments, true);
 
             $this->logAudit($actor, "Memindahkan langsung booking {$booking->code}", $booking, [
                 'previous_status' => $previousStatus,
-                'new_status' => $restoredStatus,
-                'confirmed_with_guest' => $confirmedWithGuest,
+                'new_status' => $booking->status,
                 'overbook' => $conflicts !== [],
                 'conflicts' => $conflicts,
                 'note' => $note,

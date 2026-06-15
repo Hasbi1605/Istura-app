@@ -126,7 +126,7 @@ class AdminBookingFlexibilityTest extends TestCase
         ]);
     }
 
-    public function test_accepted_booking_direct_move_requires_guest_agreement_and_can_move_to_today(): void
+    public function test_accepted_booking_direct_move_does_not_require_guest_agreement_and_can_move_to_today(): void
     {
         $this->actingAsAdmin();
         $booking = $this->createBookingWithSlots('ISTURA-2026-MOVE', '2026-06-16', '08.00', 50, 'Accepted');
@@ -134,21 +134,13 @@ class AdminBookingFlexibilityTest extends TestCase
         $this->postJson("/api/admin/bookings/{$booking->code}/move", [
             'date' => '2026-06-15',
             'time' => '08.00',
-            'confirmedWithGuest' => true,
             'note' => 'Percobaan ke jam yang sudah lewat.',
         ])->assertUnprocessable()->assertJsonValidationErrors('time');
 
         $this->postJson("/api/admin/bookings/{$booking->code}/move", [
             'date' => '2026-06-15',
             'time' => '13.00',
-            'note' => 'Tamu meminta kunjungan dipercepat.',
-        ])->assertUnprocessable()->assertJsonValidationErrors('confirmedWithGuest');
-
-        $this->postJson("/api/admin/bookings/{$booking->code}/move", [
-            'date' => '2026-06-15',
-            'time' => '13.00',
-            'confirmedWithGuest' => true,
-            'note' => 'Tamu meminta kunjungan dipercepat.',
+            'note' => 'Penyesuaian operasional, tamu sudah diberi tahu.',
         ])->assertOk()
             ->assertJsonPath('data.date', '2026-06-15')
             ->assertJsonPath('data.time', '13.00')
@@ -166,7 +158,7 @@ class AdminBookingFlexibilityTest extends TestCase
         ]);
     }
 
-    public function test_direct_move_clears_active_reschedule_proposal_and_restores_status(): void
+    public function test_direct_move_rejects_active_reschedule_and_preserves_proposal(): void
     {
         $this->actingAsAdmin();
         $booking = $this->createBookingWithSlots('ISTURA-2026-MOVERES', '2026-06-16', '08.00', 30, 'Reschedule');
@@ -197,19 +189,20 @@ class AdminBookingFlexibilityTest extends TestCase
         $this->postJson("/api/admin/bookings/{$booking->code}/move", [
             'date' => '2026-06-15',
             'time' => '14.00',
-            'confirmedWithGuest' => true,
-            'note' => 'Jadwal final sudah disepakati tanpa proposal lanjutan.',
-        ])->assertOk()
-            ->assertJsonPath('data.status', 'Accepted')
-            ->assertJsonPath('data.proposedDate', null)
-            ->assertJsonPath('data.proposedTime', null);
+            'note' => 'Percobaan melewati alur penjadwalan ulang.',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
 
         $booking->refresh();
-        $this->assertNull($booking->proposed_segments);
-        $this->assertNull($booking->reschedule_previous_status);
-        $this->assertDatabaseMissing('booking_slots', [
+        $this->assertSame('Reschedule', $booking->status);
+        $this->assertSame('2026-06-17', $booking->proposed_date->toDateString());
+        $this->assertSame('09.00', $booking->proposed_time);
+        $this->assertSame('Accepted', $booking->reschedule_previous_status);
+        $this->assertDatabaseHas('booking_slots', [
             'booking_id' => $booking->id,
             'kind' => BookingSlot::KIND_PROPOSED,
+            'date' => '2026-06-17 00:00:00',
+            'time' => '09.00',
         ]);
     }
 

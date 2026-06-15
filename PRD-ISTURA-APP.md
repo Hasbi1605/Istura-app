@@ -151,9 +151,11 @@ mode tampilan (split/table), dan aksi siklus hidup: accept, reject, reschedule, 
 reschedule, complete, ubah kloter (segments), pindah jadwal langsung, buat booking admin,
 dan unduh surat. **Atur Kloter** hanya mengubah alokasi jam pada tanggal yang sama dan menjaga
 total peserta kecuali mode koreksi diaktifkan. **Pindah Jadwal Langsung** dapat memilih H/H+1,
-menolak jam hari ini yang sudah lewat, membersihkan proposal reschedule, dan mewajibkan
-konfirmasi persetujuan untuk booking Accepted. Booking yang dibuat admin tidak membutuhkan
-surat tetapi tetap mengenkripsi NIK. Tiap aksi menghasilkan pesan WhatsApp siap kirim dan audit.
+menolak jam hari ini yang sudah lewat, dan hanya tersedia untuk booking Pending/Accepted.
+Pada booking Accepted, admin menerima peringatan bahwa jadwal langsung berubah dan tamu harus
+sudah diberi tahu; booking berstatus Reschedule tetap diselesaikan melalui alur penjadwalan ulang.
+Booking yang dibuat admin tidak membutuhkan surat tetapi tetap mengenkripsi NIK. Tiap aksi
+menghasilkan pesan WhatsApp siap kirim dan audit.
 
 ### 3.4 Booking Dadakan
 Admin mengatur slot dadakan dari Jadwal Kunjungan dengan pilihan **Admin saja** atau

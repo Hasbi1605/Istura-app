@@ -21,7 +21,6 @@ class MoveBookingDirectlyRequest extends FormRequest
         return [
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$today->toDateString(), 'before_or_equal:'.$today->copy()->addMonths(2)->toDateString()],
             'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
-            'confirmedWithGuest' => ['sometimes', 'boolean'],
             'allowOverbook' => ['sometimes', 'boolean'],
             'note' => ['required', 'string', 'max:2000'],
         ];
