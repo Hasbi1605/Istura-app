@@ -76,6 +76,29 @@ function warmImage(src?: string) {
   img.src = src;
 }
 
+function renderHeroSpeechText(typed: string, fullText: string, highlight?: string) {
+  if (!highlight) return typed;
+
+  const highlightStart = fullText.indexOf(highlight);
+  if (highlightStart === -1) return typed;
+
+  const highlightEnd = highlightStart + highlight.length;
+  const before = typed.slice(0, Math.min(typed.length, highlightStart));
+  const highlighted =
+    typed.length > highlightStart
+      ? typed.slice(highlightStart, Math.min(typed.length, highlightEnd))
+      : "";
+  const after = typed.length > highlightEnd ? typed.slice(highlightEnd) : "";
+
+  return (
+    <>
+      {before}
+      {highlighted && <span className="miky-speech-highlight">{highlighted}</span>}
+      {after}
+    </>
+  );
+}
+
 const landingIconMap: Record<LandingIconKey, LucideIcon> = {
   clock: Clock3,
   "file-check": FileCheck2,
@@ -760,7 +783,8 @@ function HeroMikySpeech({
   const isMobile = useMediaQuery("(max-width: 640px)");
   const messages = isMobile ? HERO_MESSAGES_MOBILE : HERO_MESSAGES;
   const safeIndex = index % messages.length;
-  const message = messages[safeIndex].text;
+  const message = messages[safeIndex];
+  const messageText = message.text;
   const bubbleRef = useRef<HTMLDivElement | null>(null);
 
   // Pesan pertama: tunggu sampai GSAP benar-benar memulai fade-in bubble
@@ -800,8 +824,8 @@ function HeroMikySpeech({
     };
   }, [index, reduced]);
 
-  const typed = useTypewriter(message, 22, !reduced, ready);
-  const isTyping = !reduced && ready && typed.length < message.length;
+  const typed = useTypewriter(messageText, 22, !reduced, ready);
+  const isTyping = !reduced && ready && typed.length < messageText.length;
 
   useEffect(() => {
     if (reduced) return;
@@ -823,7 +847,7 @@ function HeroMikySpeech({
         onCycle();
       }}
     >
-      {typed}
+      {renderHeroSpeechText(typed, messageText, message.highlight)}
       {isTyping && <span className="miky-speech-caret" aria-hidden="true" />}
     </div>
   );

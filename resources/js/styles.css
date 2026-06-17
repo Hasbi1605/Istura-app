@@ -699,6 +699,11 @@ a {
   transform: translateY(-3px) scale(1.015);
 }
 
+.miky-speech-highlight {
+  color: var(--gold);
+  font-weight: 900;
+}
+
 .miky-speech::before {
   position: absolute;
   right: -18px;

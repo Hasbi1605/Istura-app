@@ -570,14 +570,30 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   feedbackWizard: DEFAULT_FEEDBACK_WIZARD_CONTENT,
 };
 
-export const HERO_MESSAGES: Array<{ text: string; image: string }> = [
-  { text: "Halo! Aku MIKY, pemandu virtual Istana Kepresidenan Yogyakarta. Aku bantu pandu booking-mu ya.", image: ASSETS.mikyStep1 },
+const MIKY_MUSEUM_LABEL = "Museum Istana Kepresidenan Yogyakarta";
+
+export type HeroMessage = {
+  text: string;
+  image: string;
+  highlight?: string;
+};
+
+export const HERO_MESSAGES: HeroMessage[] = [
+  {
+    text: `Halo! Aku MIKY, pemandu virtual ${MIKY_MUSEUM_LABEL}. Aku bantu pandu booking-mu ya.`,
+    image: ASSETS.mikyStep1,
+    highlight: MIKY_MUSEUM_LABEL,
+  },
   { text: "Mau cek slot dulu? Klik Cek Jadwal ya.", image: ASSETS.mikyStep4 },
   { text: "Sudah siap? Yuk klik Mulai Booking.", image: ASSETS.mikyHero3 },
 ];
 
-export const HERO_MESSAGES_MOBILE: Array<{ text: string; image: string }> = [
-  { text: "Halo! Aku MIKY, pemandu Istana Yogyakarta.", image: ASSETS.mikyStep1 },
+export const HERO_MESSAGES_MOBILE: HeroMessage[] = [
+  {
+    text: `Halo! Aku MIKY. Pemandu virtual ${MIKY_MUSEUM_LABEL}. Siap bantu booking-mu.`,
+    image: ASSETS.mikyStep1,
+    highlight: MIKY_MUSEUM_LABEL,
+  },
   { text: "Cek jadwal dulu yuk.", image: ASSETS.mikyStep4 },
   { text: "Siap? Klik Mulai Booking.", image: ASSETS.mikyHero3 },
 ];
