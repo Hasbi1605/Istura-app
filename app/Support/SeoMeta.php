@@ -509,7 +509,7 @@ class SeoMeta
             ],
             [
                 '@context' => 'https://schema.org',
-                '@type' => 'Organization',
+                '@type' => 'GovernmentOrganization',
                 'name' => 'ISTURA - Istana Untuk Rakyat',
                 'url' => self::url('/'),
                 'logo' => self::assetUrl('/assets/gedung-agung-gold.webp'),
