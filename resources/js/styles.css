@@ -8955,31 +8955,47 @@ a {
   margin-top: 4px;
 }
 
-.admin-flex-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 12px;
-  color: #76530a;
-  background: rgba(255, 247, 219, 0.75);
-  border: 1px solid rgba(196, 146, 18, 0.32);
+.admin-confirmation-group {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(248, 250, 252, 0.64);
+  border: 1px solid rgba(16, 24, 47, 0.08);
   border-radius: 8px;
 }
 
-.admin-flex-warning > svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
+.admin-confirmation-title {
+  color: rgba(16, 24, 47, 0.54);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
-.admin-flex-warning > div {
+.admin-confirmation-group .admin-confirm-check {
+  margin-top: 0;
+}
+
+.admin-confirm-check-copy {
   display: grid;
   gap: 3px;
 }
 
-.admin-flex-warning span {
-  display: block;
-  font-size: 0.78rem;
-  font-weight: 700;
+.admin-confirm-check-copy small {
+  color: rgba(16, 24, 47, 0.58);
+  font-size: 0.76rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.admin-slot-conflict-check {
+  background: rgba(196, 146, 18, 0.06);
+  border-color: rgba(196, 146, 18, 0.18);
+}
+
+.admin-slot-conflict-check .admin-confirm-check-copy small {
+  color: #76530a;
 }
 
 .direct-move-note {
@@ -9004,6 +9020,10 @@ a {
 .direct-move-note strong {
   color: #5f4106;
   font-weight: 900;
+}
+
+.admin-confirmation-group .direct-move-note {
+  margin: 0;
 }
 
 .segment-row-note--warning {

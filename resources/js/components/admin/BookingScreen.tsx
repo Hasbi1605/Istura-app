@@ -2000,23 +2000,32 @@ export function DirectMoveModal({
             </>
           )}
         </div>
-        {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
-        {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan gabung ke slot yang sudah terisi</span></label>}
-        {booking.status === "Accepted" && (
-          <div className="direct-move-note" role="note">
-            <AlertTriangle size={15} aria-hidden="true" />
-            <span><strong>Jadwal langsung berubah.</strong> Pastikan tamu sudah diberi tahu.</span>
-          </div>
-        )}
-        <label className="form-check admin-confirm-check">
-          <input
-            type="checkbox"
-            checked={confirmedDirectMove}
-            onChange={(event) => setConfirmedDirectMove(event.target.checked)}
-            disabled={busy}
-          />
-          <span>{booking.status === "Accepted" ? "Tamu sudah diberi tahu bahwa jadwal akan langsung berubah." : "Perubahan jadwal langsung ini dikonfirmasi untuk proses booking."}</span>
-        </label>
+        <div className="admin-confirmation-group" aria-label="Konfirmasi pindah jadwal">
+          <span className="admin-confirmation-title">Konfirmasi</span>
+          {conflicts.length > 0 && (
+            <SlotConflictPermission
+              slots={conflicts.map(({ slot }) => slot)}
+              checked={allowOverbook}
+              onChange={setAllowOverbook}
+              disabled={busy}
+            />
+          )}
+          {booking.status === "Accepted" && (
+            <div className="direct-move-note" role="note">
+              <AlertTriangle size={15} aria-hidden="true" />
+              <span><strong>Jadwal langsung berubah.</strong> Pastikan tamu sudah diberi tahu.</span>
+            </div>
+          )}
+          <label className="form-check admin-confirm-check">
+            <input
+              type="checkbox"
+              checked={confirmedDirectMove}
+              onChange={(event) => setConfirmedDirectMove(event.target.checked)}
+              disabled={busy}
+            />
+            <span>{booking.status === "Accepted" ? "Tamu sudah diberi tahu bahwa jadwal akan langsung berubah." : "Perubahan jadwal langsung ini dikonfirmasi untuk proses booking."}</span>
+          </label>
+        </div>
         {sameSchedule && <strong className="form-message form-message--error">Pilih jadwal yang berbeda dari jadwal saat ini.</strong>}
         {(isPastVisitTime(date, time) || hasPast) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
         {error && <strong className="form-message form-message--error">{error}</strong>}
@@ -2026,13 +2035,46 @@ export function DirectMoveModal({
   );
 }
 
-function ConflictSummary({ slots }: { slots: VisitDay["slots"] }) {
-  const conflicts = slots.flatMap((slot) => slot.bookingConflicts ?? []);
+function conflictSummaryText(slots: VisitDay["slots"]) {
+  const details = slots.flatMap((slot) => {
+    const slotConflicts = slot.bookingConflicts ?? [];
+    if (slotConflicts.length === 0) return [`${slot.time} WIB sudah terisi`];
+
+    return slotConflicts.map((item) => (
+      `${slot.time} WIB terisi: ${item.code} · ${item.groupSize} peserta · ${BOOKING_STATUS_LABELS[item.status as BookingStatus] ?? item.status}`
+    ));
+  });
+  const uniqueDetails = [...new Set(details)];
+  const firstDetail = uniqueDetails[0] ?? "Booking lain menempati salah satu slot tujuan.";
+  const restCount = Math.max(uniqueDetails.length - 1, 0);
+
+  return restCount > 0 ? `${firstDetail} +${restCount} lainnya` : firstDetail;
+}
+
+function SlotConflictPermission({
+  slots,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  slots: VisitDay["slots"];
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
-    <div className="admin-flex-warning" role="alert">
-      <AlertTriangle size={17} aria-hidden="true" />
-      <div><strong>Slot sudah digunakan</strong>{conflicts.length > 0 ? conflicts.map((item) => <span key={`${item.code}-${item.groupSize}`}>{item.code} · {item.groupSize} peserta · {BOOKING_STATUS_LABELS[item.status as BookingStatus] ?? item.status}</span>) : <span>Booking lain menempati salah satu slot tujuan.</span>}</div>
-    </div>
+    <label className="form-check admin-confirm-check admin-slot-conflict-check">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
+      />
+      <span className="admin-confirm-check-copy">
+        <span>Izinkan gabung ke slot yang sudah terisi</span>
+        <small>{conflictSummaryText(slots)}</small>
+      </span>
+    </label>
   );
 }
 
@@ -2448,12 +2490,21 @@ export function AdminBookingCreateModal({
           </div>
           {documentError && <strong className="form-message form-message--error">{documentError}</strong>}
         </div>
-        {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
-        {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan gabung ke slot yang sudah terisi</span></label>}
-        <label className="form-check admin-confirm-check">
-          <input type="checkbox" checked={confirmManualBooking} onChange={(event) => setConfirmManualBooking(event.target.checked)} disabled={busy} />
-          <span>{confirmationLabel}</span>
-        </label>
+        <div className="admin-confirmation-group" aria-label="Konfirmasi booking manual">
+          <span className="admin-confirmation-title">Konfirmasi</span>
+          {conflicts.length > 0 && (
+            <SlotConflictPermission
+              slots={conflicts.map(({ slot }) => slot)}
+              checked={allowOverbook}
+              onChange={setAllowOverbook}
+              disabled={busy}
+            />
+          )}
+          <label className="form-check admin-confirm-check">
+            <input type="checkbox" checked={confirmManualBooking} onChange={(event) => setConfirmManualBooking(event.target.checked)} disabled={busy} />
+            <span>{confirmationLabel}</span>
+          </label>
+        </div>
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions">
           <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button>
@@ -2640,7 +2691,6 @@ export function SegmentOverrideModal({
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
   const riskReasons = [
     groupSizeChanged && correctGroupSize ? `koreksi total ${booking.groupSize} -> ${total} peserta` : "",
-    shouldAllowOverbook ? "gabung ke slot terisi" : "",
     oversizedRows.length > 0 ? "kloter di atas kapasitas standar 80 peserta" : "",
   ].filter(Boolean);
   const riskConfirmationRequired = hasChanges && riskReasons.length > 0;
@@ -2661,6 +2711,7 @@ export function SegmentOverrideModal({
     (riskConfirmationRequired && !confirmRisk) ||
     !hasChanges;
   const totalStatusLabel = validTotal ? `${total} peserta` : "Total belum valid";
+  const shouldCorrectGroupSize = groupSizeChanged && correctGroupSize;
 
   useModalEscape(onClose, busy);
 
@@ -2739,8 +2790,8 @@ export function SegmentOverrideModal({
         groupSize: Number(row.groupSize),
       })),
       shouldAllowOverbook,
-      correctGroupSize,
-      confirmRisk,
+      shouldCorrectGroupSize,
+      confirmRisk || shouldAllowOverbook,
     );
   };
 
@@ -2846,20 +2897,29 @@ export function SegmentOverrideModal({
           <p className="segment-row-note">Baris dengan jam sama akan digabung saat disimpan.</p>
         )}
 
-        {overbookRows.length > 0 && (
-          <ConflictSummary slots={overbookSlots} />
-        )}
-
-        {overbookRows.length > 0 && (
-          <label className="form-check">
-            <input
-              type="checkbox"
-              checked={allowOverbook}
-              onChange={(event) => setAllowOverbook(event.target.checked)}
-              disabled={busy}
-            />
-            <span>Izinkan gabung ke slot yang sudah terisi</span>
-          </label>
+        {(overbookRows.length > 0 || riskConfirmationRequired) && (
+          <div className="admin-confirmation-group" aria-label="Konfirmasi perubahan kloter">
+            <span className="admin-confirmation-title">Konfirmasi</span>
+            {overbookRows.length > 0 && (
+              <SlotConflictPermission
+                slots={overbookSlots}
+                checked={allowOverbook}
+                onChange={setAllowOverbook}
+                disabled={busy}
+              />
+            )}
+            {riskConfirmationRequired && (
+              <label className="form-check admin-confirm-check">
+                <input
+                  type="checkbox"
+                  checked={confirmRisk}
+                  onChange={(event) => setConfirmRisk(event.target.checked)}
+                  disabled={busy}
+                />
+                <span>Konfirmasi perubahan berisiko untuk audit operasional: {riskReasons.join(", ")}.</span>
+              </label>
+            )}
+          </div>
         )}
 
         {validationMessages.length > 0 && (
@@ -2867,18 +2927,6 @@ export function SegmentOverrideModal({
             <AlertTriangle size={16} aria-hidden="true" />
             <span>{validationMessages[0]}</span>
           </p>
-        )}
-
-        {riskConfirmationRequired && (
-          <label className="form-check admin-confirm-check">
-            <input
-              type="checkbox"
-              checked={confirmRisk}
-              onChange={(event) => setConfirmRisk(event.target.checked)}
-              disabled={busy}
-            />
-            <span>Konfirmasi perubahan berisiko untuk audit operasional: {riskReasons.join(", ")}.</span>
-          </label>
         )}
 
         {error && <strong className="form-message form-message--error">{error}</strong>}
