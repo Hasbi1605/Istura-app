@@ -142,10 +142,8 @@ return [
             ],
             [
                 'heading' => 'Penyesuaian Jadwal Karena Acara Kenegaraan',
-                'body' => [
-                    'Sebagai salah satu Istana Kepresidenan aktif di Indonesia, Gedung Agung Yogyakarta sering kali digunakan untuk menyambut tamu negara, rapat kabinet, atau kegiatan kepresidenan mendesak lainnya.',
-                    'Apabila pada tanggal kunjungan Anda yang telah disetujui (Accepted) tiba-tiba dijadwalkan acara kenegaraan mendadak, admin ISTURA akan menghubungi perwakilan rombongan untuk melakukan penjadwalan ulang (reschedule) ke hari lain yang disepakati.',
-                ],
+                'Sebagai Istana Kepresidenan aktif, Gedung Agung Yogyakarta digunakan untuk kegiatan resmi kenegaraan seperti menyambut tamu negara atau agenda presiden lainnya.',
+                'Jika pada tanggal kunjungan yang telah disetujui tiba-tiba bersamaan dengan acara kenegaraan mendadak, admin ISTURA akan menghubungi koordinator/penanggung jawab kunjungan untuk menjadwal ulang kunjungan ke hari lain yang disepakati.',
                 'items' => [],
             ],
         ],
