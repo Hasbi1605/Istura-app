@@ -110,7 +110,7 @@ WebSocket (Laravel Reverb).
 
 | ID | Aturan |
 |----|--------|
-| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 hanya tampil bila admin membuka slot **Booking Dadakan Publik** yang masih dalam tenggat dan memiliki kapasitas. Admin dapat memakai H/H+1 melalui booking admin atau pindah jadwal langsung. |
+| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 hanya tampil bila admin membuka slot **Booking Dadakan Publik** yang masih dalam tenggat dan memiliki kapasitas. Admin dapat memakai H/H+1 melalui Booking Manual atau pindah jadwal langsung. |
 | BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 atau menetapkan kapasitas dadakan lebih besar dengan konfirmasi operasional dan audit. |
 | BR-3 | Jumlah rombongan: minimal 1, maksimal **480 orang** per hari kunjungan. |
 | BR-4 | NIK wajib 16 digit angka. WhatsApp wajib format `08...` atau `628...` (8–13 digit setelah prefix). |
@@ -148,16 +148,17 @@ untuk rombongan besar.
 ### 3.3 Manajemen Booking (Admin)
 Tabel booking dengan filter (status, rentang tanggal, sort), pencarian (kode/nama/instansi),
 mode tampilan (split/table), dan aksi siklus hidup: accept, reject, reschedule, cancel
-reschedule, complete, ubah kloter (segments), pindah jadwal langsung, buat booking admin,
+reschedule, complete, ubah kloter (segments), pindah jadwal langsung, buat Booking Manual,
 dan unduh surat. **Atur Kloter** hanya mengubah alokasi jam pada tanggal yang sama dan menjaga
 total peserta kecuali mode koreksi diaktifkan. **Pindah Jadwal Langsung** dapat memilih H/H+1,
 menolak jam hari ini yang sudah lewat, dan hanya tersedia untuk booking Pending/Accepted.
 Pada booking Accepted, admin menerima peringatan bahwa jadwal langsung berubah dan tamu harus
 sudah diberi tahu; booking berstatus Reschedule tetap diselesaikan melalui alur penjadwalan ulang.
-Pindah Jadwal Langsung menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking yang dibuat
-admin dapat dibuat tanpa surat atau dengan surat permohonan opsional, tetap mengenkripsi NIK,
-dan menyimpan langsung tanpa membuka WhatsApp otomatis. Aksi lifecycle utama tetap
-menghasilkan pesan WhatsApp siap kirim dan audit.
+Pindah Jadwal Langsung menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking Manual
+dapat dibuat tanpa surat atau dengan surat permohonan opsional, tetap mengenkripsi NIK,
+menampilkan keterangan slot terbuka per tanggal, memakai chip jam/kloter seperti Pindah
+Jadwal Langsung, dan menyimpan langsung tanpa membuka WhatsApp otomatis. Aksi lifecycle
+utama tetap menghasilkan pesan WhatsApp siap kirim dan audit.
 
 ### 3.4 Booking Dadakan
 Admin mengatur slot dadakan dari Jadwal Kunjungan dengan pilihan **Admin saja** atau

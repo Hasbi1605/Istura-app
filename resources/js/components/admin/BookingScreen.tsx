@@ -489,9 +489,9 @@ export function AdminScreen({
 			</div>
 		<div className="admin-heading-actions">
 		  {!readOnly && (
-		    <button type="button" className="button button-primary admin-create-booking-button" onClick={() => setShowCreateModal(true)} title="Buat booking admin" aria-label="Buat booking admin">
+		    <button type="button" className="button button-primary admin-create-booking-button" onClick={() => setShowCreateModal(true)} title="Buat booking manual" aria-label="Buat booking manual">
 		      <UserPlus size={16} aria-hidden="true" />
-		      Booking Admin
+		      Booking Manual
 		    </button>
 		  )}
           <div className="search-box">
@@ -1980,7 +1980,6 @@ export function AdminBookingCreateModal({
   const days = schedules.filter((day) => day.date >= todayKey && day.date <= formatDateKey(addMonths(jakartaToday(), 2)));
   const firstDay = days.find((day) => day.slots.some((slot) => slot.status === "Available")) ?? days[0];
   const [form, setForm] = useState({ contactName: "", nik: "", whatsapp: "", institution: "", groupSize: "", date: firstDay?.date ?? "", time: "", status: "Accepted" as "Pending" | "Accepted" });
-  const [confirmedWithGuest, setConfirmedWithGuest] = useState(false);
   const [confirmManualBooking, setConfirmManualBooking] = useState(false);
   const [allowOverbook, setAllowOverbook] = useState(false);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -1995,17 +1994,65 @@ export function AdminBookingCreateModal({
   const invalid = !form.contactName.trim() || !/^\d{16}$/.test(form.nik) || !/^(08|628)\d{8,13}$/.test(form.whatsapp)
     || !form.institution.trim() || !Number.isInteger(groupSize) || groupSize < 1 || groupSize > ADMIN_MAX_BOOKING_GROUP_SIZE
     || !form.date || !form.time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(form.date, form.time)
-    || conflicts.length > 0 && !allowOverbook || !confirmManualBooking || form.status === "Accepted" && !confirmedWithGuest
+    || conflicts.length > 0 && !allowOverbook || !confirmManualBooking
     || Boolean(documentError);
+
+  const startCandidates = (startTime: string) => candidateSlots(day, startTime, groupSize);
+  const canSelectStart = (slot: VisitDay["slots"][number]) => {
+    const group = startCandidates(slot.time);
+    return group.length === requiredSlots
+      && !isPastVisitTime(form.date, slot.time)
+      && group.every(({ slot: item }) => item.status !== "Closed" && !isPastVisitTime(form.date, item.time));
+  };
+
+  const selectedSlotSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!day || !form.time) return set;
+    const startIndex = day.slots.findIndex((slot) => slot.time === form.time);
+    if (startIndex < 0) return set;
+    for (let index = 0; index < requiredSlots && startIndex + index < day.slots.length; index += 1) {
+      set.add(day.slots[startIndex + index].time);
+    }
+    return set;
+  }, [day, form.time, requiredSlots]);
+
+  const slotChipClass = (slot: VisitDay["slots"][number]) => {
+    const selected = selectedSlotSet.has(slot.time);
+    const available = slot.status === "Available";
+    const closed = slot.status === "Closed";
+    const selectable = canSelectStart(slot);
+    return [
+      "segment-slot-chip",
+      selected ? "is-selected" : "",
+      !selected && available && selectable ? "is-available" : "",
+      !selected && available && !selectable ? "is-full" : "",
+      !selected && !available && !closed ? "is-occupied" : "",
+      !selected && (closed || isPastVisitTime(form.date, slot.time)) ? "is-closed" : "",
+    ].filter(Boolean).join(" ");
+  };
+
+  const slotLabel = (slot: VisitDay["slots"][number]) => {
+    if (selectedSlotSet.has(slot.time) && requiredSlots > 1) {
+      const startIndex = day ? day.slots.findIndex((item) => item.time === form.time) : -1;
+      const slotIndex = day ? day.slots.findIndex((item) => item.time === slot.time) : -1;
+      if (startIndex >= 0 && slotIndex >= 0) return `Kloter ${slotIndex - startIndex + 1}`;
+    }
+    if (isPastVisitTime(form.date, slot.time)) return "Lewat";
+    if (slot.status === "Available") return canSelectStart(slot) ? "Tersedia" : "Tidak cukup";
+    if (slot.status === "Closed") return "Tutup";
+    if (slot.status === "Booked") return "Penuh";
+    if (slot.status === "Held" || slot.status === "Reschedule Hold") return "Diproses";
+    return segmentStatusLabel[slot.status] ?? "Terisi";
+  };
 
   useModalEscape(onClose, busy);
 
   useEffect(() => {
-    const first = day?.slots.find((slot) => slot.status === "Available" && !isPastVisitTime(form.date, slot.time))
-      ?? day?.slots.find((slot) => slot.status !== "Closed" && !isPastVisitTime(form.date, slot.time));
+    const first = day?.slots.find((slot) => slot.status === "Available" && canSelectStart(slot))
+      ?? day?.slots.find((slot) => canSelectStart(slot));
     setForm((current) => ({ ...current, time: first?.time ?? "" }));
     setAllowOverbook(false);
-  }, [day, form.date]);
+  }, [day, form.date, requiredSlots]);
 
   const setField = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const clearDocument = () => {
@@ -2031,21 +2078,64 @@ export function AdminBookingCreateModal({
     setDocumentFile(file);
     setDocumentError("");
   };
+  const confirmationLabel = form.status === "Accepted"
+    ? "Jadwal sudah disepakati dengan tamu dan booking manual siap dibuat."
+    : "Booking manual dibuat dari koordinasi admin. Surat boleh kosong bila tidak tersedia.";
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <div className="modal-card admin-flex-modal admin-create-booking-modal" role="dialog" aria-modal="true" aria-label="Buat booking admin">
+      <div className="modal-card admin-flex-modal admin-create-booking-modal" role="dialog" aria-modal="true" aria-label="Buat booking manual">
         <button className="modal-close" type="button" onClick={onClose} disabled={busy} aria-label="Tutup modal"><X size={18} /></button>
-        <header className="segment-modal-head"><span className="segment-modal-kicker">Tamu khusus</span><h2>Buat booking admin</h2><p>Surat permohonan boleh dilampirkan bila tersedia. NIK tersimpan terenkripsi dan tampil penuh hanya untuk admin.</p></header>
+        <header className="segment-modal-head"><span className="segment-modal-kicker">Tamu khusus</span><h2>Buat booking manual</h2><p>Surat permohonan boleh dilampirkan bila tersedia. NIK tersimpan terenkripsi dan tampil penuh hanya untuk admin.</p></header>
         <div className="admin-flex-grid">
           <label className="form-field"><span>Nama contact person</span><input value={form.contactName} onChange={(event) => setField("contactName", event.target.value)} /></label>
           <label className="form-field"><span>NIK</span><input inputMode="numeric" maxLength={16} value={form.nik} onChange={(event) => setField("nik", event.target.value.replace(/\D/g, ""))} /></label>
           <label className="form-field"><span>WhatsApp</span><input inputMode="tel" value={form.whatsapp} onChange={(event) => setField("whatsapp", event.target.value.replace(/\D/g, ""))} /></label>
           <label className="form-field"><span>Instansi / keterangan tamu</span><input value={form.institution} onChange={(event) => setField("institution", event.target.value)} /></label>
           <label className="form-field"><span>Jumlah peserta</span><input type="number" min={1} max={ADMIN_MAX_BOOKING_GROUP_SIZE} value={form.groupSize} onChange={(event) => setField("groupSize", event.target.value)} /></label>
-          <label className="form-field"><span>Status awal</span><select value={form.status} onChange={(event) => { setField("status", event.target.value); setConfirmedWithGuest(false); }}><option value="Accepted">Disetujui</option><option value="Pending">Menunggu</option></select></label>
-          <label className="form-field"><span>Tanggal</span><select value={form.date} onChange={(event) => setField("date", event.target.value)}>{days.map((item) => <option key={item.date} value={item.date}>{item.label}</option>)}</select></label>
-          <label className="form-field"><span>Jam mulai</span><select value={form.time} onChange={(event) => { setField("time", event.target.value); setAllowOverbook(false); }}><option value="">Pilih jam</option>{day?.slots.map((slot) => <option key={slot.time} value={slot.time} disabled={slot.status === "Closed" || isPastVisitTime(form.date, slot.time)}>{slot.time} - {segmentStatusLabel[slot.status] ?? slot.status}</option>)}</select></label>
+          <label className="form-field"><span>Status awal</span><select value={form.status} onChange={(event) => setField("status", event.target.value)}><option value="Accepted">Disetujui</option><option value="Pending">Menunggu</option></select></label>
+        </div>
+        <div className="segment-slot-picker">
+          <label className="form-field">
+            <span>Tanggal</span>
+            <select value={form.date} onChange={(event) => setField("date", event.target.value)}>
+              {days.map((item) => {
+                const openSlots = item.slots.filter((slot) => slot.status !== "Closed" && !isPastVisitTime(item.date, slot.time)).length;
+                return (
+                  <option key={item.date} value={item.date}>
+                    {item.label} - {openSlots > 0 ? `${openSlots} slot terbuka` : "tidak ada slot"}
+                  </option>
+                );
+              })}
+            </select>
+            {days.length === 0 && <small>Tidak ada tanggal yang tersedia.</small>}
+          </label>
+          {day && (
+            <>
+              <div className="segment-slot-picker-head">
+                <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
+                <small>Slot terisi butuh izin overbook.</small>
+              </div>
+              <div className="segment-slot-grid">
+                {day.slots.map((slot) => {
+                  const selected = selectedSlotSet.has(slot.time);
+                  const disabled = !selected && !canSelectStart(slot);
+                  return (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      className={slotChipClass(slot)}
+                      onClick={() => { setField("time", slot.time); setAllowOverbook(false); }}
+                      disabled={disabled}
+                    >
+                      <strong>{slot.time}</strong>
+                      <small>{slotLabel(slot)}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
         <div className="admin-file-field admin-create-booking-document">
           <span className="admin-file-field-label">Surat permohonan (opsional)</span>
@@ -2067,13 +2157,12 @@ export function AdminBookingCreateModal({
         </div>
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
         {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
-        {form.status === "Accepted" && <label className="form-check"><input type="checkbox" checked={confirmedWithGuest} onChange={(event) => setConfirmedWithGuest(event.target.checked)} /><span>Jadwal sudah disepakati dengan tamu</span></label>}
         <label className="form-check admin-confirm-check">
           <input type="checkbox" checked={confirmManualBooking} onChange={(event) => setConfirmManualBooking(event.target.checked)} disabled={busy} />
-          <span>Booking manual ini dibuat dari koordinasi admin. Surat boleh kosong bila tidak tersedia.</span>
+          <span>{confirmationLabel}</span>
         </label>
         {error && <strong className="form-message form-message--error">{error}</strong>}
-        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm({ ...form, groupSize, confirmedWithGuest: confirmedWithGuest || undefined, confirmManualBooking, allowOverbook: allowOverbook || undefined, document: documentFile })}>{busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat booking"}</button></div>
+        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm({ ...form, groupSize, confirmedWithGuest: form.status === "Accepted" ? confirmManualBooking : undefined, confirmManualBooking, allowOverbook: allowOverbook || undefined, document: documentFile })}>{busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat booking"}</button></div>
       </div>
     </div>
   );
