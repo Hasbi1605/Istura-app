@@ -1917,7 +1917,12 @@ export function DirectMoveModal({
         </div>
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
         {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
-        {booking.status === "Accepted" && <div className="admin-flex-warning" role="note"><AlertTriangle size={17} aria-hidden="true" /><div><strong>Jadwal akan langsung berubah</strong><span>Tindakan ini tidak melalui proses usulan ulang. Pastikan tamu sudah diberi tahu.</span></div></div>}
+        {booking.status === "Accepted" && (
+          <div className="direct-move-note" role="note">
+            <AlertTriangle size={15} aria-hidden="true" />
+            <span><strong>Jadwal langsung berubah.</strong> Pastikan tamu sudah diberi tahu.</span>
+          </div>
+        )}
         <label className="form-field"><span>Alasan perubahan</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: penyesuaian operasional dan tamu sudah diberi tahu." /></label>
         {sameSchedule && <strong className="form-message form-message--error">Pilih jadwal yang berbeda dari jadwal saat ini.</strong>}
         {(isPastVisitTime(date, time) || hasPast) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
