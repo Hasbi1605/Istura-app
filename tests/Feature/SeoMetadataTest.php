@@ -148,7 +148,6 @@ class SeoMetadataTest extends TestCase
             'gedung-agung-yogyakarta',
             'istana-kepresidenan-yogyakarta',
             'museum-istana-kepresidenan-yogyakarta',
-            'wisata-edukasi-gratis-jogja',
         ];
 
         foreach ($slugs as $slug) {
@@ -178,7 +177,6 @@ class SeoMetadataTest extends TestCase
             'gedung-agung-yogyakarta',
             'istana-kepresidenan-yogyakarta',
             'museum-istana-kepresidenan-yogyakarta',
-            'wisata-edukasi-gratis-jogja',
         ];
 
         foreach ($slugs as $slug) {
@@ -214,7 +212,6 @@ class SeoMetadataTest extends TestCase
             'gedung-agung-yogyakarta',
             'istana-kepresidenan-yogyakarta',
             'museum-istana-kepresidenan-yogyakarta',
-            'wisata-edukasi-gratis-jogja',
         ];
 
         foreach ($slugs as $slug) {

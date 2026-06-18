@@ -139,7 +139,6 @@
                         <li><a href="/info/gedung-agung-yogyakarta">Gedung Agung Yogyakarta</a></li>
                         <li><a href="/info/istana-kepresidenan-yogyakarta">Istana Kepresidenan Yogyakarta</a></li>
                         <li><a href="/info/museum-istana-kepresidenan-yogyakarta">Museum Istana Kepresidenan Yogyakarta</a></li>
-                        <li><a href="/info/wisata-edukasi-gratis-jogja">Wisata Edukasi Gratis di Jogja</a></li>
                     </ul>
                 </section>
             </main>
