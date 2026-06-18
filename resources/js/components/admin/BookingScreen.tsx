@@ -1074,7 +1074,7 @@ export function BookingDetailPanel({
           <KloterDetailList segments={bookingSegments(booking)} />
         )}
         {booking.expiredAt && <DetailItem label="Kedaluwarsa" value={booking.expiredAt} />}
-        {booking.note && <DetailItem label="Catatan admin" value={booking.note} />}
+        <BookingNoteDetails note={booking.note} />
         <DocumentDetailItem
           label="Surat"
           documentName={booking.documentName}
@@ -1104,6 +1104,7 @@ export function BookingDetailPanel({
 }
 
 export function RescheduleProposalBanner({ booking }: { booking: Booking }) {
+  const notes = splitBookingNotes(booking.note);
   // Surface the original vs proposed slot so the admin sees exactly what was
   // offered to the visitor without re-reading the WhatsApp thread.
   return (
@@ -1134,7 +1135,7 @@ export function RescheduleProposalBanner({ booking }: { booking: Booking }) {
       {booking.proposedAt && (
         <div className="reschedule-banner-meta">Diusulkan {booking.proposedAt}</div>
       )}
-      {booking.note && <div className="reschedule-banner-note">Catatan admin: {booking.note}</div>}
+      {notes.admin.length > 0 && <div className="reschedule-banner-note">Catatan admin: {notes.admin.join(" ")}</div>}
     </div>
   );
 }
@@ -1525,7 +1526,7 @@ export function BookingSlideOver({
             <KloterDetailList segments={bookingSegments(booking)} />
           )}
           {booking.expiredAt && <DetailItem label="Kedaluwarsa" value={booking.expiredAt} />}
-          {booking.note && <DetailItem label="Catatan admin" value={booking.note} />}
+          <BookingNoteDetails note={booking.note} />
           <DocumentDetailItem
             label="Surat"
             documentName={booking.documentName}
@@ -2038,6 +2039,61 @@ function ConflictSummary({ slots }: { slots: VisitDay["slots"] }) {
       <AlertTriangle size={17} aria-hidden="true" />
       <div><strong>Slot sudah digunakan</strong>{conflicts.length > 0 ? conflicts.map((item) => <span key={`${item.code}-${item.groupSize}`}>{item.code} · {item.groupSize} peserta · {BOOKING_STATUS_LABELS[item.status as BookingStatus] ?? item.status}</span>) : <span>Booking lain menempati salah satu slot tujuan.</span>}</div>
     </div>
+  );
+}
+
+const systemAdminNotePattern = /^\[\d{2}-\d{2}-\d{4} \d{2}\.\d{2} WIB\]\s*Konfirmasi admin:/;
+
+const splitBookingNotes = (note?: string | null) => {
+  const entries = (note ?? "")
+    .split(/\n+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return entries.reduce(
+    (grouped, entry) => {
+      if (systemAdminNotePattern.test(entry)) {
+        grouped.system.push(entry);
+      } else {
+        grouped.admin.push(entry);
+      }
+
+      return grouped;
+    },
+    { admin: [] as string[], system: [] as string[] },
+  );
+};
+
+function BookingNoteDetails({ note }: { note?: string | null }) {
+  const notes = splitBookingNotes(note);
+  if (notes.admin.length === 0 && notes.system.length === 0) return null;
+
+  return (
+    <>
+      {notes.admin.length > 0 && (
+        <div className="detail-item detail-item--admin-note">
+          <span>Catatan admin</span>
+          <div className="booking-admin-note-list">
+            {notes.admin.map((entry, index) => (
+              <strong key={`${entry}-${index}`}>{entry}</strong>
+            ))}
+          </div>
+        </div>
+      )}
+      {notes.system.length > 0 && (
+        <div className="detail-item detail-item--system-note">
+          <span>Riwayat sistem</span>
+          <details className="booking-system-note">
+            <summary>{notes.system.length} catatan otomatis</summary>
+            <div className="booking-system-note-list">
+              {notes.system.map((entry, index) => (
+                <p key={`${entry}-${index}`}>{entry}</p>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
+    </>
   );
 }
 

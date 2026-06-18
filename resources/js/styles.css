@@ -4461,6 +4461,72 @@ a {
   background: transparent;
 }
 
+.admin-shell-content .detail-item--admin-note,
+.admin-shell-content .detail-item--system-note,
+.booking-slideover .detail-item--admin-note,
+.booking-slideover .detail-item--system-note {
+  align-items: start;
+}
+
+.booking-admin-note-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.booking-admin-note-list strong {
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.booking-system-note {
+  min-width: 0;
+}
+
+.booking-system-note summary {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  color: rgba(16, 24, 47, 0.64);
+  background: rgba(16, 24, 47, 0.04);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+
+.booking-system-note summary::-webkit-details-marker {
+  display: none;
+}
+
+.booking-system-note[open] summary {
+  color: var(--navy);
+  background: rgba(196, 146, 18, 0.12);
+  border-color: rgba(196, 146, 18, 0.24);
+}
+
+.booking-system-note-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.booking-system-note-list p {
+  margin: 0;
+  padding: 8px 10px;
+  color: rgba(16, 24, 47, 0.68);
+  background: rgba(248, 250, 252, 0.82);
+  border: 1px dashed rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .admin-shell-content .detail-item--kloter-list,
 .booking-slideover .detail-item--kloter-list {
   align-items: start;
