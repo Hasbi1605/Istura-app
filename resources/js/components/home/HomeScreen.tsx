@@ -840,6 +840,7 @@ function HeroMikySpeech({
     <div
       ref={bubbleRef}
       className="miky-speech"
+      data-miky-pose={safeIndex}
       role="note"
       aria-live="polite"
       onClick={(event) => {
