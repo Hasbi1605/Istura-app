@@ -115,7 +115,7 @@ return [
             [
                 'heading' => 'Hari dan Jam Operasional Kunjungan',
                 'body' => [
-                    'Program ISTURA di Istana Kepresidenan Yogyakarta diselenggarakan secara reguler pada hari Senin hingga Kamis, dengan pengecualian pada hari libur nasional atau saat adanya acara kenegaraan yang mendesak.',
+                    'Program ISTURA di Istana Kepresidenan Yogyakarta secara umum diselenggarakan pada hari Senin hingga Jumat (kecuali pada hari libur nasional, akhir pekan Sabtu-Minggu, atau saat penyesuaian operasional khusus).',
                     'Kunjungan dalam sehari dibagi menjadi beberapa slot waktu kloter (sesi) guna membatasi jumlah orang yang berada di dalam kompleks istana secara bersamaan. Jam operasional kunjungan standar adalah sebagai berikut:',
                 ],
                 'items' => [
@@ -142,8 +142,10 @@ return [
             ],
             [
                 'heading' => 'Penyesuaian Jadwal Karena Acara Kenegaraan',
-                'Sebagai Istana Kepresidenan aktif, Gedung Agung Yogyakarta digunakan untuk kegiatan resmi kenegaraan seperti menyambut tamu negara atau agenda presiden lainnya.',
-                'Jika pada tanggal kunjungan yang telah disetujui tiba-tiba bersamaan dengan acara kenegaraan mendadak, admin ISTURA akan menghubungi koordinator/penanggung jawab kunjungan untuk menjadwal ulang kunjungan ke hari lain yang disepakati.',
+                'body' => [
+                    'Sebagai Istana Kepresidenan aktif, Gedung Agung Yogyakarta digunakan untuk kegiatan resmi kenegaraan seperti menyambut tamu negara atau agenda presiden lainnya.',
+                    'Jika pada tanggal kunjungan yang telah disetujui tiba-tiba bersamaan dengan acara kenegaraan mendadak, admin ISTURA akan menghubungi koordinator/penanggung jawab kunjungan untuk menjadwal ulang kunjungan ke hari lain yang disepakati.',
+                ],
                 'items' => [],
             ],
         ],
@@ -158,7 +160,7 @@ return [
             ],
             [
                 'question' => 'Apakah ISTURA buka pada hari Jumat, Sabtu, dan Minggu?',
-                'answer' => 'Tidak. Kunjungan reguler ISTURA hanya dibuka pada hari Senin hingga Kamis. Hari Jumat, Sabtu, Minggu, serta tanggal merah nasional otomatis ditutup (Closed).',
+                'answer' => 'Kunjungan reguler ISTURA secara umum dibuka pada hari Senin hingga Jumat. Hari Sabtu, Minggu, serta tanggal merah nasional ditutup. Catatan: Untuk hari Jumat, operasional saat ini dapat disesuaikan mengikuti kebijakan WFH atau penyesuaian operasional internal yang berlaku.',
             ],
             [
                 'question' => 'Apa yang harus dilakukan jika slot tanggal yang diinginkan penuh?',
