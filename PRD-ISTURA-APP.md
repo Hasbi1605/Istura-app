@@ -156,8 +156,9 @@ Pada booking Accepted, admin menerima peringatan bahwa jadwal langsung berubah d
 sudah diberi tahu; booking berstatus Reschedule tetap diselesaikan melalui alur penjadwalan ulang.
 Pindah Jadwal Langsung menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking Manual
 dapat dibuat tanpa surat atau dengan surat permohonan opsional, tetap mengenkripsi NIK,
-menampilkan keterangan slot terbuka per tanggal, memakai chip jam/kloter seperti Pindah
-Jadwal Langsung, dan menyimpan langsung tanpa membuka WhatsApp otomatis. Aksi lifecycle
+menampilkan keterangan slot kosong/overbook per tanggal, memakai chip jam/kloter seperti Pindah
+Jadwal Langsung, dan menyimpan langsung tanpa membuka WhatsApp otomatis. Tawarkan Jadwal
+Lain hanya menampilkan tanggal yang benar-benar memiliki slot tersedia untuk ditawarkan ke tamu. Aksi lifecycle
 utama tetap menghasilkan pesan WhatsApp siap kirim dan audit.
 
 ### 3.4 Booking Dadakan

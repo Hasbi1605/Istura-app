@@ -1575,11 +1575,11 @@ export function AdminActionModal({
   const segments = bookingSegments(modal.booking);
   const requiredSlots = segments.length > 1 ? segments.length : 1;
   const minProposedDate = addDays(jakartaToday(), 1);
-  const eligibleDays = schedules.filter((day) => {
-    if (parseDateKey(day.date) < minProposedDate) return false;
-    const hasOpenSlot = day.slots.some((slot) => slot.status !== "Closed");
-    return hasOpenSlot;
-  });
+  const rescheduleDateOptions = schedules
+    .filter((day) => parseDateKey(day.date) >= minProposedDate)
+    .map((day) => guestDateOption(day, requiredSlots))
+    .filter((option) => !option.disabled);
+  const eligibleDays = rescheduleDateOptions.map((option) => option.day);
   const bookingDateInList = eligibleDays.find((day) => day.date === modal.booking.date);
   const defaultDate = bookingDateInList?.date ?? eligibleDays[0]?.date ?? "";
   const [selectedDay, setSelectedDay] = useState(defaultDate);
@@ -1680,14 +1680,11 @@ export function AdminActionModal({
             <label className="form-field">
               <span>Pilih tanggal baru</span>
               <select value={selectedDay} onChange={(event) => handleDayChange(event.target.value)}>
-                {eligibleDays.map((day) => {
-                  const availCount = day.slots.filter((s) => s.status === "Available").length;
-                  return (
-                    <option key={day.date} value={day.date}>
-                      {day.label} - {availCount > 0 ? `${availCount} slot tersedia` : "penuh"}
-                    </option>
-                  );
-                })}
+                {rescheduleDateOptions.map((option) => (
+                  <option key={option.day.date} value={option.day.date}>
+                    {option.day.label} - {option.label}
+                  </option>
+                ))}
               </select>
               {eligibleDays.length === 0 && <small>Tidak ada tanggal tersedia untuk dijadwalkan ulang.</small>}
             </label>
@@ -1782,6 +1779,62 @@ function isPastVisitTime(date: string, time: string) {
   return visit.getTime() <= Date.now();
 }
 
+type DateOptionSummary = {
+  day: VisitDay;
+  label: string;
+  disabled: boolean;
+};
+
+const optionUnit = (requiredSlots: number) => requiredSlots > 1 ? "pilihan" : "slot";
+
+const consecutiveSlotGroups = (day: VisitDay, requiredSlots: number) => {
+  const slotCount = Math.max(1, requiredSlots);
+
+  return day.slots
+    .map((_, index) => day.slots.slice(index, index + slotCount))
+    .filter((group) => group.length === slotCount);
+};
+
+const guestDateOption = (day: VisitDay, requiredSlots: number): DateOptionSummary => {
+  const availableStarts = day.slots.filter((slot) => canFitConsecutiveSlots(day, slot.time, requiredSlots)).length;
+
+  return {
+    day,
+    label: `${availableStarts} ${optionUnit(requiredSlots)} tersedia`,
+    disabled: availableStarts === 0,
+  };
+};
+
+const adminDateOption = (day: VisitDay, requiredSlots: number): DateOptionSummary => {
+  const groups = consecutiveSlotGroups(day, requiredSlots).filter((group) =>
+    group.every((slot) => slot.status !== "Closed" && !isPastVisitTime(day.date, slot.time)),
+  );
+  const availableStarts = groups.filter((group) => group.every((slot) => slot.status === "Available")).length;
+  const overbookStarts = groups.length - availableStarts;
+  const unit = optionUnit(requiredSlots);
+
+  let label = "tidak ada jam operasional";
+  if (availableStarts > 0 && overbookStarts > 0) {
+    label = `${availableStarts} ${unit} kosong + ${overbookStarts} overbook`;
+  } else if (availableStarts > 0) {
+    label = `${availableStarts} ${unit} kosong`;
+  } else if (overbookStarts > 0) {
+    label = `${overbookStarts} ${unit} overbook`;
+  }
+
+  return {
+    day,
+    label,
+    disabled: groups.length === 0,
+  };
+};
+
+const firstSelectableDate = (options: DateOptionSummary[], preferredDate?: string) =>
+  options.find((option) => option.day.date === preferredDate && !option.disabled)?.day.date ??
+  options.find((option) => !option.disabled)?.day.date ??
+  options[0]?.day.date ??
+  "";
+
 export function DirectMoveModal({
   booking,
   schedules,
@@ -1800,20 +1853,22 @@ export function DirectMoveModal({
   const todayKey = formatDateKey(jakartaToday());
   const maxDateKey = formatDateKey(addMonths(jakartaToday(), 2));
   const days = schedules.filter((day) => day.date >= todayKey && day.date <= maxDateKey);
-  const [date, setDate] = useState(booking.date >= todayKey ? booking.date : days[0]?.date ?? "");
+  const requiredSlots = splitGroupSizes(booking.groupSize).length;
+  const dateOptions = days.map((day) => adminDateOption(day, requiredSlots));
+  const [date, setDate] = useState(firstSelectableDate(dateOptions, booking.date >= todayKey ? booking.date : undefined));
   const [time, setTime] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
   const [confirmedDirectMove, setConfirmedDirectMove] = useState(false);
-  const day = days.find((item) => item.date === date);
+  const selectedDateOption = dateOptions.find((item) => item.day.date === date);
+  const day = selectedDateOption?.day ?? days.find((item) => item.date === date);
   const candidates = candidateSlots(day, time, booking.groupSize);
-  const requiredSlots = splitGroupSizes(booking.groupSize).length;
   const ownKeys = new Set(bookingSegments(booking).map((segment) => `${segment.date}|${segment.time}`));
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
   const hasPast = candidates.some(({ slot }) => isPastVisitTime(date, slot.time));
   const conflicts = candidates.filter(({ slot }) => slot.status !== "Available" && !ownKeys.has(`${date}|${slot.time}`));
   const sameSchedule = date === booking.date && time === booking.time;
   const busy = Boolean(pendingLabel);
-  const invalid = !date || !time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(date, time)
+  const invalid = selectedDateOption?.disabled || !date || !time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(date, time)
     || hasPast || conflicts.length > 0 && !allowOverbook || !confirmedDirectMove || sameSchedule;
 
   const startCandidates = (startTime: string) => candidateSlots(day, startTime, booking.groupSize);
@@ -1869,6 +1924,11 @@ export function DirectMoveModal({
   useModalEscape(onClose, busy);
 
   useEffect(() => {
+    const nextDate = firstSelectableDate(dateOptions, date);
+    if (date !== nextDate) setDate(nextDate);
+  }, [date, dateOptions]);
+
+  useEffect(() => {
     const first = day?.slots.find((slot) => slot.status === "Available" && canSelectStart(slot))
       ?? day?.slots.find((slot) => canSelectStart(slot));
     setTime(first?.time ?? "");
@@ -1889,14 +1949,11 @@ export function DirectMoveModal({
           <label className="form-field">
             <span>Pilih tanggal tujuan</span>
             <select value={date} onChange={(event) => setDate(event.target.value)}>
-              {days.map((item) => {
-                const openSlots = item.slots.filter((slot) => slot.status !== "Closed" && !isPastVisitTime(item.date, slot.time)).length;
-                return (
-                  <option key={item.date} value={item.date}>
-                    {item.label} - {openSlots > 0 ? `${openSlots} slot terbuka` : "tidak ada slot"}
-                  </option>
-                );
-              })}
+              {dateOptions.map((option) => (
+                <option key={option.day.date} value={option.day.date} disabled={option.disabled}>
+                  {option.day.label} - {option.label}
+                </option>
+              ))}
             </select>
             {days.length === 0 && <small>Tidak ada tanggal tujuan yang tersedia.</small>}
           </label>
@@ -1978,21 +2035,24 @@ export function AdminBookingCreateModal({
 }) {
   const todayKey = formatDateKey(jakartaToday());
   const days = schedules.filter((day) => day.date >= todayKey && day.date <= formatDateKey(addMonths(jakartaToday(), 2)));
-  const firstDay = days.find((day) => day.slots.some((slot) => slot.status === "Available")) ?? days[0];
-  const [form, setForm] = useState({ contactName: "", nik: "", whatsapp: "", institution: "", groupSize: "", date: firstDay?.date ?? "", time: "", status: "Accepted" as "Pending" | "Accepted" });
+  const initialDateOptions = days.map((day) => adminDateOption(day, 1));
+  const [form, setForm] = useState({ contactName: "", nik: "", whatsapp: "", institution: "", groupSize: "", date: firstSelectableDate(initialDateOptions), time: "", status: "Accepted" as "Pending" | "Accepted" });
   const [confirmManualBooking, setConfirmManualBooking] = useState(false);
   const [allowOverbook, setAllowOverbook] = useState(false);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentError, setDocumentError] = useState("");
   const documentInputRef = useRef<HTMLInputElement | null>(null);
-  const day = days.find((item) => item.date === form.date);
   const groupSize = Number(form.groupSize);
+  const validGroupSize = Number.isInteger(groupSize) && groupSize >= 1 && groupSize <= ADMIN_MAX_BOOKING_GROUP_SIZE;
+  const requiredSlots = splitGroupSizes(validGroupSize ? groupSize : 1).length;
+  const dateOptions = days.map((day) => adminDateOption(day, requiredSlots));
+  const selectedDateOption = dateOptions.find((item) => item.day.date === form.date);
+  const day = selectedDateOption?.day ?? days.find((item) => item.date === form.date);
   const candidates = candidateSlots(day, form.time, groupSize);
-  const requiredSlots = splitGroupSizes(groupSize).length;
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
   const conflicts = candidates.filter(({ slot }) => slot.status !== "Available");
   const invalid = !form.contactName.trim() || !/^\d{16}$/.test(form.nik) || !/^(08|628)\d{8,13}$/.test(form.whatsapp)
-    || !form.institution.trim() || !Number.isInteger(groupSize) || groupSize < 1 || groupSize > ADMIN_MAX_BOOKING_GROUP_SIZE
+    || !form.institution.trim() || !validGroupSize || selectedDateOption?.disabled
     || !form.date || !form.time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(form.date, form.time)
     || conflicts.length > 0 && !allowOverbook || !confirmManualBooking
     || Boolean(documentError);
@@ -2048,6 +2108,13 @@ export function AdminBookingCreateModal({
   useModalEscape(onClose, busy);
 
   useEffect(() => {
+    const nextDate = firstSelectableDate(dateOptions, form.date);
+    if (form.date !== nextDate) {
+      setForm((current) => current.date === nextDate ? current : { ...current, date: nextDate, time: "" });
+    }
+  }, [dateOptions, form.date]);
+
+  useEffect(() => {
     const first = day?.slots.find((slot) => slot.status === "Available" && canSelectStart(slot))
       ?? day?.slots.find((slot) => canSelectStart(slot));
     setForm((current) => ({ ...current, time: first?.time ?? "" }));
@@ -2099,14 +2166,11 @@ export function AdminBookingCreateModal({
           <label className="form-field">
             <span>Tanggal</span>
             <select value={form.date} onChange={(event) => setField("date", event.target.value)}>
-              {days.map((item) => {
-                const openSlots = item.slots.filter((slot) => slot.status !== "Closed" && !isPastVisitTime(item.date, slot.time)).length;
-                return (
-                  <option key={item.date} value={item.date}>
-                    {item.label} - {openSlots > 0 ? `${openSlots} slot terbuka` : "tidak ada slot"}
-                  </option>
-                );
-              })}
+              {dateOptions.map((option) => (
+                <option key={option.day.date} value={option.day.date} disabled={option.disabled}>
+                  {option.day.label} - {option.label}
+                </option>
+              ))}
             </select>
             {days.length === 0 && <small>Tidak ada tanggal yang tersedia.</small>}
           </label>
