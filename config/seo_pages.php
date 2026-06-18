@@ -6,14 +6,14 @@ return [
         'title' => 'Cara Daftar ISTURA Yogyakarta: Alur Booking Gedung Agung',
         'description' => 'Panduan cara daftar ISTURA Yogyakarta untuk kunjungan Gedung Agung: cek jadwal, siapkan surat permohonan, isi data, dan tunggu konfirmasi admin.',
         'h1' => 'Cara Daftar ISTURA Yogyakarta',
-        'intro' => 'Ingin mengunjungi Istana Kepresidenan Yogyakarta secara resmi? Program ISTURA (Istana Untuk Rakyat) membuka kesempatan bagi masyarakat umum, sekolah, instansi, maupun komunitas untuk melihat langsung kemegahan Gedung Agung. Pendaftaran wajib dilakukan secara online terlebih dahulu dengan mengikuti beberapa langkah mudah berikut ini.',
+        'intro' => 'Ingin mengunjungi Istana Kepresidenan Yogyakarta secara resmi? Program ISTURA (Istana Untuk Rakyat) membuka kesempatan bagi masyarakat umum, sekolah, instansi, maupun komunitas untuk melakukan kunjungan gratis dan melihat langsung kemegahan Gedung Agung. Pendaftaran wajib dilakukan secara online terlebih dahulu dengan mengikuti beberapa langkah mudah berikut ini.',
         'ogImageAlt' => 'Panduan cara mendaftar ISTURA Yogyakarta secara online',
         'sections' => [
             [
                 'heading' => 'Apa itu Program ISTURA?',
                 'body' => [
-                    'ISTURA, singkatan dari Istana Untuk Rakyat, adalah program resmi yang memungkinkan masyarakat luas untuk berkunjung ke Istana Kepresidenan Yogyakarta. Program ini bertujuan untuk mendekatkan istana dengan rakyat sekaligus memberikan edukasi sejarah dan budaya kepresidenan Indonesia.',
-                    'Kunjungan melalui program ISTURA ini tidak dipungut biaya sama sekali (gratis). Namun, demi menjaga ketertiban, keamanan, dan kenyamanan lingkungan istana, setiap rombongan diwajibkan melakukan pendaftaran resmi terlebih dahulu secara online.',
+                    'ISTURA, singkatan dari Istana Untuk Rakyat, adalah program resmi yang memungkinkan masyarakat luas untuk berkunjung ke Istana Kepresidenan Yogyakarta. Program ini bertujuan untuk mendekatkan istana dengan rakyat sekaligus memberikan wadah wisata edukasi dan wisata sejarah di Jogja mengenai kepresidenan Indonesia.',
+                    'Kunjungan melalui program ISTURA ini diselenggarakan sepenuhnya tanpa biaya tiket masuk (100% gratis). Pengunjung juga berkesempatan menjelajahi area museum Istana Kepresidenan Yogyakarta secara langsung di dalam kompleks Gedung Agung. Namun, demi menjaga ketertiban, keamanan, dan kenyamanan lingkungan istana, setiap rombongan diwajibkan melakukan pendaftaran resmi terlebih dahulu secara online.',
                 ],
                 'items' => [],
             ],
@@ -288,7 +288,7 @@ return [
         'title' => 'Gedung Agung Yogyakarta: Kunjungan ISTURA dan Cara Booking',
         'description' => 'Gedung Agung Yogyakarta adalah Istana Kepresidenan Yogyakarta. Ketahui lokasi, kunjungan edukasi, museum, dan cara booking melalui ISTURA.',
         'h1' => 'Gedung Agung Yogyakarta',
-        'intro' => 'Gedung Agung Yogyakarta merupakan salah satu cagar budaya nasional paling bersejarah sekaligus berfungsi sebagai Istana Kepresidenan di Daerah Istimewa Yogyakarta. Melalui program ISTURA, Anda dan rombongan dapat menjelajahi area luar dan bangunan bersejarah ini. Halaman ini menyajikan sejarah singkat Gedung Agung, lokasi, dan cara mendaftarkan kunjungan Anda.',
+        'intro' => 'Gedung Agung Yogyakarta merupakan salah satu cagar budaya nasional paling bersejarah sekaligus berfungsi sebagai Istana Kepresidenan di Daerah Istimewa Yogyakarta. Melalui program ISTURA, Anda dan rombongan dapat menikmati wisata edukasi menarik untuk menjelajahi area luar dan bangunan bersejarah ini. Halaman ini menyajikan sejarah singkat Gedung Agung, lokasi, dan cara mendaftarkan kunjungan Anda.',
         'ogImageAlt' => 'Kemegahan bangunan bersejarah Gedung Agung Yogyakarta',
         'sections' => [
             [
@@ -317,7 +317,7 @@ return [
             [
                 'heading' => 'Cara Resmi Mengunjungi Gedung Agung',
                 'body' => [
-                    'Bagi rombongan masyarakat umum yang tertarik untuk mengagumi keindahan arsitektur kolonial, taman yang asri, serta berbagai benda koleksi bernilai seni tinggi di Gedung Agung, pendaftaran wajib diajukan melalui program ISTURA secara online.',
+                    'Bagi rombongan masyarakat umum yang tertarik untuk mengagumi keindahan arsitektur kolonial, taman yang asri, serta berbagai benda koleksi bernilai seni tinggi di Gedung Agung, pendaftaran wajib diajukan melalui program ISTURA secara online. Sebagai salah satu opsi wisata sejarah di Jogja, program ini diselenggarakan tanpa biaya tiket masuk (kunjungan gratis) untuk mengedukasi publik. Di sini, rombongan juga dapat menjelajahi kompleks luar ruangan serta mempelajari koleksi seni di museum Istana Kepresidenan Yogyakarta secara teratur.',
                     'Harap dicatat bahwa situs isturaiky.page ini merupakan panduan informasi pendaftaran kunjungan masyarakat (ISTURA) dan bukan merupakan situs institusional resmi dari Kementerian Sekretariat Negara atau pengelola Gedung Agung.',
                 ],
                 'items' => [],
@@ -451,7 +451,7 @@ return [
         'title' => 'Museum Istana Kepresidenan Yogyakarta di Gedung Agung',
         'description' => 'Kenali Museum Istana Kepresidenan Yogyakarta di kawasan Gedung Agung, pengalaman edukasi yang bisa dikunjungi melalui pendaftaran ISTURA.',
         'h1' => 'Museum Istana Kepresidenan Yogyakarta',
-        'intro' => 'Selain menjadi kantor kepresidenan aktif, kompleks Gedung Agung juga menyimpan khazanah seni yang sangat kaya di Museum Istana Kepresidenan Yogyakarta. Melalui program pendaftaran kunjungan ISTURA, Anda dapat melihat karya seni bernilai tinggi serta peninggalan bersejarah republik secara langsung.',
+        'intro' => 'Selain menjadi kantor kepresidenan aktif, kompleks Gedung Agung juga menyimpan khazanah seni yang sangat kaya di museum Istana Kepresidenan Yogyakarta. Melalui program pendaftaran kunjungan ISTURA, Anda dapat menikmati wisata edukasi bernilai sejarah tinggi ini untuk melihat karya seni bernilai tinggi serta peninggalan bersejarah republik secara langsung.',
         'ogImageAlt' => 'Koleksi benda seni bernilai sejarah di Museum Istana Kepresidenan Yogyakarta',
         'sections' => [
             [
@@ -472,7 +472,7 @@ return [
             [
                 'heading' => 'Pengalaman Edukasi Seni yang Gratis',
                 'body' => [
-                    'Mengunjungi museum seni sekelas istana kepresidenan umumnya dibatasi ketat, namun melalui ISTURA, akses ini dibuka secara gratis untuk mengedukasi generasi muda. Rombongan sekolah dapat memanfaatkan momen ini untuk memperkenalkan nilai seni, sejarah, serta budaya cinta tanah air kepada para siswa secara menyenangkan.',
+                    'Mengunjungi museum seni sekelas istana kepresidenan umumnya dibatasi ketat, namun melalui ISTURA, akses ini dibuka sepenuhnya tanpa biaya tiket masuk (kunjungan gratis) untuk mengedukasi generasi muda. Ini merupakan salah satu alternatif pilihan wisata sejarah di Jogja yang sangat direkomendasikan. Rombongan sekolah dapat memanfaatkan momen ini untuk memperkenalkan nilai seni, sejarah, serta budaya cinta tanah air kepada para siswa secara menyenangkan.',
                 ],
                 'items' => [],
             ],
