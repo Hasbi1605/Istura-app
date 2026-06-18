@@ -1811,16 +1811,13 @@ const adminDateOption = (day: VisitDay, requiredSlots: number): DateOptionSummar
     group.every((slot) => slot.status !== "Closed" && !isPastVisitTime(day.date, slot.time)),
   );
   const availableStarts = groups.filter((group) => group.every((slot) => slot.status === "Available")).length;
-  const overbookStarts = groups.length - availableStarts;
   const unit = optionUnit(requiredSlots);
 
   let label = "tidak ada jam operasional";
-  if (availableStarts > 0 && overbookStarts > 0) {
-    label = `${availableStarts} ${unit} kosong + ${overbookStarts} overbook`;
-  } else if (availableStarts > 0) {
+  if (availableStarts > 0) {
     label = `${availableStarts} ${unit} kosong`;
-  } else if (overbookStarts > 0) {
-    label = `${overbookStarts} ${unit} overbook`;
+  } else if (groups.length > 0) {
+    label = "penuh";
   }
 
   return {
@@ -1833,15 +1830,12 @@ const adminDateOption = (day: VisitDay, requiredSlots: number): DateOptionSummar
 const adminManualDateOption = (day: VisitDay): DateOptionSummary => {
   const slots = day.slots.filter((slot) => slot.status !== "Closed" && !isPastVisitTime(day.date, slot.time));
   const availableSlots = slots.filter((slot) => slot.status === "Available").length;
-  const overbookSlots = slots.length - availableSlots;
 
   let label = "tidak ada jam operasional";
-  if (availableSlots > 0 && overbookSlots > 0) {
-    label = `${availableSlots} slot kosong + ${overbookSlots} overbook`;
-  } else if (availableSlots > 0) {
+  if (availableSlots > 0) {
     label = `${availableSlots} slot kosong`;
-  } else if (overbookSlots > 0) {
-    label = `${overbookSlots} slot overbook`;
+  } else if (slots.length > 0) {
+    label = "penuh";
   }
 
   return {
@@ -1983,7 +1977,7 @@ export function DirectMoveModal({
             <>
               <div className="segment-slot-picker-head">
                 <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
-                <small>Slot terisi butuh persetujuan overbook.</small>
+                <small>Slot terisi butuh izin gabung.</small>
               </div>
               <div className="segment-slot-grid">
                 {day.slots.map((slot) => {
@@ -2007,7 +2001,7 @@ export function DirectMoveModal({
           )}
         </div>
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
-        {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
+        {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan gabung ke slot yang sudah terisi</span></label>}
         {booking.status === "Accepted" && (
           <div className="direct-move-note" role="note">
             <AlertTriangle size={15} aria-hidden="true" />
@@ -2356,7 +2350,7 @@ export function AdminBookingCreateModal({
                 <>
                   <div className="segment-slot-picker-head">
                     <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
-                    <small>Slot terisi butuh izin overbook.</small>
+                    <small>Slot terisi butuh izin gabung.</small>
                   </div>
                   <div className="segment-slot-grid">
                     {day.slots.map((slot) => {
@@ -2455,7 +2449,7 @@ export function AdminBookingCreateModal({
           {documentError && <strong className="form-message form-message--error">{documentError}</strong>}
         </div>
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
-        {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
+        {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan gabung ke slot yang sudah terisi</span></label>}
         <label className="form-check admin-confirm-check">
           <input type="checkbox" checked={confirmManualBooking} onChange={(event) => setConfirmManualBooking(event.target.checked)} disabled={busy} />
           <span>{confirmationLabel}</span>
@@ -2646,7 +2640,7 @@ export function SegmentOverrideModal({
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
   const riskReasons = [
     groupSizeChanged && correctGroupSize ? `koreksi total ${booking.groupSize} -> ${total} peserta` : "",
-    shouldAllowOverbook ? "gabung/overbook slot terisi" : "",
+    shouldAllowOverbook ? "gabung ke slot terisi" : "",
     oversizedRows.length > 0 ? "kloter di atas kapasitas standar 80 peserta" : "",
   ].filter(Boolean);
   const riskConfirmationRequired = hasChanges && riskReasons.length > 0;
@@ -2656,7 +2650,7 @@ export function SegmentOverrideModal({
     dateOptions.length === 0 ? "Data jadwal belum dimuat. Muat ulang halaman jika daftar tanggal kosong." : "",
     !validTotal ? `Total peserta harus 1-${ADMIN_MAX_BOOKING_GROUP_SIZE}.` : "",
     groupSizeChanged && !correctGroupSize ? "Aktifkan mode koreksi total peserta untuk mengubah jumlah rombongan." : "",
-    overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
+    overbookRows.length > 0 && !allowOverbook ? "Centang izin gabung untuk slot yang sudah terisi." : "",
     showRiskConfirmationWarning ? "Centang konfirmasi perubahan berisiko." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
   ].filter((message, index, messages) => message && messages.indexOf(message) === index);
@@ -2864,7 +2858,7 @@ export function SegmentOverrideModal({
               onChange={(event) => setAllowOverbook(event.target.checked)}
               disabled={busy}
             />
-            <span>Gabung dengan slot booking lain</span>
+            <span>Izinkan gabung ke slot yang sudah terisi</span>
           </label>
         )}
 
