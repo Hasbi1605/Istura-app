@@ -22,7 +22,15 @@ class MoveBookingDirectlyRequest extends FormRequest
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$today->toDateString(), 'before_or_equal:'.$today->copy()->addMonths(2)->toDateString()],
             'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
             'allowOverbook' => ['sometimes', 'boolean'],
-            'note' => ['required', 'string', 'max:2000'],
+            'confirmedDirectMove' => ['accepted'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'confirmedDirectMove.accepted' => 'Konfirmasi pindah jadwal langsung wajib dicentang.',
         ];
     }
 

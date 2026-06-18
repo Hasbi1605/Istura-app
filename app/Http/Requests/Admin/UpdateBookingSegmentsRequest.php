@@ -24,6 +24,7 @@ class UpdateBookingSegmentsRequest extends FormRequest
             'segments.*.groupSize' => ['required', 'integer', 'min:1', 'max:560'],
             'allowOverbook' => ['sometimes', 'boolean'],
             'correctGroupSize' => ['sometimes', 'boolean'],
+            'confirmRisk' => ['sometimes', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -38,11 +39,7 @@ class UpdateBookingSegmentsRequest extends FormRequest
 
                 $today = Carbon::today('Asia/Jakarta');
                 $maxDate = $today->copy()->addMonths(2);
-                $groupedSizes = [];
                 foreach ($this->input('segments', []) as $index => $segment) {
-                    $key = ($segment['date'] ?? '').'|'.($segment['time'] ?? '');
-                    $groupedSizes[$key] = ($groupedSizes[$key] ?? 0) + (int) ($segment['groupSize'] ?? 0);
-
                     $date = Carbon::createFromFormat('Y-m-d', $segment['date'], 'Asia/Jakarta')->startOfDay();
                     if ($date->lt($today)) {
                         $validator->errors()->add("segments.{$index}.date", 'Tanggal kloter tidak boleh sudah lewat.');
@@ -57,11 +54,10 @@ class UpdateBookingSegmentsRequest extends FormRequest
                     }
                 }
 
-                $requiresNote = $this->boolean('allowOverbook')
-                    || $this->boolean('correctGroupSize')
-                    || collect($groupedSizes)->contains(fn (int $size): bool => $size > 80);
-                if ($requiresNote && trim((string) $this->input('note', '')) === '') {
-                    $validator->errors()->add('note', 'Catatan wajib diisi saat mengizinkan overbook atau menggabungkan kloter besar.');
+                $requiresConfirmation = $this->boolean('allowOverbook')
+                    || $this->boolean('correctGroupSize');
+                if ($requiresConfirmation && ! $this->boolean('confirmRisk')) {
+                    $validator->errors()->add('confirmRisk', 'Konfirmasi perubahan berisiko wajib dicentang.');
                 }
             },
         ];

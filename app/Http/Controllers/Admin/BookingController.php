@@ -134,6 +134,7 @@ class BookingController extends Controller
             $request->input('note'),
             $request->boolean('allowOverbook'),
             $request->boolean('correctGroupSize'),
+            $request->boolean('confirmRisk'),
             $request,
         );
 
@@ -150,8 +151,9 @@ class BookingController extends Controller
             $request->user(),
             $payload['date'],
             $payload['time'],
-            $payload['note'],
+            $payload['note'] ?? null,
             $request->boolean('allowOverbook'),
+            $request->boolean('confirmedDirectMove'),
             $request,
         );
 

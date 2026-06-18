@@ -98,7 +98,7 @@ class AdminBookingFlexibilityTest extends TestCase
         $publicSchedule = $this->getJson('/api/public/schedule?from=2026-06-15&to=2026-06-15')->json('data');
         $this->assertSame('Closed', collect($publicSchedule[0]['slots'])->firstWhere('time', '10.00')['status']);
 
-        $response = $this->postJson('/api/admin/bookings', [
+        $payload = [
             'contactName' => 'Tamu Khusus',
             'nik' => '3234567890123456',
             'whatsapp' => '081234567892',
@@ -108,7 +108,14 @@ class AdminBookingFlexibilityTest extends TestCase
             'time' => '10.00',
             'status' => 'Accepted',
             'confirmedWithGuest' => true,
-            'note' => 'Jadwal dikonfirmasi oleh admin protokol.',
+        ];
+
+        $this->postJson('/api/admin/bookings', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('confirmManualBooking');
+
+        $response = $this->postJson('/api/admin/bookings', $payload + [
+            'confirmManualBooking' => true,
         ])->assertCreated()
             ->assertJsonPath('data.source', 'admin')
             ->assertJsonPath('data.hasDocument', false)
@@ -116,6 +123,7 @@ class AdminBookingFlexibilityTest extends TestCase
 
         $booking = Booking::where('code', $response->json('data.code'))->firstOrFail();
         $this->assertSame($admin->id, $booking->created_by_admin_id);
+        $this->assertStringContainsString('booking manual dibuat tanpa surat permohonan publik', (string) $booking->note);
         $this->assertSame('3234567890123456', $booking->nik);
         $this->assertNotSame('3234567890123456', $booking->getRawOriginal('nik_encrypted'));
         $this->assertDatabaseHas('booking_slots', [
@@ -134,13 +142,18 @@ class AdminBookingFlexibilityTest extends TestCase
         $this->postJson("/api/admin/bookings/{$booking->code}/move", [
             'date' => '2026-06-15',
             'time' => '08.00',
-            'note' => 'Percobaan ke jam yang sudah lewat.',
+            'confirmedDirectMove' => true,
         ])->assertUnprocessable()->assertJsonValidationErrors('time');
 
         $this->postJson("/api/admin/bookings/{$booking->code}/move", [
             'date' => '2026-06-15',
             'time' => '13.00',
-            'note' => 'Penyesuaian operasional, tamu sudah diberi tahu.',
+        ])->assertUnprocessable()->assertJsonValidationErrors('confirmedDirectMove');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/move", [
+            'date' => '2026-06-15',
+            'time' => '13.00',
+            'confirmedDirectMove' => true,
         ])->assertOk()
             ->assertJsonPath('data.date', '2026-06-15')
             ->assertJsonPath('data.time', '13.00')
@@ -156,6 +169,7 @@ class AdminBookingFlexibilityTest extends TestCase
             'date' => '2026-06-15 00:00:00',
             'time' => '13.00',
         ]);
+        $this->assertStringContainsString('pindah jadwal langsung disetujui', (string) $booking->fresh()->note);
     }
 
     public function test_direct_move_rejects_active_reschedule_and_preserves_proposal(): void
@@ -189,7 +203,7 @@ class AdminBookingFlexibilityTest extends TestCase
         $this->postJson("/api/admin/bookings/{$booking->code}/move", [
             'date' => '2026-06-15',
             'time' => '14.00',
-            'note' => 'Percobaan melewati alur penjadwalan ulang.',
+            'confirmedDirectMove' => true,
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('status');
 
@@ -224,18 +238,19 @@ class AdminBookingFlexibilityTest extends TestCase
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", [
             'groupSize' => 170,
             'correctGroupSize' => true,
+            'confirmRisk' => true,
             'segments' => [[
                 'date' => '2026-06-16',
                 'time' => '10.00',
                 'groupSize' => 170,
             ]],
-            'note' => 'Tambahan peserta telah dikonfirmasi.',
         ])->assertOk()
             ->assertJsonPath('data.groupSize', 170)
             ->assertJsonPath('data.kloterCount', 1);
 
         $booking->refresh();
-        $this->assertStringContainsString('Tambahan peserta telah dikonfirmasi.', $booking->note);
+        $this->assertStringContainsString('Total peserta dikoreksi 160 -> 170.', $booking->note);
+        $this->assertStringContainsString('Ada kloter di atas kapasitas standar 80 peserta.', $booking->note);
         $this->assertDatabaseHas('booking_slots', [
             'booking_id' => $booking->id,
             'time' => '10.00',

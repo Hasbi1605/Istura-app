@@ -391,7 +391,7 @@ export function AdminScreen({
 		});
 	};
 
-	const handleUpdateSegments = (booking: Booking, groupSize: number, segments: BookingSegment[], note: string, allowOverbook: boolean, correctGroupSize: boolean) => {
+	const handleUpdateSegments = (booking: Booking, groupSize: number, segments: BookingSegment[], allowOverbook: boolean, correctGroupSize: boolean, confirmRisk: boolean) => {
 		void runBookingAction(booking, "Menyimpan kloter manual...", async () => {
 			const updated = await apiUpdateBookingSegments(booking.code, {
 				groupSize,
@@ -400,22 +400,22 @@ export function AdminScreen({
 					time: segment.time,
 					groupSize: segment.groupSize,
 				})),
-				note: note.trim() || undefined,
-					allowOverbook: allowOverbook || undefined,
-					correctGroupSize: correctGroupSize || undefined,
+				allowOverbook: allowOverbook || undefined,
+				correctGroupSize: correctGroupSize || undefined,
+				confirmRisk: confirmRisk || undefined,
 			});
 			await syncBookingFromApi(updated);
 			setSegmentModal(null);
 		});
-		};
+	};
 
-	const handleMoveDirectly = (booking: Booking, date: string, time: string, note: string, allowOverbook: boolean) => {
+	const handleMoveDirectly = (booking: Booking, date: string, time: string, allowOverbook: boolean, confirmedDirectMove: boolean) => {
 		void runBookingAction(booking, "Memindahkan jadwal...", async () => {
 			const updated = await apiMoveBookingDirectly(booking.code, {
 				date,
 				time,
-				note,
 				allowOverbook: allowOverbook || undefined,
+				confirmedDirectMove,
 			});
 			await syncBookingFromApi(updated);
 			setMoveModal(null);
@@ -431,7 +431,7 @@ export function AdminScreen({
 			onBookingsChange([created, ...bookings]);
 			setSelectedCode(created.code);
 			await refreshSchedulesFromApi();
-			openWhatsApp(created, createWhatsappMessage(created, created.status === "Accepted" ? "Accepted" : "Pending", payload.note));
+			openWhatsApp(created, createWhatsappMessage(created, created.status === "Accepted" ? "Accepted" : "Pending"));
 			setShowCreateModal(false);
 		} catch (err) {
 			setActionError(messageForActionError(err));
@@ -1720,9 +1720,9 @@ export function AdminActionModal({
             <small>Gunakan tautan HTTPS dari penyedia dokumentasi yang disetujui. Tautan akan disisipkan pada pesan WhatsApp lewat variabel {"{dokumentasi}"}.</small>
           </label>
         )}
-        {modal.action !== "complete" && (
+        {needsNote && (
           <label className="form-field">
-            <span>{needsNote ? "Alasan" : "Catatan admin opsional"}</span>
+            <span>Alasan untuk tamu</span>
             <textarea value={note} onChange={(event) => setNote(event.target.value)} />
           </label>
         )}
@@ -1783,15 +1783,15 @@ export function DirectMoveModal({
   pendingLabel?: string | null;
   error?: string;
   onClose: () => void;
-  onConfirm: (booking: Booking, date: string, time: string, note: string, allowOverbook: boolean) => void;
+  onConfirm: (booking: Booking, date: string, time: string, allowOverbook: boolean, confirmedDirectMove: boolean) => void;
 }) {
   const todayKey = formatDateKey(jakartaToday());
   const maxDateKey = formatDateKey(addMonths(jakartaToday(), 2));
   const days = schedules.filter((day) => day.date >= todayKey && day.date <= maxDateKey);
   const [date, setDate] = useState(booking.date >= todayKey ? booking.date : days[0]?.date ?? "");
   const [time, setTime] = useState("");
-  const [note, setNote] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
+  const [confirmedDirectMove, setConfirmedDirectMove] = useState(false);
   const day = days.find((item) => item.date === date);
   const candidates = candidateSlots(day, time, booking.groupSize);
   const requiredSlots = splitGroupSizes(booking.groupSize).length;
@@ -1802,7 +1802,7 @@ export function DirectMoveModal({
   const sameSchedule = date === booking.date && time === booking.time;
   const busy = Boolean(pendingLabel);
   const invalid = !date || !time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(date, time)
-    || hasPast || conflicts.length > 0 && !allowOverbook || !note.trim() || sameSchedule;
+    || hasPast || conflicts.length > 0 && !allowOverbook || !confirmedDirectMove || sameSchedule;
 
   const startCandidates = (startTime: string) => candidateSlots(day, startTime, booking.groupSize);
   const canSelectStart = (slot: VisitDay["slots"][number]) => {
@@ -1923,11 +1923,19 @@ export function DirectMoveModal({
             <span><strong>Jadwal langsung berubah.</strong> Pastikan tamu sudah diberi tahu.</span>
           </div>
         )}
-        <label className="form-field"><span>Alasan perubahan</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: penyesuaian operasional dan tamu sudah diberi tahu." /></label>
+        <label className="form-check admin-confirm-check">
+          <input
+            type="checkbox"
+            checked={confirmedDirectMove}
+            onChange={(event) => setConfirmedDirectMove(event.target.checked)}
+            disabled={busy}
+          />
+          <span>{booking.status === "Accepted" ? "Tamu sudah diberi tahu bahwa jadwal akan langsung berubah." : "Perubahan jadwal langsung ini dikonfirmasi untuk proses booking."}</span>
+        </label>
         {sameSchedule && <strong className="form-message form-message--error">Pilih jadwal yang berbeda dari jadwal saat ini.</strong>}
         {(isPastVisitTime(date, time) || hasPast) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
         {error && <strong className="form-message form-message--error">{error}</strong>}
-        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, note, allowOverbook)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan jadwal"}</button></div>
+        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, allowOverbook, confirmedDirectMove)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan jadwal"}</button></div>
       </div>
     </div>
   );
@@ -1959,8 +1967,9 @@ export function AdminBookingCreateModal({
   const todayKey = formatDateKey(jakartaToday());
   const days = schedules.filter((day) => day.date >= todayKey && day.date <= formatDateKey(addMonths(jakartaToday(), 2)));
   const firstDay = days.find((day) => day.slots.some((slot) => slot.status === "Available")) ?? days[0];
-  const [form, setForm] = useState({ contactName: "", nik: "", whatsapp: "", institution: "", groupSize: "", date: firstDay?.date ?? "", time: "", status: "Accepted" as "Pending" | "Accepted", note: "" });
+  const [form, setForm] = useState({ contactName: "", nik: "", whatsapp: "", institution: "", groupSize: "", date: firstDay?.date ?? "", time: "", status: "Accepted" as "Pending" | "Accepted" });
   const [confirmedWithGuest, setConfirmedWithGuest] = useState(false);
+  const [confirmManualBooking, setConfirmManualBooking] = useState(false);
   const [allowOverbook, setAllowOverbook] = useState(false);
   const day = days.find((item) => item.date === form.date);
   const groupSize = Number(form.groupSize);
@@ -1971,7 +1980,7 @@ export function AdminBookingCreateModal({
   const invalid = !form.contactName.trim() || !/^\d{16}$/.test(form.nik) || !/^(08|628)\d{8,13}$/.test(form.whatsapp)
     || !form.institution.trim() || !Number.isInteger(groupSize) || groupSize < 1 || groupSize > ADMIN_MAX_BOOKING_GROUP_SIZE
     || !form.date || !form.time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(form.date, form.time)
-    || conflicts.length > 0 && !allowOverbook || !form.note.trim() || form.status === "Accepted" && !confirmedWithGuest;
+    || conflicts.length > 0 && !allowOverbook || !confirmManualBooking || form.status === "Accepted" && !confirmedWithGuest;
 
   useModalEscape(onClose, busy);
 
@@ -2002,9 +2011,12 @@ export function AdminBookingCreateModal({
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
         {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
         {form.status === "Accepted" && <label className="form-check"><input type="checkbox" checked={confirmedWithGuest} onChange={(event) => setConfirmedWithGuest(event.target.checked)} /><span>Jadwal sudah disepakati dengan tamu</span></label>}
-        <label className="form-field"><span>Alasan / catatan operasional</span><textarea value={form.note} onChange={(event) => setField("note", event.target.value)} /></label>
+        <label className="form-check admin-confirm-check">
+          <input type="checkbox" checked={confirmManualBooking} onChange={(event) => setConfirmManualBooking(event.target.checked)} disabled={busy} />
+          <span>Booking manual ini dibuat atas kebutuhan operasional tanpa surat permohonan publik.</span>
+        </label>
         {error && <strong className="form-message form-message--error">{error}</strong>}
-        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm({ ...form, groupSize, confirmedWithGuest: confirmedWithGuest || undefined, allowOverbook: allowOverbook || undefined })}>{busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat & buka WhatsApp"}</button></div>
+        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm({ ...form, groupSize, confirmedWithGuest: confirmedWithGuest || undefined, confirmManualBooking, allowOverbook: allowOverbook || undefined })}>{busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat & buka WhatsApp"}</button></div>
       </div>
     </div>
   );
@@ -2075,7 +2087,7 @@ export function SegmentOverrideModal({
   pendingLabel?: string | null;
   error?: string;
   onClose: () => void;
-  onConfirm: (booking: Booking, groupSize: number, segments: BookingSegment[], note: string, allowOverbook: boolean, correctGroupSize: boolean) => void;
+  onConfirm: (booking: Booking, groupSize: number, segments: BookingSegment[], allowOverbook: boolean, correctGroupSize: boolean, confirmRisk: boolean) => void;
 }) {
   const initialSegments = bookingSegments(booking);
   const [rows, setRows] = useState(() =>
@@ -2086,9 +2098,9 @@ export function SegmentOverrideModal({
     })),
   );
   const selectedDate = initialSegments[0]?.date ?? booking.date;
-  const [note, setNote] = useState("");
   const [allowOverbook, setAllowOverbook] = useState(false);
   const [correctGroupSize, setCorrectGroupSize] = useState(false);
+  const [confirmRisk, setConfirmRisk] = useState(false);
   const ownSlotKeys = new Set(initialSegments.map((segment) => `${segment.date}|${segment.time}`));
   const scheduleByDate = new Map(schedules.map((day) => [day.date, day]));
   const segmentToday = jakartaToday();
@@ -2168,22 +2180,27 @@ export function SegmentOverrideModal({
     });
   const busy = Boolean(pendingLabel);
   const shouldAllowOverbook = overbookRows.length > 0 && allowOverbook;
-  const noteRequired = hasChanges && (groupSizeChanged || overbookRows.length > 0 || oversizedRows.length > 0);
-  const showRiskNoteWarning = noteRequired && note.trim() === "";
+  const riskReasons = [
+    groupSizeChanged && correctGroupSize ? `koreksi total ${booking.groupSize} -> ${total} peserta` : "",
+    shouldAllowOverbook ? "gabung/overbook slot terisi" : "",
+    oversizedRows.length > 0 ? "kloter di atas kapasitas standar 80 peserta" : "",
+  ].filter(Boolean);
+  const riskConfirmationRequired = hasChanges && riskReasons.length > 0;
+  const showRiskConfirmationWarning = riskConfirmationRequired && !confirmRisk;
   const validationMessages = [
     normalizedRows.length < 1 ? "Minimal harus ada 1 kloter." : "",
     dateOptions.length === 0 ? "Data jadwal belum dimuat. Muat ulang halaman jika daftar tanggal kosong." : "",
     !validTotal ? `Total peserta harus 1-${ADMIN_MAX_BOOKING_GROUP_SIZE}.` : "",
     groupSizeChanged && !correctGroupSize ? "Aktifkan mode koreksi total peserta untuk mengubah jumlah rombongan." : "",
     overbookRows.length > 0 && !allowOverbook ? "Centang izin overbook untuk slot yang sudah terisi." : "",
-    showRiskNoteWarning ? "Catatan admin wajib untuk perubahan berisiko ini." : "",
+    showRiskConfirmationWarning ? "Centang konfirmasi perubahan berisiko." : "",
     ...rowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
   ].filter((message, index, messages) => message && messages.indexOf(message) === index);
   const invalid =
     validationMessages.length > 0 ||
     (overbookRows.length > 0 && !allowOverbook) ||
     !validTotal ||
-    (noteRequired && note.trim() === "") ||
+    (riskConfirmationRequired && !confirmRisk) ||
     !hasChanges;
   const totalStatusLabel = validTotal ? `${total} peserta` : "Total belum valid";
 
@@ -2194,6 +2211,12 @@ export function SegmentOverrideModal({
       setAllowOverbook(false);
     }
   }, [allowOverbook, overbookRows.length]);
+
+  useEffect(() => {
+    if (!riskConfirmationRequired && confirmRisk) {
+      setConfirmRisk(false);
+    }
+  }, [confirmRisk, riskConfirmationRequired]);
 
   const firstUsableTimeForDay = (day: VisitDay, date: string, preferredTime?: string, usedTimes = new Set<string>()) => {
     const preferred = day.slots.find((slot) => slot.time === preferredTime);
@@ -2257,9 +2280,9 @@ export function SegmentOverrideModal({
         time: row.time,
         groupSize: Number(row.groupSize),
       })),
-      note,
       shouldAllowOverbook,
       correctGroupSize,
+      confirmRisk,
     );
   };
 
@@ -2388,23 +2411,17 @@ export function SegmentOverrideModal({
           </p>
         )}
 
-        <label className="form-field segment-note-field">
-          <span>Catatan admin {noteRequired ? "(wajib)" : ""}</span>
-          {noteRequired ? (
-            <textarea
-              value={note}
-              placeholder="Tulis alasan singkat perubahan ini."
-              onChange={(event) => setNote(event.target.value)}
-            />
-          ) : (
+        {riskConfirmationRequired && (
+          <label className="form-check admin-confirm-check">
             <input
-              type="text"
-              value={note}
-              placeholder="Opsional: catatan perubahan"
-              onChange={(event) => setNote(event.target.value)}
+              type="checkbox"
+              checked={confirmRisk}
+              onChange={(event) => setConfirmRisk(event.target.checked)}
+              disabled={busy}
             />
-          )}
-        </label>
+            <span>Konfirmasi perubahan berisiko untuk audit operasional: {riskReasons.join(", ")}.</span>
+          </label>
+        )}
 
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions">

@@ -3361,6 +3361,20 @@ a {
   width: 16px;
 }
 
+.admin-confirm-check {
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: rgba(248, 250, 252, 0.82);
+  border: 1px solid rgba(16, 24, 47, 0.1);
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.admin-confirm-check input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 /* ---- Feedback-specific layout ---- */
 
 .feedback-step {
@@ -9071,28 +9085,6 @@ a {
   padding: 14px 24px 18px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), var(--white) 34%);
   border-top: 1px solid rgba(16, 24, 47, 0.08);
-}
-
-.segment-note-field textarea {
-  min-height: 72px;
-}
-
-.segment-note-field input[type="text"] {
-  width: 100%;
-  min-height: 38px;
-  padding: 0 12px;
-  color: var(--navy);
-  background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.12);
-  border-radius: 8px;
-  font-size: 0.86rem;
-  font-weight: 700;
-}
-
-.segment-note-field input[type="text"]:focus {
-  outline: none;
-  border-color: rgba(16, 24, 47, 0.36);
-  box-shadow: 0 0 0 3px rgba(16, 24, 47, 0.1);
 }
 
 .segment-row-note {

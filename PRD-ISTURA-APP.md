@@ -80,7 +80,7 @@ WebSocket (Laravel Reverb).
 | FR-A3 | Admin dapat melihat dashboard berisi KPI (pending, booking hari ini/minggu/bulan, total selesai, jumlah & rata-rata feedback). |
 | FR-A4 | Admin dapat melihat daftar booking dengan filter status, rentang tanggal, pencarian, dan paginasi. |
 | FR-A5 | Admin dapat menyetujui (accept), menolak (reject), menjadwalkan ulang (reschedule), membatalkan usulan reschedule, dan menandai selesai (complete) sebuah booking. |
-| FR-A6 | Admin dapat menggabungkan/memecah pembagian kloter pada tanggal yang sama. Total peserta terkunci secara default; koreksi total harus diaktifkan eksplisit dan memakai alasan. Overbook manual serta kloter >80 wajib memakai catatan. |
+| FR-A6 | Admin dapat menggabungkan/memecah pembagian kloter pada tanggal yang sama. Total peserta terkunci secara default; koreksi total harus diaktifkan eksplisit. Overbook manual, koreksi total, serta kloter >80 wajib memakai checkbox konfirmasi dan menghasilkan catatan audit otomatis. |
 | FR-A7 | Admin dapat mengunduh surat permohonan booking (inline preview atau download). |
 | FR-A8 | Admin dapat mengelola jadwal: menutup/membuka slot tertentu, dan menutup/membuka rentang tanggal. |
 | FR-A9 | Admin dapat melihat & mengekspor feedback. |
@@ -111,7 +111,7 @@ WebSocket (Laravel Reverb).
 | ID | Aturan |
 |----|--------|
 | BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 hanya tampil bila admin membuka slot **Booking Dadakan Publik** yang masih dalam tenggat dan memiliki kapasitas. Admin dapat memakai H/H+1 melalui booking admin atau pindah jadwal langsung. |
-| BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 atau menetapkan kapasitas dadakan lebih besar dengan alasan dan audit. |
+| BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 atau menetapkan kapasitas dadakan lebih besar dengan konfirmasi operasional dan audit. |
 | BR-3 | Jumlah rombongan: minimal 1, maksimal **480 orang** per hari kunjungan. |
 | BR-4 | NIK wajib 16 digit angka. WhatsApp wajib format `08...` atau `628...` (8–13 digit setelah prefix). |
 | BR-5 | Jam operasional default: **Senin–Kamis**, slot 08.00, 09.00, 10.00, 11.00, 13.00, 14.00. Jam 12.00 = istirahat (tidak tersedia). |
@@ -318,7 +318,8 @@ sudah ada, tetapi tidak dapat menambahkan tanggal lampau baru. Detail aturan ada
 8. COMPLETE: hanya bila tanggal kunjungan ≤ hari ini → status Completed → salin pesan WA
    berisi tautan feedback.
 9. UBAH KLOTER (segments): admin susun ulang pembagian peserta ke slot; total peserta harus
-   sama; overbook/penggabungan kloter besar/perubahan jumlah → catatan wajib.
+   sama; overbook/penggabungan kloter besar/perubahan jumlah → checkbox konfirmasi wajib
+   dan catatan audit dibuat otomatis.
 10. UNDUH SURAT: admin preview inline atau download surat permohonan.
 11. Setiap aksi tercatat di audit log & memicu broadcast realtime + invalidasi cache jadwal.
 ```

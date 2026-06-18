@@ -29,8 +29,16 @@ class StoreAdminBookingRequest extends FormRequest
             'time' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
             'status' => ['required', Rule::in(['Pending', 'Accepted'])],
             'confirmedWithGuest' => ['sometimes', 'boolean'],
+            'confirmManualBooking' => ['accepted'],
             'allowOverbook' => ['sometimes', 'boolean'],
-            'note' => ['required', 'string', 'max:2000'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'confirmManualBooking.accepted' => 'Konfirmasi booking manual wajib dicentang.',
         ];
     }
 

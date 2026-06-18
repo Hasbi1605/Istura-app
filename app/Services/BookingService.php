@@ -113,16 +113,18 @@ class BookingService
             $booking->document_original_name = 'Tanpa surat (dibuat admin)';
             $booking->feedback_token = $this->codes->token();
             $booking->submitted_at = now();
-            $booking->note = $this->appendAdminNote(null, $data['note']);
+            $adminNote = $this->adminBookingConfirmationNote($data, $conflicts);
+            $booking->note = $this->appendAdminNote(null, $adminNote);
             $booking->save();
             $this->persistBookingSlots($booking, $segments, true);
 
             $this->logAudit($actor, "Membuat booking admin {$booking->code}", $booking, [
                 'source' => 'admin',
                 'confirmed_with_guest' => (bool) ($data['confirmedWithGuest'] ?? false),
+                'manual_booking_confirmed' => (bool) ($data['confirmManualBooking'] ?? false),
                 'overbook' => $conflicts !== [],
                 'conflicts' => $conflicts,
-                'note' => $data['note'],
+                'note' => $adminNote,
             ], $request);
             $this->broadcastAfterCommit(fn () => BookingCreated::dispatch($booking->fresh()->load('slots')), $booking);
 
@@ -342,9 +344,10 @@ class BookingService
         ?string $note = null,
         bool $allowOverbook = false,
         bool $correctGroupSize = false,
+        bool $confirmRisk = false,
         ?Request $request = null,
     ): Booking {
-        return DB::transaction(function () use ($booking, $actor, $segments, $groupSize, $note, $allowOverbook, $correctGroupSize, $request) {
+        return DB::transaction(function () use ($booking, $actor, $segments, $groupSize, $note, $allowOverbook, $correctGroupSize, $confirmRisk, $request) {
             $booking = Booking::with('slots')
                 ->whereKey($booking->id)
                 ->lockForUpdate()
@@ -418,19 +421,23 @@ class BookingService
 
             $this->lockSlotKeysForSegments($normalized);
             $conflicts = $this->assertManualSegmentsUsable($booking, $normalized, $allowOverbook);
-            if (($hasGroupSizeChange || $hasOversizedSegment || $conflicts !== []) && trim((string) $note) === '') {
+            $hasRisk = $hasGroupSizeChange || $hasOversizedSegment || $conflicts !== [];
+            if ($hasRisk && ! $confirmRisk) {
                 throw ValidationException::withMessages([
-                    'note' => ['Catatan wajib diisi saat mengubah jumlah peserta, mengizinkan overbook, atau menggabungkan kloter besar.'],
+                    'confirmRisk' => ['Konfirmasi perubahan berisiko wajib dicentang.'],
                 ]);
             }
+            $adminNote = $hasRisk
+                ? $this->segmentRiskConfirmationNote($oldGroupSize, $targetGroupSize, $normalized, $conflicts)
+                : trim((string) $note);
 
             $first = $normalized[0];
             $booking->group_size = $targetGroupSize;
             $booking->date = Carbon::createFromFormat('Y-m-d', $first['date'], 'Asia/Jakarta')->startOfDay();
             $booking->date_label = $first['date_label'];
             $booking->time = $first['time'];
-            if (trim((string) $note) !== '') {
-                $booking->note = $this->appendAdminNote($booking->note, $note);
+            if ($adminNote !== '') {
+                $booking->note = $this->appendAdminNote($booking->note, $adminNote);
             }
             $booking->save();
 
@@ -443,7 +450,8 @@ class BookingService
                 'conflicts' => $conflicts,
                 'old_group_size' => $oldGroupSize,
                 'new_group_size' => $targetGroupSize,
-                'note' => $note,
+                'risk_confirmed' => $hasRisk ? $confirmRisk : false,
+                'note' => $adminNote,
             ], $request);
             $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $booking->status, 'segments'), $booking, $affectedScheduleDates);
 
@@ -456,15 +464,21 @@ class BookingService
         ?User $actor,
         string $date,
         string $time,
-        string $note,
+        ?string $note = null,
         bool $allowOverbook = false,
+        bool $confirmedDirectMove = false,
         ?Request $request = null,
     ): Booking {
-        return DB::transaction(function () use ($booking, $actor, $date, $time, $note, $allowOverbook, $request) {
+        return DB::transaction(function () use ($booking, $actor, $date, $time, $note, $allowOverbook, $confirmedDirectMove, $request) {
             $booking = Booking::with('slots')->whereKey($booking->id)->lockForUpdate()->firstOrFail();
             if (! in_array($booking->status, ['Pending', 'Accepted'], true)) {
                 throw ValidationException::withMessages([
                     'status' => ["Status {$booking->status} tidak dapat dipindahkan langsung."],
+                ]);
+            }
+            if (! $confirmedDirectMove) {
+                throw ValidationException::withMessages([
+                    'confirmedDirectMove' => ['Konfirmasi pindah jadwal langsung wajib dicentang.'],
                 ]);
             }
 
@@ -486,16 +500,18 @@ class BookingService
             $booking->date = $targetDate;
             $booking->date_label = $first['date_label'];
             $booking->time = $first['time'];
-            $booking->note = $this->appendAdminNote($booking->note, $note);
+            $adminNote = $this->directMoveConfirmationNote($current->all(), $segments, $conflicts, $note);
+            $booking->note = $this->appendAdminNote($booking->note, $adminNote);
             $booking->save();
             $this->persistBookingSlots($booking, $segments, true);
 
             $this->logAudit($actor, "Memindahkan langsung booking {$booking->code}", $booking, [
                 'previous_status' => $previousStatus,
                 'new_status' => $booking->status,
+                'direct_move_confirmed' => $confirmedDirectMove,
                 'overbook' => $conflicts !== [],
                 'conflicts' => $conflicts,
-                'note' => $note,
+                'note' => $adminNote,
             ], $request);
             $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previousStatus, 'direct-move'), $booking, $affectedScheduleDates);
 
@@ -1039,11 +1055,89 @@ class BookingService
 
         if ($conflicts !== [] && ! $allowOverbook) {
             throw ValidationException::withMessages([
-                'allowOverbook' => ['Slot yang dipilih sudah terisi. Centang izin overbook dan isi alasan untuk menggabungkan rombongan.'],
+                'allowOverbook' => ['Slot yang dipilih sudah terisi. Centang izin overbook untuk menggabungkan rombongan.'],
             ]);
         }
 
         return $conflicts;
+    }
+
+    private function adminBookingConfirmationNote(array $data, array $conflicts): string
+    {
+        $parts = [
+            'Konfirmasi admin: booking manual dibuat tanpa surat permohonan publik.',
+            "Status awal {$data['status']}.",
+            "Jadwal {$data['date']} {$data['time']} WIB.",
+            "{$data['groupSize']} peserta.",
+        ];
+
+        if (($data['status'] ?? null) === 'Accepted' && (bool) ($data['confirmedWithGuest'] ?? false)) {
+            $parts[] = 'Jadwal sudah disepakati dengan tamu.';
+        }
+
+        if ($conflicts !== []) {
+            $parts[] = 'Overbook manual disetujui operasional.';
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * @param  array<int, array{date:string,time:string,group_size:int}>  $segments
+     * @param  array<int, array{date:string,time:string,status:string}>  $conflicts
+     */
+    private function segmentRiskConfirmationNote(int $oldGroupSize, int $targetGroupSize, array $segments, array $conflicts): string
+    {
+        $parts = ['Konfirmasi admin: perubahan kloter berisiko disetujui operasional.'];
+
+        if ($oldGroupSize !== $targetGroupSize) {
+            $parts[] = "Total peserta dikoreksi {$oldGroupSize} -> {$targetGroupSize}.";
+        }
+
+        if (collect($segments)->contains(fn (array $segment): bool => $segment['group_size'] > self::SLOT_CAPACITY)) {
+            $parts[] = 'Ada kloter di atas kapasitas standar 80 peserta.';
+        }
+
+        if ($conflicts !== []) {
+            $parts[] = 'Slot terisi digabung/di-overbook secara manual.';
+        }
+
+        $parts[] = 'Pembagian baru: '.collect($segments)
+            ->map(fn (array $segment): string => "{$segment['time']} ({$segment['group_size']} peserta)")
+            ->implode(', ').'.';
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * @param  array<int, BookingSlot>  $current
+     * @param  array<int, array{date:string,date_label:string,time:string,group_size:int}>  $segments
+     * @param  array<int, array{date:string,time:string,status:string}>  $conflicts
+     */
+    private function directMoveConfirmationNote(array $current, array $segments, array $conflicts, ?string $note = null): string
+    {
+        $from = collect($current)
+            ->map(fn (BookingSlot $slot): string => $slot->date->toDateString().' '.$slot->time)
+            ->implode(', ');
+        $to = collect($segments)
+            ->map(fn (array $segment): string => $segment['date'].' '.$segment['time'].' ('.$segment['group_size'].' peserta)')
+            ->implode(', ');
+
+        $parts = [
+            'Konfirmasi admin: pindah jadwal langsung disetujui.',
+            "Dari {$from} ke {$to}.",
+            'Tamu sudah diberi tahu bila jadwal sebelumnya sudah disetujui.',
+        ];
+
+        if ($conflicts !== []) {
+            $parts[] = 'Overbook manual disetujui operasional.';
+        }
+
+        if (trim((string) $note) !== '') {
+            $parts[] = 'Catatan tambahan: '.trim((string) $note);
+        }
+
+        return implode(' ', $parts);
     }
 
     private function appendAdminNote(?string $existing, string $note): string

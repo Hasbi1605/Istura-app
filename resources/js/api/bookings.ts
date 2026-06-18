@@ -108,6 +108,7 @@ export const updateBookingSegments = (
     note?: string;
     allowOverbook?: boolean;
     correctGroupSize?: boolean;
+    confirmRisk?: boolean;
   },
 ) =>
   api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/segments`, {
@@ -125,8 +126,9 @@ export const createAdminBooking = (payload: {
   time: string;
   status: "Pending" | "Accepted";
   confirmedWithGuest?: boolean;
+  confirmManualBooking: boolean;
   allowOverbook?: boolean;
-  note: string;
+  note?: string;
 }) =>
   api<{ data: ApiBooking }>("/api/admin/bookings", {
     method: "POST",
@@ -139,7 +141,8 @@ export const moveBookingDirectly = (
     date: string;
     time: string;
     allowOverbook?: boolean;
-    note: string;
+    confirmedDirectMove: boolean;
+    note?: string;
   },
 ) =>
   api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/move`, {

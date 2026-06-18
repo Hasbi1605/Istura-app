@@ -2210,12 +2210,12 @@ class ScheduleSyncTest extends TestCase
                 ['date' => '2026-06-04', 'time' => '08.00', 'groupSize' => 100],
                 ['date' => '2026-06-04', 'time' => '09.00', 'groupSize' => 100],
             ],
-            'note' => 'User meminta penggabungan dari 3 kloter menjadi 2 kloter.',
+            'confirmRisk' => true,
         ])->assertOk()
             ->assertJsonPath('data.kloterCount', 2)
             ->assertJsonPath('data.segments.0.groupSize', 100)
             ->assertJsonPath('data.segments.1.groupSize', 100);
-        $this->assertStringContainsString('User meminta penggabungan dari 3 kloter menjadi 2 kloter.', (string) Booking::where('code', $code)->value('note'));
+        $this->assertStringContainsString('Ada kloter di atas kapasitas standar 80 peserta.', (string) Booking::where('code', $code)->value('note'));
 
         $booking = Booking::where('code', $code)->firstOrFail();
         $this->assertDatabaseCount('booking_slots', 2);
@@ -2266,15 +2266,15 @@ class ScheduleSyncTest extends TestCase
 
         $this->postJson("/api/admin/bookings/{$code}/segments", $payload)
             ->assertStatus(422)
-            ->assertJsonValidationErrors('note');
+            ->assertJsonValidationErrors('confirmRisk');
 
         $this->postJson("/api/admin/bookings/{$code}/segments", $payload + [
-            'note' => 'Admin menggabungkan dua kloter karena rombongan meminta satu sesi.',
+            'confirmRisk' => true,
         ])->assertOk()
             ->assertJsonPath('data.kloterCount', 1)
             ->assertJsonPath('data.segments.0.time', '08.00')
             ->assertJsonPath('data.segments.0.groupSize', 160);
-        $this->assertStringContainsString('Admin menggabungkan dua kloter karena rombongan meminta satu sesi.', (string) Booking::where('code', $code)->value('note'));
+        $this->assertStringContainsString('Ada kloter di atas kapasitas standar 80 peserta.', (string) Booking::where('code', $code)->value('note'));
     }
 
     public function test_admin_manual_segments_can_correct_booking_group_size_with_note(): void
@@ -2299,22 +2299,23 @@ class ScheduleSyncTest extends TestCase
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
             ->assertStatus(422)
-            ->assertJsonValidationErrors('note');
+            ->assertJsonValidationErrors('confirmRisk');
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + [
-            'note' => 'User salah input jumlah peserta, admin koreksi manual.',
+            'confirmRisk' => true,
         ])->assertOk()
             ->assertJsonPath('data.groupSize', 30)
             ->assertJsonPath('data.segments.0.groupSize', 30);
 
         $booking->refresh();
         $this->assertSame(30, $booking->group_size);
-        $this->assertStringContainsString('User salah input jumlah peserta, admin koreksi manual.', (string) $booking->note);
+        $this->assertStringContainsString('Total peserta dikoreksi 2 -> 30.', (string) $booking->note);
 
         $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
         $this->assertSame(2, $log->payload['old_group_size']);
         $this->assertSame(30, $log->payload['new_group_size']);
-        $this->assertSame('User salah input jumlah peserta, admin koreksi manual.', $log->payload['note']);
+        $this->assertStringContainsString('Total peserta dikoreksi 2 -> 30.', $log->payload['note']);
+        $this->assertTrue($log->payload['risk_confirmed']);
     }
 
     public function test_admin_manual_segments_can_increase_booking_group_size_with_note(): void
@@ -2340,10 +2341,10 @@ class ScheduleSyncTest extends TestCase
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
             ->assertStatus(422)
-            ->assertJsonValidationErrors('note');
+            ->assertJsonValidationErrors('confirmRisk');
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + [
-            'note' => 'Jumlah peserta bertambah setelah konfirmasi ulang.',
+            'confirmRisk' => true,
         ])->assertOk()
             ->assertJsonPath('data.groupSize', 120)
             ->assertJsonPath('data.kloterCount', 2)
@@ -2352,7 +2353,7 @@ class ScheduleSyncTest extends TestCase
 
         $booking->refresh();
         $this->assertSame(120, $booking->group_size);
-        $this->assertStringContainsString('Jumlah peserta bertambah setelah konfirmasi ulang.', (string) $booking->note);
+        $this->assertStringContainsString('Total peserta dikoreksi 70 -> 120.', (string) $booking->note);
         $this->assertDatabaseHas('booking_slots', [
             'booking_id' => $booking->id,
             'slot_order' => 1,
@@ -2371,7 +2372,8 @@ class ScheduleSyncTest extends TestCase
         $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
         $this->assertSame(70, $log->payload['old_group_size']);
         $this->assertSame(120, $log->payload['new_group_size']);
-        $this->assertSame('Jumlah peserta bertambah setelah konfirmasi ulang.', $log->payload['note']);
+        $this->assertStringContainsString('Total peserta dikoreksi 70 -> 120.', $log->payload['note']);
+        $this->assertTrue($log->payload['risk_confirmed']);
     }
 
     public function test_admin_manual_segments_can_decrease_booking_group_size_with_note(): void
@@ -2396,10 +2398,10 @@ class ScheduleSyncTest extends TestCase
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
             ->assertStatus(422)
-            ->assertJsonValidationErrors('note');
+            ->assertJsonValidationErrors('confirmRisk');
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + [
-            'note' => 'Jumlah peserta berkurang setelah konfirmasi ulang.',
+            'confirmRisk' => true,
         ])->assertOk()
             ->assertJsonPath('data.groupSize', 70)
             ->assertJsonPath('data.kloterCount', 1)
@@ -2407,7 +2409,7 @@ class ScheduleSyncTest extends TestCase
 
         $booking->refresh();
         $this->assertSame(70, $booking->group_size);
-        $this->assertStringContainsString('Jumlah peserta berkurang setelah konfirmasi ulang.', (string) $booking->note);
+        $this->assertStringContainsString('Total peserta dikoreksi 120 -> 70.', (string) $booking->note);
         $this->assertDatabaseHas('booking_slots', [
             'booking_id' => $booking->id,
             'slot_order' => 1,
@@ -2420,7 +2422,8 @@ class ScheduleSyncTest extends TestCase
         $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
         $this->assertSame(120, $log->payload['old_group_size']);
         $this->assertSame(70, $log->payload['new_group_size']);
-        $this->assertSame('Jumlah peserta berkurang setelah konfirmasi ulang.', $log->payload['note']);
+        $this->assertStringContainsString('Total peserta dikoreksi 120 -> 70.', $log->payload['note']);
+        $this->assertTrue($log->payload['risk_confirmed']);
     }
 
     public function test_admin_manual_segments_require_explicit_overbook_for_occupied_slot(): void
@@ -2444,7 +2447,6 @@ class ScheduleSyncTest extends TestCase
             'segments' => [
                 ['date' => $date, 'time' => '08.00', 'groupSize' => $booking->group_size],
             ],
-            'note' => 'Rombongan meminta digabung dengan slot sebelumnya.',
         ];
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload)
@@ -2452,6 +2454,10 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('allowOverbook');
 
         $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + ['allowOverbook' => true])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('confirmRisk');
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/segments", $payload + ['allowOverbook' => true, 'confirmRisk' => true])
             ->assertOk()
             ->assertJsonPath('data.segments.0.time', '08.00');
 
