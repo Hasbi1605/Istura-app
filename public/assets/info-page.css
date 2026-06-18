@@ -173,3 +173,228 @@ body {
     letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.4);
 }
+
+/* =========================================================
+   SEO info pages — breadcrumb, sections, FAQ, links, CTA
+   ========================================================= */
+
+/* Breadcrumb */
+.seo-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 20px;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.5);
+    flex-wrap: wrap;
+}
+
+.seo-breadcrumb a {
+    color: var(--gold-2);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.seo-breadcrumb a:hover {
+    color: var(--gold);
+    text-decoration: underline;
+}
+
+.seo-breadcrumb span[aria-hidden] {
+    color: rgba(255, 255, 255, 0.3);
+    user-select: none;
+}
+
+/* Content sections */
+.seo-section {
+    margin-bottom: 28px;
+}
+
+.seo-section h2 {
+    margin: 0 0 10px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+.seo-section p {
+    margin: 0 0 12px;
+    font-size: 0.94rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.seo-section-items {
+    margin: 8px 0 0;
+    padding-left: 22px;
+    list-style: none;
+}
+
+.seo-section-items li {
+    position: relative;
+    margin-bottom: 8px;
+    padding-left: 6px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.seo-section-items li::before {
+    content: "◆";
+    position: absolute;
+    left: -18px;
+    color: var(--gold);
+    font-size: 0.6rem;
+    top: 4px;
+}
+
+/* FAQ accordion */
+.seo-faq {
+    margin: 32px 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(229, 189, 85, 0.18);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+}
+
+.seo-faq h2 {
+    margin: 0 0 14px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+.seo-faq-item {
+    border-bottom: 1px solid rgba(229, 189, 85, 0.12);
+}
+
+.seo-faq-item:last-child {
+    border-bottom: none;
+}
+
+.seo-faq-item summary {
+    padding: 14px 4px;
+    font-size: 0.94rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.15s ease;
+}
+
+/* Custom marker arrow */
+.seo-faq-item summary::before {
+    content: "▸";
+    display: inline-block;
+    font-size: 0.85rem;
+    color: var(--gold);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.seo-faq-item[open] summary::before {
+    transform: rotate(90deg);
+}
+
+/* Hide default marker in all browsers */
+.seo-faq-item summary::-webkit-details-marker { display: none; }
+
+.seo-faq-item[open] summary {
+    color: var(--gold-2);
+}
+
+.seo-faq-item p {
+    margin: 0;
+    padding: 0 4px 16px 22px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+/* Related links */
+.seo-links {
+    margin: 28px 0;
+}
+
+.seo-links h2 {
+    margin: 0 0 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+.seo-links-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.seo-links a {
+    display: inline-block;
+    padding: 8px 18px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--gold-2);
+    text-decoration: none;
+    border: 1px solid rgba(229, 189, 85, 0.32);
+    border-radius: 999px;
+    background: transparent;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.seo-links a:hover {
+    background: rgba(229, 189, 85, 0.14);
+    border-color: var(--gold-2);
+    color: #fff;
+}
+
+.seo-links a:focus-visible {
+    outline: 2px solid var(--gold-2);
+    outline-offset: 2px;
+}
+
+/* CTA */
+.seo-cta-wrap {
+    text-align: center;
+    margin: 32px 0 12px;
+}
+
+.seo-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 36px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--navy);
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    border-radius: 999px;
+    box-shadow: 0 12px 28px rgba(196, 146, 18, 0.32);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.seo-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 36px rgba(196, 146, 18, 0.38);
+}
+
+.seo-cta:focus-visible {
+    outline: 2px solid var(--gold-2);
+    outline-offset: 3px;
+}
+
+/* Responsive adjustments for SEO page elements */
+@media (max-width: 640px) {
+    .seo-breadcrumb { font-size: 0.76rem; }
+    .seo-section h2 { font-size: 1.05rem; }
+    .seo-faq { padding: 16px; }
+    .seo-faq-item summary { padding: 12px 2px; font-size: 0.88rem; }
+    .seo-faq-item p { font-size: 0.85rem; padding-left: 18px; }
+    .seo-links a { padding: 7px 14px; font-size: 0.82rem; }
+    .seo-cta { padding: 12px 28px; font-size: 0.9rem; }
+}

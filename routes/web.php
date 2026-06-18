@@ -46,6 +46,22 @@ Route::get('/info/alur-kunjungan', function (Request $request) {
     ]);
 })->name('info.visit-flow');
 
+// Halaman info SEO/GEO server-rendered (content cluster).
+// Route di-constrain oleh whereIn agar slug tak dikenal tetap 404.
+Route::get('/info/{slug}', function (Request $request, string $slug) {
+    if ($redirect = SeoMeta::canonicalRedirect($request)) {
+        return $redirect;
+    }
+
+    return view('info.seo-page', SeoMeta::infoPageViewData($slug));
+})
+    ->whereIn('slug', array_keys(SeoMeta::infoPages()))
+    ->name('info.seo-page');
+
+Route::get('/info/{any}', function () {
+    abort(404);
+})->where('any', '.*');
+
 // SPA shell — semua rute non-API diserahkan ke React (state-based router).
 Route::get('/{any?}', function (Request $request) {
     if ($redirect = SeoMeta::canonicalRedirect($request)) {

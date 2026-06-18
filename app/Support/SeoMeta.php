@@ -105,20 +105,32 @@ class SeoMeta
 
     public static function sitemapXml(): string
     {
+        $today = now('Asia/Jakarta')->toDateString();
+
         $entries = [
             [
                 'loc' => self::url('/'),
-                'lastmod' => now('Asia/Jakarta')->toDateString(),
+                'lastmod' => $today,
                 'changefreq' => 'daily',
                 'priority' => '1.0',
             ],
             [
                 'loc' => self::url('/info/alur-kunjungan'),
-                'lastmod' => now('Asia/Jakarta')->toDateString(),
+                'lastmod' => $today,
                 'changefreq' => 'monthly',
                 'priority' => '0.8',
             ],
         ];
+
+        foreach (self::infoPages() as $page) {
+            $sitemap = $page['sitemap'] ?? [];
+            $entries[] = [
+                'loc' => self::url($page['path']),
+                'lastmod' => $today,
+                'changefreq' => $sitemap['changefreq'] ?? 'monthly',
+                'priority' => $sitemap['priority'] ?? '0.8',
+            ];
+        }
 
         $urls = collect($entries)
             ->map(fn (array $entry): string => sprintf(
@@ -134,6 +146,222 @@ class SeoMeta
             "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n".
             "{$urls}\n".
             "</urlset>\n";
+    }
+
+    // ─── SEO Content Cluster ─────────────────────────────────────────
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public static function infoPages(): array
+    {
+        return config('seo_pages', []);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function infoPage(string $slug): array
+    {
+        $pages = self::infoPages();
+
+        if (! isset($pages[$slug])) {
+            abort(404);
+        }
+
+        return $pages[$slug];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function infoPageViewData(string $slug): array
+    {
+        $page = self::infoPage($slug);
+        $pageUrl = self::url($page['path']);
+        $ogImage = self::assetUrl('/assets/istura-home-preview.jpg');
+
+        $seo = [
+            'title' => $page['title'],
+            'description' => $page['description'],
+            'canonicalUrl' => $pageUrl,
+            'siteName' => 'ISTURA',
+            'image' => $ogImage,
+            'imageAlt' => $page['ogImageAlt'] ?? $page['h1'],
+            'imageWidth' => 1200,
+            'imageHeight' => 630,
+            'imageType' => 'image/jpeg',
+        ];
+
+        $relatedPages = collect(self::infoPages())
+            ->reject(fn (array $p): bool => ($p['path'] ?? '') === $page['path'])
+            ->map(fn (array $p): array => [
+                'label' => $p['h1'] ?? $p['title'],
+                'href' => $p['path'],
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'page' => $page,
+            'seo' => $seo,
+            'structuredDataJson' => self::infoPageStructuredDataJson($page),
+            'relatedPages' => $relatedPages,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $page
+     */
+    public static function infoPageStructuredDataJson(array $page): string
+    {
+        $pageUrl = self::url($page['path']);
+        $schemas = $page['schema'] ?? [];
+
+        $data = [];
+
+        // WebPage (always)
+        $data[] = [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebPage',
+            'name' => $page['title'],
+            'description' => $page['description'],
+            'url' => $pageUrl,
+            'inLanguage' => 'id-ID',
+            'isPartOf' => [
+                '@type' => 'WebSite',
+                'name' => 'ISTURA',
+                'url' => self::url('/'),
+            ],
+        ];
+
+        // BreadcrumbList
+        if (in_array('BreadcrumbList', $schemas, true)) {
+            $data[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => [
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 1,
+                        'name' => 'Beranda',
+                        'item' => self::url('/'),
+                    ],
+                    [
+                        '@type' => 'ListItem',
+                        'position' => 2,
+                        'name' => $page['h1'],
+                        'item' => $pageUrl,
+                    ],
+                ],
+            ];
+        }
+
+        // FAQPage
+        $faqs = $page['faqs'] ?? [];
+        if (in_array('FAQPage', $schemas, true) && $faqs !== []) {
+            $data[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'FAQPage',
+                'mainEntity' => array_map(fn (array $faq): array => [
+                    '@type' => 'Question',
+                    'name' => $faq['question'],
+                    'acceptedAnswer' => [
+                        '@type' => 'Answer',
+                        'text' => $faq['answer'],
+                    ],
+                ], $faqs),
+            ];
+        }
+
+        // TouristAttraction
+        if (in_array('TouristAttraction', $schemas, true)) {
+            $data[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'TouristAttraction',
+                'name' => $page['h1'],
+                'description' => $page['description'],
+                'url' => $pageUrl,
+                'isAccessibleForFree' => true,
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => 'Jl. Jend. Ahmad Yani, Ngupasan, Gondomanan',
+                    'addressLocality' => 'Kota Yogyakarta',
+                    'addressRegion' => 'Daerah Istimewa Yogyakarta',
+                    'postalCode' => '55122',
+                    'addressCountry' => 'ID',
+                ],
+            ];
+        }
+
+        // Place
+        if (in_array('Place', $schemas, true) && ! in_array('TouristAttraction', $schemas, true)) {
+            $data[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'Place',
+                'name' => $page['h1'],
+                'description' => $page['description'],
+                'url' => $pageUrl,
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => 'Jl. Jend. Ahmad Yani, Ngupasan, Gondomanan',
+                    'addressLocality' => 'Kota Yogyakarta',
+                    'addressRegion' => 'Daerah Istimewa Yogyakarta',
+                    'postalCode' => '55122',
+                    'addressCountry' => 'ID',
+                ],
+            ];
+        }
+
+        // GovernmentBuilding
+        if (in_array('GovernmentBuilding', $schemas, true)) {
+            $data[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'GovernmentBuilding',
+                'name' => $page['h1'],
+                'description' => $page['description'],
+                'url' => $pageUrl,
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => 'Jl. Jend. Ahmad Yani, Ngupasan, Gondomanan',
+                    'addressLocality' => 'Kota Yogyakarta',
+                    'addressRegion' => 'Daerah Istimewa Yogyakarta',
+                    'postalCode' => '55122',
+                    'addressCountry' => 'ID',
+                ],
+            ];
+        }
+
+        // Museum
+        if (in_array('Museum', $schemas, true)) {
+            $data[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'Museum',
+                'name' => $page['h1'],
+                'description' => $page['description'],
+                'url' => $pageUrl,
+                'isAccessibleForFree' => true,
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => 'Jl. Jend. Ahmad Yani, Ngupasan, Gondomanan',
+                    'addressLocality' => 'Kota Yogyakarta',
+                    'addressRegion' => 'Daerah Istimewa Yogyakarta',
+                    'postalCode' => '55122',
+                    'addressCountry' => 'ID',
+                ],
+            ];
+        }
+
+        return json_encode(
+            $data,
+            JSON_UNESCAPED_SLASHES
+                | JSON_UNESCAPED_UNICODE
+                | JSON_PRETTY_PRINT
+                | JSON_HEX_TAG
+                | JSON_HEX_AMP
+                | JSON_HEX_APOS
+                | JSON_HEX_QUOT,
+        ) ?: '[]';
     }
 
     public static function url(string $path = '/'): string

@@ -129,6 +129,19 @@
                         <p>{{ $seoContent['footer']['address'] }}</p>
                     </section>
                 @endif
+
+                <section aria-labelledby="seo-guides-title">
+                    <h2 id="seo-guides-title">Panduan Kunjungan</h2>
+                    <ul>
+                        <li><a href="/info/cara-daftar-istura">Cara Daftar ISTURA</a></li>
+                        <li><a href="/info/jadwal-kunjungan-istura">Jadwal Kunjungan ISTURA</a></li>
+                        <li><a href="/info/syarat-kunjungan-istura">Syarat Kunjungan ISTURA</a></li>
+                        <li><a href="/info/gedung-agung-yogyakarta">Gedung Agung Yogyakarta</a></li>
+                        <li><a href="/info/istana-kepresidenan-yogyakarta">Istana Kepresidenan Yogyakarta</a></li>
+                        <li><a href="/info/museum-istana-kepresidenan-yogyakarta">Museum Istana Kepresidenan Yogyakarta</a></li>
+                        <li><a href="/info/wisata-edukasi-gratis-jogja">Wisata Edukasi Gratis di Jogja</a></li>
+                    </ul>
+                </section>
             </main>
         </noscript>
     </div>

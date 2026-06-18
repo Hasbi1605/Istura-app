@@ -49,6 +49,19 @@ export function Footer({
           </div>
         </div>
 
+        <div className="footer-col footer-col-guides">
+          <span className="footer-eyebrow">Panduan Kunjungan</span>
+          <nav className="footer-guide-links" aria-label="Panduan Kunjungan ISTURA">
+            <a href="/info/cara-daftar-istura">Cara Daftar ISTURA</a>
+            <a href="/info/jadwal-kunjungan-istura">Jadwal Kunjungan ISTURA</a>
+            <a href="/info/syarat-kunjungan-istura">Syarat Kunjungan ISTURA</a>
+            <a href="/info/gedung-agung-yogyakarta">Gedung Agung Yogyakarta</a>
+            <a href="/info/istana-kepresidenan-yogyakarta">Istana Kepresidenan Yogyakarta</a>
+            <a href="/info/museum-istana-kepresidenan-yogyakarta">Museum Istana Kepresidenan Yogyakarta</a>
+            <a href="/info/wisata-edukasi-gratis-jogja">Wisata Edukasi Gratis di Jogja</a>
+          </nav>
+        </div>
+
         <div className="footer-col footer-col-location">
           <span className="footer-eyebrow">Lokasi</span>
           <a

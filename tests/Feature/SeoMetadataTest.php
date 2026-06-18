@@ -138,4 +138,87 @@ class SeoMetadataTest extends TestCase
             ->assertStatus(301)
             ->assertHeader('Location', 'https://www.isturaiky.page/?utm_source=test');
     }
+
+    public function test_seo_info_pages_render_server_side_content(): void
+    {
+        $slugs = [
+            'cara-daftar-istura',
+            'jadwal-kunjungan-istura',
+            'syarat-kunjungan-istura',
+            'gedung-agung-yogyakarta',
+            'istana-kepresidenan-yogyakarta',
+            'museum-istana-kepresidenan-yogyakarta',
+            'wisata-edukasi-gratis-jogja',
+        ];
+
+        foreach ($slugs as $slug) {
+            $response = $this->get('/info/'.$slug);
+
+            $response->assertOk();
+            $response->assertSee('<title>', false);
+            $response->assertSee('<link rel="canonical" href="https://www.isturaiky.page/info/'.$slug.'" />', false);
+            $response->assertSee('<h1', false);
+            $response->assertSee('<script type="application/ld+json">', false);
+            $response->assertSee('ISTURA', false);
+        }
+    }
+
+    public function test_sitemap_xml_lists_seo_content_cluster_urls(): void
+    {
+        $response = $this->get('/sitemap.xml');
+
+        $response->assertOk();
+        $response->assertSee('<loc>https://www.isturaiky.page/</loc>', false);
+        $response->assertSee('<loc>https://www.isturaiky.page/info/alur-kunjungan</loc>', false);
+
+        $slugs = [
+            'cara-daftar-istura',
+            'jadwal-kunjungan-istura',
+            'syarat-kunjungan-istura',
+            'gedung-agung-yogyakarta',
+            'istana-kepresidenan-yogyakarta',
+            'museum-istana-kepresidenan-yogyakarta',
+            'wisata-edukasi-gratis-jogja',
+        ];
+
+        foreach ($slugs as $slug) {
+            $response->assertSee('<loc>https://www.isturaiky.page/info/'.$slug.'</loc>', false);
+        }
+        $response->assertSee('<lastmod>2026-06-10</lastmod>', false);
+    }
+
+    public function test_unknown_info_slug_returns_404(): void
+    {
+        $response = $this->get('/info/tidak-ada');
+        $response->assertStatus(404);
+    }
+
+    public function test_visit_flow_page_is_not_replaced_by_generic_seo_page(): void
+    {
+        $response = $this->get('/info/alur-kunjungan');
+
+        $response->assertOk();
+        $response->assertDontSee('<nav class="seo-breadcrumb"', false);
+        $response->assertDontSee('<section class="seo-section"', false);
+    }
+
+    public function test_homepage_links_to_seo_info_pages(): void
+    {
+        $response = $this->get('/');
+        $response->assertOk();
+
+        $slugs = [
+            'cara-daftar-istura',
+            'jadwal-kunjungan-istura',
+            'syarat-kunjungan-istura',
+            'gedung-agung-yogyakarta',
+            'istana-kepresidenan-yogyakarta',
+            'museum-istana-kepresidenan-yogyakarta',
+            'wisata-edukasi-gratis-jogja',
+        ];
+
+        foreach ($slugs as $slug) {
+            $response->assertSee('href="/info/'.$slug.'"', false);
+        }
+    }
 }
