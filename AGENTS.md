@@ -71,6 +71,7 @@ bagian "## Changelog" di bawah. Aturan:
 - Jangan menghapus entri lama; changelog bersifat append-only sebagai jejak riwayat.
 
 ## Changelog
+- 2026-06-18 — Rapikan label kolom footer publik: kolom logo/jam kini berjudul "Informasi" dan kolom tautan SEO/GEO berjudul "Tentang". — `resources/js/components/layout/Footer.tsx` — (test: `npm run build` pass)
 - 2026-06-18 — **Penyesuaian hari operasional info Senin-Jumat.** Mengubah hari operasional kunjungan reguler di halaman info jadwal menjadi Senin-Jumat dengan catatan penyesuaian WFH, serta memperbaiki struktur format array 'body' pada bagian acara kenegaraan. — `config/seo_pages.php` — (test: `php artisan test` 225 pass)
 - 2026-06-18 — **Penyederhanaan kalimat penyesuaian jadwal kenegaraan.** Menyederhanakan kalimat tentang penjadwalan ulang karena acara kenegaraan pada halaman info jadwal, menghapus kurung keterangan status (Accepted/reschedule), serta merapikan bahasa agar lebih natural dan inklusif. — `config/seo_pages.php` — (test: `php artisan test` 225 pass)
 - 2026-06-18 — **Revert structured data homepage ke GovernmentOrganization.** Mengembalikan tipe schema homepage kembali ke GovernmentOrganization karena situs ini merupakan web resmi program kepresidenan IKY. — `app/Support/SeoMeta.php` — (test: `php artisan test` 225 pass)

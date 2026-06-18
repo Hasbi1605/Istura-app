@@ -14,7 +14,7 @@ export function Footer({
     <footer className="site-footer">
       <div className="footer-grid">
         <div className="footer-col footer-col-brand">
-          <span className="footer-eyebrow">Tentang</span>
+          <span className="footer-eyebrow">Informasi</span>
           <div className="footer-brand-stack">
             <img className="footer-logo" src={content.logoSrc || ASSETS.logoGold} alt={content.logoAlt || "Gedung Agung"} />
             <p className="footer-hours-line" aria-label={content.scheduleLabel}>
@@ -50,8 +50,8 @@ export function Footer({
         </div>
 
         <div className="footer-col footer-col-guides">
-          <span className="footer-eyebrow">Panduan Kunjungan</span>
-          <nav className="footer-guide-links" aria-label="Panduan Kunjungan ISTURA">
+          <span className="footer-eyebrow">Tentang</span>
+          <nav className="footer-guide-links" aria-label="Tentang ISTURA dan Gedung Agung">
             <a href="/info/cara-daftar-istura">Cara Daftar ISTURA</a>
             <a href="/info/jadwal-kunjungan-istura">Jadwal Kunjungan ISTURA</a>
             <a href="/info/syarat-kunjungan-istura">Syarat Kunjungan ISTURA</a>
