@@ -1879,8 +1879,9 @@ export function DirectMoveModal({
   const [confirmedDirectMove, setConfirmedDirectMove] = useState(false);
   const selectedDateOption = dateOptions.find((item) => item.day.date === date);
   const day = selectedDateOption?.day ?? days.find((item) => item.date === date);
+  const activeSegments = bookingSegments(booking);
   const candidates = candidateSlots(day, time, moveSegmentSizes);
-  const ownKeys = new Set(bookingSegments(booking).map((segment) => `${segment.date}|${segment.time}`));
+  const ownKeys = new Set(activeSegments.map((segment) => `${segment.date}|${segment.time}`));
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
   const hasPast = candidates.some(({ slot }) => isPastVisitTime(date, slot.time));
   const conflicts = candidates.filter(({ slot }) => slot.status !== "Available" && !ownKeys.has(`${date}|${slot.time}`));
@@ -1890,9 +1891,21 @@ export function DirectMoveModal({
     || hasPast || conflicts.length > 0 && !allowOverbook || !confirmedDirectMove || sameSchedule;
 
   const startCandidates = (startTime: string) => candidateSlots(day, startTime, moveSegmentSizes);
+  const isCurrentScheduleStart = (startTime: string) => {
+    const group = startCandidates(startTime);
+    if (date !== booking.date || group.length !== activeSegments.length || group.length !== requiredSlots) return false;
+
+    return group.every(({ slot, size }, index) => {
+      const segment = activeSegments[index];
+      return segment?.date === date
+        && segment.time === slot.time
+        && segment.groupSize === size;
+    });
+  };
   const canSelectStart = (slot: VisitDay["slots"][number]) => {
     const group = startCandidates(slot.time);
     return group.length === requiredSlots
+      && !isCurrentScheduleStart(slot.time)
       && !isPastVisitTime(date, slot.time)
       && group.every(({ slot: item }) => item.status !== "Closed" && !isPastVisitTime(date, item.time));
   };
@@ -1911,13 +1924,15 @@ export function DirectMoveModal({
   const slotChipClass = (slot: VisitDay["slots"][number]) => {
     const selected = selectedSlotSet.has(slot.time);
     const own = ownKeys.has(`${date}|${slot.time}`);
+    const currentStart = isCurrentScheduleStart(slot.time);
     const available = slot.status === "Available";
     const closed = slot.status === "Closed";
     const selectable = canSelectStart(slot);
     return [
       "segment-slot-chip",
-      selected ? "is-selected" : "",
-      !selected && own ? "is-own" : "",
+      selected && !currentStart ? "is-selected" : "",
+      own && (!selected || currentStart) ? "is-own" : "",
+      currentStart ? "is-current-schedule" : "",
       !selected && available && selectable ? "is-available" : "",
       !selected && available && !selectable ? "is-full" : "",
       !selected && !available && !closed && !own ? "is-occupied" : "",
@@ -1926,6 +1941,8 @@ export function DirectMoveModal({
   };
 
   const slotLabel = (slot: VisitDay["slots"][number]) => {
+    const own = ownKeys.has(`${date}|${slot.time}`);
+    if ((sameSchedule && own) || (own && !selectedSlotSet.has(slot.time))) return "Jadwal saat ini";
     if (selectedSlotSet.has(slot.time) && requiredSlots > 1) {
       const startIndex = day ? day.slots.findIndex((item) => item.time === time) : -1;
       const slotIndex = day ? day.slots.findIndex((item) => item.time === slot.time) : -1;
@@ -1984,7 +2001,7 @@ export function DirectMoveModal({
               <div className="segment-slot-grid">
                 {day.slots.map((slot) => {
                   const selected = selectedSlotSet.has(slot.time);
-                  const disabled = !selected && !canSelectStart(slot);
+                  const disabled = isCurrentScheduleStart(slot.time) || (!selected && !canSelectStart(slot));
                   return (
                     <button
                       key={slot.time}

@@ -317,6 +317,13 @@ class AdminBookingFlexibilityTest extends TestCase
         $code = $response->json('data.code');
 
         $this->postJson("/api/admin/bookings/{$code}/move", [
+            'date' => '2026-06-16',
+            'time' => '08.00',
+            'confirmedDirectMove' => true,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('time');
+
+        $this->postJson("/api/admin/bookings/{$code}/move", [
             'date' => '2026-06-17',
             'time' => '10.00',
             'confirmedDirectMove' => true,

@@ -154,7 +154,7 @@ total peserta kecuali mode koreksi diaktifkan. **Pindah Jadwal Langsung** dapat 
 menolak jam hari ini yang sudah lewat, dan hanya tersedia untuk booking Pending/Accepted.
 Pada booking Accepted, admin menerima peringatan bahwa jadwal langsung berubah dan tamu harus
 sudah diberi tahu; booking berstatus Reschedule tetap diselesaikan melalui alur penjadwalan ulang.
-Pindah Jadwal Langsung mempertahankan bentuk kloter aktif saat ini dan menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking Manual
+Pindah Jadwal Langsung mempertahankan bentuk kloter aktif saat ini, mengunci jadwal aktif agar tidak bisa dipilih ulang sebagai tujuan, dan menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking Manual
 dapat dibuat tanpa surat atau dengan surat permohonan opsional, tetap mengenkripsi NIK,
 menampilkan label tanggal ringkas berdasarkan slot kosong/penuh/tidak ada jam operasional,
 menyediakan mode kloter otomatis atau manual pada tanggal yang sama, menampilkan izin gabung

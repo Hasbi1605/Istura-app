@@ -8814,8 +8814,19 @@ a {
 }
 
 .segment-slot-chip.is-own {
-  background: rgba(255, 244, 209, 0.72);
-  border-color: rgba(196, 146, 18, 0.36);
+  color: var(--teal);
+  background: rgba(31, 107, 103, 0.08);
+  border-color: rgba(31, 107, 103, 0.22);
+  box-shadow: none;
+}
+
+.segment-slot-chip.is-own strong,
+.segment-slot-chip.is-own small {
+  color: var(--teal);
+}
+
+.segment-slot-chip.is-current-schedule {
+  cursor: not-allowed;
 }
 
 .segment-slot-chip.is-occupied {
