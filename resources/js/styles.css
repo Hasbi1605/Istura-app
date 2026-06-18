@@ -8988,6 +8988,10 @@ a {
   margin-top: 0;
 }
 
+.direct-move-confirmation-group {
+  margin-top: 12px;
+}
+
 .admin-confirm-check-copy {
   display: grid;
   gap: 3px;
@@ -9007,34 +9011,6 @@ a {
 
 .admin-slot-conflict-check .admin-confirm-check-copy small {
   color: #76530a;
-}
-
-.direct-move-note {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 10px 0 2px;
-  padding: 8px 10px;
-  color: #76530a;
-  background: rgba(196, 146, 18, 0.08);
-  border-left: 3px solid rgba(196, 146, 18, 0.65);
-  border-radius: 6px;
-  font-size: 0.76rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.direct-move-note > svg {
-  flex: 0 0 auto;
-}
-
-.direct-move-note strong {
-  color: #5f4106;
-  font-weight: 900;
-}
-
-.admin-confirmation-group .direct-move-note {
-  margin: 0;
 }
 
 .segment-row-note--warning {

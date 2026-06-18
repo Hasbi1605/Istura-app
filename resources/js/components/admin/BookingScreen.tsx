@@ -1884,11 +1884,12 @@ export function DirectMoveModal({
   const ownKeys = new Set(activeSegments.map((segment) => `${segment.date}|${segment.time}`));
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
   const hasPast = candidates.some(({ slot }) => isPastVisitTime(date, slot.time));
+  const targetTouchesCurrentSchedule = candidates.some(({ slot }) => ownKeys.has(`${date}|${slot.time}`));
   const conflicts = candidates.filter(({ slot }) => slot.status !== "Available" && !ownKeys.has(`${date}|${slot.time}`));
   const sameSchedule = date === booking.date && time === booking.time;
   const busy = Boolean(pendingLabel);
   const invalid = selectedDateOption?.disabled || !date || !time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(date, time)
-    || hasPast || conflicts.length > 0 && !allowOverbook || !confirmedDirectMove || sameSchedule;
+    || hasPast || targetTouchesCurrentSchedule || conflicts.length > 0 && !allowOverbook || !confirmedDirectMove || sameSchedule;
 
   const startCandidates = (startTime: string) => candidateSlots(day, startTime, moveSegmentSizes);
   const isCurrentScheduleStart = (startTime: string) => {
@@ -1907,7 +1908,7 @@ export function DirectMoveModal({
     return group.length === requiredSlots
       && !isCurrentScheduleStart(slot.time)
       && !isPastVisitTime(date, slot.time)
-      && group.every(({ slot: item }) => item.status !== "Closed" && !isPastVisitTime(date, item.time));
+      && group.every(({ slot: item }) => item.status !== "Closed" && !isPastVisitTime(date, item.time) && !ownKeys.has(`${date}|${item.time}`));
   };
 
   const selectedSlotSet = useMemo(() => {
@@ -1930,19 +1931,19 @@ export function DirectMoveModal({
     const selectable = canSelectStart(slot);
     return [
       "segment-slot-chip",
-      selected && !currentStart ? "is-selected" : "",
-      own && (!selected || currentStart) ? "is-own" : "",
-      currentStart ? "is-current-schedule" : "",
+      selected && !own ? "is-selected" : "",
+      own ? "is-own" : "",
+      own || currentStart ? "is-current-schedule" : "",
       !selected && available && selectable ? "is-available" : "",
-      !selected && available && !selectable ? "is-full" : "",
+      !selected && available && !selectable && !own ? "is-full" : "",
       !selected && !available && !closed && !own ? "is-occupied" : "",
-      !selected && (closed || isPastVisitTime(date, slot.time)) ? "is-closed" : "",
+      !selected && !own && (closed || isPastVisitTime(date, slot.time)) ? "is-closed" : "",
     ].filter(Boolean).join(" ");
   };
 
   const slotLabel = (slot: VisitDay["slots"][number]) => {
     const own = ownKeys.has(`${date}|${slot.time}`);
-    if ((sameSchedule && own) || (own && !selectedSlotSet.has(slot.time))) return "Jadwal saat ini";
+    if (own) return "Jadwal saat ini";
     if (selectedSlotSet.has(slot.time) && requiredSlots > 1) {
       const startIndex = day ? day.slots.findIndex((item) => item.time === time) : -1;
       const slotIndex = day ? day.slots.findIndex((item) => item.time === slot.time) : -1;
@@ -2001,7 +2002,8 @@ export function DirectMoveModal({
               <div className="segment-slot-grid">
                 {day.slots.map((slot) => {
                   const selected = selectedSlotSet.has(slot.time);
-                  const disabled = isCurrentScheduleStart(slot.time) || (!selected && !canSelectStart(slot));
+                  const own = ownKeys.has(`${date}|${slot.time}`);
+                  const disabled = own || isCurrentScheduleStart(slot.time) || (!selected && !canSelectStart(slot));
                   return (
                     <button
                       key={slot.time}
@@ -2019,7 +2021,7 @@ export function DirectMoveModal({
             </>
           )}
         </div>
-        <div className="admin-confirmation-group" aria-label="Konfirmasi pindah jadwal">
+        <div className="admin-confirmation-group direct-move-confirmation-group" aria-label="Konfirmasi pindah jadwal">
           <span className="admin-confirmation-title">Konfirmasi</span>
           {conflicts.length > 0 && (
             <SlotConflictPermission
@@ -2028,12 +2030,6 @@ export function DirectMoveModal({
               onChange={setAllowOverbook}
               disabled={busy}
             />
-          )}
-          {booking.status === "Accepted" && (
-            <div className="direct-move-note" role="note">
-              <AlertTriangle size={15} aria-hidden="true" />
-              <span><strong>Jadwal langsung berubah.</strong> Pastikan tamu sudah diberi tahu.</span>
-            </div>
           )}
           <label className="form-check admin-confirm-check">
             <input
@@ -2045,7 +2041,7 @@ export function DirectMoveModal({
             <span>{booking.status === "Accepted" ? "Tamu sudah diberi tahu bahwa jadwal akan langsung berubah." : "Perubahan jadwal langsung ini dikonfirmasi untuk proses booking."}</span>
           </label>
         </div>
-        {sameSchedule && <strong className="form-message form-message--error">Pilih jadwal yang berbeda dari jadwal saat ini.</strong>}
+        {(sameSchedule || targetTouchesCurrentSchedule) && <strong className="form-message form-message--error">Pilih jadwal di luar jadwal saat ini.</strong>}
         {(isPastVisitTime(date, time) || hasPast) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, allowOverbook, confirmedDirectMove)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan jadwal"}</button></div>
