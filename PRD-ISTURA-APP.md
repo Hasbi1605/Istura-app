@@ -156,8 +156,8 @@ Pada booking Accepted, admin menerima peringatan bahwa jadwal langsung berubah d
 sudah diberi tahu; booking berstatus Reschedule tetap diselesaikan melalui alur penjadwalan ulang.
 Pindah Jadwal Langsung menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking Manual
 dapat dibuat tanpa surat atau dengan surat permohonan opsional, tetap mengenkripsi NIK,
-menampilkan keterangan slot kosong/overbook per tanggal, memakai chip jam/kloter seperti Pindah
-Jadwal Langsung, dan menyimpan langsung tanpa membuka WhatsApp otomatis. Tawarkan Jadwal
+menampilkan keterangan slot kosong/overbook per tanggal, menyediakan mode kloter otomatis
+atau manual pada tanggal yang sama, dan menyimpan langsung tanpa membuka WhatsApp otomatis. Tawarkan Jadwal
 Lain hanya menampilkan tanggal yang benar-benar memiliki slot tersedia untuk ditawarkan ke tamu. Aksi lifecycle
 utama tetap menghasilkan pesan WhatsApp siap kirim dan audit.
 
@@ -323,6 +323,9 @@ sudah ada, tetapi tidak dapat menambahkan tanggal lampau baru. Detail aturan ada
 9. UBAH KLOTER (segments): admin susun ulang pembagian peserta ke slot; total peserta harus
    sama; overbook/penggabungan kloter besar/perubahan jumlah → checkbox konfirmasi wajib
    dan catatan audit dibuat otomatis.
+   Booking Manual dapat memakai pembagian otomatis berurutan atau pembagian manual per jam;
+   total peserta manual harus sama dengan jumlah peserta booking dan seluruh kloter berada
+   pada tanggal booking.
 10. UNDUH SURAT: admin preview inline atau download surat permohonan.
 11. Setiap aksi tercatat di audit log & memicu broadcast realtime + invalidasi cache jadwal.
 ```

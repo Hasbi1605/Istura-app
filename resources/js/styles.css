@@ -8821,6 +8821,74 @@ a {
   gap: 12px;
 }
 
+.admin-kloter-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(16, 24, 47, 0.72);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.admin-segmented-control {
+  display: inline-flex;
+  padding: 3px;
+  background: rgba(16, 24, 47, 0.06);
+  border: 1px solid rgba(16, 24, 47, 0.08);
+  border-radius: 8px;
+}
+
+.admin-segmented-control button {
+  min-height: 30px;
+  padding: 0 12px;
+  color: rgba(16, 24, 47, 0.64);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.admin-segmented-control button.is-active {
+  color: var(--navy);
+  background: var(--white);
+  box-shadow: 0 1px 4px rgba(16, 24, 47, 0.12);
+}
+
+.admin-manual-kloter {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-manual-kloter .segment-table-toolbar {
+  align-items: center;
+}
+
+.admin-manual-total {
+  margin-right: auto;
+  color: rgba(16, 24, 47, 0.64);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.admin-manual-total.is-warning {
+  color: #8a4b06;
+}
+
+.admin-manual-segment-table {
+  gap: 6px;
+}
+
+.admin-create-booking-document {
+  margin-bottom: 8px;
+}
+
+.admin-create-booking-modal .admin-confirm-check {
+  margin-top: 4px;
+}
+
 .admin-flex-warning {
   display: flex;
   align-items: flex-start;
@@ -8923,6 +8991,11 @@ a {
 
   .segment-slot-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-kloter-mode {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

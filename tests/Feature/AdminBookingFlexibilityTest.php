@@ -162,6 +162,95 @@ class AdminBookingFlexibilityTest extends TestCase
         Storage::disk('local')->assertExists($booking->document_path);
     }
 
+    public function test_admin_manual_booking_can_use_custom_kloter_segments(): void
+    {
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/bookings', [
+            'contactName' => 'Tamu Kloter Manual',
+            'nik' => '6234567890123456',
+            'whatsapp' => '081234567896',
+            'institution' => 'Rombongan Manual',
+            'groupSize' => 200,
+            'date' => '2026-06-16',
+            'time' => '08.00',
+            'status' => 'Accepted',
+            'confirmedWithGuest' => true,
+            'confirmManualBooking' => true,
+            'segments' => [
+                ['date' => '2026-06-16', 'time' => '08.00', 'groupSize' => 80],
+                ['date' => '2026-06-16', 'time' => '10.00', 'groupSize' => 80],
+                ['date' => '2026-06-16', 'time' => '13.00', 'groupSize' => 40],
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('data.groupSize', 200)
+            ->assertJsonPath('data.kloterCount', 3)
+            ->assertJsonPath('data.time', '08.00')
+            ->assertJsonPath('data.segments.0.time', '08.00')
+            ->assertJsonPath('data.segments.0.groupSize', 80)
+            ->assertJsonPath('data.segments.1.time', '10.00')
+            ->assertJsonPath('data.segments.1.groupSize', 80)
+            ->assertJsonPath('data.segments.2.time', '13.00')
+            ->assertJsonPath('data.segments.2.groupSize', 40);
+
+        $booking = Booking::where('code', $response->json('data.code'))->firstOrFail();
+        $this->assertStringContainsString('Pembagian kloter manual: 08.00 WIB (80 peserta); 10.00 WIB (80 peserta); 13.00 WIB (40 peserta).', (string) $booking->note);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 1,
+            'date' => '2026-06-16 00:00:00',
+            'time' => '08.00',
+            'group_size' => 80,
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 2,
+            'date' => '2026-06-16 00:00:00',
+            'time' => '10.00',
+            'group_size' => 80,
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'slot_order' => 3,
+            'date' => '2026-06-16 00:00:00',
+            'time' => '13.00',
+            'group_size' => 40,
+        ]);
+    }
+
+    public function test_admin_manual_booking_segments_must_match_booking_total_and_date(): void
+    {
+        $this->actingAsAdmin();
+
+        $payload = [
+            'contactName' => 'Tamu Kloter Salah',
+            'nik' => '7234567890123456',
+            'whatsapp' => '081234567897',
+            'institution' => 'Rombongan Salah',
+            'groupSize' => 200,
+            'date' => '2026-06-16',
+            'time' => '08.00',
+            'status' => 'Accepted',
+            'confirmedWithGuest' => true,
+            'confirmManualBooking' => true,
+        ];
+
+        $this->postJson('/api/admin/bookings', $payload + [
+            'segments' => [
+                ['date' => '2026-06-16', 'time' => '08.00', 'groupSize' => 80],
+                ['date' => '2026-06-16', 'time' => '10.00', 'groupSize' => 80],
+            ],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('segments');
+
+        $this->postJson('/api/admin/bookings', $payload + [
+            'segments' => [
+                ['date' => '2026-06-17', 'time' => '08.00', 'groupSize' => 200],
+            ],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('segments.0.date');
+    }
+
     public function test_accepted_booking_direct_move_does_not_require_guest_agreement_and_can_move_to_today(): void
     {
         $this->actingAsAdmin();

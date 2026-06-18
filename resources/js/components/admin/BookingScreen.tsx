@@ -1829,6 +1829,27 @@ const adminDateOption = (day: VisitDay, requiredSlots: number): DateOptionSummar
   };
 };
 
+const adminManualDateOption = (day: VisitDay): DateOptionSummary => {
+  const slots = day.slots.filter((slot) => slot.status !== "Closed" && !isPastVisitTime(day.date, slot.time));
+  const availableSlots = slots.filter((slot) => slot.status === "Available").length;
+  const overbookSlots = slots.length - availableSlots;
+
+  let label = "tidak ada jam operasional";
+  if (availableSlots > 0 && overbookSlots > 0) {
+    label = `${availableSlots} slot kosong + ${overbookSlots} overbook`;
+  } else if (availableSlots > 0) {
+    label = `${availableSlots} slot kosong`;
+  } else if (overbookSlots > 0) {
+    label = `${overbookSlots} slot overbook`;
+  }
+
+  return {
+    day,
+    label,
+    disabled: slots.length === 0,
+  };
+};
+
 const firstSelectableDate = (options: DateOptionSummary[], preferredDate?: string) =>
   options.find((option) => option.day.date === preferredDate && !option.disabled)?.day.date ??
   options.find((option) => !option.disabled)?.day.date ??
@@ -2020,6 +2041,8 @@ function ConflictSummary({ slots }: { slots: VisitDay["slots"] }) {
   );
 }
 
+type KloterMode = "auto" | "manual";
+
 export function AdminBookingCreateModal({
   schedules,
   busy,
@@ -2037,6 +2060,8 @@ export function AdminBookingCreateModal({
   const days = schedules.filter((day) => day.date >= todayKey && day.date <= formatDateKey(addMonths(jakartaToday(), 2)));
   const initialDateOptions = days.map((day) => adminDateOption(day, 1));
   const [form, setForm] = useState({ contactName: "", nik: "", whatsapp: "", institution: "", groupSize: "", date: firstSelectableDate(initialDateOptions), time: "", status: "Accepted" as "Pending" | "Accepted" });
+  const [kloterMode, setKloterMode] = useState<KloterMode>("auto");
+  const [manualRows, setManualRows] = useState<SegmentDraftRow[]>([]);
   const [confirmManualBooking, setConfirmManualBooking] = useState(false);
   const [allowOverbook, setAllowOverbook] = useState(false);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -2045,17 +2070,49 @@ export function AdminBookingCreateModal({
   const groupSize = Number(form.groupSize);
   const validGroupSize = Number.isInteger(groupSize) && groupSize >= 1 && groupSize <= ADMIN_MAX_BOOKING_GROUP_SIZE;
   const requiredSlots = splitGroupSizes(validGroupSize ? groupSize : 1).length;
-  const dateOptions = days.map((day) => adminDateOption(day, requiredSlots));
+  const dateOptions = days.map((day) => kloterMode === "manual" ? adminManualDateOption(day) : adminDateOption(day, requiredSlots));
   const selectedDateOption = dateOptions.find((item) => item.day.date === form.date);
   const day = selectedDateOption?.day ?? days.find((item) => item.date === form.date);
   const candidates = candidateSlots(day, form.time, groupSize);
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
-  const conflicts = candidates.filter(({ slot }) => slot.status !== "Available");
-  const invalid = !form.contactName.trim() || !/^\d{16}$/.test(form.nik) || !/^(08|628)\d{8,13}$/.test(form.whatsapp)
-    || !form.institution.trim() || !validGroupSize || selectedDateOption?.disabled
-    || !form.date || !form.time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(form.date, form.time)
-    || conflicts.length > 0 && !allowOverbook || !confirmManualBooking
-    || Boolean(documentError);
+  const autoConflicts = candidates.filter(({ slot }) => slot.status !== "Available");
+  const normalizedManualRows = normalizeSegmentRows(manualRows.map((row) => ({ ...row, date: form.date })));
+  const manualTotal = normalizedManualRows.reduce((sum, row) => sum + (Number(row.groupSize) || 0), 0);
+  const manualRowStates = normalizedManualRows.map((row) => {
+    const slot = day?.slots.find((item) => item.time === row.time);
+    const status = slot?.status ?? "Missing";
+    const group = Number(row.groupSize);
+    const issues: string[] = [];
+
+    if (!row.time) issues.push("Pilih jam kloter.");
+    if (!slot) issues.push("Jam kloter tidak ada pada tanggal ini.");
+    if (!Number.isInteger(group) || group < 1) issues.push("Jumlah peserta kloter minimal 1.");
+    if (status === "Closed" || status === "Missing") issues.push("Slot tutup atau belum dibuka.");
+    if (row.time && isPastVisitTime(form.date, row.time)) issues.push("Jam kloter sudah lewat.");
+
+    return {
+      issues,
+      needsOverbook: Boolean(slot) && status !== "Available" && status !== "Closed" && status !== "Missing",
+      slot,
+    };
+  });
+  const manualConflictSlots = manualRowStates
+    .filter((state) => state.needsOverbook && state.slot)
+    .map((state) => state.slot)
+    .filter((slot): slot is VisitDay["slots"][number] => Boolean(slot));
+  const conflicts = kloterMode === "manual" ? manualConflictSlots.map((slot) => ({ slot, size: 0 })) : autoConflicts;
+  const manualValidationMessages = [
+    kloterMode === "manual" && normalizedManualRows.length === 0 ? "Minimal harus ada 1 kloter." : "",
+    kloterMode === "manual" && manualTotal !== groupSize ? `Total kloter ${manualTotal}/${groupSize || 0} peserta.` : "",
+    ...manualRowStates.flatMap((state, index) => state.issues.map((issue) => `Kloter ${index + 1}: ${issue}`)),
+  ].filter((message, index, messages): message is string => Boolean(message) && messages.indexOf(message) === index);
+  const baseInvalid = !form.contactName.trim() || !/^\d{16}$/.test(form.nik) || !/^(08|628)\d{8,13}$/.test(form.whatsapp)
+    || !form.institution.trim() || !validGroupSize || selectedDateOption?.disabled || !form.date
+    || Boolean(documentError) || !confirmManualBooking;
+  const autoInvalid = !form.time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(form.date, form.time);
+  const manualInvalid = manualValidationMessages.length > 0;
+  const invalid = baseInvalid || (kloterMode === "manual" ? manualInvalid : autoInvalid)
+    || conflicts.length > 0 && !allowOverbook;
 
   const startCandidates = (startTime: string) => candidateSlots(day, startTime, groupSize);
   const canSelectStart = (slot: VisitDay["slots"][number]) => {
@@ -2105,6 +2162,46 @@ export function AdminBookingCreateModal({
     return segmentStatusLabel[slot.status] ?? "Terisi";
   };
 
+  const manualSlotOptions = day?.slots.filter((slot) => !isPastVisitTime(form.date, slot.time)) ?? [];
+  const slotStatusText = (slot: VisitDay["slots"][number]) => {
+    if (slot.status === "Available") return "Kosong";
+    if (slot.status === "Closed") return "Tutup";
+    return segmentStatusLabel[slot.status] ?? slot.status;
+  };
+  const firstManualTime = (usedTimes = new Set<string>()) =>
+    manualSlotOptions.find((slot) => slot.status !== "Closed" && !usedTimes.has(slot.time))?.time ??
+    manualSlotOptions.find((slot) => !usedTimes.has(slot.time))?.time ??
+    "";
+  const automaticManualRows = (): SegmentDraftRow[] => {
+    const sizes = splitGroupSizes(validGroupSize ? groupSize : 1);
+    const startIndex = day?.slots.findIndex((slot) => slot.time === form.time) ?? -1;
+    const usedTimes = new Set<string>();
+
+    return sizes.map((size, index) => ({
+      date: form.date,
+      time: startIndex >= 0
+        ? day?.slots[startIndex + index]?.time ?? ""
+        : (() => {
+            const time = firstManualTime(usedTimes);
+            if (time) usedTimes.add(time);
+            return time;
+          })(),
+      groupSize: String(size),
+    }));
+  };
+  const setMode = (mode: KloterMode) => {
+    setKloterMode(mode);
+    setAllowOverbook(false);
+    if (mode === "manual") setManualRows(automaticManualRows());
+  };
+  const updateManualRow = (index: number, patch: Partial<SegmentDraftRow>) => {
+    setManualRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch, date: form.date } : row)));
+  };
+  const addManualRow = () => {
+    const usedTimes = new Set(manualRows.map((row) => row.time).filter(Boolean));
+    setManualRows((current) => [...current, { date: form.date, time: firstManualTime(usedTimes), groupSize: "" }]);
+  };
+
   useModalEscape(onClose, busy);
 
   useEffect(() => {
@@ -2120,6 +2217,13 @@ export function AdminBookingCreateModal({
     setForm((current) => ({ ...current, time: first?.time ?? "" }));
     setAllowOverbook(false);
   }, [day, form.date, requiredSlots]);
+
+  useEffect(() => {
+    if (kloterMode === "manual") {
+      setManualRows(automaticManualRows());
+      setAllowOverbook(false);
+    }
+  }, [form.date, form.time, kloterMode, requiredSlots]);
 
   const setField = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const clearDocument = () => {
@@ -2148,6 +2252,11 @@ export function AdminBookingCreateModal({
   const confirmationLabel = form.status === "Accepted"
     ? "Jadwal sudah disepakati dengan tamu dan booking manual siap dibuat."
     : "Booking manual dibuat dari koordinasi admin. Surat boleh kosong bila tidak tersedia.";
+  const manualSegments = normalizedManualRows.map((row) => ({
+    date: row.date,
+    time: row.time,
+    groupSize: Number(row.groupSize),
+  }));
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -2174,30 +2283,100 @@ export function AdminBookingCreateModal({
             </select>
             {days.length === 0 && <small>Tidak ada tanggal yang tersedia.</small>}
           </label>
+          <div className="admin-kloter-mode">
+            <span>Pembagian kloter</span>
+            <div className="admin-segmented-control" role="group" aria-label="Mode pembagian kloter">
+              <button type="button" className={kloterMode === "auto" ? "is-active" : ""} onClick={() => setMode("auto")} disabled={busy}>
+                Otomatis
+              </button>
+              <button type="button" className={kloterMode === "manual" ? "is-active" : ""} onClick={() => setMode("manual")} disabled={busy}>
+                Manual
+              </button>
+            </div>
+          </div>
           {day && (
             <>
-              <div className="segment-slot-picker-head">
-                <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
-                <small>Slot terisi butuh izin overbook.</small>
-              </div>
-              <div className="segment-slot-grid">
-                {day.slots.map((slot) => {
-                  const selected = selectedSlotSet.has(slot.time);
-                  const disabled = !selected && !canSelectStart(slot);
-                  return (
-                    <button
-                      key={slot.time}
-                      type="button"
-                      className={slotChipClass(slot)}
-                      onClick={() => { setField("time", slot.time); setAllowOverbook(false); }}
-                      disabled={disabled}
-                    >
-                      <strong>{slot.time}</strong>
-                      <small>{slotLabel(slot)}</small>
+              {kloterMode === "auto" ? (
+                <>
+                  <div className="segment-slot-picker-head">
+                    <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
+                    <small>Slot terisi butuh izin overbook.</small>
+                  </div>
+                  <div className="segment-slot-grid">
+                    {day.slots.map((slot) => {
+                      const selected = selectedSlotSet.has(slot.time);
+                      const disabled = !selected && !canSelectStart(slot);
+                      return (
+                        <button
+                          key={slot.time}
+                          type="button"
+                          className={slotChipClass(slot)}
+                          onClick={() => { setField("time", slot.time); setAllowOverbook(false); }}
+                          disabled={disabled}
+                        >
+                          <strong>{slot.time}</strong>
+                          <small>{slotLabel(slot)}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="admin-manual-kloter">
+                  <div className="segment-table-toolbar">
+                    <span className={manualTotal === groupSize ? "admin-manual-total" : "admin-manual-total is-warning"}>
+                      Total kloter {manualTotal}/{groupSize || 0}
+                    </span>
+                    <button type="button" className="button button-outline" onClick={() => setManualRows(automaticManualRows())} disabled={busy}>
+                      Isi otomatis
                     </button>
-                  );
-                })}
-              </div>
+                    <button type="button" className="button button-outline segment-add-button" onClick={addManualRow} disabled={busy || manualRows.length >= 7}>
+                      <Plus size={15} aria-hidden="true" />
+                      Tambah
+                    </button>
+                  </div>
+                  <div className="segment-table admin-manual-segment-table" aria-label="Editor kloter booking manual">
+                    <div className="segment-table-head" aria-hidden="true">
+                      <span>Kloter</span>
+                      <span>Jam</span>
+                      <span>Peserta</span>
+                      <span />
+                    </div>
+                    {manualRows.map((row, index) => (
+                      <div className="segment-table-row" key={index}>
+                        <strong>{index + 1}</strong>
+                        <select value={row.time} onChange={(event) => updateManualRow(index, { time: event.target.value })} disabled={busy}>
+                          {manualSlotOptions.map((slot) => (
+                            <option key={slot.time} value={slot.time} disabled={slot.status === "Closed"}>
+                              {slot.time} - {slotStatusText(slot)}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min={1}
+                          inputMode="numeric"
+                          value={row.groupSize}
+                          onChange={(event) => updateManualRow(index, { groupSize: event.target.value })}
+                          disabled={busy}
+                        />
+                        <button
+                          type="button"
+                          className="segment-icon-button"
+                          onClick={() => setManualRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
+                          disabled={busy || manualRows.length <= 1}
+                          aria-label={`Hapus kloter ${index + 1}`}
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {manualValidationMessages.length > 0 && (
+                    <p className="segment-row-note segment-row-note--warning">{manualValidationMessages[0]}</p>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -2226,7 +2405,26 @@ export function AdminBookingCreateModal({
           <span>{confirmationLabel}</span>
         </label>
         {error && <strong className="form-message form-message--error">{error}</strong>}
-        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm({ ...form, groupSize, confirmedWithGuest: form.status === "Accepted" ? confirmManualBooking : undefined, confirmManualBooking, allowOverbook: allowOverbook || undefined, document: documentFile })}>{busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat booking"}</button></div>
+        <div className="modal-actions">
+          <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button>
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={invalid || busy}
+            onClick={() => onConfirm({
+              ...form,
+              time: kloterMode === "manual" ? manualSegments[0]?.time ?? form.time : form.time,
+              groupSize,
+              segments: kloterMode === "manual" ? manualSegments : undefined,
+              confirmedWithGuest: form.status === "Accepted" ? confirmManualBooking : undefined,
+              confirmManualBooking,
+              allowOverbook: allowOverbook || undefined,
+              document: documentFile,
+            })}
+          >
+            {busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat booking"}
+          </button>
+        </div>
       </div>
     </div>
   );

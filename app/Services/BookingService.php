@@ -99,9 +99,12 @@ class BookingService
             }
 
             return DB::transaction(function () use ($data, $actor, $request, $date, $code, $document, $documentPath) {
-                $segments = $this->buildSequentialSegments($date, $data['time'], (int) $data['groupSize']);
+                $segments = $data['segments'] ?? null
+                    ? $this->buildManualAdminSegments($data['segments'])
+                    : $this->buildSequentialSegments($date, $data['time'], (int) $data['groupSize']);
                 $this->lockSlotKeysForSegments($segments);
                 $conflicts = $this->assertManualSegmentsUsable(new Booking, $segments, (bool) ($data['allowOverbook'] ?? false));
+                $firstSegment = $segments[0];
 
                 $booking = new Booking;
                 $booking->code = $code;
@@ -114,13 +117,13 @@ class BookingService
                 $booking->group_size = (int) $data['groupSize'];
                 $booking->date = $date;
                 $booking->date_label = $this->schedule->formatLongDate($date);
-                $booking->time = $segments[0]['time'];
+                $booking->time = $firstSegment['time'];
                 $booking->status = $data['status'];
                 $booking->document_path = $documentPath;
                 $booking->document_original_name = $document?->getClientOriginalName() ?? 'Tanpa surat (dibuat admin)';
                 $booking->feedback_token = $this->codes->token();
                 $booking->submitted_at = now();
-                $adminNote = $this->adminBookingConfirmationNote($data, $conflicts, $document !== null);
+                $adminNote = $this->adminBookingConfirmationNote($data, $conflicts, $document !== null, $segments);
                 $booking->note = $this->appendAdminNote(null, $adminNote);
                 $booking->save();
                 $this->persistBookingSlots($booking, $segments, true);
@@ -131,6 +134,7 @@ class BookingService
                     'manual_booking_confirmed' => (bool) ($data['confirmManualBooking'] ?? false),
                     'overbook' => $conflicts !== [],
                     'conflicts' => $conflicts,
+                    'segments' => $segments,
                     'has_document' => $document !== null,
                     'note' => $adminNote,
                 ], $request);
@@ -893,6 +897,39 @@ class BookingService
     }
 
     /**
+     * @param  array<int, array{date:string,time:string,groupSize:int}>  $segments
+     * @return array<int, array{slot_order:int,date:string,date_label:string,time:string,group_size:int}>
+     */
+    private function buildManualAdminSegments(array $segments): array
+    {
+        return collect($segments)
+            ->groupBy(fn (array $segment): string => $segment['date'].'|'.$segment['time'])
+            ->values()
+            ->map(function ($group, int $index): array {
+                $first = $group->first();
+                $segmentDate = Carbon::createFromFormat('Y-m-d', $first['date'], 'Asia/Jakarta')->startOfDay();
+
+                return [
+                    'slot_order' => $index + 1,
+                    'date' => $segmentDate->toDateString(),
+                    'date_label' => $this->schedule->formatLongDate($segmentDate),
+                    'time' => $first['time'],
+                    'group_size' => $group->sum(fn (array $segment): int => (int) $segment['groupSize']),
+                ];
+            })
+            ->sortBy([
+                ['date', 'asc'],
+                ['time', 'asc'],
+            ])
+            ->values()
+            ->map(fn (array $segment, int $index): array => [
+                ...$segment,
+                'slot_order' => $index + 1,
+            ])
+            ->all();
+    }
+
+    /**
      * @return array<int, int>
      */
     private function splitGroupSizes(int $groupSize): array
@@ -1081,7 +1118,10 @@ class BookingService
         return $conflicts;
     }
 
-    private function adminBookingConfirmationNote(array $data, array $conflicts, bool $hasDocument): string
+    /**
+     * @param  array<int, array{date:string,time:string,group_size:int}>  $segments
+     */
+    private function adminBookingConfirmationNote(array $data, array $conflicts, bool $hasDocument, array $segments): string
     {
         $parts = [
             'Konfirmasi admin: booking manual dibuat dari panel admin.',
@@ -1097,6 +1137,15 @@ class BookingService
 
         if ($conflicts !== []) {
             $parts[] = 'Overbook manual disetujui operasional.';
+        }
+
+        if (isset($data['segments'])) {
+            $parts[] = 'Pembagian kloter manual: '.collect($segments)
+                ->map(fn (array $segment): string => "{$segment['time']} WIB ({$segment['group_size']} peserta)")
+                ->join('; ').'.';
+            if (collect($segments)->contains(fn (array $segment): bool => $segment['group_size'] > self::SLOT_CAPACITY)) {
+                $parts[] = 'Ada kloter di atas kapasitas standar 80 peserta.';
+            }
         }
 
         return implode(' ', $parts);

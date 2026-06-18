@@ -124,6 +124,7 @@ export type CreateAdminBookingPayload = {
   groupSize: number;
   date: string;
   time: string;
+  segments?: Array<{ date: string; time: string; groupSize: number }>;
   status: "Pending" | "Accepted";
   confirmedWithGuest?: boolean;
   confirmManualBooking: boolean;
@@ -141,6 +142,11 @@ export const createAdminBooking = (payload: CreateAdminBookingPayload) => {
   formData.append("groupSize", String(payload.groupSize));
   formData.append("date", payload.date);
   formData.append("time", payload.time);
+  payload.segments?.forEach((segment, index) => {
+    formData.append(`segments[${index}][date]`, segment.date);
+    formData.append(`segments[${index}][time]`, segment.time);
+    formData.append(`segments[${index}][groupSize]`, String(segment.groupSize));
+  });
   formData.append("status", payload.status);
   if (payload.confirmedWithGuest) formData.append("confirmedWithGuest", "1");
   if (payload.confirmManualBooking) formData.append("confirmManualBooking", "1");
