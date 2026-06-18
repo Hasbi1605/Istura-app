@@ -506,10 +506,10 @@ class BookingService
             }
 
             $targetDate = Carbon::createFromFormat('Y-m-d', $date, 'Asia/Jakarta')->startOfDay();
-            $segments = $this->buildSequentialSegments($targetDate, $time, (int) $booking->group_size);
+            $current = $booking->slots->where('kind', BookingSlot::KIND_ACTIVE)->sortBy('slot_order')->values();
+            $segments = $this->buildMovedSegments($targetDate, $time, $current->all(), (int) $booking->group_size);
             $this->lockSlotKeysForSegments($segments);
             $conflicts = $this->assertManualSegmentsUsable($booking, $segments, $allowOverbook);
-            $current = $booking->slots->where('kind', BookingSlot::KIND_ACTIVE)->sortBy('slot_order')->values();
             if ($current->count() === count($segments)
                 && $current->every(fn (BookingSlot $slot, int $index): bool => $slot->date->toDateString() === $segments[$index]['date']
                     && $slot->time === $segments[$index]['time']
@@ -874,6 +874,35 @@ class BookingService
     private function buildSequentialSegments(Carbon $date, string $startTime, int $groupSize): array
     {
         $segmentSizes = $this->splitGroupSizes($groupSize);
+
+        return $this->buildSequentialSegmentsFromSizes($date, $startTime, $segmentSizes);
+    }
+
+    /**
+     * @param  array<int, BookingSlot>  $currentSlots
+     * @return array<int, array{slot_order:int,date:string,date_label:string,time:string,group_size:int}>
+     */
+    private function buildMovedSegments(Carbon $date, string $startTime, array $currentSlots, int $groupSize): array
+    {
+        $segmentSizes = collect($currentSlots)
+            ->map(fn (BookingSlot $slot): int => (int) $slot->group_size)
+            ->filter(fn (int $size): bool => $size > 0)
+            ->values()
+            ->all();
+
+        if ($segmentSizes === []) {
+            $segmentSizes = $this->splitGroupSizes($groupSize);
+        }
+
+        return $this->buildSequentialSegmentsFromSizes($date, $startTime, $segmentSizes);
+    }
+
+    /**
+     * @param  array<int, int>  $segmentSizes
+     * @return array<int, array{slot_order:int,date:string,date_label:string,time:string,group_size:int}>
+     */
+    private function buildSequentialSegmentsFromSizes(Carbon $date, string $startTime, array $segmentSizes): array
+    {
         $requiredSlots = count($segmentSizes);
         $times = $this->schedule->orderedTimesForDate($date);
         $startIndex = array_search($startTime, $times, true);

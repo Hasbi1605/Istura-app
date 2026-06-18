@@ -289,6 +289,66 @@ class AdminBookingFlexibilityTest extends TestCase
         $this->assertStringContainsString('pindah jadwal langsung disetujui', (string) $booking->fresh()->note);
     }
 
+    public function test_direct_move_preserves_manual_booking_kloter_shape(): void
+    {
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/bookings', [
+            'contactName' => 'Tamu Manual Pindah',
+            'nik' => '6234567890123499',
+            'whatsapp' => '081234567899',
+            'institution' => 'Rombongan Manual Pindah',
+            'groupSize' => 200,
+            'date' => '2026-06-16',
+            'time' => '08.00',
+            'status' => 'Accepted',
+            'confirmedWithGuest' => true,
+            'confirmManualBooking' => true,
+            'segments' => [
+                ['date' => '2026-06-16', 'time' => '08.00', 'groupSize' => 100],
+                ['date' => '2026-06-16', 'time' => '09.00', 'groupSize' => 100],
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('data.groupSize', 200)
+            ->assertJsonPath('data.kloterCount', 2)
+            ->assertJsonPath('data.segments.0.groupSize', 100)
+            ->assertJsonPath('data.segments.1.groupSize', 100);
+
+        $code = $response->json('data.code');
+
+        $this->postJson("/api/admin/bookings/{$code}/move", [
+            'date' => '2026-06-17',
+            'time' => '10.00',
+            'confirmedDirectMove' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.date', '2026-06-17')
+            ->assertJsonPath('data.time', '10.00')
+            ->assertJsonPath('data.kloterCount', 2)
+            ->assertJsonPath('data.segments.0.time', '10.00')
+            ->assertJsonPath('data.segments.0.groupSize', 100)
+            ->assertJsonPath('data.segments.1.time', '11.00')
+            ->assertJsonPath('data.segments.1.groupSize', 100);
+
+        $booking = Booking::where('code', $code)->firstOrFail();
+        $this->assertSame(2, $booking->slots()->where('kind', BookingSlot::KIND_ACTIVE)->count());
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'kind' => BookingSlot::KIND_ACTIVE,
+            'slot_order' => 1,
+            'date' => '2026-06-17 00:00:00',
+            'time' => '10.00',
+            'group_size' => 100,
+        ]);
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'kind' => BookingSlot::KIND_ACTIVE,
+            'slot_order' => 2,
+            'date' => '2026-06-17 00:00:00',
+            'time' => '11.00',
+            'group_size' => 100,
+        ]);
+    }
+
     public function test_direct_move_rejects_active_reschedule_and_preserves_proposal(): void
     {
         $this->actingAsAdmin();

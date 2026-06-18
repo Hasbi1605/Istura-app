@@ -1765,8 +1765,8 @@ function useModalEscape(onClose: () => void, busy = false) {
   }, [busy, onClose]);
 }
 
-function candidateSlots(day: VisitDay | undefined, startTime: string, groupSize: number) {
-  const sizes = splitGroupSizes(groupSize);
+function candidateSlots(day: VisitDay | undefined, startTime: string, groupSizeOrSegments: number | number[]) {
+  const sizes = Array.isArray(groupSizeOrSegments) ? groupSizeOrSegments : splitGroupSizes(groupSizeOrSegments);
   const startIndex = day?.slots.findIndex((slot) => slot.time === startTime) ?? -1;
   if (!day || startIndex < 0) return [];
   return day.slots.slice(startIndex, startIndex + sizes.length).map((slot, index) => ({ slot, size: sizes[index] }));
@@ -1869,7 +1869,9 @@ export function DirectMoveModal({
   const todayKey = formatDateKey(jakartaToday());
   const maxDateKey = formatDateKey(addMonths(jakartaToday(), 2));
   const days = schedules.filter((day) => day.date >= todayKey && day.date <= maxDateKey);
-  const requiredSlots = splitGroupSizes(booking.groupSize).length;
+  const moveSegments = booking.segments?.length ? booking.segments : [];
+  const moveSegmentSizes = moveSegments.length > 0 ? moveSegments.map((segment) => segment.groupSize) : splitGroupSizes(booking.groupSize);
+  const requiredSlots = moveSegmentSizes.length;
   const dateOptions = days.map((day) => adminDateOption(day, requiredSlots));
   const [date, setDate] = useState(firstSelectableDate(dateOptions, booking.date >= todayKey ? booking.date : undefined));
   const [time, setTime] = useState("");
@@ -1877,7 +1879,7 @@ export function DirectMoveModal({
   const [confirmedDirectMove, setConfirmedDirectMove] = useState(false);
   const selectedDateOption = dateOptions.find((item) => item.day.date === date);
   const day = selectedDateOption?.day ?? days.find((item) => item.date === date);
-  const candidates = candidateSlots(day, time, booking.groupSize);
+  const candidates = candidateSlots(day, time, moveSegmentSizes);
   const ownKeys = new Set(bookingSegments(booking).map((segment) => `${segment.date}|${segment.time}`));
   const hasClosed = candidates.some(({ slot }) => slot.status === "Closed");
   const hasPast = candidates.some(({ slot }) => isPastVisitTime(date, slot.time));
@@ -1887,7 +1889,7 @@ export function DirectMoveModal({
   const invalid = selectedDateOption?.disabled || !date || !time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(date, time)
     || hasPast || conflicts.length > 0 && !allowOverbook || !confirmedDirectMove || sameSchedule;
 
-  const startCandidates = (startTime: string) => candidateSlots(day, startTime, booking.groupSize);
+  const startCandidates = (startTime: string) => candidateSlots(day, startTime, moveSegmentSizes);
   const canSelectStart = (slot: VisitDay["slots"][number]) => {
     const group = startCandidates(slot.time);
     return group.length === requiredSlots
