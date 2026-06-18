@@ -31,6 +31,7 @@ class StoreAdminBookingRequest extends FormRequest
             'confirmedWithGuest' => ['sometimes', 'boolean'],
             'confirmManualBooking' => ['accepted'],
             'allowOverbook' => ['sometimes', 'boolean'],
+            'document' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:5120'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -38,7 +39,9 @@ class StoreAdminBookingRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'confirmManualBooking.accepted' => 'Konfirmasi booking manual wajib dicentang.',
+            'confirmManualBooking.accepted' => 'Konfirmasi bahwa booking manual ini dibuat dari koordinasi admin.',
+            'document.mimes' => 'Surat permohonan harus berformat PDF, PNG, atau JPG.',
+            'document.max' => 'Ukuran surat maksimal 5 MB.',
         ];
     }
 

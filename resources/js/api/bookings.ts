@@ -116,7 +116,7 @@ export const updateBookingSegments = (
     body: payload,
   }).then((r) => r.data);
 
-export const createAdminBooking = (payload: {
+export type CreateAdminBookingPayload = {
   contactName: string;
   nik: string;
   whatsapp: string;
@@ -129,11 +129,30 @@ export const createAdminBooking = (payload: {
   confirmManualBooking: boolean;
   allowOverbook?: boolean;
   note?: string;
-}) =>
-  api<{ data: ApiBooking }>("/api/admin/bookings", {
+  document?: File | null;
+};
+
+export const createAdminBooking = (payload: CreateAdminBookingPayload) => {
+  const formData = new FormData();
+  formData.append("contactName", payload.contactName);
+  formData.append("nik", payload.nik);
+  formData.append("whatsapp", payload.whatsapp);
+  formData.append("institution", payload.institution);
+  formData.append("groupSize", String(payload.groupSize));
+  formData.append("date", payload.date);
+  formData.append("time", payload.time);
+  formData.append("status", payload.status);
+  if (payload.confirmedWithGuest) formData.append("confirmedWithGuest", "1");
+  if (payload.confirmManualBooking) formData.append("confirmManualBooking", "1");
+  if (payload.allowOverbook) formData.append("allowOverbook", "1");
+  if (payload.note) formData.append("note", payload.note);
+  if (payload.document) formData.append("document", payload.document);
+
+  return api<{ data: ApiBooking }>("/api/admin/bookings", {
     method: "POST",
-    body: payload,
+    formData,
   }).then((r) => r.data);
+};
 
 export const moveBookingDirectly = (
   code: string,

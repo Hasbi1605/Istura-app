@@ -1,5 +1,5 @@
 // Booking admin screen + sub-components. Extracted from App.tsx (refactor F6.5).
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -79,6 +79,8 @@ import { Pagination } from "../ui/Pagination";
 import { ButtonSpinner, InlineSpinner, StatCardSkeleton, TableSkeleton } from "../ui/LoadingStates";
 import { BookingExportModal } from "./ExportModals";
 
+const MAX_ADMIN_DOCUMENT_BYTES = 5 * 1024 * 1024;
+
 export function AdminScreen({
 	schedules,
 	bookings,
@@ -123,6 +125,7 @@ export function AdminScreen({
 	const [pendingAction, setPendingAction] = useState<{ code: string; label: string } | null>(null);
 	const [downloadingCode, setDownloadingCode] = useState<string | null>(null);
 	const [actionError, setActionError] = useState("");
+	const [actionNotice, setActionNotice] = useState("");
   // Mobile breakpoint: split-pane tidak punya cukup ruang untuk dua kolom,
   // jadi kita reuse pola SlideOver (yang sudah dipakai di mode "table" desktop)
   // sebagai panel detail. List tetap full-width.
@@ -263,6 +266,7 @@ export function AdminScreen({
 		if (pendingAction) return;
 		setPendingAction({ code: booking.code, label });
 		setActionError("");
+		setActionNotice("");
 		try {
 			await task();
 		} catch (err) {
@@ -426,19 +430,26 @@ export function AdminScreen({
 		if (creatingBooking) return;
 		setCreatingBooking(true);
 		setActionError("");
+		setActionNotice("");
 		try {
 			const created = apiBookingToLocal(await apiCreateAdminBooking(payload));
 			onBookingsChange([created, ...bookings]);
 			setSelectedCode(created.code);
 			await refreshSchedulesFromApi();
-			openWhatsApp(created, createWhatsappMessage(created, created.status === "Accepted" ? "Accepted" : "Pending"));
 			setShowCreateModal(false);
+			setActionNotice(`Booking admin ${created.code} dibuat.`);
 		} catch (err) {
 			setActionError(messageForActionError(err));
 		} finally {
 			setCreatingBooking(false);
 		}
 	};
+
+	useEffect(() => {
+		if (!actionNotice) return;
+		const timeout = window.setTimeout(() => setActionNotice(""), 5000);
+		return () => window.clearTimeout(timeout);
+	}, [actionNotice]);
 
   const handleRowClick = (code: string) => {
     setSelectedCode(code);
@@ -478,9 +489,9 @@ export function AdminScreen({
 			</div>
 		<div className="admin-heading-actions">
 		  {!readOnly && (
-		    <button type="button" className="button button-primary" onClick={() => setShowCreateModal(true)}>
+		    <button type="button" className="button button-primary admin-create-booking-button" onClick={() => setShowCreateModal(true)} title="Buat booking admin" aria-label="Buat booking admin">
 		      <UserPlus size={16} aria-hidden="true" />
-		      Buat Booking Admin
+		      Booking Admin
 		    </button>
 		  )}
           <div className="search-box">
@@ -517,6 +528,7 @@ export function AdminScreen({
 		</div>
 
 		{actionError && <strong className="form-message form-message--error">{actionError}</strong>}
+		{actionNotice && <strong className="form-message">{actionNotice}</strong>}
 
       <div className="booking-toolbar" role="region" aria-label="Filter dan tampilan booking">
         <div className="booking-chip-group" role="tablist" aria-label="Filter status">
@@ -1971,6 +1983,9 @@ export function AdminBookingCreateModal({
   const [confirmedWithGuest, setConfirmedWithGuest] = useState(false);
   const [confirmManualBooking, setConfirmManualBooking] = useState(false);
   const [allowOverbook, setAllowOverbook] = useState(false);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentError, setDocumentError] = useState("");
+  const documentInputRef = useRef<HTMLInputElement | null>(null);
   const day = days.find((item) => item.date === form.date);
   const groupSize = Number(form.groupSize);
   const candidates = candidateSlots(day, form.time, groupSize);
@@ -1980,7 +1995,8 @@ export function AdminBookingCreateModal({
   const invalid = !form.contactName.trim() || !/^\d{16}$/.test(form.nik) || !/^(08|628)\d{8,13}$/.test(form.whatsapp)
     || !form.institution.trim() || !Number.isInteger(groupSize) || groupSize < 1 || groupSize > ADMIN_MAX_BOOKING_GROUP_SIZE
     || !form.date || !form.time || candidates.length !== requiredSlots || hasClosed || isPastVisitTime(form.date, form.time)
-    || conflicts.length > 0 && !allowOverbook || !confirmManualBooking || form.status === "Accepted" && !confirmedWithGuest;
+    || conflicts.length > 0 && !allowOverbook || !confirmManualBooking || form.status === "Accepted" && !confirmedWithGuest
+    || Boolean(documentError);
 
   useModalEscape(onClose, busy);
 
@@ -1992,12 +2008,35 @@ export function AdminBookingCreateModal({
   }, [day, form.date]);
 
   const setField = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const clearDocument = () => {
+    setDocumentFile(null);
+    setDocumentError("");
+    if (documentInputRef.current) documentInputRef.current.value = "";
+  };
+  const handleDocument = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+    if (!/\.(pdf|jpg|jpeg|png)$/i.test(file.name)) {
+      setDocumentFile(null);
+      setDocumentError("Surat permohonan harus PDF, JPG, JPEG, atau PNG.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > MAX_ADMIN_DOCUMENT_BYTES) {
+      setDocumentFile(null);
+      setDocumentError("Ukuran surat maksimal 5 MB.");
+      event.target.value = "";
+      return;
+    }
+    setDocumentFile(file);
+    setDocumentError("");
+  };
 
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal-card admin-flex-modal admin-create-booking-modal" role="dialog" aria-modal="true" aria-label="Buat booking admin">
         <button className="modal-close" type="button" onClick={onClose} disabled={busy} aria-label="Tutup modal"><X size={18} /></button>
-        <header className="segment-modal-head"><span className="segment-modal-kicker">Tamu khusus</span><h2>Buat booking admin</h2><p>Booking dibuat tanpa surat permohonan. NIK tetap disimpan terenkripsi.</p></header>
+        <header className="segment-modal-head"><span className="segment-modal-kicker">Tamu khusus</span><h2>Buat booking admin</h2><p>Surat permohonan boleh dilampirkan bila tersedia. NIK tersimpan terenkripsi dan tampil penuh hanya untuk admin.</p></header>
         <div className="admin-flex-grid">
           <label className="form-field"><span>Nama contact person</span><input value={form.contactName} onChange={(event) => setField("contactName", event.target.value)} /></label>
           <label className="form-field"><span>NIK</span><input inputMode="numeric" maxLength={16} value={form.nik} onChange={(event) => setField("nik", event.target.value.replace(/\D/g, ""))} /></label>
@@ -2008,15 +2047,33 @@ export function AdminBookingCreateModal({
           <label className="form-field"><span>Tanggal</span><select value={form.date} onChange={(event) => setField("date", event.target.value)}>{days.map((item) => <option key={item.date} value={item.date}>{item.label}</option>)}</select></label>
           <label className="form-field"><span>Jam mulai</span><select value={form.time} onChange={(event) => { setField("time", event.target.value); setAllowOverbook(false); }}><option value="">Pilih jam</option>{day?.slots.map((slot) => <option key={slot.time} value={slot.time} disabled={slot.status === "Closed" || isPastVisitTime(form.date, slot.time)}>{slot.time} - {segmentStatusLabel[slot.status] ?? slot.status}</option>)}</select></label>
         </div>
+        <div className="admin-file-field admin-create-booking-document">
+          <span className="admin-file-field-label">Surat permohonan (opsional)</span>
+          <div className="admin-file-row">
+            <label className="admin-file-button button button-ghost">
+              <FileText size={15} aria-hidden="true" />
+              <span>{documentFile ? "Ganti surat" : "Pilih surat"}</span>
+              <input ref={documentInputRef} className="admin-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleDocument} disabled={busy} />
+            </label>
+            {(documentFile || documentError) && (
+              <button className="button button-ghost" type="button" onClick={clearDocument} disabled={busy}>
+                <Trash2 size={14} aria-hidden="true" />
+                Bersihkan
+              </button>
+            )}
+            <span className="admin-file-name">{documentFile?.name ?? "PDF/JPG/PNG maks. 5 MB. Boleh dikosongkan."}</span>
+          </div>
+          {documentError && <strong className="form-message form-message--error">{documentError}</strong>}
+        </div>
         {conflicts.length > 0 && <ConflictSummary slots={conflicts.map(({ slot }) => slot)} />}
         {conflicts.length > 0 && <label className="form-check"><input type="checkbox" checked={allowOverbook} onChange={(event) => setAllowOverbook(event.target.checked)} /><span>Izinkan overbook pada slot yang sudah terisi</span></label>}
         {form.status === "Accepted" && <label className="form-check"><input type="checkbox" checked={confirmedWithGuest} onChange={(event) => setConfirmedWithGuest(event.target.checked)} /><span>Jadwal sudah disepakati dengan tamu</span></label>}
         <label className="form-check admin-confirm-check">
           <input type="checkbox" checked={confirmManualBooking} onChange={(event) => setConfirmManualBooking(event.target.checked)} disabled={busy} />
-          <span>Booking manual ini dibuat atas kebutuhan operasional tanpa surat permohonan publik.</span>
+          <span>Booking manual ini dibuat dari koordinasi admin. Surat boleh kosong bila tidak tersedia.</span>
         </label>
         {error && <strong className="form-message form-message--error">{error}</strong>}
-        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm({ ...form, groupSize, confirmedWithGuest: confirmedWithGuest || undefined, confirmManualBooking, allowOverbook: allowOverbook || undefined })}>{busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat & buka WhatsApp"}</button></div>
+        <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm({ ...form, groupSize, confirmedWithGuest: confirmedWithGuest || undefined, confirmManualBooking, allowOverbook: allowOverbook || undefined, document: documentFile })}>{busy ? <ButtonSpinner label="Membuat booking..." /> : "Buat booking"}</button></div>
       </div>
     </div>
   );

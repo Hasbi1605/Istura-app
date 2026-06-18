@@ -2844,6 +2844,10 @@ a {
   font-weight: 800;
 }
 
+.admin-create-booking-button {
+  white-space: nowrap;
+}
+
 .schedule-picker {
   display: grid;
   gap: 18px;

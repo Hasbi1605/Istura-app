@@ -89,7 +89,7 @@ WebSocket (Laravel Reverb).
 | FR-A12 | Admin dapat mengekspor data booking (Excel/PDF/ZIP), laporan bulanan, dan poster mingguan. |
 | FR-A13 | **Super Admin** dapat mengelola akun admin (buat, ubah, hapus). |
 | FR-A14 | Admin dapat melihat riwayat aktivitas (audit log) dengan filter. |
-| FR-A15 | Admin dapat membuka slot booking dadakan H/H+1 untuk admin saja atau publik dengan tenggat dan kapasitas, membuat booking tamu khusus tanpa surat, serta memindahkan booking aktif langsung ke jadwal H/H+1 setelah persetujuan tamu. |
+| FR-A15 | Admin dapat membuka slot booking dadakan H/H+1 untuk admin saja atau publik dengan tenggat dan kapasitas, membuat booking tamu khusus dengan surat permohonan opsional, serta memindahkan booking aktif langsung ke jadwal H/H+1 setelah persetujuan tamu. |
 
 ### 2.3 Non-Functional Requirements
 
@@ -155,7 +155,8 @@ menolak jam hari ini yang sudah lewat, dan hanya tersedia untuk booking Pending/
 Pada booking Accepted, admin menerima peringatan bahwa jadwal langsung berubah dan tamu harus
 sudah diberi tahu; booking berstatus Reschedule tetap diselesaikan melalui alur penjadwalan ulang.
 Pindah Jadwal Langsung menyimpan perubahan tanpa membuka WhatsApp otomatis. Booking yang dibuat
-admin tidak membutuhkan surat tetapi tetap mengenkripsi NIK. Aksi lifecycle utama tetap
+admin dapat dibuat tanpa surat atau dengan surat permohonan opsional, tetap mengenkripsi NIK,
+dan menyimpan langsung tanpa membuka WhatsApp otomatis. Aksi lifecycle utama tetap
 menghasilkan pesan WhatsApp siap kirim dan audit.
 
 ### 3.4 Booking Dadakan

@@ -85,51 +85,70 @@ class BookingService
         }
     }
 
-    public function createFromAdmin(array $data, User $actor, ?Request $request = null): Booking
+    public function createFromAdmin(array $data, User $actor, ?Request $request = null, ?UploadedFile $document = null): Booking
     {
         $date = Carbon::createFromFormat('Y-m-d', $data['date'], 'Asia/Jakarta')->startOfDay();
         $this->schedule->ensureHolidayDataForDate($date);
         $code = $this->codes->next();
+        $documentPath = null;
 
-        return DB::transaction(function () use ($data, $actor, $request, $date, $code) {
-            $segments = $this->buildSequentialSegments($date, $data['time'], (int) $data['groupSize']);
-            $this->lockSlotKeysForSegments($segments);
-            $conflicts = $this->assertManualSegmentsUsable(new Booking, $segments, (bool) ($data['allowOverbook'] ?? false));
+        try {
+            if ($document) {
+                $storedName = $code.'-'.Str::uuid().'.'.strtolower($document->getClientOriginalExtension());
+                $documentPath = $document->storeAs('booking-letters', $storedName, 'local');
+            }
 
-            $booking = new Booking;
-            $booking->code = $code;
-            $booking->source = 'admin';
-            $booking->created_by_admin_id = $actor->id;
-            $booking->contact_name = $data['contactName'];
-            $booking->nik = $data['nik'];
-            $booking->whatsapp = $data['whatsapp'];
-            $booking->institution = $data['institution'];
-            $booking->group_size = (int) $data['groupSize'];
-            $booking->date = $date;
-            $booking->date_label = $this->schedule->formatLongDate($date);
-            $booking->time = $segments[0]['time'];
-            $booking->status = $data['status'];
-            $booking->document_path = null;
-            $booking->document_original_name = 'Tanpa surat (dibuat admin)';
-            $booking->feedback_token = $this->codes->token();
-            $booking->submitted_at = now();
-            $adminNote = $this->adminBookingConfirmationNote($data, $conflicts);
-            $booking->note = $this->appendAdminNote(null, $adminNote);
-            $booking->save();
-            $this->persistBookingSlots($booking, $segments, true);
+            return DB::transaction(function () use ($data, $actor, $request, $date, $code, $document, $documentPath) {
+                $segments = $this->buildSequentialSegments($date, $data['time'], (int) $data['groupSize']);
+                $this->lockSlotKeysForSegments($segments);
+                $conflicts = $this->assertManualSegmentsUsable(new Booking, $segments, (bool) ($data['allowOverbook'] ?? false));
 
-            $this->logAudit($actor, "Membuat booking admin {$booking->code}", $booking, [
-                'source' => 'admin',
-                'confirmed_with_guest' => (bool) ($data['confirmedWithGuest'] ?? false),
-                'manual_booking_confirmed' => (bool) ($data['confirmManualBooking'] ?? false),
-                'overbook' => $conflicts !== [],
-                'conflicts' => $conflicts,
-                'note' => $adminNote,
-            ], $request);
-            $this->broadcastAfterCommit(fn () => BookingCreated::dispatch($booking->fresh()->load('slots')), $booking);
+                $booking = new Booking;
+                $booking->code = $code;
+                $booking->source = 'admin';
+                $booking->created_by_admin_id = $actor->id;
+                $booking->contact_name = $data['contactName'];
+                $booking->nik = $data['nik'];
+                $booking->whatsapp = $data['whatsapp'];
+                $booking->institution = $data['institution'];
+                $booking->group_size = (int) $data['groupSize'];
+                $booking->date = $date;
+                $booking->date_label = $this->schedule->formatLongDate($date);
+                $booking->time = $segments[0]['time'];
+                $booking->status = $data['status'];
+                $booking->document_path = $documentPath;
+                $booking->document_original_name = $document?->getClientOriginalName() ?? 'Tanpa surat (dibuat admin)';
+                $booking->feedback_token = $this->codes->token();
+                $booking->submitted_at = now();
+                $adminNote = $this->adminBookingConfirmationNote($data, $conflicts, $document !== null);
+                $booking->note = $this->appendAdminNote(null, $adminNote);
+                $booking->save();
+                $this->persistBookingSlots($booking, $segments, true);
 
-            return $booking->fresh()->load('slots');
-        });
+                $this->logAudit($actor, "Membuat booking admin {$booking->code}", $booking, [
+                    'source' => 'admin',
+                    'confirmed_with_guest' => (bool) ($data['confirmedWithGuest'] ?? false),
+                    'manual_booking_confirmed' => (bool) ($data['confirmManualBooking'] ?? false),
+                    'overbook' => $conflicts !== [],
+                    'conflicts' => $conflicts,
+                    'has_document' => $document !== null,
+                    'note' => $adminNote,
+                ], $request);
+                $this->broadcastAfterCommit(fn () => BookingCreated::dispatch($booking->fresh()->load('slots')), $booking);
+
+                return $booking->fresh()->load('slots');
+            });
+        } catch (Throwable $exception) {
+            if ($documentPath) {
+                Storage::disk('local')->delete($documentPath);
+            }
+
+            if ($exception instanceof QueryException && $this->isUniqueSlotConflict($exception)) {
+                $this->throwUnavailableSlot();
+            }
+
+            throw $exception;
+        }
     }
 
     public function accept(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null): Booking
@@ -1062,13 +1081,14 @@ class BookingService
         return $conflicts;
     }
 
-    private function adminBookingConfirmationNote(array $data, array $conflicts): string
+    private function adminBookingConfirmationNote(array $data, array $conflicts, bool $hasDocument): string
     {
         $parts = [
-            'Konfirmasi admin: booking manual dibuat tanpa surat permohonan publik.',
+            'Konfirmasi admin: booking manual dibuat dari panel admin.',
             "Status awal {$data['status']}.",
             "Jadwal {$data['date']} {$data['time']} WIB.",
             "{$data['groupSize']} peserta.",
+            $hasDocument ? 'Surat permohonan dilampirkan admin.' : 'Tanpa surat permohonan.',
         ];
 
         if (($data['status'] ?? null) === 'Accepted' && (bool) ($data['confirmedWithGuest'] ?? false)) {

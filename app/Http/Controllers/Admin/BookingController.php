@@ -61,7 +61,12 @@ class BookingController extends Controller
     public function store(StoreAdminBookingRequest $request): JsonResponse
     {
         Gate::authorize('create', Booking::class);
-        $booking = $this->bookings->createFromAdmin($request->validated(), $request->user(), $request);
+        $booking = $this->bookings->createFromAdmin(
+            $request->validated(),
+            $request->user(),
+            $request,
+            $request->file('document'),
+        );
 
         return response()->json([
             'data' => (new BookingResource($booking))->resolve(),

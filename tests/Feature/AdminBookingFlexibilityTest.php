@@ -123,7 +123,8 @@ class AdminBookingFlexibilityTest extends TestCase
 
         $booking = Booking::where('code', $response->json('data.code'))->firstOrFail();
         $this->assertSame($admin->id, $booking->created_by_admin_id);
-        $this->assertStringContainsString('booking manual dibuat tanpa surat permohonan publik', (string) $booking->note);
+        $this->assertStringContainsString('booking manual dibuat dari panel admin', (string) $booking->note);
+        $this->assertStringContainsString('Tanpa surat permohonan', (string) $booking->note);
         $this->assertSame('3234567890123456', $booking->nik);
         $this->assertNotSame('3234567890123456', $booking->getRawOriginal('nik_encrypted'));
         $this->assertDatabaseHas('booking_slots', [
@@ -132,6 +133,33 @@ class AdminBookingFlexibilityTest extends TestCase
             'time' => '10.00',
             'group_size' => 40,
         ]);
+    }
+
+    public function test_admin_manual_booking_can_attach_optional_letter(): void
+    {
+        $this->actingAsAdmin();
+
+        $response = $this->post('/api/admin/bookings', [
+            'contactName' => 'Tamu Bersurat',
+            'nik' => '5234567890123456',
+            'whatsapp' => '081234567895',
+            'institution' => 'Undangan Bersurat',
+            'groupSize' => 12,
+            'date' => '2026-06-16',
+            'time' => '10.00',
+            'status' => 'Pending',
+            'confirmManualBooking' => '1',
+            'document' => UploadedFile::fake()->create('surat-admin.pdf', 120, 'application/pdf'),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.source', 'admin')
+            ->assertJsonPath('data.hasDocument', true)
+            ->assertJsonPath('data.documentName', 'surat-admin.pdf');
+
+        $booking = Booking::where('code', $response->json('data.code'))->firstOrFail();
+        $this->assertNotNull($booking->document_path);
+        $this->assertStringContainsString('Surat permohonan dilampirkan admin', (string) $booking->note);
+        Storage::disk('local')->assertExists($booking->document_path);
     }
 
     public function test_accepted_booking_direct_move_does_not_require_guest_agreement_and_can_move_to_today(): void
