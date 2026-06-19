@@ -353,7 +353,7 @@ Satu screen penuh (pola `AdminScheduleManager`) dengan header event + 2 tab.
 
 ```
 ┌─ Istura Open ───────────────────────────────────────────────┐
-│ Event: [ Kemerdekaan 2026 · Aktif ▾ ] [Aktifkan] [Arsipkan] [Hapus draft] │
+│ Event: [ Kemerdekaan 2026 · Aktif ▾ ] [Edit event] [Aktifkan] [Arsipkan] [Hapus draft] │
 │ 14–16 Agt · self-select · 100/hari · maks 4 add-on           │
 ├──────────────────────────────────────────────────────────────┤
 │  [ Pengaturan & Hari ]   [ Pendaftar ]                        │
@@ -368,7 +368,8 @@ tidak berurutan), kuota/hari, maks add-on, mode pilih hari
 (buka/tutup), teks persetujuan, poster/flyer opsional, copy promo, status aktif, dan lifecycle
 draft/aktif/lewat/arsip. Event baru/tanggal baru tidak boleh berada di masa lampau; tanggal lampau
 yang sudah menjadi bagian event berjalan boleh dipertahankan saat edit. Aksi status berada di
-toolbar atas; bukan card terpisah di bawah tab.
+toolbar atas; tombol **Edit event** juga berada di toolbar agar admin bisa menambah hari atau
+memindahkan jadwal event tanpa membuat event baru.
 
 Kartu per hari (jantung operasional, mirip grid slot di ScheduleManager):
 ```

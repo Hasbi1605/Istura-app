@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { Archive, Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import type {
   OpenDayBookingConflict,
   OpenEventAdmin,
@@ -126,6 +127,14 @@ function validatePosterFile(file: File): Promise<string | null> {
   });
 }
 
+function flattenValidationErrors(error: ValidationError): Record<string, string> {
+  const flat: Record<string, string> = {};
+  Object.entries(error.errors).forEach(([key, messages]) => {
+    flat[key.startsWith("dates.") ? "dates" : key] = messages[0];
+  });
+  return flat;
+}
+
 function OpenStatusBadge({ status }: { status: string }) {
   return (
     <span className={`open-status open-status-${status.toLowerCase()}`}>
@@ -185,6 +194,7 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<OpenEventAdmin | null>(null);
   const selectedIdRef = useRef<number | null>(null);
 
   const selected = useMemo(() => events.find((e) => e.id === selectedId) ?? null, [events, selectedId]);
@@ -318,6 +328,7 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
               {!readOnly && (
                 <EventToolbarActions
                   event={selected}
+                  onEdit={() => setEditingEvent(selected)}
                   onChanged={() => void reload()}
                   onDeleted={async () => {
                     setSelectedId(null);
@@ -376,6 +387,17 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
           }}
         />
       )}
+      {editingEvent && (
+        <EditEventModal
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onSaved={async (id) => {
+            setEditingEvent(null);
+            await reload();
+            setSelectedId(id);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -424,15 +446,27 @@ function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEve
 
 function EventToolbarActions({
   event,
+  onEdit,
   onChanged,
   onDeleted,
 }: {
   event: OpenEventAdmin;
+  onEdit: () => void;
   onChanged: () => void;
   onDeleted: () => void;
 }) {
+  const editDisabled = event.isArchived || event.isPast;
+  const editTitle = editDisabled
+    ? "Event arsip atau sudah lewat bersifat baca-saja."
+    : "Edit nama, tanggal, kuota, dan teks persetujuan event.";
+
   return (
     <div className="open-admin-event-actions">
+      <span className="open-toolbar-action">
+        <button type="button" className="button button-ghost" disabled={editDisabled} title={editTitle} onClick={onEdit}>
+          <Pencil size={15} /> Edit event
+        </button>
+      </span>
       <ActivateButton event={event} onChanged={onChanged} readOnly={event.isArchived || event.isPast} />
       <ArchiveButton event={event} onChanged={onChanged} />
       <DeleteDraftButton event={event} onDeleted={onDeleted} />
@@ -1294,33 +1328,30 @@ function OpenRegistrationDetailDrawer({
   );
 }
 
-function CreateEventModal({
-  onClose,
-  onCreated,
+function OpenEventDateBuilder({
+  selectedDates,
+  setSelectedDates,
+  disabled,
+  todayKey,
+  error,
+  onDateError,
+  helper = "Pilih satu hari, beberapa hari tidak berurutan, atau tambahkan satu rentang sekaligus.",
 }: {
-  onClose: () => void;
-  onCreated: (id: number) => void;
+  selectedDates: string[];
+  setSelectedDates: Dispatch<SetStateAction<string[]>>;
+  disabled: boolean;
+  todayKey: string;
+  error?: string;
+  onDateError: (message: string) => void;
+  helper?: string;
 }) {
-  const [name, setName] = useState("");
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [dateToAdd, setDateToAdd] = useState("");
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
-  const [perDayQuota, setPerDayQuota] = useState("100");
-  const [maxAddons, setMaxAddons] = useState("4");
-  const [agreementText, setAgreementText] = useState("");
-  const [posterFile, setPosterFile] = useState<File | null>(null);
-  const [posterPreview, setPosterPreview] = useState<string | null>(null);
-  const [posterError, setPosterError] = useState<string | null>(null);
-  const posterInputRef = useRef<HTMLInputElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const [pending, setPending] = useState<"create" | "poster" | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
 
   const addDates = (dates: string[]) => {
     setSelectedDates((current) => Array.from(new Set([...current, ...dates])).sort());
-    setErrors((current) => ({ ...current, dates: "" }));
+    onDateError("");
   };
 
   const addSingleDate = () => {
@@ -1332,13 +1363,210 @@ function CreateEventModal({
   const addRange = () => {
     const dates = dateKeysInRange(rangeStart, rangeEnd);
     if (dates.length === 0) {
-      setErrors((current) => ({ ...current, dates: "Tanggal akhir rentang harus sama atau setelah tanggal mulai." }));
+      onDateError("Tanggal akhir rentang harus sama atau setelah tanggal mulai.");
       return;
     }
     addDates(dates);
     setRangeStart("");
     setRangeEnd("");
   };
+
+  const removeDate = (date: string) => {
+    setSelectedDates((current) => current.filter((item) => item !== date));
+    onDateError("");
+  };
+
+  return (
+    <div className="open-date-builder">
+      <div className="open-date-builder-head">
+        <span>Tanggal event</span>
+        <small>{helper}</small>
+      </div>
+      <div className="open-date-single-row">
+        <label className="form-field">
+          <span>Tambah satu tanggal</span>
+          <input type="date" min={todayKey} value={dateToAdd} disabled={disabled} onChange={(e) => setDateToAdd(e.target.value)} />
+        </label>
+        <button type="button" className="button button-ghost" disabled={!dateToAdd || disabled} onClick={addSingleDate}>
+          <Plus size={14} /> Tambah tanggal
+        </button>
+      </div>
+      <div className="open-date-range-row">
+        <label className="form-field">
+          <span>Dari</span>
+          <input type="date" min={todayKey} value={rangeStart} disabled={disabled} onChange={(e) => setRangeStart(e.target.value)} />
+        </label>
+        <label className="form-field">
+          <span>Sampai</span>
+          <input type="date" min={rangeStart || todayKey} value={rangeEnd} disabled={disabled} onChange={(e) => setRangeEnd(e.target.value)} />
+        </label>
+        <button type="button" className="button button-ghost" disabled={!rangeStart || !rangeEnd || disabled} onClick={addRange}>
+          Tambah rentang
+        </button>
+      </div>
+      <div className="open-selected-dates" aria-live="polite">
+        {selectedDates.length === 0 ? (
+          <span className="open-selected-dates-empty">Belum ada tanggal dipilih.</span>
+        ) : selectedDates.map((date) => (
+          <span className="open-date-chip" key={date}>
+            {longDate(date)}
+            <button
+              type="button"
+              disabled={disabled}
+              aria-label={`Hapus ${longDate(date)}`}
+              onClick={() => removeDate(date)}
+            >
+              <X size={13} />
+            </button>
+          </span>
+        ))}
+      </div>
+      {error && <small className="field-error">{error}</small>}
+    </div>
+  );
+}
+
+function EditEventModal({
+  event,
+  onClose,
+  onSaved,
+}: {
+  event: OpenEventAdmin;
+  onClose: () => void;
+  onSaved: (id: number) => void;
+}) {
+  const [name, setName] = useState(event.name);
+  const [selectedDates, setSelectedDates] = useState<string[]>(() => event.days.map((day) => day.date).sort());
+  const [perDayQuota, setPerDayQuota] = useState(String(event.perDayQuota));
+  const [maxAddons, setMaxAddons] = useState(String(event.maxAddons));
+  const [agreementText, setAgreementText] = useState(event.agreementText ?? "");
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const [pending, setPending] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+
+    const onKeyDown = (keyboardEvent: KeyboardEvent) => {
+      if (keyboardEvent.key === "Escape" && !pending) onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose, pending]);
+
+  const submit = async () => {
+    if (selectedDates.length === 0) {
+      setErrors((current) => ({ ...current, dates: "Pilih minimal satu tanggal event." }));
+      return;
+    }
+    setPending(true);
+    setErrors({});
+    try {
+      const saved = await updateOpenEvent(event.id, {
+        name: name.trim(),
+        dates: selectedDates,
+        perDayQuota: Number(perDayQuota) || 0,
+        maxAddons: Number(maxAddons) || 0,
+        agreementText: agreementText.trim() || null,
+      });
+      onSaved(saved.id);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        setErrors(flattenValidationErrors(err));
+      } else {
+        setErrors({ name: "Gagal menyimpan event." });
+      }
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <div className="open-modal-scrim" role="dialog" aria-modal="true" aria-label="Edit event" onMouseDown={(mouseEvent) => {
+      if (mouseEvent.target === mouseEvent.currentTarget && !pending) onClose();
+    }}>
+      <div className="open-modal open-create-event-modal">
+        <button
+          ref={closeRef}
+          type="button"
+          className="open-promo-close"
+          aria-label="Tutup"
+          disabled={pending}
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
+        <h2>Edit Event Istura Open</h2>
+        <label className="form-field">
+          <span>Nama event</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} disabled={pending} />
+          {errors.name && <small className="field-error">{errors.name}</small>}
+        </label>
+        <OpenEventDateBuilder
+          selectedDates={selectedDates}
+          setSelectedDates={setSelectedDates}
+          disabled={pending}
+          todayKey={todayKey}
+          error={errors.dates}
+          onDateError={(message) => setErrors((current) => ({ ...current, dates: message }))}
+          helper="Tambahkan hari baru atau hapus hari lama untuk memindahkan jadwal event. Hari yang sudah memiliki pendaftar tidak dapat dihapus."
+        />
+        {errors.event && <small className="field-error">{errors.event}</small>}
+        <div className="form-grid">
+          <label className="form-field">
+            <span>Kuota / hari</span>
+            <input inputMode="numeric" value={perDayQuota} disabled={pending} onChange={(e) => setPerDayQuota(e.target.value.replace(/\D/g, ""))} />
+            {errors.perDayQuota && <small className="field-error">{errors.perDayQuota}</small>}
+          </label>
+          <label className="form-field">
+            <span>Maks add-on</span>
+            <input inputMode="numeric" value={maxAddons} disabled={pending} onChange={(e) => setMaxAddons(e.target.value.replace(/\D/g, ""))} />
+            {errors.maxAddons && <small className="field-error">{errors.maxAddons}</small>}
+          </label>
+        </div>
+        <label className="form-field">
+          <span>Teks persetujuan (opsional)</span>
+          <textarea value={agreementText} disabled={pending} onChange={(e) => setAgreementText(e.target.value)} rows={3} />
+          {errors.agreementText && <small className="field-error">{errors.agreementText}</small>}
+        </label>
+        <div className="open-step-actions">
+          <button type="button" className="button button-ghost" disabled={pending} onClick={onClose}>Batal</button>
+          <button type="button" className="button button-primary" disabled={pending || selectedDates.length === 0} onClick={submit}>
+            {pending ? <ButtonSpinner label="Menyimpan event..." /> : "Simpan perubahan"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateEventModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (id: number) => void;
+}) {
+  const [name, setName] = useState("");
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [perDayQuota, setPerDayQuota] = useState("100");
+  const [maxAddons, setMaxAddons] = useState("4");
+  const [agreementText, setAgreementText] = useState("");
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [posterError, setPosterError] = useState<string | null>(null);
+  const posterInputRef = useRef<HTMLInputElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const [pending, setPending] = useState<"create" | "poster" | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
 
   useEffect(() => {
     if (!posterFile) {
@@ -1392,11 +1620,7 @@ function CreateEventModal({
       onCreated(event.id);
     } catch (err) {
       if (err instanceof ValidationError) {
-        const flat: Record<string, string> = {};
-        Object.entries(err.errors).forEach(([key, messages]) => {
-          flat[key.startsWith("dates.") ? "dates" : key] = messages[0];
-        });
-        setErrors(flat);
+        setErrors(flattenValidationErrors(err));
       } else {
         setErrors({ name: "Gagal membuat event." });
       }
@@ -1426,60 +1650,24 @@ function CreateEventModal({
           <input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} disabled={pending !== null} />
           {errors.name && <small className="field-error">{errors.name}</small>}
         </label>
-        <div className="open-date-builder">
-          <div className="open-date-builder-head">
-            <span>Tanggal event</span>
-            <small>Pilih satu hari, beberapa hari tidak berurutan, atau tambahkan satu rentang sekaligus.</small>
-          </div>
-          <div className="open-date-single-row">
-            <label className="form-field">
-              <span>Tambah satu tanggal</span>
-              <input type="date" min={todayKey} value={dateToAdd} disabled={pending !== null} onChange={(e) => setDateToAdd(e.target.value)} />
-            </label>
-            <button type="button" className="button button-ghost" disabled={!dateToAdd || pending !== null} onClick={addSingleDate}>
-              <Plus size={14} /> Tambah tanggal
-            </button>
-          </div>
-          <div className="open-date-range-row">
-            <label className="form-field">
-              <span>Dari</span>
-              <input type="date" min={todayKey} value={rangeStart} disabled={pending !== null} onChange={(e) => setRangeStart(e.target.value)} />
-            </label>
-            <label className="form-field">
-              <span>Sampai</span>
-              <input type="date" min={rangeStart || todayKey} value={rangeEnd} disabled={pending !== null} onChange={(e) => setRangeEnd(e.target.value)} />
-            </label>
-            <button type="button" className="button button-ghost" disabled={!rangeStart || !rangeEnd || pending !== null} onClick={addRange}>
-              Tambah rentang
-            </button>
-          </div>
-          <div className="open-selected-dates" aria-live="polite">
-            {selectedDates.length === 0 ? (
-              <span className="open-selected-dates-empty">Belum ada tanggal dipilih.</span>
-            ) : selectedDates.map((date) => (
-              <span className="open-date-chip" key={date}>
-                {longDate(date)}
-                <button
-                  type="button"
-                  disabled={pending !== null}
-                  aria-label={`Hapus ${longDate(date)}`}
-                  onClick={() => setSelectedDates((current) => current.filter((item) => item !== date))}
-                >
-                  <X size={13} />
-                </button>
-              </span>
-            ))}
-          </div>
-          {errors.dates && <small className="field-error">{errors.dates}</small>}
-        </div>
+        <OpenEventDateBuilder
+          selectedDates={selectedDates}
+          setSelectedDates={setSelectedDates}
+          disabled={pending !== null}
+          todayKey={todayKey}
+          error={errors.dates}
+          onDateError={(message) => setErrors((current) => ({ ...current, dates: message }))}
+        />
         <div className="form-grid">
           <label className="form-field">
             <span>Kuota / hari</span>
             <input inputMode="numeric" value={perDayQuota} disabled={pending !== null} onChange={(e) => setPerDayQuota(e.target.value.replace(/\D/g, ""))} />
+            {errors.perDayQuota && <small className="field-error">{errors.perDayQuota}</small>}
           </label>
           <label className="form-field">
             <span>Maks add-on</span>
             <input inputMode="numeric" value={maxAddons} disabled={pending !== null} onChange={(e) => setMaxAddons(e.target.value.replace(/\D/g, ""))} />
+            {errors.maxAddons && <small className="field-error">{errors.maxAddons}</small>}
           </label>
         </div>
         <label className="form-field">
