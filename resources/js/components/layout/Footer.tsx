@@ -87,9 +87,16 @@ export function Footer({
         </div>
       </div>
 
-      <p className="footer-credit">
-        {content.copyright}
-      </p>
+      <div className="footer-credit">
+        <span>{content.copyright}</span>
+        <span className="footer-developer-credit">
+          Pengembangan situs oleh{" "}
+          <a href="https://hasbi1605.github.io" target="_blank" rel="noopener noreferrer nofollow" aria-label="Portofolio Hasbi Ashiddiqi">
+            Hasbi Ashiddiqi
+          </a>
+          .
+        </span>
+      </div>
     </footer>
   );
 }

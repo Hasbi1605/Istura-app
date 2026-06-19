@@ -2179,18 +2179,33 @@ a {
 
 .footer-credit {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 4px;
   margin: 0;
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.45);
   font-size: 0.72rem;
   font-weight: 500;
+  line-height: 1.45;
   text-align: center;
   letter-spacing: 0.01em;
+}
+
+.footer-developer-credit a {
+  color: rgba(228, 189, 85, 0.82);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.footer-developer-credit a:hover,
+.footer-developer-credit a:focus-visible {
+  color: var(--gold-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none;
 }
 
 .wizard-page,
