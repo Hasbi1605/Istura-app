@@ -2197,14 +2197,16 @@ a {
 .footer-developer-credit a {
   color: rgba(228, 189, 85, 0.82);
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-color: rgba(228, 189, 85, 0.5);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .footer-developer-credit a:hover,
 .footer-developer-credit a:focus-visible {
   color: var(--gold-2);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration-color: var(--gold-2);
   outline: none;
 }
 
