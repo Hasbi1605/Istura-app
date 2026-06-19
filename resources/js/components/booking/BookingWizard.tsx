@@ -273,10 +273,10 @@ export function BookingWizard({
   const [today] = useState(jakartaToday);
   const normalMinBookingDate = addDays(today, 2);
   const normalMinBookingDateKey = formatDateKey(normalMinBookingDate);
-  const shortNoticeDateKey = schedules.find((day) =>
-    day.date < normalMinBookingDateKey && day.slots.some((slot) => slot.status === "Available" && slot.shortNotice?.mode === "public"),
+  const earlyBookingDateKey = schedules.find((day) =>
+    day.date < normalMinBookingDateKey && day.slots.some((slot) => slot.status === "Available"),
   )?.date;
-  const minBookingDate = shortNoticeDateKey ? parseDateKey(shortNoticeDateKey) : normalMinBookingDate;
+  const minBookingDate = earlyBookingDateKey ? parseDateKey(earlyBookingDateKey) : normalMinBookingDate;
   const minBookingDateKey = formatDateKey(minBookingDate);
   const initialDate = firstAvailableScheduleDate(schedules, minBookingDateKey);
   const [form, setForm] = useState<BookingForm>(() =>
@@ -1080,9 +1080,7 @@ function SchedulePicker({
                 const selectedOrder = selectedSlotOrders.get(slot.time);
                 const isSelected = selectedTime === slot.time;
                 const isAutoSelected = requiredSlots > 1 && Boolean(selectedOrder);
-                const availableLabel = slot.shortNotice?.mode === "public"
-                  ? `Dadakan · sisa ${slot.remainingCapacity ?? slot.shortNotice.remainingCapacity}`
-                  : requiredSlots > 1 ? "Pilih jam mulai" : publicSlotStatusLabel[slot.status];
+                const availableLabel = requiredSlots > 1 ? "Pilih jam mulai" : publicSlotStatusLabel[slot.status];
                 const disabledLabel = slot.status === "Available" && !isClickable
                   ? `Butuh ${requiredSlots} slot layanan`
                   : slot.status === "Closed" && closedLabel

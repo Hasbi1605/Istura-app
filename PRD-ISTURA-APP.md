@@ -89,7 +89,7 @@ WebSocket (Laravel Reverb).
 | FR-A12 | Admin dapat mengekspor data booking (Excel/PDF/ZIP), laporan bulanan, dan poster mingguan. |
 | FR-A13 | **Super Admin** dapat mengelola akun admin (buat, ubah, hapus). |
 | FR-A14 | Admin dapat melihat riwayat aktivitas (audit log) dengan filter. |
-| FR-A15 | Admin dapat membuka slot booking dadakan H/H+1 untuk admin saja atau publik dengan tenggat dan kapasitas, membuat booking tamu khusus dengan surat permohonan opsional, serta memindahkan booking aktif langsung ke jadwal H/H+1 setelah persetujuan tamu. |
+| FR-A15 | Admin dapat melihat H/H+1 di halaman jadwal admin dalam kondisi default tertutup, lalu membuka/menutup slot tersebut dengan toggle jadwal biasa. Slot H/H+1 yang dibuka admin tampil ke publik selama jam belum lewat. Admin juga dapat membuat booking tamu khusus dengan surat permohonan opsional serta memindahkan booking aktif langsung ke jadwal H/H+1 setelah persetujuan tamu. |
 
 ### 2.3 Non-Functional Requirements
 
@@ -100,7 +100,7 @@ WebSocket (Laravel Reverb).
 | NFR-3 | Keamanan | Endpoint publik dibatasi rate-limit (booking, feedback, schedule, login, 2FA). |
 | NFR-4 | Keamanan | Session admin punya absolute lifetime (default 720 menit); auto-logout saat kedaluwarsa. |
 | NFR-5 | Keamanan | Security headers ditambahkan di seluruh respons (middleware AddSecurityHeaders). |
-| NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + `booking_slot_locks`; overbook hanya boleh melalui aksi admin eksplisit dan tercatat di audit. Kapasitas slot dadakan publik dihitung ulang di dalam transaksi. |
+| NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + `booking_slot_locks`; overbook hanya boleh melalui aksi admin eksplisit dan tercatat di audit. Booking publik H/H+1 hanya boleh lolos bila slot dibuka admin lewat override jadwal biasa dan tetap dikunci ulang saat submit. |
 | NFR-7 | Realtime | Perubahan booking/jadwal dipancarkan via WebSocket; dashboard admin auto-update. Dapat dimatikan via `VITE_REVERB_ENABLED=false` (degradasi anggun). |
 | NFR-8 | Lokalisasi | Seluruh teks UI & tanggal dalam Bahasa Indonesia, timezone Asia/Jakarta. |
 | NFR-9 | Aksesibilitas | Komponen interaktif harus accessibility-compliant (role, aria, focus trap pada modal). |
@@ -110,8 +110,8 @@ WebSocket (Laravel Reverb).
 
 | ID | Aturan |
 |----|--------|
-| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 hanya tampil bila admin membuka slot **Booking Dadakan Publik** yang masih dalam tenggat dan memiliki kapasitas. Admin dapat memakai H/H+1 melalui Booking Manual atau pindah jadwal langsung. |
-| BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 atau menetapkan kapasitas dadakan lebih besar dengan konfirmasi operasional dan audit. |
+| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 default tertutup untuk publik dan hanya tampil bila admin membuka slot lewat toggle jadwal biasa sebelum jam kunjungan lewat. Admin dapat memakai H/H+1 melalui Booking Manual atau pindah jadwal langsung. |
+| BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 dengan konfirmasi operasional dan audit. |
 | BR-3 | Jumlah rombongan: minimal 1, maksimal **480 orang** per hari kunjungan. |
 | BR-4 | NIK wajib 16 digit angka. WhatsApp wajib format `08...` atau `628...` (8–13 digit setelah prefix). |
 | BR-5 | Jam operasional default: **Senin–Kamis**, slot 08.00, 09.00, 10.00, 11.00, 13.00, 14.00. Jam 12.00 = istirahat (tidak tersedia). |
@@ -162,46 +162,47 @@ slot terisi sebagai item konfirmasi ringkas, dan menyimpan langsung tanpa membuk
 Lain hanya menampilkan tanggal yang benar-benar memiliki slot tersedia untuk ditawarkan ke tamu. Aksi lifecycle
 utama tetap menghasilkan pesan WhatsApp siap kirim dan audit.
 
-### 3.4 Booking Dadakan
-Admin mengatur slot dadakan dari Jadwal Kunjungan dengan pilihan **Admin saja** atau
-**Publik + admin**. Mode publik wajib memiliki batas waktu dan kapasitas total. Kalender publik
-memuat H/H+1 sebagai tertutup secara default dan hanya mengubah slot dadakan publik aktif menjadi
-tersedia; sisa kapasitas dihitung dari peserta booking aktif dan dikunci ulang saat submit.
+### 3.4 Manajemen Jadwal H/H+1 (Admin)
+Admin melihat hari H/H+1 di Jadwal Kunjungan dalam kondisi default tertutup untuk publik.
+Jika operasional mengizinkan, admin membuka atau menutup slot H/H+1 dengan toggle slot/range
+jadwal biasa. Slot H/H+1 yang dibuka admin tampil di landing page dan Booking Wizard selama
+jam kunjungan belum lewat; bila ditutup kembali, slot hilang dari pilihan publik. Tidak ada
+kapasitas atau tenggat terpisah di luar status slot jadwal.
 
-### 3.4 Manajemen Jadwal (Admin)
+### 3.5 Manajemen Jadwal (Admin)
 Grid kalender dengan status per slot (Available, Held, Booked, Closed, Reschedule Hold).
 Admin dapat menutup/membuka slot tunggal atau rentang tanggal (mis. menutup pekan event).
 Status default dihitung runtime; hanya override yang disimpan. Integrasi auto-sync tanggal
 merah nasional dari provider eksternal.
 
-### 3.5 Feedback Kunjungan
+### 3.6 Feedback Kunjungan
 Setelah booking Completed, pengunjung menerima tautan feedback unik (token). Form menilai:
 rating keseluruhan, kemudahan booking, pelayanan, kualitas pemandu, kebersihan/kenyamanan
 fasilitas, rekomendasi (skala 1–5), riwayat kunjungan, sumber mengetahui ISTURA, highlight,
 area perbaikan, komentar, dan izin publikasi. Highlight dan area perbaikan masing-masing
 dibatasi maksimal 12 item dengan panjang 80 karakter per item. Admin melihat & mengekspor feedback.
 
-### 3.6 CMS (Content Management)
+### 3.7 CMS (Content Management)
 Admin mengelola seluruh konten publik tanpa deploy: FAQ, ketentuan kunjungan/surat, kontak
 footer, hero & cerita, landing page (seksi-seksi), copy wizard booking/feedback, dan template
 pesan WhatsApp per status booking (Pending, Accepted, Rejected, Reschedule, Completed,
 Expired).
 
-### 3.7 Autentikasi & Keamanan Admin
+### 3.8 Autentikasi & Keamanan Admin
 Login email+password (Sanctum SPA session), progressive delay anti-bruteforce, Two-Factor
 Authentication TOTP dengan recovery codes & trusted devices, absolute session lifetime,
 peran super_admin/admin.
 
-### 3.8 Dashboard & Pelaporan
+### 3.9 Dashboard & Pelaporan
 KPI ringkas, booking hari ini, feedback terbaru. Ekspor: data booking (Excel/PDF/ZIP),
 laporan bulanan, poster jadwal mingguan. Realtime update via WebSocket.
 
-### 3.9 Audit Log
+### 3.10 Audit Log
 Pencatatan otomatis seluruh aksi penting (booking baru, perubahan status, feedback, dll)
 dengan aktor, target, payload, dan konteks request. Retensi dipangkas otomatis (default 180
 hari).
 
-### 3.10 Istura Open
+### 3.11 Istura Open
 Modul pendaftaran perorangan berbasis kuota harian, terpisah dari booking rombongan dan
 sudah diimplementasikan. Admin dapat memilih satu atau beberapa tanggal (termasuk tanggal
 tidak berurutan), mengatur kuota/link grup per hari, mengaktifkan satu event, memantau dan

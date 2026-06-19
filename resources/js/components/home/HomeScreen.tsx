@@ -190,7 +190,15 @@ export function HomeScreen({
 	onNavigate: (screen: Screen) => void;
 }) {
   const [today] = useState(jakartaToday);
-  const minPublicDate = useMemo(() => addDays(today, 2), [today]);
+  const normalMinPublicDate = useMemo(() => addDays(today, 2), [today]);
+  const normalMinPublicDateKey = formatDateKey(normalMinPublicDate);
+  const earlyPublicDateKey = schedules.find((day) =>
+    day.date < normalMinPublicDateKey && hasAvailableSlot(day),
+  )?.date;
+  const minPublicDate = useMemo(
+    () => earlyPublicDateKey ? parseDateKey(earlyPublicDateKey) : normalMinPublicDate,
+    [earlyPublicDateKey, normalMinPublicDate],
+  );
   const maxScheduleDate = addMonths(today, 2);
   const minMonth = startOfMonth(minPublicDate);
   const maxMonth = startOfMonth(maxScheduleDate);

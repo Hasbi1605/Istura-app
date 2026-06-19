@@ -128,8 +128,10 @@ class ViewerRoleTest extends TestCase
             'status' => 'Available',
         ])->assertForbidden();
         $this->postJson('/api/admin/schedule/range', [])->assertForbidden();
-        $this->postJson('/api/admin/schedule/short-notice', [])->assertForbidden();
-        $this->deleteJson('/api/admin/schedule/short-notice', [])->assertForbidden();
+        $this->deleteJson('/api/admin/schedule/slot', [
+            'date' => '2026-07-01',
+            'time' => '09.00',
+        ])->assertForbidden();
     }
 
     public function test_viewer_cannot_mutate_cms(): void

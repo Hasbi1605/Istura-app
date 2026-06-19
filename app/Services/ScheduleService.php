@@ -98,18 +98,16 @@ class ScheduleService
                 $override = $overrides->get($key)?->firstWhere('time', $time);
                 $status = $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked);
                 $participantCount = $this->activeParticipantCount($key, $time, $bookings, $bookingSlots);
-                $shortNotice = $this->shortNoticePayload($key, $time, $override, $participantCount);
 
                 return [
                     'time' => $time,
                     'status' => $status,
-                    'publicStatus' => $this->publicStatusForSlot($key, $time, $status, $override, $participantCount, $isturaOpenBlocked),
+                    'publicStatus' => $this->publicStatusForSlot($key, $time, $status, $override, $isturaOpenBlocked),
                     'custom' => ! in_array($time, self::TIME_SLOTS, true),
                     'bookingCount' => $bookingCount,
                     'participantCount' => $participantCount,
                     'overbooked' => $bookingCount > 1,
                     'bookingConflicts' => $this->bookingConflictSummaries($key, $time, $bookings, $bookingSlots),
-                    'shortNotice' => $shortNotice,
                     'closureReason' => $this->slotClosureReason($status, $override, $defaultClosure),
                 ];
             })->all();
@@ -528,9 +526,8 @@ class ScheduleService
 
     /**
      * Validate the exact participant allocation used by a public booking.
-     * H/H+1 only pass when every segment has an active public short-notice
-     * override with enough remaining capacity. H+2 and later keep the normal
-     * single-booking slot rule.
+     * H/H+1 only pass when every segment has an explicit Available admin
+     * override. H+2 and later keep the normal single-booking slot rule.
      *
      * @param  array<int, array{date:string,time:string,group_size:int}>  $segments
      */
@@ -556,18 +553,11 @@ class ScheduleService
                 return false;
             }
 
-            $overrideQuery = ScheduleOverride::whereDate('date', $date->toDateString())->where('time', $time);
-            if ($lockBookings) {
-                $overrideQuery->lockForUpdate();
-            }
-            $override = $overrideQuery->first();
-
-            if (! $this->publicShortNoticeIsActive($override, $startsAt)) {
+            if (! $this->hasExplicitPublicOverride($date->toDateString(), $time, $lockBookings)) {
                 return false;
             }
 
-            $used = $this->activeParticipantCountForSlot($date->toDateString(), $time, $lockBookings);
-            if ($used + (int) $segment['group_size'] > (int) $override->short_notice_capacity) {
+            if ($this->slotStatusFor($date, $time, $lockBookings) !== 'Available') {
                 return false;
             }
         }
@@ -729,7 +719,6 @@ class ScheduleService
         string $time,
         string $status,
         ?ScheduleOverride $override,
-        int $participantCount,
         bool $isturaOpenBlocked,
     ): string {
         $date = Carbon::createFromFormat('Y-m-d', $dateKey, 'Asia/Jakarta')->startOfDay();
@@ -738,45 +727,23 @@ class ScheduleService
         }
 
         $startsAt = Carbon::createFromFormat('Y-m-d H.i', $dateKey.' '.$time, 'Asia/Jakarta');
-        if ($isturaOpenBlocked || ! $this->publicShortNoticeIsActive($override, $startsAt)) {
+        if ($isturaOpenBlocked || $startsAt->lte(now('Asia/Jakarta')) || $override?->status !== 'Available' || ! $override->custom) {
             return 'Closed';
         }
 
-        return $participantCount < (int) $override->short_notice_capacity ? 'Available' : 'Closed';
+        return $status;
     }
 
-    /**
-     * @return array{mode:string,closesAt:?string,capacity:int,remainingCapacity:int,active:bool}|null
-     */
-    private function shortNoticePayload(string $dateKey, string $time, ?ScheduleOverride $override, int $participantCount): ?array
+    private function hasExplicitPublicOverride(string $dateKey, string $time, bool $lock = false): bool
     {
-        if (! $override?->short_notice_mode) {
-            return null;
+        $query = ScheduleOverride::whereDate('date', $dateKey)->where('time', $time);
+        if ($lock) {
+            $query->lockForUpdate();
         }
 
-        $startsAt = Carbon::createFromFormat('Y-m-d H.i', $dateKey.' '.$time, 'Asia/Jakarta');
-        $capacity = (int) ($override->short_notice_capacity ?? BookingService::SLOT_CAPACITY);
+        $override = $query->first();
 
-        return [
-            'mode' => $override->short_notice_mode,
-            'closesAt' => $override->short_notice_closes_at?->copy()->timezone('Asia/Jakarta')->toIso8601String(),
-            'capacity' => $capacity,
-            'remainingCapacity' => max(0, $capacity - $participantCount),
-            'active' => $override->short_notice_mode === 'admin'
-                ? $startsAt->gt(now('Asia/Jakarta'))
-                : $this->publicShortNoticeIsActive($override, $startsAt),
-        ];
-    }
-
-    private function publicShortNoticeIsActive(?ScheduleOverride $override, Carbon $startsAt): bool
-    {
-        return $override?->status === 'Available'
-            && $override->short_notice_mode === 'public'
-            && $override->short_notice_closes_at !== null
-            && $override->short_notice_closes_at->copy()->timezone('Asia/Jakarta')->gt(now('Asia/Jakarta'))
-            && $override->short_notice_closes_at->copy()->timezone('Asia/Jakarta')->lt($startsAt)
-            && $startsAt->gt(now('Asia/Jakarta'))
-            && (int) $override->short_notice_capacity > 0;
+        return $override?->status === 'Available' && (bool) $override->custom;
     }
 
     private function statusFromBooking(Booking $booking): string

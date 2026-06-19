@@ -30,26 +30,15 @@ class AdminBookingFlexibilityTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_admin_can_open_capacity_limited_public_short_notice_slot(): void
+    public function test_admin_can_open_h_plus_one_slot_with_normal_schedule_toggle(): void
     {
         $this->actingAsAdmin();
 
-        $this->postJson('/api/admin/schedule/short-notice', [
-            'date' => '2026-06-17',
-            'time' => '10.00',
-            'audience' => 'public',
-            'closesAt' => '2026-06-16T09:30:00+07:00',
-            'capacity' => 60,
-            'note' => 'Tidak seharusnya memakai mode dadakan.',
-        ])->assertUnprocessable()->assertJsonValidationErrors('date');
-
-        $this->postJson('/api/admin/schedule/short-notice', [
+        $this->postJson('/api/admin/schedule/slot', [
             'date' => '2026-06-16',
             'time' => '10.00',
-            'audience' => 'public',
-            'closesAt' => '2026-06-15T09:30:00+07:00',
-            'capacity' => 60,
-            'note' => 'Membuka kuota dadakan untuk rombongan terkoordinasi.',
+            'status' => 'Available',
+            'note' => 'Membuka slot H+1 untuk publik.',
         ])->assertOk();
 
         $schedule = $this->getJson('/api/public/schedule?from=2026-06-16&to=2026-06-16')
@@ -57,8 +46,8 @@ class AdminBookingFlexibilityTest extends TestCase
             ->json('data');
         $slot = collect($schedule[0]['slots'])->firstWhere('time', '10.00');
         $this->assertSame('Available', $slot['status']);
-        $this->assertSame(60, $slot['remainingCapacity']);
-        $this->assertSame('public', $slot['shortNotice']['mode']);
+        $this->assertArrayNotHasKey('remainingCapacity', $slot);
+        $this->assertArrayNotHasKey('shortNotice', $slot);
 
         $this->post('/api/public/bookings', $this->publicPayload([
             'groupSize' => 50,
@@ -79,24 +68,23 @@ class AdminBookingFlexibilityTest extends TestCase
 
         $refreshed = $this->getJson('/api/public/schedule?from=2026-06-16&to=2026-06-16')->json('data');
         $refreshedSlot = collect($refreshed[0]['slots'])->firstWhere('time', '10.00');
-        $this->assertSame('Available', $refreshedSlot['status']);
-        $this->assertSame(10, $refreshedSlot['remainingCapacity']);
+        $this->assertSame('Held', $refreshedSlot['status']);
+        $this->assertArrayNotHasKey('remainingCapacity', $refreshedSlot);
     }
 
-    public function test_admin_only_short_notice_stays_hidden_public_and_supports_manual_booking(): void
+    public function test_admin_opened_same_day_slot_is_visible_public_and_supports_manual_booking(): void
     {
         $admin = $this->actingAsAdmin();
 
-        $this->postJson('/api/admin/schedule/short-notice', [
+        $this->postJson('/api/admin/schedule/slot', [
             'date' => '2026-06-15',
             'time' => '10.00',
-            'audience' => 'admin',
-            'capacity' => 120,
+            'status' => 'Available',
             'note' => 'Slot tamu khusus.',
         ])->assertOk();
 
         $publicSchedule = $this->getJson('/api/public/schedule?from=2026-06-15&to=2026-06-15')->json('data');
-        $this->assertSame('Closed', collect($publicSchedule[0]['slots'])->firstWhere('time', '10.00')['status']);
+        $this->assertSame('Available', collect($publicSchedule[0]['slots'])->firstWhere('time', '10.00')['status']);
 
         $payload = [
             'contactName' => 'Tamu Khusus',

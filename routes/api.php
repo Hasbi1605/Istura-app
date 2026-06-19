@@ -114,8 +114,6 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
         Route::post('schedule/slot', [ScheduleController::class, 'storeSlot']);
         Route::delete('schedule/slot', [ScheduleController::class, 'destroySlot']);
         Route::post('schedule/range', [ScheduleController::class, 'storeRange']);
-        Route::post('schedule/short-notice', [ScheduleController::class, 'storeShortNotice']);
-        Route::delete('schedule/short-notice', [ScheduleController::class, 'destroyShortNotice']);
 
         Route::put('cms/faqs', [CmsController::class, 'updateFaqs']);
         Route::put('cms/contacts', [CmsController::class, 'updateContacts']);

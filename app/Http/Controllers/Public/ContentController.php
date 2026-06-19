@@ -10,6 +10,7 @@ use App\Http\Resources\PublicVisitDayResource;
 use App\Http\Resources\WaTemplateResource;
 use App\Models\Faq;
 use App\Models\FooterContact;
+use App\Models\ScheduleOverride;
 use App\Models\SiteSetting;
 use App\Models\WaTemplate;
 use App\Services\OpenRegistrationService;
@@ -197,10 +198,22 @@ class ContentController extends Controller
     private function scheduleRange(ScheduleRangeRequest $request): array
     {
         $today = Carbon::today('Asia/Jakarta');
-        // Include H/H+1 in the payload so explicitly opened short-notice slots
-        // can appear. PublicVisitDayResource keeps every non-exception slot in
-        // that window closed, so the normal H+2 policy remains intact.
-        $earliestBookableDate = $today->copy()->startOfDay();
+        $normalEarliestBookableDate = $today->copy()->addDays(2)->startOfDay();
+        $hasEarlyAdminOpening = ScheduleOverride::query()
+            ->whereDate('date', '>=', $today->toDateString())
+            ->whereDate('date', '<=', $today->copy()->addDay()->toDateString())
+            ->where('status', 'Available')
+            ->where('custom', true)
+            ->where(function ($query) use ($today) {
+                $query
+                    ->whereDate('date', '>', $today->toDateString())
+                    ->orWhere('time', '>', now('Asia/Jakarta')->format('H.i'));
+            })
+            ->exists();
+
+        $earliestBookableDate = $hasEarlyAdminOpening
+            ? $today->copy()->startOfDay()
+            : $normalEarliestBookableDate;
         $latestBookableDate = $today->copy()->addMonths(2)->startOfDay();
         $from = $request->validated('from') ? $request->startDate() : $earliestBookableDate->copy();
 

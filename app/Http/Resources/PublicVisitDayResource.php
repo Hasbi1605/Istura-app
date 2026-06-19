@@ -23,18 +23,6 @@ class PublicVisitDayResource extends JsonResource
                     'time' => $slot['time'],
                     'status' => $slot['publicStatus'] ?? $slot['status'],
                     'custom' => $slot['custom'],
-                    'shortNotice' => ($slot['shortNotice']['mode'] ?? null) === 'public'
-                        && ($slot['shortNotice']['active'] ?? false)
-                            ? [
-                                'mode' => 'public',
-                                'capacity' => $slot['shortNotice']['capacity'],
-                                'remainingCapacity' => $slot['shortNotice']['remainingCapacity'],
-                                'active' => true,
-                            ]
-                            : null,
-                    'remainingCapacity' => ($slot['shortNotice']['mode'] ?? null) === 'public'
-                        ? ($slot['shortNotice']['remainingCapacity'] ?? null)
-                        : null,
                     'closureReason' => $slot['closureReason'] ?? null,
                 ])
                 ->values()

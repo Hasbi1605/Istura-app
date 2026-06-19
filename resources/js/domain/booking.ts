@@ -44,16 +44,13 @@ export const canFitConsecutiveSlots = (
   day: VisitDay | undefined,
   startTime: string,
   slotCount: number,
-  segmentSizes?: number[],
+  _segmentSizes?: number[],
 ): boolean => {
   if (!day || !startTime) return false;
   const startIndex = day.slots.findIndex((slot) => slot.time === startTime);
   if (startIndex < 0) return false;
   const candidates = day.slots.slice(startIndex, startIndex + slotCount);
-  return candidates.length === slotCount && candidates.every((slot, index) =>
-    slot.status === "Available" &&
-    (typeof slot.remainingCapacity !== "number" || slot.remainingCapacity >= (segmentSizes?.[index] ?? 1)),
-  );
+  return candidates.length === slotCount && candidates.every((slot) => slot.status === "Available");
 };
 
 export const hasConsecutiveAvailableSlots = (day: VisitDay | undefined, slotCount: number, segmentSizes?: number[]): boolean =>

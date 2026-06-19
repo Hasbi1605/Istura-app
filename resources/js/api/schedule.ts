@@ -15,14 +15,6 @@ export type ApiVisitDay = {
     overbooked?: boolean;
     participantCount?: number;
     bookingConflicts?: Array<{ code: string; groupSize: number; status: string }>;
-    shortNotice?: {
-      mode: "admin" | "public";
-      closesAt?: string | null;
-      capacity: number;
-      remainingCapacity: number;
-      active: boolean;
-    } | null;
-    remainingCapacity?: number | null;
     closureReason?: ClosureReason | null;
   }[];
 };
@@ -57,15 +49,3 @@ export const upsertScheduleRange = (payload: {
   status: string;
   note?: string;
 }) => api("/api/admin/schedule/range", { method: "POST", body: payload });
-
-export const upsertShortNoticeSlot = (payload: {
-  date: string;
-  time: string;
-  audience: "admin" | "public";
-  closesAt?: string;
-  capacity: number;
-  note: string;
-}) => api("/api/admin/schedule/short-notice", { method: "POST", body: payload });
-
-export const deleteShortNoticeSlot = (date: string, time: string) =>
-  api("/api/admin/schedule/short-notice", { method: "DELETE", body: { date, time } });

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\ScheduleOverride;
 use App\Models\SiteSetting;
 use App\Services\ScheduleService;
 use App\Support\SiteContentDefaults;
@@ -60,18 +61,16 @@ class PublicBootstrapTest extends TestCase
         $this->assertStringContainsString('must-revalidate', $response->headers->get('Cache-Control'));
     }
 
-    public function test_public_bootstrap_includes_short_notice_window_but_keeps_unopened_slots_closed(): void
+    public function test_public_bootstrap_starts_at_h_plus_two_without_admin_opened_early_slot(): void
     {
         $response = $this->getJson('/api/public/bootstrap')
             ->assertOk();
 
         $dates = collect($response->json('data.schedule'))->pluck('date');
 
-        $this->assertSame('2026-06-01', $dates->first());
-        $this->assertTrue($dates->contains('2026-06-02'));
-        $today = collect($response->json('data.schedule'))->firstWhere('date', '2026-06-01');
-        $this->assertNotNull($today);
-        $this->assertTrue(collect($today['slots'])->every(fn (array $slot): bool => $slot['status'] === 'Closed'));
+        $this->assertSame('2026-06-03', $dates->first());
+        $this->assertFalse($dates->contains('2026-06-01'));
+        $this->assertFalse($dates->contains('2026-06-02'));
     }
 
     public function test_public_bootstrap_backfills_large_group_copy_for_existing_site_content(): void
@@ -91,21 +90,50 @@ class PublicBootstrapTest extends TestCase
             ->assertJsonPath('data.siteContent.bookingWizard.schedule.largeGroupActionLabel', 'Diskusi dengan Admin');
     }
 
-    public function test_public_schedule_includes_h_and_h_plus_one_for_explicit_short_notice_openings(): void
+    public function test_public_schedule_includes_h_and_h_plus_one_for_explicit_admin_opened_early_openings(): void
     {
+        ScheduleOverride::create([
+            'date' => '2026-06-01',
+            'time' => '10.00',
+            'status' => 'Available',
+            'custom' => true,
+        ]);
+        ScheduleOverride::create([
+            'date' => '2026-06-02',
+            'time' => '10.00',
+            'status' => 'Available',
+            'custom' => true,
+        ]);
+
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-03')
             ->assertOk();
 
         $this->assertSame(['2026-06-01', '2026-06-02', '2026-06-03'], collect($response->json('data'))->pluck('date')->all());
+        $this->assertSame('Available', collect($response->json('data.0.slots'))->firstWhere('time', '10.00')['status']);
+        $this->assertArrayNotHasKey('shortNotice', collect($response->json('data.0.slots'))->firstWhere('time', '10.00'));
     }
 
-    public function test_public_schedule_returns_today_as_closed_without_short_notice_override(): void
+    public function test_public_schedule_hides_today_without_admin_opened_early_override(): void
     {
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01')
             ->assertOk();
 
-        $this->assertSame(['2026-06-01'], collect($response->json('data'))->pluck('date')->all());
-        $this->assertTrue(collect($response->json('data.0.slots'))->every(fn (array $slot): bool => $slot['status'] === 'Closed'));
+        $this->assertSame([], collect($response->json('data'))->pluck('date')->all());
+    }
+
+    public function test_public_schedule_ignores_legacy_non_custom_early_available_override(): void
+    {
+        ScheduleOverride::create([
+            'date' => '2026-06-01',
+            'time' => '10.00',
+            'status' => 'Available',
+            'custom' => false,
+        ]);
+
+        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01')
+            ->assertOk();
+
+        $this->assertSame([], collect($response->json('data'))->pluck('date')->all());
     }
 
     public function test_public_schedule_clamps_requested_end_to_latest_bookable_date(): void

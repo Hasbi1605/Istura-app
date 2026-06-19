@@ -57,11 +57,8 @@ class StoreBookingRequest extends FormRequest
                     ->where('time', $this->input('time'))
                     ->first();
 
-                if ($startsAt->lte(now('Asia/Jakarta'))
-                    || $override?->short_notice_mode !== 'public'
-                    || $override->short_notice_closes_at === null
-                    || $override->short_notice_closes_at->copy()->timezone('Asia/Jakarta')->lte(now('Asia/Jakarta'))) {
-                    $validator->errors()->add('date', 'Booking H/H+1 hanya tersedia pada slot dadakan yang dibuka admin.');
+                if ($startsAt->lte(now('Asia/Jakarta')) || $override?->status !== 'Available' || ! $override->custom) {
+                    $validator->errors()->add('date', 'Booking H/H+1 hanya tersedia pada slot yang dibuka admin.');
                 }
             },
         ];

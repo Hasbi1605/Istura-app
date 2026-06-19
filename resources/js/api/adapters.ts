@@ -57,8 +57,6 @@ export function apiVisitDayToLocal(day: ApiVisitDay): VisitDay {
       overbooked: slot.overbooked,
       participantCount: slot.participantCount,
       bookingConflicts: slot.bookingConflicts,
-      shortNotice: slot.shortNotice ?? undefined,
-      remainingCapacity: slot.remainingCapacity ?? undefined,
       closureReason: slot.closureReason ?? undefined,
     })),
   };
