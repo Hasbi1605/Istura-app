@@ -7713,8 +7713,8 @@ a {
 }
 
 .admin-schedule-slot-popover-actions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
   align-items: stretch;
 }
@@ -7742,7 +7742,11 @@ a {
   }
 
   .admin-schedule-slot-popover-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .admin-schedule-slot-popover-actions .admin-pill-button {
+    width: 100%;
   }
 }
 

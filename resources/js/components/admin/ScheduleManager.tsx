@@ -226,29 +226,6 @@ export function AdminScheduleManager({
     );
   };
 
-  const forceSetSlotStatus = (dayDate: string, time: string, status: VisitStatus) => {
-    const next = schedules.map((day) =>
-        day.date === dayDate
-          ? {
-              ...day,
-              slots: day.slots.map((slot) =>
-                slot.time === time
-                  ? {
-                      ...slot,
-                      status,
-                    }
-                  : slot,
-              ),
-            }
-          : day,
-      );
-    applyPersistedChange(
-      `Override slot ${time}`,
-      next,
-      () => upsertScheduleSlot(dayDate, time, status),
-    );
-  };
-
   // Bulk action di satu hari, dengan optional konfirmasi.
   const performSetDayAll = (dayDate: string, action: "open" | "close") => {
     const targetStatus: VisitStatus = action === "open" ? "Available" : "Closed";
@@ -794,14 +771,6 @@ export function AdminScheduleManager({
                             <SlotBookingPopover
                               booking={booking}
                               onClose={() => setSlotInfoTime(null)}
-                              onForceOpen={readOnly ? undefined : () => {
-                                forceSetSlotStatus(selectedDay.date, slot.time, "Available");
-                                setSlotInfoTime(null);
-                              }}
-                              onForceClose={readOnly ? undefined : () => {
-                                forceSetSlotStatus(selectedDay.date, slot.time, "Closed");
-                                setSlotInfoTime(null);
-                              }}
                               onOpen={() => {
                                 onOpenBooking(booking.code);
                                 setSlotInfoTime(null);
@@ -914,14 +883,10 @@ export function AdminScheduleManager({
 export function SlotBookingPopover({
   booking,
   onClose,
-  onForceOpen,
-  onForceClose,
   onOpen,
 }: {
   booking: Booking;
   onClose: () => void;
-  onForceOpen?: () => void;
-  onForceClose?: () => void;
   onOpen: () => void;
 }) {
   // Tutup popover saat klik di luar atau Esc.
@@ -971,15 +936,6 @@ export function SlotBookingPopover({
         </div>
       </dl>
       <div className="admin-schedule-slot-popover-actions">
-        <button type="button" className="admin-pill-button" onClick={onClose}>
-          Tutup
-        </button>
-        {onForceOpen && <button type="button" className="admin-pill-button" onClick={onForceOpen}>
-          Paksa buka
-        </button>}
-        {onForceClose && <button type="button" className="admin-pill-button admin-pill-button--danger" onClick={onForceClose}>
-          Paksa tutup
-        </button>}
         <button
           type="button"
           className="admin-pill-button admin-pill-button--primary"
