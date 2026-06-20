@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\MoveOpenRegistrationRequest;
 use App\Http\Resources\OpenRegistrationResource;
 use App\Models\OpenEvent;
-use App\Models\OpenEventDay;
 use App\Models\OpenRegistration;
 use App\Services\OpenRegistrationService;
 use Illuminate\Http\JsonResponse;
@@ -57,29 +55,6 @@ class OpenRegistrationController extends Controller
                     'cancelled' => (clone $countsQuery)->where('status', 'Cancelled')->count(),
                 ],
             ],
-        ]);
-    }
-
-    public function move(MoveOpenRegistrationRequest $request, OpenEvent $event, string $code): JsonResponse
-    {
-        $this->ensureOperationallyMutable($event);
-
-        $registration = $this->resolveRegistration($event, $code);
-        $targetDay = OpenEventDay::where('open_event_id', $event->id)
-            ->whereKey($request->integer('dayId'))
-            ->firstOrFail();
-
-        $registration = $this->service->move(
-            $registration,
-            $targetDay,
-            $request->user(),
-            (bool) $request->boolean('allowOverbook'),
-            $request->input('note'),
-            $request,
-        );
-
-        return response()->json([
-            'data' => (new OpenRegistrationResource($registration))->resolve(),
         ]);
     }
 

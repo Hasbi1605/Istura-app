@@ -108,7 +108,7 @@ Tidak ada keputusan yang masih terbuka.
 - 3 tabel baru, model, service, controller publik & admin, FormRequest, routes.
 - Form pendaftaran publik ringkas + popup/banner event.
 - Panel admin: konfigurasi event, kartu per hari (kuota + link WA + counter), daftar
-  pendaftar (pindah hari, batal, export).
+  pendaftar (detail, batal, export).
 - Self-cancel & pemulihan link via lookup NIK + WhatsApp, termasuk setelah window
   pendaftaran ditutup selama event masih aktif dan belum lewat.
 
@@ -380,7 +380,9 @@ Kartu per hari (jantung operasional, mirip grid slot di ScheduleManager):
 │ [ Lihat pendaftar ] [ Export hari]│ │ [ Lihat pendaftar ] [ Export hari ]│
 └───────────────────────────────────┘ └───────────────────────────────────┘
 ```
-- **Guard aktivasi:** "Aktifkan" ditolak bila ada hari Buka dengan link WA kosong.
+- **Guard aktivasi:** "Aktifkan" ditolak bila ada hari Buka dengan link WA kosong. Bila hari
+  yang akan aktif masih memiliki booking rombongan aktif, admin mendapat daftar konflik dan
+  harus memilih "Tetap aktifkan" secara eksplisit sebelum event aktif.
 - Counter `Terisi x/100` tersinkron realtime; saat Reverb gagal tersedia polling fallback.
 
 **Tab B — Pendaftar** (pola `BookingScreen`: tabel + filter + export)
@@ -392,9 +394,10 @@ Filter: [ Hari ▾ semua ] [ Status ▾ ] [ cari nama/WA ]   [ Export ▾ ]
 │ 14 │ Budi S.  │ 0812xxxx  │ 4      │ +3 nama │ Terdaftar│ ⋮       │
 └────┴──────────┴───────────┴────────┴─────────┴──────────┴─────────┘
 ```
-Aksi per baris: **pindah hari** (modal pilih hari + cek kuota tujuan, izin overbook +
-alasan seperti pola `allowOverbook`), **batalkan** (kembalikan kuota), **detail**
-(nama add-on, kode, waktu daftar).
+Aksi per baris: **detail** (nama add-on, kode, waktu daftar) dan **batalkan** (kembalikan
+kuota). Pendaftar tidak dipindah hari dari admin karena pendaftar langsung menerima link
+grup WhatsApp hari pilihannya saat berhasil daftar; salah hari diselesaikan dengan pembatalan
+dan pendaftaran ulang/lookup sesuai operasional.
 
 ### 10.3 Header event (multi-event)
 Dropdown memilih event, tombol "Buat Event", badge status. Mengaktifkan satu event otomatis
@@ -460,7 +463,7 @@ aktif sebagai jalan masuk permanen. Popup = sekali; banner = selalu selama event
 
 **Realtime**
 - Channel publik `PUBLIC_OPEN_CHANNEL`, event `.open.quota-updated` (`OpenQuotaUpdated`)
-  → dipancarkan saat registrasi dibuat/dibatalkan/dipindah; klien refetch sisa kuota.
+  → dipancarkan saat registrasi dibuat/dibatalkan; klien refetch sisa kuota.
 
 **Admin** (prefix `admin`, middleware `admin-access`)
 - `GET    admin/open-events`, `POST admin/open-events`, `PUT admin/open-events/{event}`
@@ -470,7 +473,6 @@ aktif sebagai jalan masuk permanen. Popup = sekali; banner = selalu selama event
 - `POST   admin/open-events/{event}/unarchive` — pulihkan arsip menjadi draft nonaktif
 - `PUT    admin/open-events/{event}/days/{day}` — kuota override, link WA, buka/tutup
 - `GET    admin/open-events/{event}/registrations` — filter hari/status/cari, paginasi
-- `POST   admin/open-registrations/{code}/move` — pindah hari (cek kuota / overbook+alasan)
 - `POST   admin/open-registrations/{code}/cancel`
 - `GET    admin/open-events/{event}/export` — per hari (nama, WA, headcount, add-on)
 

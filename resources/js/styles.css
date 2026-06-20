@@ -14026,30 +14026,6 @@ a {
   border-color: rgba(161, 61, 54, 0.18);
 }
 
-.open-move-row {
-  padding: 12px 14px;
-  background: rgba(16, 24, 47, 0.03);
-  border-top: 1px solid rgba(16, 24, 47, 0.04);
-  border-bottom: 1px solid rgba(16, 24, 47, 0.04);
-}
-
-.open-move-form {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.open-move-form select,
-.open-move-form input {
-  min-height: 38px;
-  padding: 0 10px;
-  border: 1px solid rgba(16, 24, 47, 0.1);
-  border-radius: 8px;
-}
-
-.open-move-overbook { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
-
 .open-registrants .booking-pagination {
   margin-top: 16px;
 }

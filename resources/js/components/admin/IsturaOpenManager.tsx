@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Archive, Ban, CalendarClock, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Archive, Ban, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import type {
   OpenDayBookingConflict,
   OpenEventAdmin,
@@ -19,7 +19,6 @@ import {
   fetchAdminOpenEvents,
   fetchAdminOpenRegistrations,
   fetchOpenEventExport,
-  moveOpenRegistration,
   unarchiveOpenEvent,
   updateOpenEvent,
   updateOpenEventDay,
@@ -408,20 +407,32 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
 function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEventAdmin; onChanged: () => void; readOnly?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<OpenDayBookingConflict[] | null>(null);
 
-  const toggle = async () => {
+  useEffect(() => {
+    setError(null);
+    setConflicts(null);
+  }, [event.id, event.isActive]);
+
+  const toggle = async (acknowledge = false) => {
     setBusy(true);
     setError(null);
     try {
       if (event.isActive) {
         await deactivateOpenEvent(event.id);
       } else {
-        await activateOpenEvent(event.id);
+        await activateOpenEvent(event.id, acknowledge);
       }
+      setConflicts(null);
       onChanged();
     } catch (err) {
       if (err instanceof ValidationError) {
-        setError(err.errors.days?.[0] ?? err.message);
+        const list = (err.body as { conflicts?: OpenDayBookingConflict[] } | null)?.conflicts;
+        if (list && list.length > 0) {
+          setConflicts(list);
+        } else {
+          setError(err.errors.event?.[0] ?? err.errors.days?.[0] ?? err.message);
+        }
       } else {
         setError("Gagal mengubah status event.");
       }
@@ -431,19 +442,44 @@ function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEve
   };
 
   return (
-    <span className="open-activate">
+    <div className="open-activate">
       {!readOnly && <button
         type="button"
         className={`button ${event.isActive ? "button-ghost" : "button-primary"}`}
         disabled={busy}
-        onClick={toggle}
+        onClick={() => void toggle()}
       >
         {busy
           ? <ButtonSpinner label={event.isActive ? "Menonaktifkan..." : "Mengaktifkan..."} />
           : event.isActive ? "Nonaktifkan" : "Aktifkan"}
       </button>}
+      {conflicts && (
+        <div className="open-day-conflict" role="alert">
+          <strong>Ada booking rombongan di tanggal event</strong>
+          <p>
+            Jika event diaktifkan, hari Istura Open yang sudah dibuka akan menutup tanggal tersebut
+            untuk booking rombongan baru. Booking berikut tidak ikut dipindahkan otomatis.
+          </p>
+          <ul>
+            {conflicts.map((c) => (
+              <li key={`${c.date ?? ""}-${c.code}-${c.time ?? ""}`}>
+                {c.date ? <>{longDate(c.date)} · </> : null}
+                <strong>{c.code}</strong> · {c.time ?? "-"} · {c.groupSize} orang · {c.statusLabel}
+              </li>
+            ))}
+          </ul>
+          <div className="open-day-conflict-actions">
+            <button type="button" className="button button-ghost" disabled={busy} onClick={() => setConflicts(null)}>
+              Batal
+            </button>
+            <button type="button" className="button button-danger" disabled={busy} onClick={() => void toggle(true)}>
+              {busy ? <ButtonSpinner label="Mengaktifkan..." /> : "Tetap aktifkan"}
+            </button>
+          </div>
+        </div>
+      )}
       {error && <small className="field-error">{error}</small>}
-    </span>
+    </div>
   );
 }
 
@@ -1112,7 +1148,6 @@ function RegistrantsPanel({ event, onChanged, readOnly = false }: { event: OpenE
                 <RegistrantRow
                   key={reg.code}
                   eventId={event.id}
-                  days={event.days}
                   registration={reg}
                   onView={() => setDetail(reg)}
                   onChanged={handleChanged}
@@ -1139,50 +1174,21 @@ function RegistrantsPanel({ event, onChanged, readOnly = false }: { event: OpenE
 
 function RegistrantRow({
   eventId,
-  days,
   registration,
   onView,
   onChanged,
   readOnly = false,
 }: {
   eventId: number;
-  days: OpenEventAdmin["days"];
   registration: OpenRegistrationAdmin;
   onView: () => void;
   onChanged: () => void;
   readOnly?: boolean;
 }) {
-  const [moving, setMoving] = useState(false);
-  const [moveDay, setMoveDay] = useState<number | "">("");
-  const [allowOverbook, setAllowOverbook] = useState(false);
-  const [note, setNote] = useState("");
-  const [pending, setPending] = useState<"move" | "cancel" | null>(null);
+  const [pending, setPending] = useState<"cancel" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isActive = registration.status === "Registered" || registration.status === "Confirmed";
-
-  const doMove = async () => {
-    if (!moveDay) return;
-    setPending("move");
-    setError(null);
-    try {
-      await moveOpenRegistration(eventId, registration.code, {
-        dayId: Number(moveDay),
-        allowOverbook,
-        note: note || undefined,
-      });
-      setMoving(false);
-      onChanged();
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        setError(err.errors.dayId?.[0] ?? err.errors.note?.[0] ?? err.message);
-      } else {
-        setError("Gagal memindahkan pendaftar.");
-      }
-    } finally {
-      setPending(null);
-    }
-  };
 
   const doCancel = async () => {
     if (!window.confirm(`Batalkan pendaftaran ${registration.contactName}?`)) return;
@@ -1227,17 +1233,6 @@ function RegistrantRow({
               <>
                 <button
                   type="button"
-                  className="open-icon-action"
-                  disabled={pending !== null}
-                  onClick={() => setMoving((m) => !m)}
-                  aria-label={`Pindahkan ${registration.contactName}`}
-                  aria-pressed={moving}
-                  title="Pindah hari"
-                >
-                  <CalendarClock size={16} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
                   className="open-icon-action open-icon-action--danger"
                   disabled={pending !== null}
                   onClick={doCancel}
@@ -1253,27 +1248,7 @@ function RegistrantRow({
           </div>
         </span>
       </div>
-      {moving && (
-        <div className="open-move-row">
-          <div className="open-move-form">
-            <select value={moveDay} onChange={(e) => setMoveDay(e.target.value ? Number(e.target.value) : "")}>
-              <option value="">Pilih hari tujuan</option>
-              {days.filter((d) => d.id !== registration.dayId).map((d) => (
-                <option key={d.id} value={d.id}>{longDate(d.date)}</option>
-              ))}
-            </select>
-            <label className="open-move-overbook">
-              <input type="checkbox" checked={allowOverbook} onChange={(e) => setAllowOverbook(e.target.checked)} />
-              Izinkan overbook
-            </label>
-            <input placeholder="Catatan (wajib jika overbook)" value={note} onChange={(e) => setNote(e.target.value)} />
-            <button type="button" className="button button-primary" disabled={pending !== null || !moveDay} onClick={doMove}>
-              {pending === "move" ? <ButtonSpinner label="Memindahkan..." /> : "Pindahkan"}
-            </button>
-            {error && <small className="field-error">{error}</small>}
-          </div>
-        </div>
-      )}
+      {error && <small className="field-error">{error}</small>}
     </>
   );
 }

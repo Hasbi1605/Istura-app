@@ -80,8 +80,11 @@ export const deleteOpenEvent = (eventId: number) =>
     (r) => r.data,
   );
 
-export const activateOpenEvent = (eventId: number) =>
-  api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/activate`, { method: "POST" }).then(
+export const activateOpenEvent = (eventId: number, acknowledgeConflicts = false) =>
+  api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/activate`, {
+    method: "POST",
+    body: acknowledgeConflicts ? { acknowledgeConflicts: true } : undefined,
+  }).then(
     (r) => r.data,
   );
 
@@ -149,16 +152,6 @@ export const fetchAdminOpenRegistrations = (
     };
   }>(`/api/admin/open-events/${eventId}/registrations${query ? `?${query}` : ""}`);
 };
-
-export const moveOpenRegistration = (
-  eventId: number,
-  code: string,
-  payload: { dayId: number; allowOverbook?: boolean; note?: string },
-) =>
-  api<{ data: OpenRegistrationAdmin }>(`/api/admin/open-events/${eventId}/registrations/${code}/move`, {
-    method: "POST",
-    body: payload,
-  }).then((r) => r.data);
 
 export const cancelAdminOpenRegistration = (eventId: number, code: string) =>
   api<{ data: OpenRegistrationAdmin }>(`/api/admin/open-events/${eventId}/registrations/${code}/cancel`, {

@@ -506,12 +506,6 @@ class OpenRegistrationTest extends TestCase
             'poster' => UploadedFile::fake()->image('poster.jpg', 1000, 1400)->size(400),
         ])->assertStatus(422);
 
-        $this->postJson("/api/admin/open-events/{$event->id}/registrations/{$registration->code}/move", [
-            'dayId' => $days[1]->id,
-        ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('event');
-
         $this->postJson("/api/admin/open-events/{$event->id}/registrations/{$registration->code}/cancel")
             ->assertStatus(422)
             ->assertJsonValidationErrors('event');
@@ -602,6 +596,35 @@ class OpenRegistrationTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_admin_activate_warns_when_open_day_has_active_rombongan_booking(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makeEvent(active: false);
+        $days = $event->days()->orderBy('date')->get();
+        $conflictDay = $days[0];
+        $freeDay = $days[1];
+
+        $conflictDay->update(['is_open' => true, 'whatsapp_group_url' => 'https://chat.whatsapp.com/conflict']);
+        $freeDay->update(['is_open' => true, 'whatsapp_group_url' => 'https://chat.whatsapp.com/free']);
+
+        $this->makeBooking($conflictDay->date->toDateString(), '08.00', 'Accepted', 'ISTURA-2026-9101');
+        $this->makeBooking($freeDay->date->toDateString(), '08.00', 'Rejected', 'ISTURA-2026-9102');
+
+        $this->postJson("/api/admin/open-events/{$event->id}/activate")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('event')
+            ->assertJsonPath('conflicts.0.code', 'ISTURA-2026-9101')
+            ->assertJsonPath('conflicts.0.date', $conflictDay->date->toDateString());
+
+        $this->assertFalse($event->fresh()->is_active);
+
+        $this->postJson("/api/admin/open-events/{$event->id}/activate", [
+            'acknowledgeConflicts' => true,
+        ])->assertOk();
+
+        $this->assertTrue($event->fresh()->is_active);
+    }
+
     public function test_admin_cannot_activate_past_event(): void
     {
         $this->actingAsAdmin();
@@ -638,34 +661,20 @@ class OpenRegistrationTest extends TestCase
         $this->assertTrue($second->fresh()->is_active);
     }
 
-    public function test_admin_can_move_registration_with_overbook(): void
+    public function test_admin_registration_move_endpoint_is_removed(): void
     {
         $this->actingAsAdmin();
         $event = $this->makeActiveEvent();
         $days = $event->days()->orderBy('date')->get();
         $from = $days[0];
-        $to = $days[1];
-        $to->update(['quota_override' => 1]);
 
-        // Fill target day to capacity.
-        $blocker = $this->makeRegistration($event, $to, '3374010101019999', '081200000000');
+        $registration = $this->makeRegistration($event, $from, '3374010101010040', '081234567040');
 
-        $mover = $this->makeRegistration($event, $from, '3374010101010040', '081234567040');
+        $this->postJson("/api/admin/open-events/{$event->id}/registrations/{$registration->code}/move", [
+            'dayId' => $days[1]->id,
+        ])->assertNotFound();
 
-        // Without overbook -> rejected.
-        $this->postJson("/api/admin/open-events/{$event->id}/registrations/{$mover->code}/move", [
-            'dayId' => $to->id,
-        ])->assertStatus(422);
-
-        // With overbook + note -> ok.
-        $this->postJson("/api/admin/open-events/{$event->id}/registrations/{$mover->code}/move", [
-            'dayId' => $to->id,
-            'allowOverbook' => true,
-            'note' => 'Permintaan khusus',
-        ])->assertOk();
-
-        $this->assertSame($to->id, $mover->fresh()->assigned_event_day_id);
-        $this->assertNotNull($blocker->fresh());
+        $this->assertSame($from->id, $registration->fresh()->assigned_event_day_id);
     }
 
     public function test_admin_registrations_index_filters_by_day(): void

@@ -493,6 +493,7 @@ export type OpenEventDayAdmin = {
 
 // Active rombongan bookings that collide with a date being opened for Istura Open.
 export type OpenDayBookingConflict = {
+  date: string | null;
   code: string;
   time: string | null;
   groupSize: number;

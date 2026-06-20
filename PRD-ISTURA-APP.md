@@ -205,14 +205,17 @@ hari).
 ### 3.11 Istura Open
 Modul pendaftaran perorangan berbasis kuota harian, terpisah dari booking rombongan dan
 sudah diimplementasikan. Admin dapat memilih satu atau beberapa tanggal (termasuk tanggal
-tidak berurutan), mengatur kuota/link grup per hari, mengaktifkan satu event, memantau dan
-mengekspor pendaftar, mengarsipkan/memulihkan event yang sudah tidak operasional, serta
+tidak berurutan), mengatur kuota/link grup per hari, mengaktifkan satu event, memantau,
+membatalkan, dan mengekspor pendaftar, mengarsipkan/memulihkan event yang sudah tidak operasional, serta
 menghapus draft event nonaktif yang belum pernah memiliki pendaftar. Event yang sudah lewat
 atau diarsipkan tidak tampil di publik dan bersifat baca-saja untuk mutasi operasional di UI
 dan API. Saat window pendaftaran sudah ditutup tetapi event masih aktif/belum lewat, pendaftar
 lama tetap bisa lookup link grup atau self-cancel dengan NIK + WhatsApp. Event baru tidak dapat
 dibuat dengan tanggal lampau; edit event berjalan tetap dapat mempertahankan tanggal lampau yang
 sudah ada, tetapi tidak dapat menambahkan tanggal lampau baru. Detail aturan ada di `IsturaOpen.md`.
+Aktivasi event memperingatkan admin bila tanggal yang dibuka untuk Istura Open masih memiliki
+booking rombongan aktif; admin harus mengakui konflik sebelum event benar-benar aktif. Pendaftar
+Istura Open tidak dipindah hari dari admin karena link grup WhatsApp diberikan langsung saat daftar.
 
 ---
 

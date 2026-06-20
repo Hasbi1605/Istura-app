@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Centralizes Istura Open registration mechanics: atomic quota enforcement,
- * identity de-duplication, self/admin cancel, admin move, and quota reads.
+ * identity de-duplication, self/admin cancel, and quota reads.
  *
  * Fully isolated from BookingService / ScheduleService — operates only on the
  * open_* tables so the rombongan flow stays untouched.
@@ -226,65 +226,6 @@ class OpenRegistrationService
 
         $actorLabel = $actor ? "oleh {$actor->name}" : 'oleh pendaftar';
         $this->afterQuotaChange($event, "Pembatalan pendaftaran Istura Open {$registration->code} {$actorLabel}", $registration, $request, $actor);
-
-        return $registration->fresh(['day', 'event']);
-    }
-
-    public function move(
-        OpenRegistration $registration,
-        OpenEventDay $targetDay,
-        ?User $actor,
-        bool $allowOverbook = false,
-        ?string $note = null,
-        ?Request $request = null,
-    ): OpenRegistration {
-        $event = $registration->event;
-
-        $registration = DB::transaction(function () use ($registration, $targetDay, $allowOverbook, $note) {
-            OpenEvent::whereKey($registration->open_event_id)->lockForUpdate()->firstOrFail();
-            $locked = OpenRegistration::whereKey($registration->id)->lockForUpdate()->firstOrFail();
-
-            if (! $locked->isActive()) {
-                throw ValidationException::withMessages([
-                    'status' => ['Hanya pendaftaran aktif yang dapat dipindahkan.'],
-                ]);
-            }
-
-            $day = OpenEventDay::where('open_event_id', $locked->open_event_id)
-                ->whereKey($targetDay->id)
-                ->firstOrFail();
-
-            if ($day->id === $locked->assigned_event_day_id) {
-                return $locked;
-            }
-
-            $quota = $day->effectiveQuota();
-            $used = (int) OpenRegistration::where('open_event_id', $locked->open_event_id)
-                ->where('assigned_event_day_id', $day->id)
-                ->whereIn('status', OpenRegistration::ACTIVE_STATUSES)
-                ->sum('headcount');
-
-            $exceedsQuota = $used + $locked->headcount > $quota;
-
-            if ($exceedsQuota && ! $allowOverbook) {
-                throw ValidationException::withMessages([
-                    'dayId' => ['Hari tujuan sudah penuh. Centang izin overbook untuk tetap memindahkan.'],
-                ]);
-            }
-
-            if ($exceedsQuota && trim((string) $note) === '') {
-                throw ValidationException::withMessages([
-                    'note' => ['Catatan wajib diisi saat overbook.'],
-                ]);
-            }
-
-            $locked->assigned_event_day_id = $day->id;
-            $locked->save();
-
-            return $locked;
-        });
-
-        $this->afterQuotaChange($event, "Memindahkan pendaftaran Istura Open {$registration->code} ke hari lain", $registration, $request, $actor);
 
         return $registration->fresh(['day', 'event']);
     }

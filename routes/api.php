@@ -136,7 +136,6 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
         Route::post('open-events/{event}/poster', [OpenEventController::class, 'uploadPoster']);
         Route::delete('open-events/{event}/poster', [OpenEventController::class, 'deletePoster']);
         Route::put('open-events/{event}/days/{day}', [OpenEventController::class, 'updateDay']);
-        Route::post('open-events/{event}/registrations/{code}/move', [AdminOpenRegistrationController::class, 'move']);
         Route::post('open-events/{event}/registrations/{code}/cancel', [AdminOpenRegistrationController::class, 'cancel']);
     });
 

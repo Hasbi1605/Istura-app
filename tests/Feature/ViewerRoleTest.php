@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Http\Requests\Admin\DestroyScheduleSlotRequest;
 use App\Http\Requests\Admin\IndexAuditLogsRequest;
-use App\Http\Requests\Admin\MoveOpenRegistrationRequest;
 use App\Http\Requests\Admin\RescheduleBookingRequest;
 use App\Http\Requests\Admin\StoreOpenEventRequest;
 use App\Http\Requests\Admin\StoreScheduleRangeRequest;
@@ -168,7 +167,6 @@ class ViewerRoleTest extends TestCase
         $requestClasses = [
             DestroyScheduleSlotRequest::class,
             IndexAuditLogsRequest::class,
-            MoveOpenRegistrationRequest::class,
             RescheduleBookingRequest::class,
             StoreOpenEventRequest::class,
             StoreScheduleRangeRequest::class,

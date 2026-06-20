@@ -157,6 +157,20 @@ class OpenEventController extends Controller
             ]);
         }
 
+        $conflicts = $event->days
+            ->filter(fn (OpenEventDay $day) => $day->is_open)
+            ->flatMap(fn (OpenEventDay $day) => $this->bookingConflictsForDate($day->date?->toDateString()))
+            ->values()
+            ->all();
+
+        if ($conflicts !== [] && ! $request->boolean('acknowledgeConflicts')) {
+            return response()->json([
+                'message' => 'Ada booking rombongan aktif pada tanggal event.',
+                'errors' => ['event' => ['Ada booking rombongan aktif pada tanggal event.']],
+                'conflicts' => $conflicts,
+            ], 422);
+        }
+
         $affectedScheduleDates = OpenEvent::query()
             ->where('is_active', true)
             ->with('days')
@@ -164,13 +178,15 @@ class OpenEventController extends Controller
             ->flatMap(fn (OpenEvent $activeEvent) => $this->openScheduleDates($activeEvent))
             ->all();
 
-        DB::transaction(function () use ($event, $request) {
+        DB::transaction(function () use ($event, $request, $conflicts) {
             OpenEvent::where('id', '!=', $event->id)->where('is_active', true)->update(['is_active' => false]);
             $event->is_active = true;
             $event->archived_at = null;
             $event->save();
 
-            AuditLogger::record($request->user(), "Mengaktifkan event Istura Open {$event->name}", 'open_event', $event->id, [], $request);
+            $auditMeta = $conflicts !== [] ? ['acknowledgedConflicts' => array_column($conflicts, 'code')] : [];
+
+            AuditLogger::record($request->user(), "Mengaktifkan event Istura Open {$event->name}", 'open_event', $event->id, $auditMeta, $request);
         });
 
         PublicCache::bumpScheduleVersion();
@@ -429,7 +445,7 @@ class OpenEventController extends Controller
      * the admin before opening that date for Istura Open. Covers multi-segment
      * bookings (booking_slots: active + proposed) and legacy single-date rows.
      *
-     * @return array<int, array{code:string,time:?string,groupSize:int,status:string,statusLabel:string}>
+     * @return array<int, array{date:?string,code:string,time:?string,groupSize:int,status:string,statusLabel:string}>
      */
     private function bookingConflictsForDate(?string $dateKey): array
     {
@@ -459,7 +475,7 @@ class OpenEventController extends Controller
             $seenSlot[$key] = true;
             $seenBookingIds[$booking->id] = true;
 
-            $items[] = $this->conflictItem($booking->code, $slot->time, (int) ($slot->group_size ?? $booking->group_size), $booking->status);
+            $items[] = $this->conflictItem($booking->code, $slot->time, (int) ($slot->group_size ?? $booking->group_size), $booking->status, $dateKey);
         }
 
         $bookings = Booking::whereDate('date', $dateKey)
@@ -471,18 +487,19 @@ class OpenEventController extends Controller
                 continue;
             }
 
-            $items[] = $this->conflictItem($booking->code, $booking->time, (int) $booking->group_size, $booking->status);
+            $items[] = $this->conflictItem($booking->code, $booking->time, (int) $booking->group_size, $booking->status, $dateKey);
         }
 
         return $items;
     }
 
     /**
-     * @return array{code:string,time:?string,groupSize:int,status:string,statusLabel:string}
+     * @return array{date:?string,code:string,time:?string,groupSize:int,status:string,statusLabel:string}
      */
-    private function conflictItem(string $code, ?string $time, int $groupSize, string $status): array
+    private function conflictItem(string $code, ?string $time, int $groupSize, string $status, ?string $date = null): array
     {
         return [
+            'date' => $date,
             'code' => $code,
             'time' => $time,
             'groupSize' => $groupSize,
