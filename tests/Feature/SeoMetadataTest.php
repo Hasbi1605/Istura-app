@@ -162,6 +162,17 @@ class SeoMetadataTest extends TestCase
         }
     }
 
+    public function test_gedung_agung_page_states_official_channel_status(): void
+    {
+        $response = $this->get('/info/gedung-agung-yogyakarta');
+
+        $response->assertOk();
+        $response->assertSee(
+            'Situs isturaiky.page merupakan kanal resmi informasi dan pendaftaran kunjungan ISTURA Gedung Agung / Istana Kepresidenan Yogyakarta.',
+        );
+        $response->assertDontSee('bukan merupakan situs institusional resmi');
+    }
+
     public function test_sitemap_xml_lists_seo_content_cluster_urls(): void
     {
         $response = $this->get('/sitemap.xml');
