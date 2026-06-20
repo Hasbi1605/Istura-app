@@ -350,6 +350,14 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
             </div>
           </section>
 
+          {selectedLocked && (
+            <p className="open-archive-note">
+              {selected.isArchived
+                ? "Event arsip bersifat baca-saja. Pulihkan arsip untuk mengubah pengaturan; data pendaftar tetap bisa dilihat dan diekspor."
+                : "Event yang sudah lewat bersifat baca-saja. Data pendaftar tetap bisa dilihat dan diekspor."}
+            </p>
+          )}
+
           <div className="admin-section-tabs">
             <button type="button" className={tab === "settings" ? "is-active" : ""} onClick={() => setTab("settings")}>
               Pengaturan & Hari
@@ -366,11 +374,6 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
                 <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
                 <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
               </div>
-              {selectedLocked && (
-                <p className="open-archive-note">
-                  Event {selected.isArchived ? "arsip" : "yang sudah lewat"} bersifat baca-saja. Data pendaftar tetap bisa dilihat dan diekspor.
-                </p>
-              )}
             </>
           )}
           {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />}
