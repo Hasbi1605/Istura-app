@@ -658,12 +658,6 @@ export function FeedbackScreen({
                     <em>Instansi</em>
                     <strong>{booking!.institution}</strong>
                   </span>
-                  {feedbackMeta && (
-                    <span>
-                      <em>Kuota feedback</em>
-                      <strong>{feedbackMeta.submittedCount}/{feedbackMeta.limit}</strong>
-                    </span>
-                  )}
                 </aside>
               </>
             )}
