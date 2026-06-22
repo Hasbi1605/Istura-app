@@ -2557,6 +2557,11 @@ a {
   color: var(--muted);
 }
 
+/* Feedback intro: bold agar tetap terbaca oleh orang tua meski abu */
+.feedback-page .wizard-content > p {
+  font-weight: 600;
+}
+
 /* ----------------------------------------------------------------------
    Admin scope: typography & spacing reset
    Admin pages should feel info-dense, not editorial. These overrides scope
@@ -3435,6 +3440,19 @@ a {
   gap: 28px;
 }
 
+/* Grid 2 kolom untuk field identitas (Nama|JK, Usia|Asal) */
+.feedback-identity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .feedback-identity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .feedback-context {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3505,7 +3523,7 @@ a {
   display: flex;
   justify-content: space-between;
   margin-top: 2px;
-  color: rgba(16, 24, 47, 0.55);
+  color: rgba(16, 24, 47, 0.75);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;

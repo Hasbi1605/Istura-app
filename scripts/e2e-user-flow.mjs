@@ -825,21 +825,21 @@ async function runBrowserFlows() {
     const page = await context.newPage();
     await page.goto(`/feedback/${feedbackBooking.code}?token=${encodeURIComponent(feedbackAdminBooking.feedbackToken)}`, { waitUntil: "networkidle" });
     await expectLocator(page.getByRole("heading", { name: /Survei Kunjungan Istura/i }), "direct feedback link shows form");
-    // Step 0: Data Diri
+    // Step 0: Data Diri + Kunjungan
     await page.getByLabel(/Nama/i).first().fill("E2E Pengunjung");
     await page.getByLabel(/Jenis kelamin/i).selectOption("male");
     await page.getByLabel(/Usia/i).fill("28");
     await page.getByLabel(/Alamat/i).fill("Yogyakarta");
-    await page.getByRole("button", { name: /Lanjut/i }).click();
-    // Step 1: Tentang Kunjungan
     await page.getByRole("radio", { name: /Belum, ini pertama kali/i }).click();
     await page.getByLabel(/Dari mana Bapak/i).selectOption("social_media");
-    await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
-    await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
     await page.getByRole("button", { name: /Lanjut/i }).click();
-    // Step 2: Penilaian
+    // Step 1: 4 Rating
     await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
     await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.locator('.rating-field').nth(2).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.locator('.rating-field').nth(3).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.getByRole("button", { name: /Lanjut/i }).click();
+    // Step 2: Rekomendasi + chips
     await page.getByRole("radio", { name: "5" }).click();
     await page.getByRole("button", { name: /Waktu kunjungan/i }).click();
     await page.getByRole("button", { name: /Lanjut/i }).click();

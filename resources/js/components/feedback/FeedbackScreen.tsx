@@ -343,16 +343,19 @@ export function FeedbackScreen({
     {
       icon: User,
       bubbleTitle: identityStep.bubbleTitle,
-      bubble: identityComplete ? identityStep.bubbleHigh : identityStep.bubbleEmpty,
+      bubble:
+        identityComplete &&
+        visitedBefore !== null &&
+        discoverySource !== "" &&
+        (discoverySource !== "other" || discoverySourceOther.trim() !== "")
+          ? identityStep.bubbleHigh
+          : identityStep.bubbleEmpty,
       image: ASSETS.mikyFeedback,
     },
     {
       icon: Building2,
       bubbleTitle: visitStep.bubbleTitle,
       bubble:
-        visitedBefore === null ||
-        discoverySource === "" ||
-        (discoverySource === "other" && discoverySourceOther.trim() === "") ||
         bookingEase === 0 ||
         service === 0 ||
         guideQuality === 0 ||
@@ -370,7 +373,7 @@ export function FeedbackScreen({
           : highlights.length === 0
             ? detailsStep.bubbleHighlightsEmpty
             : detailsStep.bubbleDone,
-      image: ASSETS.mikyFeedback3,
+      image: ASSETS.mikyHero,
     },
     {
       icon: Send,
@@ -384,11 +387,11 @@ export function FeedbackScreen({
   ];
 
   const stepReady = [
-    identityComplete,
-    visitedBefore !== null &&
+    identityComplete &&
+      visitedBefore !== null &&
       discoverySource !== "" &&
-      (discoverySource !== "other" || discoverySourceOther.trim().length > 0) &&
-      bookingEase > 0 &&
+      (discoverySource !== "other" || discoverySourceOther.trim().length > 0),
+    bookingEase > 0 &&
       service > 0 &&
       guideQuality > 0 &&
       facilityComfort > 0,
@@ -400,11 +403,11 @@ export function FeedbackScreen({
   const goNext = () => {
     if (!stepReady[step]) {
       if (step === 0) {
-        setError("Mohon lengkapi nama, jenis kelamin, usia, dan asal terlebih dahulu.");
+        setError("Mohon lengkapi data diri dan informasi kunjungan terlebih dahulu.");
       } else if (step === 1) {
-        setError("Mohon lengkapi informasi kunjungan dan penilaian proses.");
+        setError("Mohon berikan penilaian untuk keempat aspek layanan.");
       } else if (step === 2) {
-        setError("Mohon lengkapi penilaian, skor rekomendasi, dan aspek yang perlu diperbaiki.");
+        setError("Mohon lengkapi skor rekomendasi dan aspek yang perlu diperbaiki.");
       }
       return;
     }
@@ -421,17 +424,17 @@ export function FeedbackScreen({
     if (!booking || !access) return;
     if (submitting) return;
     if (!stepReady[0]) {
-      setError("Mohon lengkapi data diri di langkah 1.");
+      setError("Mohon lengkapi data diri dan informasi kunjungan di langkah 1.");
       setStep(0);
       return;
     }
     if (!stepReady[1]) {
-      setError("Mohon lengkapi informasi kunjungan di langkah 2.");
+      setError("Mohon berikan penilaian untuk keempat aspek layanan di langkah 2.");
       setStep(1);
       return;
     }
     if (!stepReady[2]) {
-      setError("Mohon lengkapi penilaian dan aspek perbaikan di langkah 3.");
+      setError("Mohon lengkapi skor rekomendasi dan aspek perbaikan di langkah 3.");
       setStep(2);
       return;
     }
@@ -642,52 +645,50 @@ export function FeedbackScreen({
 
             {step === 0 && (
               <div className="feedback-step">
-                <label className="form-field">
-                  <span>{content.fields.visitorNameLabel}</span>
-                  <input
-                    value={visitorName}
-                    onChange={(event) => setVisitorName(event.target.value)}
-                    placeholder={content.fields.visitorNamePlaceholder}
-                    maxLength={120}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>{content.fields.genderLabel}</span>
-                  <select
-                    value={gender}
-                    onChange={(event) => setGender(event.target.value as FeedbackGender | "")}
-                  >
-                    <option value="">{content.fields.genderPlaceholder}</option>
-                    <option value="male">{content.fields.genderMaleLabel}</option>
-                    <option value="female">{content.fields.genderFemaleLabel}</option>
-                  </select>
-                </label>
-                <label className="form-field">
-                  <span>{content.fields.ageLabel}</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={age}
-                    onChange={(event) => setAge(event.target.value)}
-                    placeholder={content.fields.agePlaceholder}
-                    min={1}
-                    max={120}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>{content.fields.originLabel}</span>
-                  <input
-                    value={origin}
-                    onChange={(event) => setOrigin(event.target.value)}
-                    placeholder={content.fields.originPlaceholder}
-                    maxLength={160}
-                  />
-                </label>
-              </div>
-            )}
+                <div className="feedback-identity-grid">
+                  <label className="form-field">
+                    <span>{content.fields.visitorNameLabel}</span>
+                    <input
+                      value={visitorName}
+                      onChange={(event) => setVisitorName(event.target.value)}
+                      placeholder={content.fields.visitorNamePlaceholder}
+                      maxLength={120}
+                    />
+                  </label>
+                  <label className="form-field">
+                    <span>{content.fields.genderLabel}</span>
+                    <select
+                      value={gender}
+                      onChange={(event) => setGender(event.target.value as FeedbackGender | "")}
+                    >
+                      <option value="">{content.fields.genderPlaceholder}</option>
+                      <option value="male">{content.fields.genderMaleLabel}</option>
+                      <option value="female">{content.fields.genderFemaleLabel}</option>
+                    </select>
+                  </label>
+                  <label className="form-field">
+                    <span>{content.fields.ageLabel}</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={age}
+                      onChange={(event) => setAge(event.target.value)}
+                      placeholder={content.fields.agePlaceholder}
+                      min={1}
+                      max={120}
+                    />
+                  </label>
+                  <label className="form-field">
+                    <span>{content.fields.originLabel}</span>
+                    <input
+                      value={origin}
+                      onChange={(event) => setOrigin(event.target.value)}
+                      placeholder={content.fields.originPlaceholder}
+                      maxLength={160}
+                    />
+                  </label>
+                </div>
 
-            {step === 1 && (
-              <div className="feedback-step">
                 <fieldset className="recommend-field">
                   <legend>{content.fields.visitedBeforeLegend}</legend>
                   <div
@@ -746,7 +747,11 @@ export function FeedbackScreen({
                     />
                   </label>
                 )}
+              </div>
+            )}
 
+            {step === 1 && (
+              <div className="feedback-step">
                 <RatingField
                   label={content.fields.bookingEaseLabel}
                   value={bookingEase}
