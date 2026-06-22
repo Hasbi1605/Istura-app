@@ -253,7 +253,7 @@ class SiteContentDefaults
                 'intro' => 'Bagikan pengalaman kunjunganmu di Istana Kepresidenan Yogyakarta.',
                 'steps' => [
                     'rating' => [
-                        'title' => 'Data Diri Pengunjung',
+                        'title' => 'Survei Kunjungan Istura',
                         'bubbleTitle' => 'Kenalan dulu yuk',
                         'bubbleEmpty' => 'Halo! Sebelum bercerita, isi data dirimu dulu ya.',
                         'bubbleLow' => 'Lengkapi data dirimu dulu ya sebelum lanjut.',

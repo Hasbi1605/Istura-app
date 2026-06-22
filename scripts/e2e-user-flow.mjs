@@ -824,7 +824,7 @@ async function runBrowserFlows() {
     const context = await browser.newContext({ baseURL: BASE_URL });
     const page = await context.newPage();
     await page.goto(`/feedback/${feedbackBooking.code}?token=${encodeURIComponent(feedbackAdminBooking.feedbackToken)}`, { waitUntil: "networkidle" });
-    await expectLocator(page.getByRole("heading", { name: /Data Diri Pengunjung/i }), "direct feedback link shows form");
+    await expectLocator(page.getByRole("heading", { name: /Survei Kunjungan Istura/i }), "direct feedback link shows form");
     // Step 0: Data Diri
     await page.getByLabel(/Nama/i).first().fill("E2E Pengunjung");
     await page.getByLabel(/Jenis kelamin/i).selectOption("male");

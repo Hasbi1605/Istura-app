@@ -335,21 +335,18 @@ export function FeedbackScreen({
     visitorName.trim().length > 0 && gender !== "" && ageValid && origin.trim().length > 0;
 
   const stepConfig: {
-    title: string;
     icon: LucideIcon;
     bubbleTitle: string;
     bubble: string;
     image: string;
   }[] = [
     {
-      title: identityStep.title,
       icon: User,
       bubbleTitle: identityStep.bubbleTitle,
       bubble: identityComplete ? identityStep.bubbleHigh : identityStep.bubbleEmpty,
       image: ASSETS.mikyFeedback,
     },
     {
-      title: visitStep.title,
       icon: Building2,
       bubbleTitle: visitStep.bubbleTitle,
       bubble:
@@ -363,7 +360,6 @@ export function FeedbackScreen({
       image: ASSETS.mikyFeedback2,
     },
     {
-      title: detailsStep.title,
       icon: Sparkles,
       bubbleTitle: detailsStep.bubbleTitle,
       bubble:
@@ -375,7 +371,6 @@ export function FeedbackScreen({
       image: ASSETS.mikyFeedback3,
     },
     {
-      title: commentStep.title,
       icon: Send,
       bubbleTitle: commentStep.bubbleTitle,
       bubble:
@@ -618,27 +613,30 @@ export function FeedbackScreen({
 
         <div className="wizard-panel">
           <div className="wizard-content">
-            <h1>{current.title}</h1>
-            <p>{content.intro}</p>
+            {step === 0 && (
+              <>
+                <h1>{content.steps.rating.title}</h1>
+                <p>{content.intro}</p>
 
-            <aside
-              className="feedback-context"
-              aria-label="Konteks kunjungan"
-              hidden={step !== 0}
-            >
-              <span>
-                <em>Kode kunjungan</em>
-                <strong>{booking!.code}</strong>
-              </span>
-              <span>
-                <em>Tanggal</em>
-                <strong>{booking!.dateLabel}</strong>
-              </span>
-              <span>
-                <em>Instansi</em>
-                <strong>{booking!.institution}</strong>
-              </span>
-            </aside>
+                <aside
+                  className="feedback-context"
+                  aria-label="Konteks kunjungan"
+                >
+                  <span>
+                    <em>Kode kunjungan</em>
+                    <strong>{booking!.code}</strong>
+                  </span>
+                  <span>
+                    <em>Tanggal</em>
+                    <strong>{booking!.dateLabel}</strong>
+                  </span>
+                  <span>
+                    <em>Instansi</em>
+                    <strong>{booking!.institution}</strong>
+                  </span>
+                </aside>
+              </>
+            )}
 
             {step === 0 && (
               <div className="feedback-step">

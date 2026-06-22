@@ -2819,7 +2819,7 @@ export function AdminLandingManager({
           <div className="admin-landing-list">
             <article className="admin-landing-subcard">
               <div className="admin-landing-subcard-head">
-                <strong>Step 1 - Data Diri</strong>
+                <strong>Step 1 - Judul & Data Diri</strong>
               </div>
               <label className="form-field">
                 <span>Judul</span>
@@ -2842,10 +2842,6 @@ export function AdminLandingManager({
                 <strong>Step 2 - Tentang Kunjungan</strong>
               </div>
               <label className="form-field">
-                <span>Judul</span>
-                <input value={draft.feedbackWizard.steps.visit.title} onChange={(event) => updateFeedbackWizardStep("visit", "title", event.target.value)} />
-              </label>
-              <label className="form-field">
                 <span>Judul bubble MIKY</span>
                 <input value={draft.feedbackWizard.steps.visit.bubbleTitle} onChange={(event) => updateFeedbackWizardStep("visit", "bubbleTitle", event.target.value)} />
               </label>
@@ -2862,10 +2858,6 @@ export function AdminLandingManager({
                 <strong>Step 3 - Penilaian</strong>
               </div>
               <label className="form-field">
-                <span>Judul</span>
-                <input value={draft.feedbackWizard.steps.details.title} onChange={(event) => updateFeedbackWizardStep("details", "title", event.target.value)} />
-              </label>
-              <label className="form-field">
                 <span>Judul bubble MIKY</span>
                 <input value={draft.feedbackWizard.steps.details.bubbleTitle} onChange={(event) => updateFeedbackWizardStep("details", "bubbleTitle", event.target.value)} />
               </label>
@@ -2881,10 +2873,6 @@ export function AdminLandingManager({
               <div className="admin-landing-subcard-head">
                 <strong>Step 4 - Cerita</strong>
               </div>
-              <label className="form-field">
-                <span>Judul</span>
-                <input value={draft.feedbackWizard.steps.comment.title} onChange={(event) => updateFeedbackWizardStep("comment", "title", event.target.value)} />
-              </label>
               <label className="form-field">
                 <span>Judul bubble MIKY</span>
                 <input value={draft.feedbackWizard.steps.comment.bubbleTitle} onChange={(event) => updateFeedbackWizardStep("comment", "bubbleTitle", event.target.value)} />
