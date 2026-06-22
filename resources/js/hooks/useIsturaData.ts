@@ -767,7 +767,7 @@ export function useIsturaData(): IsturaData {
     const onFeedback = (payload: { feedback: ApiFeedback }) => {
       setFeedbacks((prev) => {
         const next = apiFeedbackToLocal(payload.feedback);
-        if (prev.some((f) => f.code === next.code)) return prev;
+        if (prev.some((f) => f.id === next.id)) return prev;
         return [next, ...prev];
       });
     };

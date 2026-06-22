@@ -2738,48 +2738,160 @@ class ScheduleSyncTest extends TestCase
         );
     }
 
-    public function test_public_feedback_stays_single_per_booking(): void
+    public function test_public_feedback_rejects_when_quota_full(): void
     {
         $booking = $this->createBooking([
             'status' => 'Completed',
             'feedback_token' => 'fb_single_feedback_token',
+            'group_size' => 2,
+            'completed_at' => now(),
         ]);
+        $booking->feedback_expires_at = now()->addDays(14);
+        $booking->save();
 
-        Feedback::create([
-            'booking_id' => $booking->id,
-            'code' => $booking->code,
-            'rating' => 5,
-            'booking_ease' => 5,
-            'service' => 5,
-            'recommend' => 5,
-            'highlights' => [],
-            'improvements' => [],
-            'comment' => null,
-            'allow_publish' => false,
-            'submitted_at' => now(),
-        ]);
-
+        // First feedback: accepted
         $this->postJson("/api/public/feedback/{$booking->code}", [
             'token' => 'fb_single_feedback_token',
-            'visitorName' => 'Budi Santoso',
+            'visitorName' => 'Peserta 1',
             'gender' => 'male',
-            'age' => 30,
+            'age' => 25,
             'origin' => 'Jakarta',
+            'bookingEase' => 5,
+            'service' => 5,
+            'guideQuality' => 5,
+            'facilityComfort' => 5,
+            'recommend' => 5,
+            'visitedBefore' => false,
+            'discoverySource' => 'social_media',
+            'highlights' => ['Penyambutan'],
+            'improvements' => ['Fasilitas'],
+            'comment' => 'Pertama.',
+            'allowPublish' => false,
+        ])->assertCreated();
+
+        // Second feedback: accepted (quota = group_size = 2)
+        $this->postJson("/api/public/feedback/{$booking->code}", [
+            'token' => 'fb_single_feedback_token',
+            'visitorName' => 'Peserta 2',
+            'gender' => 'female',
+            'age' => 30,
+            'origin' => 'Bandung',
+            'bookingEase' => 4,
+            'service' => 4,
+            'guideQuality' => 4,
+            'facilityComfort' => 4,
+            'recommend' => 4,
+            'visitedBefore' => true,
+            'discoverySource' => 'friends_family',
+            'highlights' => [],
+            'improvements' => ['Waktu kunjungan'],
+            'comment' => 'Kedua.',
+            'allowPublish' => true,
+        ])->assertCreated();
+
+        // Third feedback: rejected (quota full)
+        $this->postJson("/api/public/feedback/{$booking->code}", [
+            'token' => 'fb_single_feedback_token',
+            'visitorName' => 'Peserta 3',
+            'gender' => 'male',
+            'age' => 20,
+            'origin' => 'Surabaya',
             'bookingEase' => 4,
             'service' => 4,
             'guideQuality' => 4,
             'facilityComfort' => 4,
             'recommend' => 4,
             'visitedBefore' => false,
-            'discoverySource' => 'social_media',
+            'discoverySource' => 'web_search',
             'highlights' => [],
             'improvements' => ['Fasilitas'],
-            'comment' => 'Duplikat harus ditolak.',
+            'comment' => 'Ketiga harus ditolak.',
             'allowPublish' => false,
         ])->assertStatus(422)
-            ->assertJsonValidationErrors('code');
+            ->assertJsonValidationErrors('code')
+            ->assertJsonPath('errors.code.0', 'Kuota feedback sudah terpenuhi.');
 
-        $this->assertDatabaseCount('feedbacks', 1);
+        $this->assertDatabaseCount('feedbacks', 2);
+    }
+
+    public function test_public_feedback_rejects_when_expired(): void
+    {
+        $booking = $this->createBooking([
+            'status' => 'Completed',
+            'feedback_token' => 'fb_expired_token',
+            'group_size' => 80,
+            'completed_at' => now()->subDays(15),
+        ]);
+        // Expired: completed 15 days ago, feedback_expires_at was 14 days after = 1 day ago
+        $booking->feedback_expires_at = now()->subDay();
+        $booking->save();
+
+        $this->postJson("/api/public/feedback/{$booking->code}", [
+            'token' => 'fb_expired_token',
+            'visitorName' => 'Terlambat',
+            'gender' => 'male',
+            'age' => 40,
+            'origin' => 'Yogyakarta',
+            'bookingEase' => 5,
+            'service' => 5,
+            'guideQuality' => 5,
+            'facilityComfort' => 5,
+            'recommend' => 5,
+            'visitedBefore' => false,
+            'discoverySource' => 'social_media',
+            'highlights' => [],
+            'improvements' => ['Waktu kunjungan'],
+            'comment' => 'Token sudah kedaluwarsa.',
+            'allowPublish' => false,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('code')
+            ->assertJsonPath('errors.code.0', 'Periode feedback telah berakhir.');
+
+        $this->assertDatabaseCount('feedbacks', 0);
+    }
+
+    public function test_public_feedback_show_returns_access_status_and_quota(): void
+    {
+        $booking = $this->createBooking([
+            'status' => 'Completed',
+            'feedback_token' => 'fb_quota_show_token',
+            'group_size' => 25,
+            'completed_at' => now(),
+        ]);
+        $booking->feedback_expires_at = now()->addDays(14);
+        $booking->save();
+
+        // Before any feedback
+        $response = $this->getJson("/api/public/feedback/{$booking->code}?token=fb_quota_show_token")
+            ->assertOk()
+            ->assertJsonPath('feedback.accessStatus', 'available')
+            ->assertJsonPath('feedback.submittedCount', 0)
+            ->assertJsonPath('feedback.limit', 25)
+            ->assertJsonPath('data', null);
+
+        $this->assertArrayHasKey('expiresAt', $response->json('feedback'));
+    }
+
+    public function test_feedback_expires_at_set_when_booking_completed(): void
+    {
+        $booking = $this->createBooking([
+            'status' => 'Accepted',
+            'feedback_token' => 'fb_complete_expiry_token',
+            'group_size' => 40,
+            'date' => Carbon::today('Asia/Jakarta')->subDay()->toDateString(),
+        ]);
+
+        $this->actingAsAdmin();
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/complete")
+            ->assertOk();
+
+        $booking->refresh();
+        $this->assertNotNull($booking->feedback_expires_at);
+        $this->assertNotNull($booking->completed_at);
+        $this->assertTrue(
+            $booking->feedback_expires_at->isSameDay($booking->completed_at->addDays(14))
+        );
     }
 
     public function test_public_rate_limits_are_isolated_per_flow(): void
@@ -2788,7 +2900,11 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking([
             'status' => 'Completed',
             'feedback_token' => 'fb_rate_limit_token',
+            'group_size' => 80,
+            'completed_at' => now(),
         ]);
+        $booking->feedback_expires_at = now()->addDays(14);
+        $booking->save();
 
         $defaultTimes = ['08.00', '09.00', '10.00', '11.00', '13.00', '14.00'];
 
@@ -2834,7 +2950,12 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking([
             'status' => 'Completed',
             'feedback_token' => 'fb_show_token',
+            'group_size' => 25,
+            'completed_at' => now(),
         ]);
+        $booking->feedback_expires_at = now()->addDays(14);
+        $booking->save();
+
         $invalidMessage = 'Kode atau token feedback tidak valid.';
 
         $this->getJson('/api/public/feedback/ISTURA-2099-9999?token=wrong-token')
@@ -2853,12 +2974,18 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('token')
             ->assertJsonPath('errors.token.0', $invalidMessage);
 
+        // Valid token returns booking info + feedback meta (data always null for privacy)
         $this->getJson("/api/public/feedback/{$booking->code}?token=fb_show_token")
             ->assertOk()
             ->assertJsonPath('booking.code', $booking->code)
             ->assertJsonPath('booking.status', 'Completed')
-            ->assertJsonPath('data', null);
+            ->assertJsonPath('data', null)
+            ->assertJsonPath('feedback.accessStatus', 'available')
+            ->assertJsonPath('feedback.submittedCount', 0)
+            ->assertJsonPath('feedback.limit', 25);
 
+        // After creating a feedback, show still returns data=null (privacy)
+        // but submittedCount increments
         Feedback::create([
             'booking_id' => $booking->id,
             'code' => $booking->code,
@@ -2875,11 +3002,9 @@ class ScheduleSyncTest extends TestCase
 
         $this->getJson("/api/public/feedback/{$booking->code}?token=fb_show_token")
             ->assertOk()
-            ->assertJsonPath('data.guideQuality', null)
-            ->assertJsonPath('data.facilityComfort', null)
-            ->assertJsonPath('data.visitedBefore', null)
-            ->assertJsonPath('data.discoverySource', null)
-            ->assertJsonPath('data.discoverySourceOther', null);
+            ->assertJsonPath('data', null)
+            ->assertJsonPath('feedback.accessStatus', 'available')
+            ->assertJsonPath('feedback.submittedCount', 1);
     }
 
     public function test_public_feedback_submission_is_blocked_until_booking_completed(): void
@@ -2917,7 +3042,11 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking([
             'status' => 'Completed',
             'feedback_token' => 'fb_visit_insights_token',
+            'group_size' => 80,
+            'completed_at' => now(),
         ]);
+        $booking->feedback_expires_at = now()->addDays(14);
+        $booking->save();
 
         $payload = [
             'token' => 'fb_visit_insights_token',
@@ -2961,10 +3090,13 @@ class ScheduleSyncTest extends TestCase
             'discovery_source_other' => 'Acara komunitas sejarah',
         ]);
 
+        // GET no longer returns individual feedback data (privacy in multi-feedback)
+        // but confirms submittedCount incremented
         $this->getJson("/api/public/feedback/{$booking->code}?token=fb_visit_insights_token")
             ->assertOk()
-            ->assertJsonPath('data.guideQuality', $response->json('data.guideQuality'))
-            ->assertJsonPath('data.discoverySourceOther', 'Acara komunitas sejarah');
+            ->assertJsonPath('data', null)
+            ->assertJsonPath('feedback.submittedCount', 1)
+            ->assertJsonPath('feedback.accessStatus', 'available');
     }
 
     public function test_public_feedback_rejects_oversized_tag_payloads(): void
@@ -2972,7 +3104,11 @@ class ScheduleSyncTest extends TestCase
         $booking = $this->createBooking([
             'status' => 'Completed',
             'feedback_token' => 'fb_oversized_tags_token',
+            'group_size' => 80,
+            'completed_at' => now(),
         ]);
+        $booking->feedback_expires_at = now()->addDays(14);
+        $booking->save();
 
         $payload = [
             'token' => 'fb_oversized_tags_token',
@@ -3096,6 +3232,13 @@ class ScheduleSyncTest extends TestCase
         $booking->completed_at = $overrides['completed_at'] ?? null;
         $booking->expired_at = $overrides['expired_at'] ?? null;
         $booking->note = $overrides['note'] ?? null;
+        // Auto-set feedback_expires_at for Completed bookings
+        if (($overrides['status'] ?? 'Accepted') === 'Completed' && isset($overrides['completed_at'])) {
+            $booking->feedback_expires_at = $overrides['feedback_expires_at']
+                ?? Carbon::parse($overrides['completed_at'])->addDays(14);
+        } elseif (isset($overrides['feedback_expires_at'])) {
+            $booking->feedback_expires_at = $overrides['feedback_expires_at'];
+        }
         $booking->save();
 
         return $booking->fresh();

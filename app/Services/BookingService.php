@@ -630,6 +630,7 @@ class BookingService
                         ]);
                     }
                     $booking->completed_at = now();
+                    $booking->feedback_expires_at = now()->addDays(14);
                     if ($documentationLink !== null) {
                         $booking->documentation_link = $documentationLink !== '' ? $documentationLink : null;
                     }

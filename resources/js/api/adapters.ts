@@ -31,6 +31,9 @@ export function apiBookingToLocal(b: ApiBooking): Booking {
     note: b.note ?? undefined,
     documentationLink: b.documentationLink ?? undefined,
     feedbackToken: b.feedbackToken ?? "",
+    feedbackCount: b.feedbackCount ?? undefined,
+    feedbackLimit: b.feedbackLimit ?? undefined,
+    feedbackExpiresAt: b.feedbackExpiresAt ?? undefined,
     completedAt: b.completedAt ?? undefined,
     rejectedAt: b.rejectedAt ?? undefined,
     expiredAt: b.expiredAt ?? undefined,
@@ -64,6 +67,7 @@ export function apiVisitDayToLocal(day: ApiVisitDay): VisitDay {
 
 export function apiFeedbackToLocal(f: ApiFeedback): Feedback {
   return {
+    id: f.id,
     code: f.code,
     visitorName: f.visitorName ?? "",
     gender: f.gender ?? null,

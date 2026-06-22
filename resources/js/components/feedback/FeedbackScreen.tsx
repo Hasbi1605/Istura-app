@@ -16,6 +16,7 @@ import type { LucideIcon } from "lucide-react";
 import type {
   Booking,
   Feedback,
+  FeedbackAccessStatus,
   FeedbackDiscoverySource,
   FeedbackGender,
   FeedbackWizardContent,
@@ -23,6 +24,7 @@ import type {
 import { ASSETS } from "../../lib/assets";
 import { DEFAULT_FEEDBACK_WIZARD_CONTENT } from "../../constants";
 import { fetchPublicFeedback, submitPublicFeedback } from "../../api/feedback";
+import type { ApiPublicFeedbackMeta } from "../../api/feedback";
 import { ValidationError } from "../../api/client";
 import { useReducedMotion } from "../../hooks";
 import { MikyGuide } from "../MikyGuide";
@@ -34,6 +36,7 @@ type FeedbackBookingContext = Pick<
 >;
 
 const apiFeedbackToLocal = (feedback: {
+  id: number;
   code: string;
   visitorName?: string;
   gender?: FeedbackGender | null;
@@ -54,6 +57,7 @@ const apiFeedbackToLocal = (feedback: {
   allowPublish: boolean;
   submittedAt: string | null;
 }): Feedback => ({
+  id: feedback.id,
   code: feedback.code,
   visitorName: feedback.visitorName ?? "",
   gender: feedback.gender ?? null,
@@ -134,6 +138,7 @@ export function FeedbackScreen({
 
   const [remoteBooking, setRemoteBooking] = useState<FeedbackBookingContext | null>(null);
   const [remoteFeedback, setRemoteFeedback] = useState<Feedback | null>(null);
+  const [feedbackMeta, setFeedbackMeta] = useState<ApiPublicFeedbackMeta | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessError, setAccessError] = useState("");
   const accessBooking = localAccessBooking ?? remoteBooking ?? undefined;
@@ -162,9 +167,9 @@ export function FeedbackScreen({
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const existing = [remoteFeedback, ...feedbacks].some((feedback) => feedback?.code === code);
+  const accessStatus: FeedbackAccessStatus | null = feedbackMeta?.accessStatus ?? null;
   const reduced = useReducedMotion();
-  const navigationLocked = Boolean(booking && booking.status === "Completed" && !existing && !submitted);
+  const navigationLocked = Boolean(booking && accessStatus === "available" && !submitted);
 
   useEffect(() => {
     onNavigationLockChange?.(navigationLocked);
@@ -184,6 +189,7 @@ export function FeedbackScreen({
     let cancelled = false;
     setRemoteBooking(null);
     setRemoteFeedback(null);
+    setFeedbackMeta(null);
     setAccessError("");
     setAccessLoading(true);
 
@@ -198,6 +204,7 @@ export function FeedbackScreen({
           feedbackToken: accessToken,
         });
         setRemoteFeedback(response.data ? apiFeedbackToLocal(response.data) : null);
+        setFeedbackMeta(response.feedback);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -438,8 +445,10 @@ export function FeedbackScreen({
       setStep(2);
       return;
     }
-    if (existing) {
-      setError("Feedback untuk kode ini sudah tercatat sebelumnya.");
+    if (accessStatus !== "available") {
+      if (accessStatus === "full") setError("Kuota feedback sudah terpenuhi.");
+      else if (accessStatus === "expired") setError("Periode feedback telah berakhir.");
+      else setError("Feedback tidak tersedia saat ini.");
       return;
     }
 
@@ -520,17 +529,27 @@ export function FeedbackScreen({
         />
       );
     }
-    if (existing && !submitted) {
+    if (accessStatus === "full") {
       return (
         <FeedbackGate
           icon={BadgeCheck}
-          title={content.gates.alreadySubmittedTitle}
-          message={content.gates.alreadySubmittedMessage}
+          title="Kuota Terpenuhi"
+          message="Kuota feedback untuk kunjungan ini sudah terpenuhi. Terima kasih atas partisipasi seluruh peserta."
           homeLabel={content.actions.homeLabel}
         />
       );
     }
-    if (accessBooking.status !== "Completed") {
+    if (accessStatus === "expired") {
+      return (
+        <FeedbackGate
+          icon={Clock3}
+          title="Periode Berakhir"
+          message="Periode pengisian feedback untuk kunjungan ini telah berakhir."
+          homeLabel={content.actions.homeLabel}
+        />
+      );
+    }
+    if (accessStatus === "not_completed" || accessBooking.status !== "Completed") {
       return (
         <FeedbackGate
           icon={Clock3}
@@ -639,6 +658,12 @@ export function FeedbackScreen({
                     <em>Instansi</em>
                     <strong>{booking!.institution}</strong>
                   </span>
+                  {feedbackMeta && (
+                    <span>
+                      <em>Kuota feedback</em>
+                      <strong>{feedbackMeta.submittedCount}/{feedbackMeta.limit}</strong>
+                    </span>
+                  )}
                 </aside>
               </>
             )}

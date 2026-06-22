@@ -15,6 +15,7 @@ class FeedbackResource extends JsonResource
         $includeIdentity = (bool) $request->user();
 
         return [
+            'id' => (int) $this->id,
             'code' => $this->code,
             $this->mergeWhen($includeIdentity, fn () => [
                 'visitorName' => $this->visitor_name,

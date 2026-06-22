@@ -95,6 +95,9 @@ export type Booking = {
   note?: string;
   documentationLink?: string;
   feedbackToken: string;
+  feedbackCount?: number;
+  feedbackLimit?: number;
+  feedbackExpiresAt?: string;
   completedAt?: string;
   rejectedAt?: string;
   expiredAt?: string;
@@ -119,6 +122,7 @@ export type BookingSegment = {
 export type FeedbackGender = "male" | "female";
 
 export type Feedback = {
+  id: number;
   code: string;
   visitorName?: string;
   gender?: FeedbackGender | null;
@@ -139,6 +143,8 @@ export type Feedback = {
   allowPublish: boolean;
   submittedAt?: string;
 };
+
+export type FeedbackAccessStatus = "available" | "full" | "expired" | "not_completed";
 
 export type BookingForm = {
   contactName: string;

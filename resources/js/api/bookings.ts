@@ -34,6 +34,9 @@ export type ApiBooking = {
   note?: string | null;
   documentationLink?: string | null;
   feedbackToken?: string;
+  feedbackCount?: number;
+  feedbackLimit?: number;
+  feedbackExpiresAt?: string | null;
   completedAt?: string | null;
   rejectedAt?: string | null;
   expiredAt?: string | null;

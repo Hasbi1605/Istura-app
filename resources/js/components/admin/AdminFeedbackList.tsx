@@ -72,7 +72,7 @@ export function AdminFeedbackList({
       if (ratingFilter === "high" && feedback.rating < 4) return false;
       if (q) {
         const haystack =
-          `${feedback.code} ${feedback.institution} ${feedback.contactName}`.toLowerCase();
+          `${feedback.code} ${feedback.institution} ${feedback.contactName} ${feedback.visitorName ?? ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
@@ -107,9 +107,9 @@ export function AdminFeedbackList({
 
   // Default selection follows the filtered/paged list so the panel never
   // points at a hidden row.
-  const [selectedCode, setSelectedCode] = useState<string>("");
+  const [selectedId, setSelectedId] = useState<number>(0);
   const selected =
-    pagedFeedbacks.find((feedback) => feedback.code === selectedCode) ??
+    pagedFeedbacks.find((feedback) => feedback.id === selectedId) ??
     pagedFeedbacks[0] ??
     null;
 
@@ -121,9 +121,12 @@ export function AdminFeedbackList({
       ).toFixed(1)
     : "0.0";
   const needsAttention = feedbacks.filter((feedback) => feedback.rating <= 3).length;
-  const completedCount = bookings.filter((booking) => booking.status === "Completed").length;
-  const responseRate = completedCount
-    ? Math.round((feedbacks.length / completedCount) * 100)
+  // Tingkat Respons: jumlah feedback / total kuota peserta completed
+  const totalCompletedQuota = bookings
+    .filter((booking) => booking.status === "Completed")
+    .reduce((sum, booking) => sum + booking.groupSize, 0);
+  const responseRate = totalCompletedQuota
+    ? Math.round((feedbacks.length / totalCompletedQuota) * 100)
     : 0;
 
   const filtersActive = ratingFilter !== "all" || search.trim().length > 0;
@@ -257,20 +260,20 @@ export function AdminFeedbackList({
           <div className="booking-split-list">
             <div className="booking-table">
               {pagedFeedbacks.map((feedback) => {
-                const isSelected = selected?.code === feedback.code;
+                const isSelected = selected?.id === feedback.id;
                 return (
                   <button
-                    key={feedback.code}
+                    key={feedback.id}
                     type="button"
                     className={`booking-row${isSelected ? " is-selected" : ""}`}
                     onClick={() => {
-                      setSelectedCode(feedback.code);
+                      setSelectedId(feedback.id);
                       if (isCompactScreen) setShowSlideOver(true);
                     }}
                   >
                     <span className="booking-row-main">
                       <strong>{feedback.code}</strong>
-                      <small>{feedback.institution}</small>
+                      <small>{feedback.institution}{feedback.visitorName ? ` · ${feedback.visitorName}` : ""}</small>
                       <small className="admin-feedback-row-date">{feedback.dateLabel}</small>
                     </span>
                     <span

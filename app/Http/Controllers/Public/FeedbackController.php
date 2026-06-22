@@ -9,7 +9,7 @@ use App\Http\Resources\FeedbackResource;
 use App\Models\Booking;
 use App\Models\Feedback;
 use App\Services\AuditLogger;
-use Illuminate\Database\QueryException;
+use App\Services\IndonesianDate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,15 +24,24 @@ class FeedbackController extends Controller
 
         $this->ensureValidFeedbackToken($booking, $token);
 
-        $feedback = $booking->feedback;
+        $feedbackCount = $booking->feedbacks()->count();
+        $accessStatus = $booking->feedbackAccessStatus($feedbackCount);
 
         return response()->json([
-            'data' => $feedback ? (new FeedbackResource($feedback))->resolve() : null,
+            'data' => null, // Never expose other people's feedback
             'booking' => [
                 'code' => $booking->code,
                 'institution' => $booking->institution,
                 'dateLabel' => $booking->date_label,
                 'status' => $booking->status,
+            ],
+            'feedback' => [
+                'accessStatus' => $accessStatus,
+                'submittedCount' => $feedbackCount,
+                'limit' => $booking->feedbackLimit(),
+                'expiresAt' => $booking->feedback_expires_at
+                    ? IndonesianDate::submittedAt($booking->feedback_expires_at)
+                    : null,
             ],
         ]);
     }
@@ -41,71 +50,76 @@ class FeedbackController extends Controller
     {
         $payload = $request->validated();
 
-        try {
-            $feedback = DB::transaction(function () use ($code, $payload, $request) {
-                $booking = Booking::where('code', $code)->lockForUpdate()->first();
+        $feedback = DB::transaction(function () use ($code, $payload, $request) {
+            $booking = Booking::where('code', $code)->lockForUpdate()->first();
 
-                $this->ensureValidFeedbackToken($booking, (string) $payload['token']);
+            $this->ensureValidFeedbackToken($booking, (string) $payload['token']);
 
-                if ($booking->status !== 'Completed') {
-                    throw ValidationException::withMessages([
-                        'code' => ['Feedback baru dapat dikirim setelah kunjungan selesai.'],
-                    ]);
-                }
-
-                if ($booking->feedback()->exists()) {
-                    $this->throwDuplicateFeedback();
-                }
-
-                // "Kepuasan keseluruhan" tidak lagi diisi pengunjung; diturunkan
-                // dari rata-rata empat dimensi penilaian agar dashboard/laporan
-                // yang masih memakai `rating` tetap konsisten.
-                $rating = (int) round((
-                    $payload['bookingEase']
-                    + $payload['service']
-                    + $payload['guideQuality']
-                    + $payload['facilityComfort']
-                ) / 4);
-                $rating = max(1, min(5, $rating));
-
-                $feedback = Feedback::create([
-                    'booking_id' => $booking->id,
-                    'code' => $booking->code,
-                    'visitor_name' => $payload['visitorName'],
-                    'gender' => $payload['gender'],
-                    'age' => $payload['age'],
-                    'origin' => $payload['origin'],
-                    'rating' => $rating,
-                    'booking_ease' => $payload['bookingEase'],
-                    'service' => $payload['service'],
-                    'guide_quality' => $payload['guideQuality'],
-                    'facility_comfort' => $payload['facilityComfort'],
-                    'recommend' => $payload['recommend'],
-                    'visited_before' => (bool) $payload['visitedBefore'],
-                    'discovery_source' => $payload['discoverySource'],
-                    'discovery_source_other' => $payload['discoverySourceOther'] ?? null,
-                    'highlights' => $payload['highlights'] ?? [],
-                    'improvements' => $payload['improvements'] ?? [],
-                    'comment' => $payload['comment'] ?? null,
-                    'allow_publish' => (bool) $payload['allowPublish'],
-                    'submitted_at' => now(),
+            if ($booking->status !== 'Completed') {
+                throw ValidationException::withMessages([
+                    'code' => ['Feedback baru dapat dikirim setelah kunjungan selesai.'],
                 ]);
-
-                AuditLogger::record(null, "Feedback dikirim untuk booking {$booking->code}", Feedback::class, $feedback->id, [
-                    'booking_code' => $booking->code,
-                    'rating' => $feedback->rating,
-                    'allow_publish' => $feedback->allow_publish,
-                ], $request);
-
-                return $feedback;
-            });
-        } catch (QueryException $exception) {
-            if ($this->isDuplicateFeedbackConflict($exception)) {
-                $this->throwDuplicateFeedback();
             }
 
-            throw $exception;
-        }
+            // Cek expiry: token kedaluwarsa 14 hari setelah completed
+            if ($booking->isFeedbackExpired()) {
+                throw ValidationException::withMessages([
+                    'code' => ['Periode feedback telah berakhir.'],
+                ]);
+            }
+
+            // Cek kuota: jumlah feedback tidak boleh melebihi group_size
+            $currentCount = $booking->feedbacks()->count();
+            if ($currentCount >= $booking->feedbackLimit()) {
+                throw ValidationException::withMessages([
+                    'code' => ['Kuota feedback sudah terpenuhi.'],
+                ]);
+            }
+
+            // "Kepuasan keseluruhan" tidak lagi diisi pengunjung; diturunkan
+            // dari rata-rata empat dimensi penilaian agar dashboard/laporan
+            // yang masih memakai `rating` tetap konsisten.
+            $rating = (int) round((
+                $payload['bookingEase']
+                + $payload['service']
+                + $payload['guideQuality']
+                + $payload['facilityComfort']
+            ) / 4);
+            $rating = max(1, min(5, $rating));
+
+            $feedback = Feedback::create([
+                'booking_id' => $booking->id,
+                'code' => $booking->code,
+                'visitor_name' => $payload['visitorName'],
+                'gender' => $payload['gender'],
+                'age' => $payload['age'],
+                'origin' => $payload['origin'],
+                'rating' => $rating,
+                'booking_ease' => $payload['bookingEase'],
+                'service' => $payload['service'],
+                'guide_quality' => $payload['guideQuality'],
+                'facility_comfort' => $payload['facilityComfort'],
+                'recommend' => $payload['recommend'],
+                'visited_before' => (bool) $payload['visitedBefore'],
+                'discovery_source' => $payload['discoverySource'],
+                'discovery_source_other' => $payload['discoverySourceOther'] ?? null,
+                'highlights' => $payload['highlights'] ?? [],
+                'improvements' => $payload['improvements'] ?? [],
+                'comment' => $payload['comment'] ?? null,
+                'allow_publish' => (bool) $payload['allowPublish'],
+                'submitted_at' => now(),
+            ]);
+
+            AuditLogger::record(null, "Feedback dikirim untuk booking {$booking->code}", Feedback::class, $feedback->id, [
+                'booking_code' => $booking->code,
+                'rating' => $feedback->rating,
+                'allow_publish' => $feedback->allow_publish,
+                'submission_number' => $currentCount + 1,
+                'quota' => $booking->feedbackLimit(),
+            ], $request);
+
+            return $feedback;
+        });
 
         FeedbackSubmitted::dispatch($feedback->fresh());
 
@@ -121,23 +135,5 @@ class FeedbackController extends Controller
                 'token' => ['Kode atau token feedback tidak valid.'],
             ]);
         }
-    }
-
-    private function throwDuplicateFeedback(): never
-    {
-        throw ValidationException::withMessages([
-            'code' => ['Feedback untuk kode ini sudah pernah dikirim.'],
-        ]);
-    }
-
-    private function isDuplicateFeedbackConflict(QueryException $exception): bool
-    {
-        $message = $exception->getMessage();
-
-        return in_array((string) $exception->getCode(), ['23000', '23505'], true)
-            && (str_contains($message, 'feedbacks_booking_id_unique')
-                || str_contains($message, 'feedbacks_code_unique')
-                || str_contains($message, 'feedbacks.booking_id')
-                || str_contains($message, 'feedbacks.code'));
     }
 }

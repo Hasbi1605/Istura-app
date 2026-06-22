@@ -1,7 +1,8 @@
 import { api, fetchAllPages } from "./client";
-import type { BookingStatus, FeedbackDiscoverySource, FeedbackGender } from "../domain/types";
+import type { BookingStatus, FeedbackAccessStatus, FeedbackDiscoverySource, FeedbackGender } from "../domain/types";
 
 export type ApiFeedback = {
+  id: number;
   code: string;
   visitorName?: string;
   gender?: FeedbackGender | null;
@@ -30,6 +31,13 @@ export type ApiPublicFeedbackBooking = {
   status: BookingStatus;
 };
 
+export type ApiPublicFeedbackMeta = {
+  accessStatus: FeedbackAccessStatus;
+  submittedCount: number;
+  limit: number;
+  expiresAt: string | null;
+};
+
 export const fetchAdminFeedbacks = (): Promise<ApiFeedback[]> =>
   fetchAllPages<ApiFeedback>("/api/admin/feedback");
 
@@ -37,6 +45,7 @@ export const fetchPublicFeedback = (code: string, token: string) =>
   api<{
     data: ApiFeedback | null;
     booking: ApiPublicFeedbackBooking;
+    feedback: ApiPublicFeedbackMeta;
   }>(`/api/public/feedback/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}`);
 
 export const submitPublicFeedback = (

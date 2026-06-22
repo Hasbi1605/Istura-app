@@ -7,7 +7,6 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +33,7 @@ class Booking extends Model
         'date' => 'date',
         'submitted_at' => 'datetime',
         'completed_at' => 'datetime',
+        'feedback_expires_at' => 'datetime',
         'rejected_at' => 'datetime',
         'expired_at' => 'datetime',
         'proposed_date' => 'date',
@@ -51,9 +51,50 @@ class Booking extends Model
         });
     }
 
-    public function feedback(): HasOne
+    public function feedbacks(): HasMany
     {
-        return $this->hasOne(Feedback::class);
+        return $this->hasMany(Feedback::class);
+    }
+
+    /**
+     * Maximum number of feedback submissions allowed for this booking.
+     */
+    public function feedbackLimit(): int
+    {
+        return (int) $this->group_size;
+    }
+
+    /**
+     * Whether the feedback window has expired.
+     */
+    public function isFeedbackExpired(?Carbon $now = null): bool
+    {
+        if (! $this->feedback_expires_at) {
+            return false;
+        }
+
+        return ($now ?? now())->greaterThan($this->feedback_expires_at);
+    }
+
+    /**
+     * Determine feedback access status: available, full, expired, not_completed.
+     */
+    public function feedbackAccessStatus(?int $currentCount = null, ?Carbon $now = null): string
+    {
+        if ($this->status !== 'Completed') {
+            return 'not_completed';
+        }
+
+        if ($this->isFeedbackExpired($now)) {
+            return 'expired';
+        }
+
+        $count = $currentCount ?? $this->feedbacks()->count();
+        if ($count >= $this->feedbackLimit()) {
+            return 'full';
+        }
+
+        return 'available';
     }
 
     public function slots(): HasMany
