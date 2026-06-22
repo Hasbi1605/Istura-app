@@ -171,6 +171,13 @@ export function FeedbackScreen({
   const reduced = useReducedMotion();
   const navigationLocked = Boolean(booking && accessStatus === "available" && !submitted);
 
+  // Setiap pindah step, scroll ke atas agar MIKY + judul step selalu terlihat
+  // di mobile. Sama seperti BookingWizard. Hormati prefers-reduced-motion.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+  }, [step, reduced]);
+
   useEffect(() => {
     onNavigationLockChange?.(navigationLocked);
 
