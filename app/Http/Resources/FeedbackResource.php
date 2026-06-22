@@ -10,8 +10,18 @@ class FeedbackResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Identitas pengunjung (nama/jenis kelamin/usia/asal) hanya untuk admin.
+        // Path publik (show/broadcast) tidak boleh membocorkan data pribadi.
+        $includeIdentity = (bool) $request->user();
+
         return [
             'code' => $this->code,
+            $this->mergeWhen($includeIdentity, fn () => [
+                'visitorName' => $this->visitor_name,
+                'gender' => $this->gender,
+                'age' => $this->age !== null ? (int) $this->age : null,
+                'origin' => $this->origin,
+            ]),
             'rating' => (int) $this->rating,
             'bookingEase' => (int) $this->booking_ease,
             'service' => (int) $this->service,

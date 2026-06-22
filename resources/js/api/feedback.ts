@@ -1,8 +1,12 @@
 import { api, fetchAllPages } from "./client";
-import type { BookingStatus, FeedbackDiscoverySource } from "../domain/types";
+import type { BookingStatus, FeedbackDiscoverySource, FeedbackGender } from "../domain/types";
 
 export type ApiFeedback = {
   code: string;
+  visitorName?: string;
+  gender?: FeedbackGender | null;
+  age?: number | null;
+  origin?: string;
   rating: number;
   bookingEase: number;
   service: number;
@@ -39,7 +43,10 @@ export const submitPublicFeedback = (
   code: string,
   payload: {
     token: string;
-    rating: number;
+    visitorName: string;
+    gender: FeedbackGender;
+    age: number;
+    origin: string;
     bookingEase: number;
     service: number;
     guideQuality: number;

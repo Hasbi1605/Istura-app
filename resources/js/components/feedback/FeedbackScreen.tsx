@@ -10,12 +10,14 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type {
   Booking,
   Feedback,
   FeedbackDiscoverySource,
+  FeedbackGender,
   FeedbackWizardContent,
 } from "../../domain/types";
 import { ASSETS } from "../../lib/assets";
@@ -33,6 +35,10 @@ type FeedbackBookingContext = Pick<
 
 const apiFeedbackToLocal = (feedback: {
   code: string;
+  visitorName?: string;
+  gender?: FeedbackGender | null;
+  age?: number | null;
+  origin?: string;
   rating: number;
   bookingEase: number;
   service: number;
@@ -49,6 +55,10 @@ const apiFeedbackToLocal = (feedback: {
   submittedAt: string | null;
 }): Feedback => ({
   code: feedback.code,
+  visitorName: feedback.visitorName ?? "",
+  gender: feedback.gender ?? null,
+  age: feedback.age ?? null,
+  origin: feedback.origin ?? "",
   rating: feedback.rating,
   bookingEase: feedback.bookingEase,
   service: feedback.service,
@@ -75,7 +85,10 @@ const firstValidationMessage = (error: unknown, fallback: string) => {
 
 const emptyDraft = {
   step: 0,
-  rating: 0,
+  visitorName: "",
+  gender: "" as FeedbackGender | "",
+  age: "",
+  origin: "",
   bookingEase: 0,
   service: 0,
   guideQuality: 0,
@@ -129,7 +142,10 @@ export function FeedbackScreen({
   const storageKey = booking ? `istura-feedback-draft-${booking.code}` : null;
 
   const [step, setStep] = useState(0);
-  const [rating, setRating] = useState(0);
+  const [visitorName, setVisitorName] = useState("");
+  const [gender, setGender] = useState<FeedbackGender | "">("");
+  const [age, setAge] = useState("");
+  const [origin, setOrigin] = useState("");
   const [bookingEase, setBookingEase] = useState(0);
   const [service, setService] = useState(0);
   const [guideQuality, setGuideQuality] = useState(0);
@@ -204,7 +220,10 @@ export function FeedbackScreen({
   // Restore draft from localStorage
   useEffect(() => {
     setStep(emptyDraft.step);
-    setRating(emptyDraft.rating);
+    setVisitorName(emptyDraft.visitorName);
+    setGender(emptyDraft.gender);
+    setAge(emptyDraft.age);
+    setOrigin(emptyDraft.origin);
     setBookingEase(emptyDraft.bookingEase);
     setService(emptyDraft.service);
     setGuideQuality(emptyDraft.guideQuality);
@@ -224,9 +243,12 @@ export function FeedbackScreen({
     try {
       const raw = window.localStorage.getItem(storageKey);
       if (!raw) return;
-      const draft = JSON.parse(raw) as Partial<Feedback>;
-      if (typeof (draft as Partial<typeof emptyDraft>).step === "number") setStep((draft as Partial<typeof emptyDraft>).step ?? 0);
-      if (typeof draft.rating === "number") setRating(draft.rating);
+      const draft = JSON.parse(raw) as Partial<typeof emptyDraft>;
+      if (typeof draft.step === "number") setStep(draft.step ?? 0);
+      if (typeof draft.visitorName === "string") setVisitorName(draft.visitorName);
+      if (draft.gender === "male" || draft.gender === "female") setGender(draft.gender);
+      if (typeof draft.age === "string") setAge(draft.age);
+      if (typeof draft.origin === "string") setOrigin(draft.origin);
       if (typeof draft.bookingEase === "number") setBookingEase(draft.bookingEase);
       if (typeof draft.service === "number") setService(draft.service);
       if (typeof draft.guideQuality === "number") setGuideQuality(draft.guideQuality);
@@ -249,7 +271,10 @@ export function FeedbackScreen({
     if (!storageKey || submitted) return;
     const draft = {
       step,
-      rating,
+      visitorName,
+      gender,
+      age,
+      origin,
       bookingEase,
       service,
       guideQuality,
@@ -271,7 +296,10 @@ export function FeedbackScreen({
   }, [
     storageKey,
     step,
-    rating,
+    visitorName,
+    gender,
+    age,
+    origin,
     bookingEase,
     service,
     guideQuality,
@@ -296,10 +324,15 @@ export function FeedbackScreen({
   };
 
   const totalSteps = 4;
-  const ratingStep = content.steps.rating;
+  const identityStep = content.steps.rating;
   const visitStep = content.steps.visit;
   const detailsStep = content.steps.details;
   const commentStep = content.steps.comment;
+
+  const ageNumber = Number.parseInt(age, 10);
+  const ageValid = Number.isFinite(ageNumber) && ageNumber >= 1 && ageNumber <= 120;
+  const identityComplete =
+    visitorName.trim().length > 0 && gender !== "" && ageValid && origin.trim().length > 0;
 
   const stepConfig: {
     title: string;
@@ -309,17 +342,10 @@ export function FeedbackScreen({
     image: string;
   }[] = [
     {
-      title: ratingStep.title,
-      icon: Star,
-      bubbleTitle: ratingStep.bubbleTitle,
-      bubble:
-        rating === 0
-          ? ratingStep.bubbleEmpty
-          : rating <= 2
-            ? ratingStep.bubbleLow
-            : rating === 3
-              ? ratingStep.bubbleNeutral
-              : ratingStep.bubbleHigh,
+      title: identityStep.title,
+      icon: User,
+      bubbleTitle: identityStep.bubbleTitle,
+      bubble: identityComplete ? identityStep.bubbleHigh : identityStep.bubbleEmpty,
       image: ASSETS.mikyFeedback,
     },
     {
@@ -327,11 +353,11 @@ export function FeedbackScreen({
       icon: Building2,
       bubbleTitle: visitStep.bubbleTitle,
       bubble:
-        guideQuality === 0 ||
-        facilityComfort === 0 ||
         visitedBefore === null ||
         discoverySource === "" ||
-        (discoverySource === "other" && discoverySourceOther.trim() === "")
+        (discoverySource === "other" && discoverySourceOther.trim() === "") ||
+        bookingEase === 0 ||
+        service === 0
           ? visitStep.bubbleEmpty
           : visitStep.bubbleDone,
       image: ASSETS.mikyFeedback2,
@@ -341,7 +367,7 @@ export function FeedbackScreen({
       icon: Sparkles,
       bubbleTitle: detailsStep.bubbleTitle,
       bubble:
-        recommend === null
+        guideQuality === 0 || facilityComfort === 0 || recommend === null
           ? detailsStep.bubbleEmpty
           : highlights.length === 0
             ? detailsStep.bubbleHighlightsEmpty
@@ -361,24 +387,27 @@ export function FeedbackScreen({
   ];
 
   const stepReady = [
-    rating > 0 && bookingEase > 0 && service > 0,
+    identityComplete,
+    visitedBefore !== null &&
+      discoverySource !== "" &&
+      (discoverySource !== "other" || discoverySourceOther.trim().length > 0) &&
+      bookingEase > 0 &&
+      service > 0,
     guideQuality > 0 &&
       facilityComfort > 0 &&
-      visitedBefore !== null &&
-      discoverySource !== "" &&
-      (discoverySource !== "other" || discoverySourceOther.trim().length > 0),
-    recommend !== null,
+      recommend !== null &&
+      improvements.length > 0,
     true,
   ];
 
   const goNext = () => {
     if (!stepReady[step]) {
       if (step === 0) {
-        setError("Mohon berikan rating untuk ketiga aspek di atas.");
+        setError("Mohon lengkapi nama, jenis kelamin, usia, dan asal terlebih dahulu.");
       } else if (step === 1) {
-        setError("Mohon lengkapi penilaian dan informasi kunjungan.");
+        setError("Mohon lengkapi informasi kunjungan dan penilaian proses.");
       } else if (step === 2) {
-        setError("Mohon pilih skor rekomendasi.");
+        setError("Mohon lengkapi penilaian, skor rekomendasi, dan aspek yang perlu diperbaiki.");
       }
       return;
     }
@@ -395,17 +424,17 @@ export function FeedbackScreen({
     if (!booking || !access) return;
     if (submitting) return;
     if (!stepReady[0]) {
-      setError("Mohon berikan rating untuk ketiga aspek di langkah 1.");
+      setError("Mohon lengkapi data diri di langkah 1.");
       setStep(0);
       return;
     }
     if (!stepReady[1]) {
-      setError("Mohon lengkapi penilaian dan informasi kunjungan di langkah 2.");
+      setError("Mohon lengkapi informasi kunjungan di langkah 2.");
       setStep(1);
       return;
     }
     if (!stepReady[2]) {
-      setError("Mohon pilih skor rekomendasi di langkah 3.");
+      setError("Mohon lengkapi penilaian dan aspek perbaikan di langkah 3.");
       setStep(2);
       return;
     }
@@ -416,7 +445,10 @@ export function FeedbackScreen({
 
     const payload = {
       token: access.token,
-      rating,
+      visitorName: visitorName.trim(),
+      gender: gender as FeedbackGender,
+      age: ageNumber,
+      origin: origin.trim(),
       bookingEase,
       service,
       guideQuality,
@@ -610,42 +642,52 @@ export function FeedbackScreen({
 
             {step === 0 && (
               <div className="feedback-step">
-                <RatingField
-                  label={content.fields.ratingLabel}
-                  value={rating}
-                  labels={content.fields.ratingLabels}
-                  onChange={setRating}
-                />
-                <RatingField
-                  label={content.fields.bookingEaseLabel}
-                  value={bookingEase}
-                  labels={content.fields.ratingLabels}
-                  onChange={setBookingEase}
-                />
-                <RatingField
-                  label={content.fields.serviceLabel}
-                  value={service}
-                  labels={content.fields.ratingLabels}
-                  onChange={setService}
-                />
+                <label className="form-field">
+                  <span>{content.fields.visitorNameLabel}</span>
+                  <input
+                    value={visitorName}
+                    onChange={(event) => setVisitorName(event.target.value)}
+                    placeholder={content.fields.visitorNamePlaceholder}
+                    maxLength={120}
+                  />
+                </label>
+                <label className="form-field">
+                  <span>{content.fields.genderLabel}</span>
+                  <select
+                    value={gender}
+                    onChange={(event) => setGender(event.target.value as FeedbackGender | "")}
+                  >
+                    <option value="">{content.fields.genderPlaceholder}</option>
+                    <option value="male">{content.fields.genderMaleLabel}</option>
+                    <option value="female">{content.fields.genderFemaleLabel}</option>
+                  </select>
+                </label>
+                <label className="form-field">
+                  <span>{content.fields.ageLabel}</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={age}
+                    onChange={(event) => setAge(event.target.value)}
+                    placeholder={content.fields.agePlaceholder}
+                    min={1}
+                    max={120}
+                  />
+                </label>
+                <label className="form-field">
+                  <span>{content.fields.originLabel}</span>
+                  <input
+                    value={origin}
+                    onChange={(event) => setOrigin(event.target.value)}
+                    placeholder={content.fields.originPlaceholder}
+                    maxLength={160}
+                  />
+                </label>
               </div>
             )}
 
             {step === 1 && (
               <div className="feedback-step">
-                <RatingField
-                  label={content.fields.guideQualityLabel}
-                  value={guideQuality}
-                  labels={content.fields.ratingLabels}
-                  onChange={setGuideQuality}
-                />
-                <RatingField
-                  label={content.fields.facilityComfortLabel}
-                  value={facilityComfort}
-                  labels={content.fields.ratingLabels}
-                  onChange={setFacilityComfort}
-                />
-
                 <fieldset className="recommend-field">
                   <legend>{content.fields.visitedBeforeLegend}</legend>
                   <div
@@ -704,11 +746,37 @@ export function FeedbackScreen({
                     />
                   </label>
                 )}
+
+                <RatingField
+                  label={content.fields.bookingEaseLabel}
+                  value={bookingEase}
+                  labels={content.fields.ratingLabels}
+                  onChange={setBookingEase}
+                />
+                <RatingField
+                  label={content.fields.serviceLabel}
+                  value={service}
+                  labels={content.fields.ratingLabels}
+                  onChange={setService}
+                />
               </div>
             )}
 
             {step === 2 && (
               <div className="feedback-step">
+                <RatingField
+                  label={content.fields.guideQualityLabel}
+                  value={guideQuality}
+                  labels={content.fields.ratingLabels}
+                  onChange={setGuideQuality}
+                />
+                <RatingField
+                  label={content.fields.facilityComfortLabel}
+                  value={facilityComfort}
+                  labels={content.fields.ratingLabels}
+                  onChange={setFacilityComfort}
+                />
+
                 <fieldset className="recommend-field">
                   <legend>{content.fields.recommendLegend}</legend>
                   <div

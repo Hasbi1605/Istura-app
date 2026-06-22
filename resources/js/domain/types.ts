@@ -116,8 +116,14 @@ export type BookingSegment = {
   groupSize: number;
 };
 
+export type FeedbackGender = "male" | "female";
+
 export type Feedback = {
   code: string;
+  visitorName?: string;
+  gender?: FeedbackGender | null;
+  age?: number | null;
+  origin?: string;
   rating: number;
   bookingEase: number;
   service: number;
@@ -235,6 +241,7 @@ export type BookingWizardContent = {
     replaceLabel: string;
   };
   agreementText: string;
+  successTitle: string;
   successMessage: string;
   actions: {
     backLabel: string;
@@ -286,6 +293,16 @@ export type FeedbackWizardContent = {
     };
   };
   fields: {
+    visitorNameLabel: string;
+    visitorNamePlaceholder: string;
+    genderLabel: string;
+    genderPlaceholder: string;
+    genderMaleLabel: string;
+    genderFemaleLabel: string;
+    ageLabel: string;
+    agePlaceholder: string;
+    originLabel: string;
+    originPlaceholder: string;
     ratingLabel: string;
     bookingEaseLabel: string;
     serviceLabel: string;

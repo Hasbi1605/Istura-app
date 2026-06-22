@@ -750,7 +750,7 @@ export function BookingWizard({
             {step === 7 && (
               <div className="success-box">
                 <BadgeCheck size={58} aria-hidden="true" />
-                <strong>{successCode}</strong>
+                <strong>{content.successTitle}</strong>
                 <p>{content.successMessage.replace("{kode}", successCode)}</p>
               </div>
             )}

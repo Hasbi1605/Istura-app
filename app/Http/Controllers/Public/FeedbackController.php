@@ -57,10 +57,25 @@ class FeedbackController extends Controller
                     $this->throwDuplicateFeedback();
                 }
 
+                // "Kepuasan keseluruhan" tidak lagi diisi pengunjung; diturunkan
+                // dari rata-rata empat dimensi penilaian agar dashboard/laporan
+                // yang masih memakai `rating` tetap konsisten.
+                $rating = (int) round((
+                    $payload['bookingEase']
+                    + $payload['service']
+                    + $payload['guideQuality']
+                    + $payload['facilityComfort']
+                ) / 4);
+                $rating = max(1, min(5, $rating));
+
                 $feedback = Feedback::create([
                     'booking_id' => $booking->id,
                     'code' => $booking->code,
-                    'rating' => $payload['rating'],
+                    'visitor_name' => $payload['visitorName'],
+                    'gender' => $payload['gender'],
+                    'age' => $payload['age'],
+                    'origin' => $payload['origin'],
+                    'rating' => $rating,
                     'booking_ease' => $payload['bookingEase'],
                     'service' => $payload['service'],
                     'guide_quality' => $payload['guideQuality'],

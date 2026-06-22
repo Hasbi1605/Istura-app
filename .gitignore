@@ -33,3 +33,4 @@ Thumbs.db
 /referensidesain
 __pycache__/
 *.py[cod]
+tmp/

@@ -2761,7 +2761,10 @@ class ScheduleSyncTest extends TestCase
 
         $this->postJson("/api/public/feedback/{$booking->code}", [
             'token' => 'fb_single_feedback_token',
-            'rating' => 4,
+            'visitorName' => 'Budi Santoso',
+            'gender' => 'male',
+            'age' => 30,
+            'origin' => 'Jakarta',
             'bookingEase' => 4,
             'service' => 4,
             'guideQuality' => 4,
@@ -2770,7 +2773,7 @@ class ScheduleSyncTest extends TestCase
             'visitedBefore' => false,
             'discoverySource' => 'social_media',
             'highlights' => [],
-            'improvements' => [],
+            'improvements' => ['Fasilitas'],
             'comment' => 'Duplikat harus ditolak.',
             'allowPublish' => false,
         ])->assertStatus(422)
@@ -2802,7 +2805,10 @@ class ScheduleSyncTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
             ->postJson("/api/public/feedback/{$booking->code}", [
                 'token' => 'fb_rate_limit_token',
-                'rating' => 5,
+                'visitorName' => 'Ani Wulandari',
+                'gender' => 'female',
+                'age' => 25,
+                'origin' => 'Yogyakarta',
                 'bookingEase' => 5,
                 'service' => 5,
                 'guideQuality' => 5,
@@ -2811,7 +2817,7 @@ class ScheduleSyncTest extends TestCase
                 'visitedBefore' => true,
                 'discoverySource' => 'previous_visit',
                 'highlights' => ['Penyambutan'],
-                'improvements' => [],
+                'improvements' => ['Waktu kunjungan'],
                 'comment' => 'Rate limit flow tetap terpisah.',
                 'allowPublish' => true,
             ])
@@ -2885,7 +2891,10 @@ class ScheduleSyncTest extends TestCase
 
         $this->postJson("/api/public/feedback/{$booking->code}", [
             'token' => 'fb_pending_token',
-            'rating' => 5,
+            'visitorName' => 'Rudi Hartono',
+            'gender' => 'male',
+            'age' => 40,
+            'origin' => 'Surabaya',
             'bookingEase' => 5,
             'service' => 5,
             'guideQuality' => 5,
@@ -2894,7 +2903,7 @@ class ScheduleSyncTest extends TestCase
             'visitedBefore' => false,
             'discoverySource' => 'school_institution',
             'highlights' => ['Penyambutan'],
-            'improvements' => [],
+            'improvements' => ['Dokumentasi'],
             'comment' => 'Belum selesai tidak boleh masuk.',
             'allowPublish' => true,
         ])->assertStatus(422)
@@ -2912,7 +2921,10 @@ class ScheduleSyncTest extends TestCase
 
         $payload = [
             'token' => 'fb_visit_insights_token',
-            'rating' => 5,
+            'visitorName' => 'Dewi Ratna',
+            'gender' => 'female',
+            'age' => 35,
+            'origin' => 'Semarang',
             'bookingEase' => 4,
             'service' => 5,
             'guideQuality' => 4,
@@ -2964,7 +2976,10 @@ class ScheduleSyncTest extends TestCase
 
         $payload = [
             'token' => 'fb_oversized_tags_token',
-            'rating' => 5,
+            'visitorName' => 'Tester',
+            'gender' => 'male',
+            'age' => 20,
+            'origin' => 'Test City',
             'bookingEase' => 5,
             'service' => 5,
             'guideQuality' => 5,
@@ -2973,7 +2988,7 @@ class ScheduleSyncTest extends TestCase
             'visitedBefore' => false,
             'discoverySource' => 'social_media',
             'highlights' => array_map(fn (int $index): string => "Aspek {$index}", range(1, 13)),
-            'improvements' => [],
+            'improvements' => ['Fasilitas'],
             'comment' => null,
             'allowPublish' => false,
         ];

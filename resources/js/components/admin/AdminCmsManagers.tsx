@@ -1755,7 +1755,7 @@ export function AdminLandingManager({
   };
 
   const updateBookingWizardText = (
-    field: "agreementText" | "successMessage",
+    field: "agreementText" | "successTitle" | "successMessage",
     value: string,
   ) => {
     setDraft((current) => ({
@@ -2771,6 +2771,10 @@ export function AdminLandingManager({
                 <textarea rows={3} value={draft.bookingWizard.agreementText} onChange={(event) => updateBookingWizardText("agreementText", event.target.value)} />
               </label>
               <label className="form-field">
+                <span>Judul sukses</span>
+                <input value={draft.bookingWizard.successTitle} onChange={(event) => updateBookingWizardText("successTitle", event.target.value)} />
+              </label>
+              <label className="form-field">
                 <span>Pesan sukses</span>
                 <textarea rows={3} value={draft.bookingWizard.successMessage} onChange={(event) => updateBookingWizardText("successMessage", event.target.value)} />
                 <small>Opsional: gunakan {"{kode}"} jika ingin menyisipkan kode booking di kalimat.</small>
@@ -2815,7 +2819,7 @@ export function AdminLandingManager({
           <div className="admin-landing-list">
             <article className="admin-landing-subcard">
               <div className="admin-landing-subcard-head">
-                <strong>Step 1 - Rating</strong>
+                <strong>Step 1 - Data Diri</strong>
               </div>
               <label className="form-field">
                 <span>Judul</span>
@@ -2855,7 +2859,7 @@ export function AdminLandingManager({
 
             <article className="admin-landing-subcard">
               <div className="admin-landing-subcard-head">
-                <strong>Step 3 - Detail</strong>
+                <strong>Step 3 - Penilaian</strong>
               </div>
               <label className="form-field">
                 <span>Judul</span>
@@ -2901,19 +2905,35 @@ export function AdminLandingManager({
               </div>
               <div className="admin-cms-link">
                 <label className="form-field">
-                  <span>Rating utama</span>
-                  <input value={draft.feedbackWizard.fields.ratingLabel} onChange={(event) => updateFeedbackWizardField("ratingLabel", event.target.value)} />
+                  <span>Nama</span>
+                  <input value={draft.feedbackWizard.fields.visitorNameLabel} onChange={(event) => updateFeedbackWizardField("visitorNameLabel", event.target.value)} />
                 </label>
                 <label className="form-field">
-                  <span>Kemudahan booking</span>
-                  <input value={draft.feedbackWizard.fields.bookingEaseLabel} onChange={(event) => updateFeedbackWizardField("bookingEaseLabel", event.target.value)} />
+                  <span>Jenis kelamin</span>
+                  <input value={draft.feedbackWizard.fields.genderLabel} onChange={(event) => updateFeedbackWizardField("genderLabel", event.target.value)} />
                 </label>
               </div>
               <div className="admin-cms-link">
                 <label className="form-field">
+                  <span>Usia</span>
+                  <input value={draft.feedbackWizard.fields.ageLabel} onChange={(event) => updateFeedbackWizardField("ageLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
+                  <span>Alamat / Asal</span>
+                  <input value={draft.feedbackWizard.fields.originLabel} onChange={(event) => updateFeedbackWizardField("originLabel", event.target.value)} />
+                </label>
+              </div>
+              <div className="admin-cms-link">
+                <label className="form-field">
+                  <span>Kemudahan booking</span>
+                  <input value={draft.feedbackWizard.fields.bookingEaseLabel} onChange={(event) => updateFeedbackWizardField("bookingEaseLabel", event.target.value)} />
+                </label>
+                <label className="form-field">
                   <span>Pelayanan</span>
                   <input value={draft.feedbackWizard.fields.serviceLabel} onChange={(event) => updateFeedbackWizardField("serviceLabel", event.target.value)} />
                 </label>
+              </div>
+              <div className="admin-cms-link">
                 <label className="form-field">
                   <span>Rekomendasi</span>
                   <input value={draft.feedbackWizard.fields.recommendLegend} onChange={(event) => updateFeedbackWizardField("recommendLegend", event.target.value)} />

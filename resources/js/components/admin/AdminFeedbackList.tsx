@@ -337,7 +337,6 @@ function FeedbackDetailPanel({
   feedbackContent: FeedbackWizardContent;
 }) {
   const scores: Array<{ label: string; value: number | null; max: number }> = [
-    { label: "Kepuasan keseluruhan", value: feedback.rating, max: 5 },
     { label: "Kemudahan booking", value: feedback.bookingEase, max: 5 },
     { label: "Layanan petugas", value: feedback.service, max: 5 },
     { label: "Kualitas pemandu", value: feedback.guideQuality, max: 5 },
@@ -377,6 +376,37 @@ function FeedbackDetailPanel({
           ))}
         </span>
       </header>
+
+      {(feedback.visitorName || feedback.origin) && (
+        <section className="admin-feedback-aspects" aria-label="Data pengunjung">
+          {feedback.visitorName && (
+            <div>
+              <span className="admin-feedback-aspect-label">Nama</span>
+              <p className="admin-feedback-aspect-empty">{feedback.visitorName}</p>
+            </div>
+          )}
+          {feedback.gender && (
+            <div>
+              <span className="admin-feedback-aspect-label">Jenis kelamin</span>
+              <p className="admin-feedback-aspect-empty">
+                {feedback.gender === "male" ? "Laki-laki" : "Perempuan"}
+              </p>
+            </div>
+          )}
+          {feedback.age != null && (
+            <div>
+              <span className="admin-feedback-aspect-label">Usia</span>
+              <p className="admin-feedback-aspect-empty">{feedback.age} tahun</p>
+            </div>
+          )}
+          {feedback.origin && (
+            <div>
+              <span className="admin-feedback-aspect-label">Alamat / Asal</span>
+              <p className="admin-feedback-aspect-empty">{feedback.origin}</p>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="admin-feedback-scores" aria-label="Breakdown skor">
         {scores.map((score) => (

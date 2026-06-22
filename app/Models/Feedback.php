@@ -12,6 +12,10 @@ class Feedback extends Model
     protected $fillable = [
         'booking_id',
         'code',
+        'visitor_name',
+        'gender',
+        'age',
+        'origin',
         'rating',
         'booking_ease',
         'service',
@@ -33,6 +37,7 @@ class Feedback extends Model
         'improvements' => 'array',
         'allow_publish' => 'boolean',
         'submitted_at' => 'datetime',
+        'age' => 'integer',
         'rating' => 'integer',
         'booking_ease' => 'integer',
         'service' => 'integer',

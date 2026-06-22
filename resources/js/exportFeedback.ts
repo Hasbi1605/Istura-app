@@ -29,6 +29,10 @@ export type { ExportRange } from "./exportShared";
 // stand on its own.
 export type FeedbackExportInput = {
   code: string;
+  visitorName?: string;
+  gender?: string | null;
+  age?: number | null;
+  origin?: string;
   rating: number;
   bookingEase: number;
   service: number;
@@ -127,6 +131,10 @@ const DETAIL_COLUMNS: Column[] = [
   { header: "Tanggal Submit", width: 24 },
   { header: "Instansi", width: 32 },
   { header: "Contact Person", width: 22 },
+  { header: "Nama Pengunjung", width: 22 },
+  { header: "Jenis Kelamin", width: 14 },
+  { header: "Usia", width: 6 },
+  { header: "Alamat / Asal", width: 22 },
   { header: "Tanggal Kunjungan", width: 26 },
   { header: "Rating", width: 8 },
   { header: "Booking Ease", width: 14 },
@@ -395,30 +403,35 @@ const buildDetailSheet = (
     row.getCell(3).value = feedback.submittedAt ?? "";
     row.getCell(4).value = feedback.institution ?? "";
     row.getCell(5).value = feedback.contactName ?? "";
-    row.getCell(6).value = feedback.dateLabel ?? "";
-    row.getCell(7).value = feedback.rating;
-    row.getCell(8).value = feedback.bookingEase;
-    row.getCell(9).value = feedback.service;
-    row.getCell(10).value = feedback.guideQuality ?? "";
-    row.getCell(11).value = feedback.facilityComfort ?? "";
-    row.getCell(12).value = feedback.recommend;
-    row.getCell(13).value =
+    row.getCell(6).value = feedback.visitorName ?? "";
+    row.getCell(7).value =
+      feedback.gender === "male" ? "Laki-laki" : feedback.gender === "female" ? "Perempuan" : "";
+    row.getCell(8).value = feedback.age ?? "";
+    row.getCell(9).value = feedback.origin ?? "";
+    row.getCell(10).value = feedback.dateLabel ?? "";
+    row.getCell(11).value = feedback.rating;
+    row.getCell(12).value = feedback.bookingEase;
+    row.getCell(13).value = feedback.service;
+    row.getCell(14).value = feedback.guideQuality ?? "";
+    row.getCell(15).value = feedback.facilityComfort ?? "";
+    row.getCell(16).value = feedback.recommend;
+    row.getCell(17).value =
       feedback.visitedBefore === null ? "" : feedback.visitedBefore ? "Ya" : "Belum";
-    row.getCell(14).value =
+    row.getCell(18).value =
       feedback.discoverySourceOther && feedback.discoverySourceLabel
         ? `${feedback.discoverySourceLabel}: ${feedback.discoverySourceOther}`
         : feedback.discoverySourceLabel;
-    row.getCell(15).value = feedback.highlights.join(", ");
-    row.getCell(16).value = feedback.improvements.join(", ");
-    row.getCell(17).value = feedback.comment;
-    row.getCell(18).value = feedback.allowPublish ? "Ya" : "Tidak";
+    row.getCell(19).value = feedback.highlights.join(", ");
+    row.getCell(20).value = feedback.improvements.join(", ");
+    row.getCell(21).value = feedback.comment;
+    row.getCell(22).value = feedback.allowPublish ? "Ya" : "Tidak";
 
     for (let i = 1; i <= DETAIL_COLUMNS.length; i += 1) {
       styleDataCell(row.getCell(i), zebra);
     }
 
     // Color the rating cell so positive vs perhatian is glanceable.
-    const ratingCell = row.getCell(7);
+    const ratingCell = row.getCell(11);
     const ratingFill =
       feedback.rating >= 4
         ? "FFD9F2DF"

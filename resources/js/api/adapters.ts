@@ -65,6 +65,10 @@ export function apiVisitDayToLocal(day: ApiVisitDay): VisitDay {
 export function apiFeedbackToLocal(f: ApiFeedback): Feedback {
   return {
     code: f.code,
+    visitorName: f.visitorName ?? "",
+    gender: f.gender ?? null,
+    age: f.age ?? null,
+    origin: f.origin ?? "",
     rating: f.rating,
     bookingEase: f.bookingEase,
     service: f.service,

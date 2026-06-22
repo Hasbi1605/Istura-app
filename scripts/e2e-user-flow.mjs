@@ -565,7 +565,10 @@ async function runApiMatrix() {
       method: "POST",
       body: {
         token: adminBooking.feedbackToken,
-        rating: 5,
+        visitorName: "Premature User",
+        gender: "male",
+        age: 25,
+        origin: "Jakarta",
         bookingEase: 5,
         service: 5,
         guideQuality: 5,
@@ -574,7 +577,7 @@ async function runApiMatrix() {
         visitedBefore: false,
         discoverySource: "social_media",
         highlights: ["Penyambutan"],
-        improvements: [],
+        improvements: ["Fasilitas"],
         comment: "Premature feedback should be blocked",
         allowPublish: true,
       },
@@ -585,7 +588,10 @@ async function runApiMatrix() {
     await admin.json(`/api/admin/bookings/${booking.code}/complete`, { method: "POST" });
     const validPayload = {
       token: adminBooking.feedbackToken,
-      rating: 5,
+      visitorName: "Andi Pratama",
+      gender: "male",
+      age: 30,
+      origin: "Yogyakarta",
       bookingEase: 4,
       service: 5,
       guideQuality: 5,
@@ -722,9 +728,9 @@ async function runApiMatrix() {
     }
 
     const invalidFeedbackCases = [
-      { token: "x", rating: 0, bookingEase: 5, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: [], comment: "", allowPublish: true },
-      { token: "x", rating: 5, bookingEase: 6, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: [], comment: "", allowPublish: true },
-      { token: "x", rating: 5, bookingEase: 5, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: [], comment: "", allowPublish: "yes" },
+      { token: "x", visitorName: "A", gender: "male", age: 20, origin: "X", bookingEase: 0, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: ["Fasilitas"], comment: "", allowPublish: true },
+      { token: "x", visitorName: "A", gender: "male", age: 20, origin: "X", bookingEase: 6, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: ["Fasilitas"], comment: "", allowPublish: true },
+      { token: "x", visitorName: "A", gender: "male", age: 20, origin: "X", bookingEase: 5, service: 5, guideQuality: 5, facilityComfort: 5, recommend: 5, visitedBefore: false, discoverySource: "social_media", highlights: [], improvements: ["Fasilitas"], comment: "", allowPublish: "yes" },
     ];
     for (const body of invalidFeedbackCases) {
       const response = await anon.request("/api/public/feedback/ISTURA-404", { method: "POST", body });
@@ -818,18 +824,26 @@ async function runBrowserFlows() {
     const context = await browser.newContext({ baseURL: BASE_URL });
     const page = await context.newPage();
     await page.goto(`/feedback/${feedbackBooking.code}?token=${encodeURIComponent(feedbackAdminBooking.feedbackToken)}`, { waitUntil: "networkidle" });
-    await expectLocator(page.getByRole("heading", { name: /Penilaian Inti/i }), "direct feedback link shows form");
-    await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
-    await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
-    await page.locator('.rating-field').nth(2).getByRole("radio", { name: /5 dari 5/i }).click();
+    await expectLocator(page.getByRole("heading", { name: /Data Diri Pengunjung/i }), "direct feedback link shows form");
+    // Step 0: Data Diri
+    await page.getByLabel(/Nama/i).first().fill("E2E Pengunjung");
+    await page.getByLabel(/Jenis kelamin/i).selectOption("male");
+    await page.getByLabel(/Usia/i).fill("28");
+    await page.getByLabel(/Alamat/i).fill("Yogyakarta");
     await page.getByRole("button", { name: /Lanjut/i }).click();
-    await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
-    await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
+    // Step 1: Tentang Kunjungan
     await page.getByRole("radio", { name: /Belum, ini pertama kali/i }).click();
-    await page.getByLabel(/Dari mana pertama kali/i).selectOption("social_media");
+    await page.getByLabel(/Dari mana Bapak/i).selectOption("social_media");
+    await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
     await page.getByRole("button", { name: /Lanjut/i }).click();
+    // Step 2: Penilaian
+    await page.locator('.rating-field').nth(0).getByRole("radio", { name: /5 dari 5/i }).click();
+    await page.locator('.rating-field').nth(1).getByRole("radio", { name: /5 dari 5/i }).click();
     await page.getByRole("radio", { name: "5" }).click();
+    await page.getByRole("button", { name: /Waktu kunjungan/i }).click();
     await page.getByRole("button", { name: /Lanjut/i }).click();
+    // Step 3: Cerita & Kirim
     await page.getByLabel(/Saran atau cerita pengalaman/i).fill("Browser feedback e2e");
     await page.getByRole("button", { name: /Kirim Feedback/i }).click();
     await expectLocator(page.getByText(/Feedback berhasil dikirim/i), "feedback success visible");

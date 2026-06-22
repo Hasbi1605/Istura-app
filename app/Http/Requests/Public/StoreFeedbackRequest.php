@@ -16,7 +16,10 @@ class StoreFeedbackRequest extends FormRequest
     {
         return [
             'token' => ['required', 'string'],
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'visitorName' => ['required', 'string', 'max:120'],
+            'gender' => ['required', 'string', Rule::in(['male', 'female'])],
+            'age' => ['required', 'integer', 'min:1', 'max:120'],
+            'origin' => ['required', 'string', 'max:160'],
             'bookingEase' => ['required', 'integer', 'min:1', 'max:5'],
             'service' => ['required', 'integer', 'min:1', 'max:5'],
             'guideQuality' => ['required', 'integer', 'min:1', 'max:5'],
@@ -38,7 +41,7 @@ class StoreFeedbackRequest extends FormRequest
             'discoverySourceOther' => ['exclude_unless:discoverySource,other', 'required', 'string', 'max:120'],
             'highlights' => ['array', 'max:12'],
             'highlights.*' => ['string', 'max:80', 'distinct'],
-            'improvements' => ['array', 'max:12'],
+            'improvements' => ['required', 'array', 'min:1', 'max:12'],
             'improvements.*' => ['string', 'max:80', 'distinct'],
             'comment' => ['nullable', 'string', 'max:2000'],
             'allowPublish' => ['required', 'boolean'],
