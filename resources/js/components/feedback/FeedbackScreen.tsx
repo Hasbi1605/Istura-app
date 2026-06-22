@@ -355,7 +355,8 @@ export function FeedbackScreen({
         (discoverySource === "other" && discoverySourceOther.trim() === "") ||
         bookingEase === 0 ||
         service === 0 ||
-        guideQuality === 0
+        guideQuality === 0 ||
+        facilityComfort === 0
           ? visitStep.bubbleEmpty
           : visitStep.bubbleDone,
       image: ASSETS.mikyFeedback2,
@@ -364,7 +365,7 @@ export function FeedbackScreen({
       icon: Sparkles,
       bubbleTitle: detailsStep.bubbleTitle,
       bubble:
-        facilityComfort === 0 || recommend === null
+        recommend === null
           ? detailsStep.bubbleEmpty
           : highlights.length === 0
             ? detailsStep.bubbleHighlightsEmpty
@@ -389,9 +390,9 @@ export function FeedbackScreen({
       (discoverySource !== "other" || discoverySourceOther.trim().length > 0) &&
       bookingEase > 0 &&
       service > 0 &&
-      guideQuality > 0,
-    facilityComfort > 0 &&
-      recommend !== null &&
+      guideQuality > 0 &&
+      facilityComfort > 0,
+    recommend !== null &&
       improvements.length > 0,
     true,
   ];
@@ -764,18 +765,17 @@ export function FeedbackScreen({
                   labels={content.fields.ratingLabels}
                   onChange={setGuideQuality}
                 />
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="feedback-step">
                 <RatingField
                   label={content.fields.facilityComfortLabel}
                   value={facilityComfort}
                   labels={content.fields.ratingLabels}
                   onChange={setFacilityComfort}
                 />
+              </div>
+            )}
 
+            {step === 2 && (
+              <div className="feedback-step">
                 <fieldset className="recommend-field">
                   <legend>{content.fields.recommendLegend}</legend>
                   <div
