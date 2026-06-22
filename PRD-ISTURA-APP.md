@@ -68,7 +68,7 @@ WebSocket (Laravel Reverb).
 | FR-P4 | Sistem melakukan precheck identitas (NIK/WhatsApp) sebelum submit untuk mencegah pelanggaran batas booking aktif. |
 | FR-P5 | Pengunjung wajib mengunggah surat permohonan (PDF/JPG/JPEG/PNG, maks 5 MB). |
 | FR-P6 | Pengunjung menerima kode booking unik (format ISTURA-YYYY-NNNN) setelah submit berhasil. |
-| FR-P7 | Pengunjung dapat mengisi feedback setelah kunjungan berstatus Completed, via tautan token unik. |
+| FR-P7 | Peserta dapat mengisi feedback setelah kunjungan berstatus Completed, via tautan token unik, hingga kuota `group_size` booking terpenuhi dan periode 14 hari belum berakhir. |
 | FR-P8 | Draft form booking disimpan otomatis di browser (autosave) agar tidak hilang saat refresh. |
 
 ### 2.2 Functional Requirements — Admin
@@ -97,7 +97,7 @@ WebSocket (Laravel Reverb).
 |----|----------|-------------|
 | NFR-1 | Keamanan | NIK disimpan terenkripsi (Laravel Crypt); hanya `nik_masked` & `nik_hash` untuk tampilan/dedup. |
 | NFR-2 | Keamanan | Surat permohonan disimpan privat di `storage/app/private/booking-letters/`, diakses hanya via endpoint admin terautentikasi. |
-| NFR-3 | Keamanan | Endpoint publik dibatasi rate-limit (booking, feedback, schedule, login, 2FA). |
+| NFR-3 | Keamanan | Endpoint publik dibatasi rate-limit (booking, feedback view/submit, schedule, login, 2FA). |
 | NFR-4 | Keamanan | Session admin punya absolute lifetime (default 720 menit); auto-logout saat kedaluwarsa. |
 | NFR-5 | Keamanan | Security headers ditambahkan di seluruh respons (middleware AddSecurityHeaders). |
 | NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + `booking_slot_locks`; overbook hanya boleh melalui aksi admin eksplisit dan tercatat di audit. Booking publik H/H+1 hanya boleh lolos bila slot dibuka admin lewat override jadwal biasa dan tetap dikunci ulang saat submit. |
@@ -118,7 +118,7 @@ WebSocket (Laravel Reverb).
 | BR-6 | **Jumat, Sabtu, Minggu** dan **tanggal merah nasional** otomatis tertutup (Closed). |
 | BR-7 | Satu identitas (NIK atau WhatsApp) dibatasi jumlah booking aktif bersamaan (konfigurasi `PUBLIC_BOOKING_ACTIVE_IDENTITY_LIMIT`). |
 | BR-8 | Booking Pending kedaluwarsa otomatis bila jam kunjungan terlewat atau melewati TTL (default 48 jam, `PUBLIC_BOOKING_PENDING_TTL_HOURS`). |
-| BR-9 | Feedback hanya dapat dikirim sekali per booking dan hanya setelah status Completed. |
+| BR-9 | Feedback dapat dikirim hingga `group_size` kali per booking, hanya setelah status Completed, dan hanya sampai `feedback_expires_at` (default `completed_at + 14 hari`). |
 | BR-10 | Booking tidak dapat ditandai Completed sebelum tanggal kunjungan. |
 
 ---
@@ -176,11 +176,13 @@ Status default dihitung runtime; hanya override yang disimpan. Integrasi auto-sy
 merah nasional dari provider eksternal.
 
 ### 3.6 Feedback Kunjungan
-Setelah booking Completed, pengunjung menerima tautan feedback unik (token). Form menilai:
-rating keseluruhan, kemudahan booking, pelayanan, kualitas pemandu, kebersihan/kenyamanan
-fasilitas, rekomendasi (skala 1–5), riwayat kunjungan, sumber mengetahui ISTURA, highlight,
-area perbaikan, komentar, dan izin publikasi. Highlight dan area perbaikan masing-masing
-dibatasi maksimal 12 item dengan panjang 80 karakter per item. Admin melihat & mengekspor feedback.
+Setelah booking Completed, pengunjung menerima tautan feedback unik (token). Token berlaku
+14 hari sejak `completed_at` dan dapat dipakai hingga `group_size` peserta; setelah kuota
+terpenuhi atau periode berakhir, form ditutup. Form menilai kemudahan booking, pelayanan,
+kualitas pemandu, kebersihan/kenyamanan fasilitas, rekomendasi (skala 1–5), riwayat
+kunjungan, sumber mengetahui ISTURA, highlight, area perbaikan, komentar, dan izin
+publikasi. Highlight dan area perbaikan masing-masing dibatasi maksimal 12 item dengan
+panjang 80 karakter per item. Admin melihat & mengekspor feedback.
 
 ### 3.7 CMS (Content Management)
 Admin mengelola seluruh konten publik tanpa deploy: FAQ, ketentuan kunjungan/surat, kontak
@@ -274,12 +276,13 @@ Istura Open tidak dipindah hari dari admin karena link grup WhatsApp diberikan l
 ```
 1. Admin menandai booking Completed → menyalin pesan WA berisi tautan feedback unik.
 2. Pengunjung menerima pesan WA → membuka tautan feedback (berisi kode + token).
-3. Sistem memvalidasi kode + token + status Completed.
-   → Token salah / status belum Completed / feedback sudah ada → tampilkan error.
+3. Sistem memvalidasi kode + token + status Completed + periode 14 hari + sisa kuota.
+   → Token salah / status belum Completed / kuota penuh / periode berakhir → tampilkan error.
 4. Pengunjung mengisi wizard 4 langkah: penilaian inti; kualitas pemandu + fasilitas +
    riwayat kunjungan + sumber informasi; rekomendasi + highlight/perbaikan; komentar +
    izin publikasi.
-5. Pengunjung submit → sistem menyimpan feedback (sekali saja per booking) + audit log.
+5. Pengunjung submit → sistem menyimpan feedback (maksimal `group_size` kali per booking)
+   + audit log.
 6. Tampilkan konfirmasi terima kasih.
 ```
 
@@ -442,8 +445,8 @@ GET  /faqs | /contacts | /schedule | /hero | /letter | /site-content
 GET  /wa-templates | /wa-templates/{status}
 POST /bookings/precheck          # cek identitas (throttle:public-bookings)
 POST /bookings                   # submit booking (throttle:public-bookings)
-GET  /feedback/{code}            # ambil feedback by code+token (throttle:public-feedback)
-POST /feedback/{code}            # submit feedback (throttle:public-feedback)
+GET  /feedback/{code}            # validasi akses feedback by code+token (throttle:public-feedback-view)
+POST /feedback/{code}            # submit feedback (throttle:public-feedback-submit)
 ```
 
 **Auth** (`/api/auth`)
@@ -463,7 +466,7 @@ GET  /bookings | /bookings/{code}
 POST /bookings/{code}/{accept,reject,reschedule,reschedule/cancel,segments,complete}
 GET  /bookings/{code}/document
 GET  /schedule ; POST /schedule/slot ; DELETE /schedule/slot ; POST /schedule/range
-GET  /feedback | /feedback/{code}
+GET  /feedback | /feedback/{feedback}
 GET/PUT/POST /cms/{faqs,contacts,wa-templates,hero,letter,site-content}
 GET  /audit-logs
 # Super Admin only (middleware super-admin):
@@ -540,6 +543,7 @@ public.open                      # kuota/status/copy Istura Open
 | feedback_token | string(64) unique | token feedback |
 | submitted_at | timestamp | |
 | completed_at | timestamp nullable | |
+| feedback_expires_at | timestamp nullable | batas periode feedback (`completed_at + 14 hari`) |
 | rejected_at | timestamp nullable | |
 | expired_at | timestamp nullable | |
 | note | text nullable | catatan admin |
@@ -586,8 +590,8 @@ dihitung runtime.
 | Kolom | Tipe | Catatan |
 |-------|------|---------|
 | id | bigint PK | |
-| booking_id | FK → bookings nullable (unique) | |
-| code | string (index) | denormalisasi untuk export |
+| booking_id | FK → bookings nullable (index) | |
+| code | string (index, non-unique) | denormalisasi untuk export |
 | rating / booking_ease / service / recommend | tinyint | skala 1–5 |
 | guide_quality / facility_comfort | tinyint nullable | skala 1–5; null untuk data lama |
 | visited_before | bool nullable | pernah berkunjung ke Gedung Agung |
@@ -697,7 +701,7 @@ users 1───* audit_logs (actor)
 users 1───* trusted_devices
 users 1───* wa_templates (updated_by)
 bookings 1───* booking_slots
-bookings 1───1 feedbacks
+bookings 1───* feedbacks
 bookings *───* schedule (via date/time, dihitung ScheduleService)
 ```
 

@@ -1305,6 +1305,54 @@ class ScheduleSyncTest extends TestCase
         }
     }
 
+    public function test_admin_feedback_show_uses_submission_id_not_booking_code(): void
+    {
+        $this->actingAsAdmin();
+        $booking = $this->createBooking([
+            'status' => 'Completed',
+            'completed_at' => now(),
+        ]);
+
+        $first = Feedback::create([
+            'booking_id' => $booking->id,
+            'code' => $booking->code,
+            'rating' => 5,
+            'booking_ease' => 5,
+            'service' => 5,
+            'recommend' => 5,
+            'highlights' => [],
+            'improvements' => ['Area tunggu'],
+            'comment' => 'Feedback peserta pertama.',
+            'allow_publish' => false,
+            'submitted_at' => now()->subMinute(),
+        ]);
+
+        $second = Feedback::create([
+            'booking_id' => $booking->id,
+            'code' => $booking->code,
+            'rating' => 3,
+            'booking_ease' => 3,
+            'service' => 3,
+            'recommend' => 3,
+            'highlights' => [],
+            'improvements' => ['Alur masuk'],
+            'comment' => 'Feedback peserta kedua.',
+            'allow_publish' => true,
+            'submitted_at' => now(),
+        ]);
+
+        $this->getJson("/api/admin/feedback/{$second->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $second->id)
+            ->assertJsonPath('data.code', $booking->code)
+            ->assertJsonPath('data.comment', 'Feedback peserta kedua.');
+
+        $this->getJson("/api/admin/feedback/{$booking->code}")
+            ->assertNotFound();
+
+        $this->assertNotSame($first->id, $second->id);
+    }
+
     public function test_health_endpoint_reports_database_and_cache_status(): void
     {
         $this->getJson('/api/health')
@@ -2945,6 +2993,38 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_public_feedback_rate_limits_allow_same_ip_group_burst(): void
+    {
+        $booking = $this->createBooking([
+            'status' => 'Completed',
+            'feedback_token' => 'fb_group_burst_token',
+            'group_size' => 20,
+            'completed_at' => now(),
+        ]);
+        $booking->feedback_expires_at = now()->addDays(14);
+        $booking->save();
+        $ip = '203.0.113.88';
+
+        for ($i = 1; $i <= 11; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => $ip])
+                ->getJson("/api/public/feedback/{$booking->code}?token=fb_group_burst_token")
+                ->assertOk()
+                ->assertJsonPath('feedback.accessStatus', 'available');
+        }
+
+        for ($i = 1; $i <= 11; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => $ip])
+                ->postJson("/api/public/feedback/{$booking->code}", $this->publicFeedbackPayload([
+                    'token' => 'fb_group_burst_token',
+                    'visitorName' => "Peserta {$i}",
+                    'comment' => "Feedback dari peserta {$i}.",
+                ]))
+                ->assertCreated();
+        }
+
+        $this->assertSame(11, Feedback::where('booking_id', $booking->id)->count());
+    }
+
     public function test_public_feedback_show_requires_valid_token_and_returns_booking_status(): void
     {
         $booking = $this->createBooking([
@@ -3206,6 +3286,28 @@ class ScheduleSyncTest extends TestCase
             'time' => '08.00',
             'agreement' => '1',
             'document' => UploadedFile::fake()->create('surat.pdf', 100, 'application/pdf'),
+        ], $overrides);
+    }
+
+    private function publicFeedbackPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'token' => 'fb_test_token',
+            'visitorName' => 'Peserta',
+            'gender' => 'female',
+            'age' => 25,
+            'origin' => 'Yogyakarta',
+            'bookingEase' => 5,
+            'service' => 5,
+            'guideQuality' => 5,
+            'facilityComfort' => 5,
+            'recommend' => 5,
+            'visitedBefore' => false,
+            'discoverySource' => 'social_media',
+            'highlights' => ['Penyambutan'],
+            'improvements' => ['Waktu kunjungan'],
+            'comment' => 'Feedback peserta.',
+            'allowPublish' => true,
         ], $overrides);
     }
 

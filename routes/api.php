@@ -48,8 +48,8 @@ Route::prefix('public')->group(function () {
         Route::post('open-registrations/cancel', [PublicOpenRegistrationController::class, 'cancel']);
     });
 
-    Route::get('feedback/{code}', [PublicFeedbackController::class, 'show'])->middleware('throttle:public-feedback');
-    Route::post('feedback/{code}', [PublicFeedbackController::class, 'store'])->middleware('throttle:public-feedback');
+    Route::get('feedback/{code}', [PublicFeedbackController::class, 'show'])->middleware('throttle:public-feedback-view');
+    Route::post('feedback/{code}', [PublicFeedbackController::class, 'store'])->middleware('throttle:public-feedback-submit');
 });
 
 // ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
     Route::get('schedule', [ScheduleController::class, 'index']);
 
     Route::get('feedback', [AdminFeedbackController::class, 'index']);
-    Route::get('feedback/{code}', [AdminFeedbackController::class, 'show']);
+    Route::get('feedback/{feedback}', [AdminFeedbackController::class, 'show']);
 
     Route::get('cms/faqs', [CmsController::class, 'faqs']);
     Route::get('cms/contacts', [CmsController::class, 'contacts']);

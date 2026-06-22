@@ -57,8 +57,12 @@ class AppServiceProvider extends ServiceProvider
             'public-schedule:'.$request->ip(),
         ));
 
-        RateLimiter::for('public-feedback', fn (Request $request) => Limit::perMinute(10)->by(
-            'public-feedback:'.$request->ip(),
+        RateLimiter::for('public-feedback-view', fn (Request $request) => Limit::perMinute(120)->by(
+            'public-feedback-view:'.$request->ip(),
+        ));
+
+        RateLimiter::for('public-feedback-submit', fn (Request $request) => Limit::perMinute(120)->by(
+            'public-feedback-submit:'.$request->ip(),
         ));
     }
 }

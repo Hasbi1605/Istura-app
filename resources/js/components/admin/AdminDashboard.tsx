@@ -536,7 +536,7 @@ export function AdminDashboard({
               <ul className="admin-feedback-list">
                 {recentFeedbacks.map((feedback) => (
                   <li
-                    key={feedback.code}
+                    key={feedback.id}
                     className={feedback.rating <= 3 ? "is-low" : undefined}
                   >
                     <div className="admin-feedback-head">

@@ -49,7 +49,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
   - `DashboardController.php` — KPI dashboard (invokable).
   - `BookingController.php` — index/show/store booking admin + aksi: accept, reject, reschedule, cancelReschedule, segments, move langsung, complete, document.
   - `ScheduleController.php` — index, storeSlot, destroySlot, storeRange.
-  - `FeedbackController.php` — index/show.
+  - `FeedbackController.php` — index/show by submission id.
   - `CmsController.php` — CRUD faqs, contacts, wa-templates, hero, letter, site-content; upload aset landing (logo navbar/footer, background CTA, dan foto aktivitas) dalam satu save multipart.
   - `UserController.php` — manajemen admin (super-admin only).
   - `AuditLogController.php` — index audit log.
@@ -107,7 +107,7 @@ Pola: **thin controllers + Services**. Validasi di FormRequest, bentuk JSON di R
 - **Console/Commands**: `ExpirePendingBookings` (`bookings:expire-pending`), `SyncIndonesianHolidays` (`holidays:sync-id`), `PruneAuditLogs` (`audit:prune`), `CleanupLunchBreakSlots`, `ResetUserTwoFactor`.
 
 ### 2.5 Routes (`routes/`)
-- **api.php** — 3 grup: `public/*` (rate-limited; termasuk `open-event` + `open-registrations/*` throttle `public-open`), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`; READ routes terbuka untuk viewer, MUTATION routes dibungkus middleware `operator`, nested `super-admin` untuk users). `cms/site-content` menerima PUT JSON dan POST multipart untuk upload aset gambar landing.
+- **api.php** — 3 grup: `public/*` (rate-limited; termasuk `open-event` + `open-registrations/*` throttle `public-open`; feedback dipisah menjadi `public-feedback-view` dan `public-feedback-submit` agar rombongan satu IP tidak mudah kena limiter lama), `auth/*` (login throttle + sanctum), `admin/*` (middleware `admin-access`; READ routes terbuka untuk viewer, MUTATION routes dibungkus middleware `operator`, nested `super-admin` untuk users; detail feedback memakai id submission karena kode booking tidak unik pada multi-feedback). `cms/site-content` menerima PUT JSON dan POST multipart untuk upload aset gambar landing.
 - **web.php** — `/robots.txt`, `/sitemap.xml`, `/info/alur-kunjungan` (OG tags WA preview)
   lalu catch-all `/{any?}` → `view('app')` (SPA dengan metadata/JSON-LD dan konten
   ringkasan server-rendered untuk crawler). Root homepage memakai preview sosial khusus
@@ -178,7 +178,7 @@ Modul terpisah **Istura Open** sudah diimplementasi (lihat `IsturaOpen.md` & §2
 ### 5.1 Flow Publik
 - **Lihat info & jadwal:** load `/api/public/bootstrap` → telusuri seksi → kalender slot (Available/Held/Booked/Closed) → "Mulai Booking".
 - **Booking (8 langkah):** Selamat Datang → Contact Person (precheck NIK/WA) → Instansi (rincian pembagian + CTA diskusi awal bila >80) → Pilih Jadwal (card horizontal penyesuaian + CTA WhatsApp setelah jam dipilih) → Upload Surat (≤5MB) → Review → Pernyataan → Selesai (kode `ISTURA-YYYY-NNNN`, status Pending). Submit mengunci slot via transaksi DB + broadcast realtime ke admin; diskusi WhatsApp tidak mengubah slot sebelum admin melakukan override manual.
-- **Feedback:** admin klik "Tandai Selesai" → modal isi **link dokumentasi HTTPS opsional dari host yang disetujui** (`DOCUMENTATION_LINK_HOSTS`) → set Completed (link disimpan di `bookings.documentation_link`, `feedback_expires_at` diset `completed_at + 14 hari`) → kirim tautan WA (template `Completed` memakai variabel `{dokumentasi}` = link foto/dokumentasi & `{link}` = kuesioner/feedback kode+token) → **hingga `group_size` peserta** mengisi rating keseluruhan/booking/layanan, kualitas pemandu, kebersihan & fasilitas, riwayat kunjungan, sumber informasi, rekomendasi, aspek, dan komentar → submit **multi-feedback per booking** (1 token, maks `group_size` kali, expired 14 hari setelah completed). GET publik mengembalikan `accessStatus` (available/full/expired/not_completed), `submittedCount`, `limit`, `expiresAt` tanpa mengekspos feedback peserta lain. Dashboard "Tingkat Respons" = jumlah feedback / total kuota peserta completed.
+- **Feedback:** admin klik "Tandai Selesai" → modal isi **link dokumentasi HTTPS opsional dari host yang disetujui** (`DOCUMENTATION_LINK_HOSTS`) → set Completed (link disimpan di `bookings.documentation_link`, `feedback_expires_at` diset `completed_at + 14 hari`) → kirim tautan WA (template `Completed` memakai variabel `{dokumentasi}` = link foto/dokumentasi & `{link}` = kuesioner/feedback kode+token) → **hingga `group_size` peserta** mengisi rating keseluruhan/booking/layanan, kualitas pemandu, kebersihan & fasilitas, riwayat kunjungan, sumber informasi, rekomendasi, aspek, dan komentar → submit **multi-feedback per booking** (1 token, maks `group_size` kali, expired 14 hari setelah completed). GET publik mengembalikan `accessStatus` (available/full/expired/not_completed), `submittedCount`, `limit`, `expiresAt` tanpa mengekspos feedback peserta lain; limiter GET/POST feedback dipisah per aksi. Dashboard "Tingkat Respons" = jumlah feedback / total kuota peserta completed.
 
 ### 5.2 Flow Admin
 - **Login (+2FA):** email+password (progressive delay) → bila 2FA aktif tampil challenge TOTP/recovery + trusted device → dashboard (absolute session lifetime).

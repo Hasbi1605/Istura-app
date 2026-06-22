@@ -38,9 +38,8 @@ class FeedbackController extends Controller
         ]);
     }
 
-    public function show(string $code): JsonResponse
+    public function show(Feedback $feedback): JsonResponse
     {
-        $feedback = Feedback::where('code', $code)->firstOrFail();
         Gate::authorize('view', $feedback);
 
         return response()->json(['data' => (new FeedbackResource($feedback))->resolve()]);
