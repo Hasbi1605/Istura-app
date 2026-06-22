@@ -3429,6 +3429,12 @@ a {
   margin-top: 22px;
 }
 
+/* Steps 2-4 tanpa heading: beri napas atas dan gap lebih lega agar card proporsional */
+.wizard-content > .feedback-step:first-child {
+  margin-top: 8px;
+  gap: 28px;
+}
+
 .feedback-context {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3465,7 +3471,7 @@ a {
 
 .recommend-field {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   border: 0;
