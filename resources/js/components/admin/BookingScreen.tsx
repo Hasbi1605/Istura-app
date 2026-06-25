@@ -1896,12 +1896,10 @@ export function DeleteBookingModal({
           Booking <strong>{booking.code}</strong> akan dihapus bersama slot jadwal, surat permohonan, dan feedback terkait.
           Riwayat audit tetap tersimpan.
         </p>
-        <div className="booking-delete-summary">
-          <DetailItem label="Instansi" value={booking.institution} />
-          <DetailItem label="Status" value={BOOKING_STATUS_LABELS[booking.status]} />
-          <DetailItem label="Jadwal" value={bookingScheduleSummary(booking)} />
-          <DetailItem label="Feedback" value={`${booking.feedbackCount ?? 0} isian`} />
-          <DetailItem label="Surat" value={booking.hasDocument === false ? "Tidak ada" : booking.documentName} />
+        <div className="booking-delete-meta" aria-label="Ringkasan booking">
+          <strong>{booking.code}</strong>
+          <span>{booking.institution}</span>
+          <span>{BOOKING_STATUS_LABELS[booking.status]}</span>
         </div>
         <label className="form-field">
           <span>Ketik kode booking untuk konfirmasi</span>
@@ -1913,7 +1911,6 @@ export function DeleteBookingModal({
             autoComplete="off"
             disabled={busy}
           />
-          <small>Aksi ini tidak menurunkan atau memakai ulang nomor kode booking.</small>
         </label>
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions">

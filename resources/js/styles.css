@@ -8635,25 +8635,39 @@ a {
   overflow: auto;
 }
 
-.booking-delete-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0 0 18px;
+.booking-delete-modal .modal-close {
+  width: 36px;
+  height: 36px;
+  color: rgba(16, 24, 47, 0.72);
+  background: transparent;
+  border: 1px solid rgba(16, 24, 47, 0.12);
 }
 
-.booking-delete-summary .detail-item {
+.booking-delete-modal .modal-close:hover,
+.booking-delete-modal .modal-close:focus-visible {
+  color: var(--navy);
+  background: rgba(16, 24, 47, 0.04);
+}
+
+.booking-delete-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  margin: -4px 0 18px;
+  color: rgba(16, 24, 47, 0.68);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.booking-delete-meta > * {
   min-width: 0;
-  padding: 12px;
-  border: 1px solid rgba(16, 24, 47, 0.09);
-  border-radius: 8px;
-  background: rgba(16, 24, 47, 0.025);
 }
 
-@media (max-width: 640px) {
-  .booking-delete-summary {
-    grid-template-columns: 1fr;
-  }
+.booking-delete-meta > * + *::before {
+  content: "/";
+  margin-right: 10px;
+  color: rgba(16, 24, 47, 0.35);
 }
 
 .segment-modal-card {
