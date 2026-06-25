@@ -4,7 +4,10 @@ import {
   AlertTriangle,
   ArrowRight,
   BadgeCheck,
+  Ban,
   CalendarClock,
+  CalendarX,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -17,11 +20,13 @@ import {
   Loader2,
   Pencil,
   Plus,
+  RotateCcw,
   Rows3,
   Rows4,
   Search,
   Trash2,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import type {
@@ -1242,21 +1247,28 @@ export function BookingActions({
     );
   }
   const busy = Boolean(pendingLabel);
+  const isLocked = booking.status === "Rejected" || booking.status === "Completed";
+  const hasStatusDanger =
+    booking.status === "Pending" ||
+    booking.status === "Accepted" ||
+    booking.status === "Reschedule" ||
+    booking.status === "Expired";
+  const showDangerCluster = hasStatusDanger || Boolean(onDelete);
   return (
     <div className="admin-actions">
       {busy && <InlineSpinner label={pendingLabel ?? "Menyimpan perubahan"} />}
       {booking.status === "Pending" && (
         <>
           <button className="button button-accept" type="button" onClick={onAccept} disabled={busy}>
+            <Check size={16} aria-hidden="true" />
             Setujui
           </button>
-          <button className="button button-danger" type="button" onClick={onReject} disabled={busy}>
-            Tolak
-          </button>
           <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
+            <RotateCcw size={16} aria-hidden="true" />
             Jadwalkan ulang
           </button>
           <button className="button button-outline" type="button" onClick={onEditSegments} disabled={busy}>
+            <Users size={16} aria-hidden="true" />
             Atur kloter
           </button>
           <button className="button button-outline" type="button" onClick={onMoveDirectly} disabled={busy}>
@@ -1275,20 +1287,19 @@ export function BookingActions({
             title="Tandai kunjungan selesai dan kirim link feedback via WhatsApp"
           >
             <BadgeCheck size={16} aria-hidden="true" />
-            Tandai Selesai
+            Tandai selesai
           </button>
           <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
+            <RotateCcw size={16} aria-hidden="true" />
             Jadwalkan ulang
           </button>
           <button className="button button-outline" type="button" onClick={onEditSegments} disabled={busy}>
+            <Users size={16} aria-hidden="true" />
             Atur kloter
           </button>
           <button className="button button-outline" type="button" onClick={onMoveDirectly} disabled={busy}>
             <CalendarClock size={16} aria-hidden="true" />
             Pindah langsung
-          </button>
-          <button className="button button-danger" type="button" onClick={onReject} disabled={busy}>
-            Batalkan Jadwal
           </button>
         </>
       )}
@@ -1301,6 +1312,7 @@ export function BookingActions({
             disabled={busy}
             title="User setuju jadwal baru, kunci slot dan kirim WhatsApp konfirmasi"
           >
+            <Check size={16} aria-hidden="true" />
             User setuju, konfirmasi
           </button>
           <button
@@ -1310,44 +1322,23 @@ export function BookingActions({
             disabled={busy}
             title="Tawarkan jadwal alternatif lain"
           >
+            <RotateCcw size={16} aria-hidden="true" />
             Tawarkan jadwal lain
-          </button>
-          <button
-            className="button button-danger"
-            type="button"
-            onClick={onCancelReschedule}
-            disabled={busy}
-            title="User menolak usulan, jadwal awal tetap berlaku"
-          >
-            User menolak usulan
-          </button>
-          <button
-            className="button button-danger"
-            type="button"
-            onClick={onRejectRescheduledBooking}
-            disabled={busy}
-            title="Batalkan booking dan minta user booking ulang"
-          >
-            Batalkan booking
           </button>
         </>
       )}
       {booking.status === "Expired" && (
-        <>
-          <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
-            Tawarkan jadwal baru
-          </button>
-          <button className="button button-danger" type="button" onClick={onReject} disabled={busy}>
-            Tutup kasus
-          </button>
-        </>
+        <button className="button button-outline" type="button" onClick={onReschedule} disabled={busy}>
+          <RotateCcw size={16} aria-hidden="true" />
+          Tawarkan jadwal baru
+        </button>
       )}
-      {(booking.status === "Rejected" || booking.status === "Completed") && (
+      {isLocked && (
         <span className="admin-actions-locked">Status: {BOOKING_STATUS_LABELS[booking.status]}</span>
       )}
       {onEditContact && (
         <button
-          className="button button-ghost"
+          className="button button-outline"
           type="button"
           onClick={onEditContact}
           disabled={busy}
@@ -1357,17 +1348,63 @@ export function BookingActions({
           Edit data
         </button>
       )}
-      {onDelete && (
-        <button
-          className="button button-danger"
-          type="button"
-          onClick={onDelete}
-          disabled={busy}
-          title="Hapus permanen booking beserta slot, surat, dan feedback terkait"
-        >
-          <Trash2 size={16} aria-hidden="true" />
-          Hapus booking
-        </button>
+      {showDangerCluster && (
+        <div className="admin-actions-danger">
+          {booking.status === "Pending" && (
+            <button className="button button-danger-outline" type="button" onClick={onReject} disabled={busy}>
+              <X size={16} aria-hidden="true" />
+              Tolak
+            </button>
+          )}
+          {booking.status === "Accepted" && (
+            <button className="button button-danger-outline" type="button" onClick={onReject} disabled={busy}>
+              <CalendarX size={16} aria-hidden="true" />
+              Batalkan jadwal
+            </button>
+          )}
+          {booking.status === "Reschedule" && (
+            <>
+              <button
+                className="button button-danger-outline"
+                type="button"
+                onClick={onCancelReschedule}
+                disabled={busy}
+                title="User menolak usulan, jadwal awal tetap berlaku"
+              >
+                <X size={16} aria-hidden="true" />
+                User menolak usulan
+              </button>
+              <button
+                className="button button-danger-outline"
+                type="button"
+                onClick={onRejectRescheduledBooking}
+                disabled={busy}
+                title="Batalkan booking dan minta user booking ulang"
+              >
+                <Ban size={16} aria-hidden="true" />
+                Batalkan booking
+              </button>
+            </>
+          )}
+          {booking.status === "Expired" && (
+            <button className="button button-danger-outline" type="button" onClick={onReject} disabled={busy}>
+              <Ban size={16} aria-hidden="true" />
+              Tutup kasus
+            </button>
+          )}
+          {onDelete && (
+            <button
+              className="button button-danger"
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              title="Hapus permanen booking beserta slot, surat, dan feedback terkait"
+            >
+              <Trash2 size={16} aria-hidden="true" />
+              Hapus booking
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

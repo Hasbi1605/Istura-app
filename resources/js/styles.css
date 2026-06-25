@@ -363,6 +363,19 @@ a {
   background: var(--red);
 }
 
+.button-danger-outline {
+  color: var(--red);
+  background: var(--white);
+  border-color: rgba(161, 61, 54, 0.4);
+}
+
+.button-danger-outline:hover,
+.button-danger-outline:focus-visible {
+  border-color: var(--red);
+  background: rgba(161, 61, 54, 0.08);
+  color: var(--red);
+}
+
 .hero-section {
   position: relative;
   display: grid;
@@ -4727,6 +4740,14 @@ a {
   min-height: 36px;
   padding: 0 14px;
   font-size: 0.85rem;
+}
+
+.admin-shell-content .admin-actions .admin-actions-danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .admin-actions-locked {
