@@ -27,6 +27,11 @@ class BookingPolicy
         return $user->isOperator();
     }
 
+    public function delete(User $user, Booking $booking): bool
+    {
+        return $user->isOperator();
+    }
+
     public function downloadDocument(User $user, Booking $booking): bool
     {
         return $user->isAdmin();

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\BookingSlot;
+use App\Models\Feedback;
 use App\Models\User;
 use App\Services\ScheduleService;
 use App\Services\TwoFactorService;
@@ -148,6 +149,94 @@ class AdminBookingFlexibilityTest extends TestCase
         $this->assertNotNull($booking->document_path);
         $this->assertStringContainsString('Surat permohonan dilampirkan admin', (string) $booking->note);
         Storage::disk('local')->assertExists($booking->document_path);
+    }
+
+    public function test_admin_can_permanently_delete_booking_with_owned_records(): void
+    {
+        $this->actingAsAdmin();
+        $booking = $this->createBookingWithSlots('ISTURA-2026-DELETE', '2026-06-17', '08.00', 25, 'Completed');
+        $booking->forceFill([
+            'document_path' => 'booking-letters/delete-test.pdf',
+            'document_original_name' => 'delete-test.pdf',
+        ])->save();
+        Storage::disk('local')->put('booking-letters/delete-test.pdf', 'PDF');
+        Feedback::create([
+            'booking_id' => $booking->id,
+            'code' => $booking->code,
+            'visitor_name' => 'Peserta',
+            'gender' => 'female',
+            'age' => 24,
+            'origin' => 'Yogyakarta',
+            'rating' => 5,
+            'booking_ease' => 5,
+            'service' => 5,
+            'guide_quality' => 5,
+            'facility_comfort' => 5,
+            'recommend' => 5,
+            'visited_before' => false,
+            'discovery_source' => 'social_media',
+            'highlights' => ['Penyambutan'],
+            'improvements' => ['Waktu kunjungan'],
+            'comment' => 'Baik.',
+            'allow_publish' => true,
+            'submitted_at' => now(),
+        ]);
+
+        $this->deleteJson("/api/admin/bookings/{$booking->code}", [
+            'confirmCode' => 'SALAH',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('confirmCode');
+
+        $this->deleteJson("/api/admin/bookings/{$booking->code}", [
+            'confirmCode' => $booking->code,
+        ])->assertOk()
+            ->assertJsonPath('data.deleted', true)
+            ->assertJsonPath('data.code', $booking->code);
+
+        $this->assertDatabaseMissing('bookings', ['id' => $booking->id]);
+        $this->assertDatabaseMissing('booking_slots', ['booking_id' => $booking->id]);
+        $this->assertDatabaseMissing('feedbacks', ['booking_id' => $booking->id]);
+        $this->assertDatabaseHas('audit_logs', [
+            'target_id' => $booking->code,
+            'action' => "Menghapus permanen booking {$booking->code}",
+        ]);
+        Storage::disk('local')->assertMissing('booking-letters/delete-test.pdf');
+    }
+
+    public function test_hard_deleted_booking_code_is_not_reused(): void
+    {
+        $this->actingAsAdmin();
+
+        $first = $this->postJson('/api/admin/bookings', [
+            'contactName' => 'Tamu Pertama',
+            'nik' => '7234567890123456',
+            'whatsapp' => '081234567897',
+            'institution' => 'Rombongan Pertama',
+            'groupSize' => 25,
+            'date' => '2026-06-16',
+            'time' => '13.00',
+            'status' => 'Pending',
+            'confirmManualBooking' => true,
+        ])->assertCreated()
+            ->assertJsonPath('data.code', 'ISTURA-2026-0000')
+            ->json('data');
+
+        $this->deleteJson("/api/admin/bookings/{$first['code']}", [
+            'confirmCode' => $first['code'],
+        ])->assertOk();
+
+        $this->postJson('/api/admin/bookings', [
+            'contactName' => 'Tamu Kedua',
+            'nik' => '8234567890123456',
+            'whatsapp' => '081234567898',
+            'institution' => 'Rombongan Kedua',
+            'groupSize' => 25,
+            'date' => '2026-06-16',
+            'time' => '13.00',
+            'status' => 'Pending',
+            'confirmManualBooking' => true,
+        ])->assertCreated()
+            ->assertJsonPath('data.code', 'ISTURA-2026-0001');
     }
 
     public function test_admin_manual_booking_can_use_custom_kloter_segments(): void

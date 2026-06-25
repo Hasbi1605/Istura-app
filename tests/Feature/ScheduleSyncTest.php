@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Events\BookingCreated;
+use App\Events\BookingDeleted;
 use App\Events\BookingStatusChanged;
 use App\Events\FeedbackSubmitted;
 use App\Events\ScheduleUpdated;
@@ -62,7 +63,7 @@ class ScheduleSyncTest extends TestCase
 
     public function test_realtime_events_are_broadcast_after_commit_and_rescued(): void
     {
-        foreach ([BookingCreated::class, BookingStatusChanged::class, FeedbackSubmitted::class] as $eventClass) {
+        foreach ([BookingCreated::class, BookingStatusChanged::class, BookingDeleted::class, FeedbackSubmitted::class] as $eventClass) {
             $interfaces = class_implements($eventClass) ?: [];
 
             $this->assertContains(ShouldBroadcast::class, $interfaces);
@@ -77,6 +78,7 @@ class ScheduleSyncTest extends TestCase
 
         $this->assertTrue((new BookingCreated(new Booking))->afterCommit);
         $this->assertTrue((new BookingStatusChanged(new Booking, 'Pending'))->afterCommit);
+        $this->assertTrue((new BookingDeleted('ISTURA-2026-TEST'))->afterCommit);
         $this->assertTrue((new FeedbackSubmitted(new Feedback))->afterCommit);
         $this->assertTrue((new ScheduleUpdated('2026-06-01', '2026-06-01'))->afterCommit);
     }

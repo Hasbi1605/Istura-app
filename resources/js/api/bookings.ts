@@ -194,6 +194,12 @@ export const updateBookingContact = (code: string, payload: UpdateBookingContact
     body: payload,
   }).then((r) => ({ booking: r.data, warning: r.warning }));
 
+export const deleteBooking = (code: string, confirmCode: string) =>
+  api<{ data: { deleted: boolean; code: string } }>(`/api/admin/bookings/${encodeURIComponent(code)}`, {
+    method: "DELETE",
+    body: { confirmCode },
+  }).then((r) => r.data);
+
 export const submitPublicBooking = (form: FormData) =>
   api<{ data: ApiBooking }>("/api/public/bookings", {
     method: "POST",

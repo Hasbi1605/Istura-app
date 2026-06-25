@@ -70,6 +70,7 @@ import {
   updateBookingSegments as apiUpdateBookingSegments,
   moveBookingDirectly as apiMoveBookingDirectly,
   updateBookingContact as apiUpdateBookingContact,
+  deleteBooking as apiDeleteBooking,
 } from "../../api/bookings";
 import { fetchAdminSchedule } from "../../api/schedule";
 import { apiBookingToLocal, apiVisitDayToLocal } from "../../api/adapters";
@@ -122,6 +123,7 @@ export function AdminScreen({
 	const [segmentModal, setSegmentModal] = useState<{ booking: Booking } | null>(null);
 	const [moveModal, setMoveModal] = useState<{ booking: Booking } | null>(null);
 	const [editModal, setEditModal] = useState<{ booking: Booking } | null>(null);
+	const [deleteModal, setDeleteModal] = useState<{ booking: Booking } | null>(null);
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [creatingBooking, setCreatingBooking] = useState(false);
 	const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
@@ -441,6 +443,20 @@ export function AdminScreen({
 		});
 	};
 
+	const handleDeleteBooking = (booking: Booking, confirmCode: string) => {
+		void runBookingAction(booking, "Menghapus booking...", async () => {
+			const deleted = await apiDeleteBooking(booking.code, confirmCode);
+			const remaining = bookings.filter((item) => item.code !== deleted.code);
+			const nextVisible = visibleBookings.find((item) => item.code !== deleted.code);
+			onBookingsChange(remaining);
+			setSelectedCode(nextVisible?.code ?? remaining[0]?.code ?? "");
+			await refreshSchedulesFromApi();
+			setDeleteModal(null);
+			setShowSlideOver(false);
+			setActionNotice(`Booking ${deleted.code} dihapus permanen.`);
+		});
+	};
+
 	const handleCreateAdminBooking = async (payload: Parameters<typeof apiCreateAdminBooking>[0]) => {
 		if (creatingBooking) return;
 		setCreatingBooking(true);
@@ -716,6 +732,7 @@ export function AdminScreen({
                 onRejectRescheduledBooking={() => handleRejectRescheduledBooking(selectedBooking)}
                 onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
                 onEditContact={() => setEditModal({ booking: selectedBooking })}
+                onDelete={() => setDeleteModal({ booking: selectedBooking })}
                 onPreviewDocument={(booking) => setPreviewBooking(booking)}
                 onDownloadDocument={handleDownloadDocument}
                 downloadingDocument={downloadingCode === selectedBooking.code}
@@ -772,6 +789,7 @@ export function AdminScreen({
           onRejectRescheduledBooking={() => handleRejectRescheduledBooking(selectedBooking)}
           onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
           onEditContact={() => setEditModal({ booking: selectedBooking })}
+          onDelete={() => setDeleteModal({ booking: selectedBooking })}
           onPreviewDocument={(booking) => setPreviewBooking(booking)}
           onDownloadDocument={handleDownloadDocument}
           downloadingDocument={downloadingCode === selectedBooking.code}
@@ -819,6 +837,16 @@ export function AdminScreen({
 		  error={actionError}
 		  onClose={() => setEditModal(null)}
 		  onConfirm={handleEditContact}
+		/>
+	  )}
+
+	  {deleteModal && (
+		<DeleteBookingModal
+		  booking={deleteModal.booking}
+		  busy={pendingAction?.code === deleteModal.booking.code}
+		  error={actionError}
+		  onClose={() => setDeleteModal(null)}
+		  onConfirm={handleDeleteBooking}
 		/>
 	  )}
 
@@ -1053,6 +1081,7 @@ export function BookingDetailPanel({
   onRejectRescheduledBooking,
   onResendReschedule,
   onEditContact,
+  onDelete,
   onPreviewDocument,
   onDownloadDocument,
   downloadingDocument = false,
@@ -1071,6 +1100,7 @@ export function BookingDetailPanel({
   onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
   onEditContact?: () => void;
+  onDelete?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
   downloadingDocument?: boolean;
@@ -1127,6 +1157,7 @@ export function BookingDetailPanel({
         onRejectRescheduledBooking={onRejectRescheduledBooking}
         onResendReschedule={onResendReschedule}
         onEditContact={onEditContact}
+        onDelete={onDelete}
         readOnly={readOnly}
       />
     </div>
@@ -1184,6 +1215,7 @@ export function BookingActions({
   onRejectRescheduledBooking,
   onResendReschedule,
   onEditContact,
+  onDelete,
   readOnly = false,
 }: {
   booking: Booking;
@@ -1199,6 +1231,7 @@ export function BookingActions({
   onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
   onEditContact?: () => void;
+  onDelete?: () => void;
   readOnly?: boolean;
 }) {
   if (readOnly) {
@@ -1322,6 +1355,18 @@ export function BookingActions({
         >
           <Pencil size={16} aria-hidden="true" />
           Edit data
+        </button>
+      )}
+      {onDelete && (
+        <button
+          className="button button-danger"
+          type="button"
+          onClick={onDelete}
+          disabled={busy}
+          title="Hapus permanen booking beserta slot, surat, dan feedback terkait"
+        >
+          <Trash2 size={16} aria-hidden="true" />
+          Hapus booking
         </button>
       )}
     </div>
@@ -1502,6 +1547,7 @@ export function BookingSlideOver({
   onRejectRescheduledBooking,
   onResendReschedule,
   onEditContact,
+  onDelete,
   onPreviewDocument,
   onDownloadDocument,
   downloadingDocument = false,
@@ -1521,6 +1567,7 @@ export function BookingSlideOver({
   onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
   onEditContact?: () => void;
+  onDelete?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
   downloadingDocument?: boolean;
@@ -1596,6 +1643,7 @@ export function BookingSlideOver({
           onRejectRescheduledBooking={onRejectRescheduledBooking}
           onResendReschedule={onResendReschedule}
           onEditContact={onEditContact}
+          onDelete={onDelete}
           readOnly={readOnly}
         />
       </aside>
@@ -1810,6 +1858,80 @@ function useModalEscape(onClose: () => void, busy = false) {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [busy, onClose]);
+}
+
+export function DeleteBookingModal({
+  booking,
+  busy,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  booking: Booking;
+  busy?: boolean;
+  error?: string;
+  onClose: () => void;
+  onConfirm: (booking: Booking, confirmCode: string) => void;
+}) {
+  const [confirmCode, setConfirmCode] = useState("");
+  const expectedCode = booking.code;
+  const canDelete = confirmCode.trim() === expectedCode;
+
+  useModalEscape(onClose, busy);
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="modal-card booking-delete-modal" role="dialog" aria-modal="true" aria-label="Hapus booking permanen">
+        <button
+          className="modal-close"
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup modal"
+          disabled={busy}
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
+        <h2>Hapus booking permanen</h2>
+        <p>
+          Booking <strong>{booking.code}</strong> akan dihapus bersama slot jadwal, surat permohonan, dan feedback terkait.
+          Riwayat audit tetap tersimpan.
+        </p>
+        <div className="booking-delete-summary">
+          <DetailItem label="Instansi" value={booking.institution} />
+          <DetailItem label="Status" value={BOOKING_STATUS_LABELS[booking.status]} />
+          <DetailItem label="Jadwal" value={bookingScheduleSummary(booking)} />
+          <DetailItem label="Feedback" value={`${booking.feedbackCount ?? 0} isian`} />
+          <DetailItem label="Surat" value={booking.hasDocument === false ? "Tidak ada" : booking.documentName} />
+        </div>
+        <label className="form-field">
+          <span>Ketik kode booking untuk konfirmasi</span>
+          <input
+            type="text"
+            value={confirmCode}
+            onChange={(event) => setConfirmCode(event.target.value)}
+            placeholder={expectedCode}
+            autoComplete="off"
+            disabled={busy}
+          />
+          <small>Aksi ini tidak menurunkan atau memakai ulang nomor kode booking.</small>
+        </label>
+        {error && <strong className="form-message form-message--error">{error}</strong>}
+        <div className="modal-actions">
+          <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>
+            Batal
+          </button>
+          <button
+            className="button button-danger"
+            type="button"
+            disabled={busy || !canDelete}
+            onClick={() => onConfirm(booking, confirmCode)}
+          >
+            {busy ? <ButtonSpinner label="Menghapus booking..." /> : "Hapus permanen"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function candidateSlots(day: VisitDay | undefined, startTime: string, groupSizeOrSegments: number | number[]) {

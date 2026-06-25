@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\BookingCreated;
+use App\Events\BookingDeleted;
 use App\Events\BookingStatusChanged;
 use App\Events\ScheduleUpdated;
 use App\Models\Booking;
@@ -598,6 +599,73 @@ class BookingService
 
             return $booking->fresh()->load('slots');
         });
+    }
+
+    /**
+     * Permanently removes a booking and its owned operational data.
+     *
+     * Audit logs intentionally remain as immutable history keyed by booking
+     * code, and booking_sequences is not changed so deleted codes are never
+     * reused.
+     *
+     * @return array{deleted:bool,code:string}
+     */
+    public function deletePermanently(Booking $booking, User $actor, string $confirmCode, ?Request $request = null): array
+    {
+        if (trim($confirmCode) !== $booking->code) {
+            throw ValidationException::withMessages([
+                'confirmCode' => ["Ketik kode booking {$booking->code} untuk menghapus permanen."],
+            ]);
+        }
+
+        $result = DB::transaction(function () use ($booking, $actor, $request) {
+            $locked = Booking::with('slots')->withCount('feedbacks')->whereKey($booking->id)->lockForUpdate()->firstOrFail();
+            $dates = $this->scheduleDatesForBooking($locked);
+            $documentPath = $locked->document_path;
+            $slotCount = $locked->slots->count();
+            $feedbackCount = (int) ($locked->feedbacks_count ?? $locked->feedbacks()->count());
+            $code = $locked->code;
+
+            $this->logAudit($actor, "Menghapus permanen booking {$code}", $locked, [
+                'source' => $locked->source,
+                'date' => $locked->date?->toDateString(),
+                'time' => $locked->time,
+                'group_size' => $locked->group_size,
+                'contact_name' => $locked->contact_name,
+                'institution' => $locked->institution,
+                'nik_masked' => $locked->nik_masked,
+                'slots_deleted' => $slotCount,
+                'feedbacks_deleted' => $feedbackCount,
+                'document_deleted' => (bool) $documentPath,
+                'document_original_name' => $locked->document_original_name,
+            ], $request);
+
+            $locked->feedbacks()->delete();
+            $locked->slots()->delete();
+            $locked->delete();
+
+            return [
+                'code' => $code,
+                'dates' => $dates,
+                'document_path' => $documentPath,
+            ];
+        });
+
+        if ($result['document_path']) {
+            Storage::disk('local')->delete($result['document_path']);
+        }
+
+        PublicCache::bumpScheduleVersion();
+        rescue(fn () => BookingDeleted::dispatch($result['code'], $result['dates']));
+        if ($result['dates'] !== []) {
+            $dates = collect($result['dates'])->sort()->values();
+            rescue(fn () => ScheduleUpdated::dispatch($dates->first(), $dates->last()));
+        }
+
+        return [
+            'deleted' => true,
+            'code' => $result['code'],
+        ];
     }
 
     private function transitionTo(

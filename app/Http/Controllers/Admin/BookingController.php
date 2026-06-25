@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\DeleteBookingRequest;
 use App\Http\Requests\Admin\IndexBookingsRequest;
 use App\Http\Requests\Admin\MoveBookingDirectlyRequest;
 use App\Http\Requests\Admin\RescheduleBookingRequest;
@@ -183,6 +184,21 @@ class BookingController extends Controller
         );
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
+    }
+
+    public function destroy(DeleteBookingRequest $request, string $code): JsonResponse
+    {
+        $booking = Booking::with('slots')->withCount('feedbacks')->where('code', $code)->firstOrFail();
+        Gate::authorize('delete', $booking);
+
+        $deleted = $this->bookings->deletePermanently(
+            $booking,
+            $request->user(),
+            $request->validated('confirmCode'),
+            $request,
+        );
+
+        return response()->json(['data' => $deleted]);
     }
 
     public function document(Request $request, string $code): StreamedResponse|BinaryFileResponse

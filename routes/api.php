@@ -118,6 +118,7 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
         Route::post('bookings/{code}/segments', [AdminBookingController::class, 'segments']);
         Route::post('bookings/{code}/move', [AdminBookingController::class, 'move']);
         Route::post('bookings/{code}/complete', [AdminBookingController::class, 'complete']);
+        Route::delete('bookings/{code}', [AdminBookingController::class, 'destroy']);
 
         Route::post('schedule/slot', [ScheduleController::class, 'storeSlot']);
         Route::delete('schedule/slot', [ScheduleController::class, 'destroySlot']);

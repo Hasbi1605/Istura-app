@@ -737,6 +737,15 @@ export function useIsturaData(): IsturaData {
 
       refreshSchedule(dates[0], dates[dates.length - 1]);
     };
+    const refreshScheduleDates = (dates?: string[]) => {
+      const sorted = (dates ?? []).filter(Boolean).sort();
+      if (sorted.length === 0) {
+        refreshSchedule();
+        return;
+      }
+
+      refreshSchedule(sorted[0], sorted[sorted.length - 1]);
+    };
     const upsertBooking = (booking: Booking) => {
       setBookings((prev) => {
         const idx = prev.findIndex((b) => b.code === booking.code);
@@ -767,6 +776,11 @@ export function useIsturaData(): IsturaData {
       hydrateAdminBooking(payload);
       refreshBookingSchedule(fallback);
     };
+    const onDeleted = (payload: { code: string; dates?: string[] }) => {
+      setBookings((prev) => prev.filter((booking) => booking.code !== payload.code));
+      setFeedbacks((prev) => prev.filter((feedback) => feedback.code !== payload.code));
+      refreshScheduleDates(payload.dates);
+    };
     const onFeedback = (payload: { feedback: ApiFeedback }) => {
       setFeedbacks((prev) => {
         const next = apiFeedbackToLocal(payload.feedback);
@@ -795,11 +809,13 @@ export function useIsturaData(): IsturaData {
       });
       channel.listen(".booking.created", onCreated);
       channel.listen(".booking.status-changed", onChanged);
+      channel.listen(".booking.deleted", onDeleted);
       channel.listen(".feedback.submitted", onFeedback);
       cleanup = () => {
         try {
           channel.stopListening(".booking.created");
           channel.stopListening(".booking.status-changed");
+          channel.stopListening(".booking.deleted");
           channel.stopListening(".feedback.submitted");
           echo.leave(`private-${ADMIN_BOOKINGS_CHANNEL}`);
         } catch {

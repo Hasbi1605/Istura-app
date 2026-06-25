@@ -90,6 +90,7 @@ WebSocket (Laravel Reverb).
 | FR-A13 | **Super Admin** dapat mengelola akun admin (buat, ubah, hapus). |
 | FR-A14 | Admin dapat melihat riwayat aktivitas (audit log) dengan filter. |
 | FR-A15 | Admin dapat melihat H/H+1 di halaman jadwal admin dalam kondisi default tertutup, lalu membuka/menutup slot tersebut dengan toggle jadwal biasa. Slot H/H+1 yang dibuka admin tampil ke publik selama jam belum lewat. Admin juga dapat membuat booking tamu khusus dengan surat permohonan opsional serta memindahkan booking aktif langsung ke jadwal H/H+1 setelah persetujuan tamu. |
+| FR-A16 | Admin dapat menghapus permanen booking di semua status melalui modal konfirmasi ketik kode. Sistem menghapus booking, slot, surat, dan feedback terkait; audit log tetap tersimpan dan nomor kode booking tidak dipakai ulang. |
 
 ### 2.3 Non-Functional Requirements
 
@@ -120,6 +121,7 @@ WebSocket (Laravel Reverb).
 | BR-8 | Booking Pending kedaluwarsa otomatis hanya bila jam kunjungan sudah terlewat. Tidak ada TTL umur pengajuan; Pending tetap menahan slot sampai admin memproses atau jadwalnya lewat. |
 | BR-9 | Feedback dapat dikirim hingga `group_size` kali per booking, hanya setelah status Completed, dan hanya sampai `feedback_expires_at` (default `completed_at + 14 hari`). |
 | BR-10 | Booking tidak dapat ditandai Completed sebelum tanggal kunjungan. |
+| BR-11 | Hard delete booking tidak menurunkan `booking_sequences`; kode yang sudah pernah dibuat menjadi jejak audit dan tidak boleh dipakai ulang meskipun bookingnya dihapus. |
 
 ---
 
@@ -159,8 +161,9 @@ dapat dibuat tanpa surat atau dengan surat permohonan opsional, tetap mengenkrip
 menampilkan label tanggal ringkas berdasarkan slot kosong/penuh/tidak ada jam operasional,
 menyediakan mode kloter otomatis atau manual pada tanggal yang sama, menampilkan izin gabung
 slot terisi sebagai item konfirmasi ringkas, dan menyimpan langsung tanpa membuka WhatsApp otomatis. Tawarkan Jadwal
-Lain hanya menampilkan tanggal yang benar-benar memiliki slot tersedia untuk ditawarkan ke tamu. Aksi lifecycle
-utama tetap menghasilkan pesan WhatsApp siap kirim dan audit.
+Lain hanya menampilkan tanggal yang benar-benar memiliki slot tersedia untuk ditawarkan ke tamu. Hard delete booking
+tersedia untuk semua status melalui modal konfirmasi ketik kode; aksi ini membersihkan slot, surat, dan feedback terkait,
+tetapi mempertahankan audit log dan tidak memakai ulang kode booking. Aksi lifecycle utama tetap menghasilkan pesan WhatsApp siap kirim dan audit.
 
 ### 3.4 Manajemen Jadwal H/H+1 (Admin)
 Admin melihat hari H/H+1 di Jadwal Kunjungan dalam kondisi default tertutup untuk publik.
@@ -431,7 +434,7 @@ Closed         → slot tertutup (default akhir pekan/libur, atau override admin
   `BookingCodeGenerator`, `AuditLogger`). Controller hanya orkestrasi.
 - **FormRequest validation:** validasi per-action di `app/Http/Requests`.
 - **API Resources:** bentuk JSON camelCase (mirror tipe React) di `app/Http/Resources`.
-- **Events & Broadcasting:** `BookingCreated`, `BookingStatusChanged`, `FeedbackSubmitted`,
+- **Events & Broadcasting:** `BookingCreated`, `BookingStatusChanged`, `BookingDeleted`, `FeedbackSubmitted`,
   `ScheduleUpdated` disiarkan via Reverb.
 - **Caching publik:** `PublicCache` me-remember jadwal & konten CMS dengan TTL + versi cache
   yang di-bump saat data berubah.
@@ -464,6 +467,7 @@ GET  /two-factor/challenge
 GET  /dashboard
 GET  /bookings | /bookings/{code}
 POST /bookings/{code}/{accept,reject,reschedule,reschedule/cancel,segments,complete}
+DELETE /bookings/{code}
 GET  /bookings/{code}/document
 GET  /schedule ; POST /schedule/slot ; DELETE /schedule/slot ; POST /schedule/range
 GET  /feedback | /feedback/{feedback}
@@ -788,6 +792,7 @@ bookings *───* schedule (via date/time, dihitung ScheduleService)
 | Reject booking | `/api/admin/bookings/{code}/reject` | POST | Admin |
 | Reschedule booking | `/api/admin/bookings/{code}/reschedule` | POST | Admin |
 | Complete booking | `/api/admin/bookings/{code}/complete` | POST | Admin |
+| Hapus booking permanen | `/api/admin/bookings/{code}` | DELETE | Admin |
 | Tutup rentang jadwal | `/api/admin/schedule/range` | POST | Admin |
 | Lihat event Istura Open aktif | `/api/public/open-event` | GET | Publik |
 | Daftar Istura Open | `/api/public/open-registrations` | POST | Publik |
