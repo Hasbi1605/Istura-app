@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\OpenEventController;
+use App\Http\Controllers\Admin\OpenFeedbackController as AdminOpenFeedbackController;
 use App\Http\Controllers\Admin\OpenRegistrationController as AdminOpenRegistrationController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Public\BookingController as PublicBookingController;
 use App\Http\Controllers\Public\ContentController;
 use App\Http\Controllers\Public\FeedbackController as PublicFeedbackController;
+use App\Http\Controllers\Public\OpenFeedbackController as PublicOpenFeedbackController;
 use App\Http\Controllers\Public\OpenRegistrationController as PublicOpenRegistrationController;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +52,10 @@ Route::prefix('public')->group(function () {
 
     Route::get('feedback/{code}', [PublicFeedbackController::class, 'show'])->middleware('throttle:public-feedback-view');
     Route::post('feedback/{code}', [PublicFeedbackController::class, 'store'])->middleware('throttle:public-feedback-submit');
+
+    // Istura Open feedback (shared per-day link, token in path)
+    Route::get('open-feedback/{token}', [PublicOpenFeedbackController::class, 'show'])->middleware('throttle:public-open-feedback-view');
+    Route::post('open-feedback/{token}', [PublicOpenFeedbackController::class, 'store'])->middleware('throttle:public-open-feedback-submit');
 });
 
 // ---------------------------------------------------------------------------
@@ -99,10 +105,12 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
     Route::get('open-events', [OpenEventController::class, 'index']);
     Route::get('open-events/{event}/export', [OpenEventController::class, 'export']);
     Route::get('open-events/{event}/registrations', [AdminOpenRegistrationController::class, 'index']);
+    Route::get('open-events/{event}/feedback', [AdminOpenFeedbackController::class, 'index']);
 
     // === MUTATION routes (admin + super_admin only) ===
     Route::middleware('operator')->group(function () {
         Route::post('bookings', [AdminBookingController::class, 'store']);
+        Route::put('bookings/{code}', [AdminBookingController::class, 'updateContact']);
         Route::post('bookings/{code}/accept', [AdminBookingController::class, 'accept']);
         Route::post('bookings/{code}/reject', [AdminBookingController::class, 'reject']);
         Route::post('bookings/{code}/reschedule', [AdminBookingController::class, 'reschedule']);

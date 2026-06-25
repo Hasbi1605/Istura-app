@@ -178,6 +178,22 @@ export const moveBookingDirectly = (
     body: payload,
   }).then((r) => r.data);
 
+export type UpdateBookingContactPayload = {
+  contactName: string;
+  nik: string;
+  whatsapp: string;
+  institution: string;
+};
+
+// Edits only the identity fields (name/NIK/WA/instansi). Returns the updated
+// booking plus a non-blocking warning when the NIK is shared by other active
+// bookings.
+export const updateBookingContact = (code: string, payload: UpdateBookingContactPayload) =>
+  api<{ data: ApiBooking; warning: string | null }>(`/api/admin/bookings/${encodeURIComponent(code)}`, {
+    method: "PUT",
+    body: payload,
+  }).then((r) => ({ booking: r.data, warning: r.warning }));
+
 export const submitPublicBooking = (form: FormData) =>
   api<{ data: ApiBooking }>("/api/public/bookings", {
     method: "POST",

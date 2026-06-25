@@ -1,7 +1,7 @@
 // Export modals (Booking ZIP, Feedback XLSX, Monthly PDF). Extracted from App.tsx.
 import { useEffect, useMemo, useState } from "react";
 import { Download, Loader2, X } from "lucide-react";
-import type { Booking, Feedback, FeedbackWizardContent } from "../../domain/types";
+import type { Booking, Feedback, FeedbackWizardContent, OpenFeedbackAdmin } from "../../domain/types";
 import {
   bookingReportDate,
   feedbackReportDate,
@@ -14,10 +14,12 @@ import { exportBookingsToZip } from "../../exportBookings";
 import type { ExportRange, ExportScope } from "../../exportBookings";
 import { exportBookingReport } from "../../exportBookingReport";
 import { exportFeedbackToXlsx } from "../../exportFeedback";
-import type { FeedbackExportScope } from "../../exportFeedback";
+import type { FeedbackExportInput, FeedbackExportScope } from "../../exportFeedback";
 import { exportFeedbackReport } from "../../exportFeedbackReport";
 import { exportMonthlyReport } from "../../exportMonthlyReport";
 import type { MonthlyReportRange } from "../../exportMonthlyReport";
+import { exportOpenFeedbackToExcel } from "../../exportOpenFeedback";
+import { DEFAULT_FEEDBACK_WIZARD_CONTENT } from "../../constants";
 
 // Format keluaran untuk modal Booking & Feedback: Excel (data detail) atau
 // PDF (laporan ringkas untuk dibaca/dicetak).
@@ -618,6 +620,339 @@ export function FeedbackExportModal({
           >
             Batal
           </button>
+          <button
+            type="button"
+            className="admin-pill-button admin-pill-button--primary"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+          >
+            {busy ? (
+              <>
+                <Loader2 size={14} aria-hidden="true" className="booking-export-spinner" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <Download size={14} aria-hidden="true" />
+                {format === "pdf" ? "Unduh PDF" : "Unduh Excel"}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const OPEN_MONTHS_ID = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+const openLongDate = (key?: string | null): string => {
+  if (!key) return "-";
+  const [year, month, day] = key.split("-").map(Number);
+  if (!year || !month || !day) return key;
+  return `${day} ${OPEN_MONTHS_ID[month - 1]} ${year}`;
+};
+
+// Map an Istura Open feedback row into the shared FeedbackExportInput shape so
+// the PDF "voice of visitor" report renders identically to the rombongan one.
+const openFeedbackToExportInput = (f: OpenFeedbackAdmin): FeedbackExportInput => ({
+  code: String(f.id),
+  visitorName: f.visitorName ?? undefined,
+  gender: f.gender,
+  age: f.age,
+  origin: f.origin ?? undefined,
+  rating: f.rating,
+  bookingEase: f.bookingEase,
+  service: f.service,
+  guideQuality: f.guideQuality,
+  facilityComfort: f.facilityComfort,
+  recommend: f.recommend,
+  visitedBefore: f.visitedBefore,
+  discoverySource: f.discoverySource,
+  discoverySourceLabel: f.discoverySource
+    ? DEFAULT_FEEDBACK_WIZARD_CONTENT.options.discoverySources.find((o) => o.value === f.discoverySource)?.label
+      ?? f.discoverySource
+    : "",
+  discoverySourceOther: f.discoverySourceOther ?? "",
+  highlights: f.highlights,
+  improvements: f.improvements,
+  comment: f.comment ?? "",
+  allowPublish: f.allowPublish,
+  submittedAt: f.submittedAt ?? undefined,
+  dateLabel: openLongDate(f.dayDate),
+  dateKey: f.dayDate ?? undefined,
+});
+
+// Modal ekspor feedback Istura Open. Konsisten dengan FeedbackExportModal
+// (lingkup rating + periode + format Excel/PDF), dengan tambahan filter "Hari"
+// khas Istura Open. Excel memakai exportOpenFeedback (1 sheet + NIK/HP),
+// PDF memakai exportFeedbackReport yang sama dengan feedback rombongan.
+export function OpenFeedbackExportModal({
+  feedbacks,
+  eventName,
+  eventSlug,
+  days,
+  initialDayId,
+  adminName,
+  onClose,
+}: {
+  feedbacks: OpenFeedbackAdmin[];
+  eventName: string;
+  eventSlug: string;
+  days: Array<{ id: number; date: string }>;
+  initialDayId?: number;
+  adminName?: string;
+  onClose: () => void;
+}) {
+  const [scope, setScope] = useState<FeedbackExportScope>("all");
+  const [range, setRange] = useState<ExportRange>("month");
+  const [format, setFormat] = useState<ReportFormat>("excel");
+  const [dayId, setDayId] = useState<number | "">(initialDayId ?? "");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose, busy]);
+
+  // Day-scoped first (Istura Open specific), then scope+period for the count.
+  const dayScoped = useMemo(
+    () => (dayId ? feedbacks.filter((f) => f.dayId === dayId) : feedbacks),
+    [feedbacks, dayId],
+  );
+
+  const previewCount = useMemo(() => {
+    const scoped = dayScoped.filter((f) => {
+      if (scope === "all") return true;
+      if (scope === "positive") return f.rating >= 4;
+      return f.rating <= 3;
+    });
+    const { from, to } = resolveRange(range, customFrom, customTo);
+    return scoped.filter((f) =>
+      isWithinRangeByDate(feedbackReportDate({ dateKey: f.dayDate, submittedAt: f.submittedAt }), from, to),
+    ).length;
+  }, [dayScoped, scope, range, customFrom, customTo]);
+
+  const customRangeInvalid =
+    range === "custom" &&
+    Boolean(customFrom) &&
+    Boolean(customTo) &&
+    parseDateKey(customFrom) > parseDateKey(customTo);
+
+  const canSubmit =
+    !busy &&
+    previewCount > 0 &&
+    (range !== "custom" || (Boolean(customFrom) && Boolean(customTo) && !customRangeInvalid));
+
+  const handleSubmit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (format === "pdf") {
+        await exportFeedbackReport({
+          feedbacks: dayScoped.map(openFeedbackToExportInput),
+          scope,
+          range,
+          customFrom: range === "custom" ? customFrom : undefined,
+          customTo: range === "custom" ? customTo : undefined,
+          generatedBy: adminName,
+          logoUrl: ASSETS.logoGold,
+        });
+        onClose();
+        return;
+      }
+
+      // Excel: apply scope + period client-side (exportOpenFeedback does not
+      // filter), then hand the final rows over with NIK/HP columns intact.
+      const { from, to } = resolveRange(range, customFrom, customTo);
+      const finalRows = dayScoped
+        .filter((f) => {
+          if (scope === "positive") return f.rating >= 4;
+          if (scope === "attention") return f.rating <= 3;
+          return true;
+        })
+        .filter((f) =>
+          isWithinRangeByDate(feedbackReportDate({ dateKey: f.dayDate, submittedAt: f.submittedAt }), from, to),
+        );
+
+      await exportOpenFeedbackToExcel({
+        feedbacks: finalRows,
+        eventName,
+        eventSlug,
+        generatedBy: adminName,
+      });
+      onClose();
+    } catch (err) {
+      console.error("[OpenFeedbackExportModal] export failed", err);
+      setError("Ekspor gagal. Coba sebentar lagi atau periksa koneksi.");
+      setBusy(false);
+    }
+  };
+
+  const scopeOptions: Array<{ value: FeedbackExportScope; label: string; hint: string }> = [
+    { value: "all", label: "Semua", hint: "Semua feedback masuk pada periode." },
+    { value: "positive", label: "Positif", hint: "Rating ≥ 4. Cocok untuk laporan ke pimpinan & publikasi." },
+    { value: "attention", label: "Perlu perhatian", hint: "Rating ≤ 3. Bahan tindak lanjut perbaikan layanan." },
+  ];
+
+  const rangeOptions: Array<{ value: ExportRange; label: string }> = [
+    { value: "week", label: "Minggu ini" },
+    { value: "month", label: "Bulan ini" },
+    { value: "year", label: "Tahun ini" },
+    { value: "custom", label: "Kustom" },
+  ];
+
+  return (
+    <div className="admin-modal-backdrop" role="presentation" onClick={busy ? undefined : onClose}>
+      <div
+        className="admin-modal booking-export-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="open-feedback-export-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="admin-modal-head">
+          <h2 id="open-feedback-export-title">Ekspor feedback Istura Open</h2>
+          <button type="button" className="admin-modal-close" onClick={onClose} disabled={busy} aria-label="Tutup">
+            <X size={16} aria-hidden="true" />
+          </button>
+        </header>
+
+        <fieldset className="admin-modal-fieldset">
+          <legend>Hari</legend>
+          <div className="admin-modal-grid">
+            <label className="admin-modal-field" style={{ gridColumn: "1 / -1" }}>
+              <span>Pilih hari kunjungan</span>
+              <select value={dayId} onChange={(event) => setDayId(event.target.value ? Number(event.target.value) : "")} disabled={busy}>
+                <option value="">Semua hari</option>
+                {days.map((day) => (
+                  <option key={day.id} value={day.id}>{openLongDate(day.date)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset className="admin-modal-fieldset">
+          <legend>Lingkup data</legend>
+          <div className="booking-export-options">
+            {scopeOptions.map((opt) => (
+              <label key={opt.value} className="booking-export-option">
+                <input
+                  type="radio"
+                  name="open-feedback-export-scope"
+                  value={opt.value}
+                  checked={scope === opt.value}
+                  onChange={() => setScope(opt.value)}
+                  disabled={busy}
+                />
+                <span>
+                  <strong>{opt.label}</strong>
+                  <small>{opt.hint}</small>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="admin-modal-fieldset">
+          <legend>Periode</legend>
+          <div className="booking-export-range" role="radiogroup" aria-label="Periode">
+            {rangeOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={range === opt.value}
+                className={`booking-export-range-button${range === opt.value ? " is-active" : ""}`}
+                onClick={() => setRange(opt.value)}
+                disabled={busy}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {range === "custom" && (
+            <div className="admin-modal-grid booking-export-custom">
+              <label className="admin-modal-field">
+                <span>Dari tanggal</span>
+                <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} disabled={busy} />
+              </label>
+              <label className="admin-modal-field">
+                <span>Sampai tanggal</span>
+                <input type="date" value={customTo} onChange={(event) => setCustomTo(event.target.value)} disabled={busy} />
+              </label>
+              {customRangeInvalid && (
+                <p className="admin-modal-preview-error" style={{ gridColumn: "1 / -1" }}>
+                  Tanggal "dari" harus sebelum atau sama dengan tanggal "sampai".
+                </p>
+              )}
+            </div>
+          )}
+        </fieldset>
+
+        <fieldset className="admin-modal-fieldset">
+          <legend>Format</legend>
+          <div className="booking-export-range" role="radiogroup" aria-label="Format keluaran">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={format === "excel"}
+              className={`booking-export-range-button${format === "excel" ? " is-active" : ""}`}
+              onClick={() => setFormat("excel")}
+              disabled={busy}
+            >
+              Excel (detail)
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={format === "pdf"}
+              className={`booking-export-range-button${format === "pdf" ? " is-active" : ""}`}
+              onClick={() => setFormat("pdf")}
+              disabled={busy}
+            >
+              PDF (ringkas)
+            </button>
+          </div>
+        </fieldset>
+
+        <div className="admin-modal-preview booking-export-preview">
+          {previewCount > 0 ? (
+            <p>
+              {format === "pdf" ? (
+                <>
+                  Laporan PDF ringkas dari <strong>{previewCount}</strong> feedback:
+                  ringkasan rating, distribusi, profil pengunjung, sumber informasi,
+                  sorotan/saran, dan tindak lanjut.
+                </>
+              ) : (
+                <>
+                  <strong>{previewCount}</strong> feedback akan diekspor sebagai file Excel
+                  (1 sheet detail, termasuk kolom NIK & nomor HP).
+                </>
+              )}
+            </p>
+          ) : (
+            <p className="admin-modal-preview-error">Tidak ada feedback pada lingkup &amp; periode ini.</p>
+          )}
+        </div>
+
+        {error && (
+          <div className="booking-export-error" role="status">{error}</div>
+        )}
+
+        <div className="admin-modal-actions">
+          <button type="button" className="admin-pill-button" onClick={onClose} disabled={busy}>Batal</button>
           <button
             type="button"
             className="admin-pill-button admin-pill-button--primary"

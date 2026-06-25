@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Archive, Ban, CalendarDays, Download, Eye, ImageIcon, Loader2, Megaphone, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Archive, Ban, CalendarDays, Copy, Download, Eye, ImageIcon, Loader2, Megaphone, MessageSquareText, Pencil, Plus, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
 import type {
   OpenDayBookingConflict,
   OpenEventAdmin,
+  OpenFeedbackAdmin,
   OpenQuotaSummary,
   OpenRegistrationAdmin,
 } from "../../domain/types";
@@ -19,6 +20,7 @@ import {
   fetchAdminOpenEvents,
   fetchAdminOpenRegistrations,
   fetchOpenEventExport,
+  fetchOpenEventFeedback,
   unarchiveOpenEvent,
   updateOpenEvent,
   updateOpenEventDay,
@@ -28,6 +30,7 @@ import { ButtonSpinner, InlineSpinner, SavingStatus } from "../ui/LoadingStates"
 import { DetailItem } from "../ui/DetailItem";
 import { Pagination } from "../ui/Pagination";
 import { exportOpenRegistrationsToExcel } from "../../exportOpenRegistrations";
+import { OpenFeedbackExportModal } from "./ExportModals";
 import { formatCount, formatCountShort } from "../../lib/date";
 
 const MONTHS_ID = [
@@ -164,7 +167,7 @@ function openAddonDetail(registration: OpenRegistrationAdmin): string {
     : `${registration.addonCount} orang`;
 }
 
-type Tab = "settings" | "registrants";
+type Tab = "settings" | "registrants" | "feedback";
 type OpenStatusFilter = "" | "Registered" | "Cancelled";
 type OpenRegistrationCounts = { total: number; registered: number; cancelled: number };
 
@@ -364,6 +367,9 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
             <button type="button" className={tab === "registrants" ? "is-active" : ""} onClick={() => setTab("registrants")}>
               Pendaftar
             </button>
+            <button type="button" className={tab === "feedback" ? "is-active" : ""} onClick={() => setTab("feedback")}>
+              Feedback
+            </button>
           </div>
 
           {tab === "settings" && (
@@ -376,6 +382,7 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
             </>
           )}
           {tab === "registrants" && <RegistrantsPanel event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />}
+          {tab === "feedback" && <FeedbackPanel event={selected} />}
         </>
       )}
 
@@ -558,41 +565,175 @@ function ArchiveButton({ event, onChanged }: { event: OpenEventAdmin; onChanged:
 }
 
 function DeleteDraftButton({ event, onDeleted }: { event: OpenEventAdmin; onDeleted: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const disabled = busy || event.isActive || event.registrationsCount > 0;
+  const [showModal, setShowModal] = useState(false);
+  // Active events keep a live public surface, so they must be deactivated
+  // first. Draft and archived events can be deleted — even with registrants,
+  // behind the confirmation modal below.
+  const disabled = event.isActive;
   const title = event.isActive
-    ? "Nonaktifkan event sebelum menghapus draft."
+    ? "Nonaktifkan event sebelum menghapusnya."
     : event.registrationsCount > 0
-      ? "Event yang sudah memiliki pendaftar disimpan sebagai arsip."
-      : "Hapus draft event secara permanen.";
+      ? "Hapus event permanen (semua data pendaftar ikut terhapus)."
+      : "Hapus event secara permanen.";
+
+  return (
+    <span className="open-toolbar-action">
+      <button
+        type="button"
+        className="button button-ghost open-delete-draft"
+        disabled={disabled}
+        title={title}
+        onClick={() => setShowModal(true)}
+      >
+        <Trash2 size={15} /> Hapus event
+      </button>
+      {showModal && (
+        <DeleteEventModal
+          event={event}
+          onClose={() => setShowModal(false)}
+          onDeleted={() => {
+            setShowModal(false);
+            onDeleted();
+          }}
+        />
+      )}
+    </span>
+  );
+}
+
+function DeleteEventModal({
+  event,
+  onClose,
+  onDeleted,
+}: {
+  event: OpenEventAdmin;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const hasRegistrants = event.registrationsCount > 0;
+  const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy && !exporting) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, exporting, onClose]);
+
+  const exportRegistrants = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      const { data, event: eventMeta } = await fetchOpenEventExport(event.id);
+      await exportOpenRegistrationsToExcel({
+        registrations: data,
+        eventName: eventMeta.name,
+        eventSlug: eventMeta.slug,
+      });
+      setExported(true);
+    } catch {
+      setError("Gagal mengekspor pendaftar. Coba lagi sebelum menghapus.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Typed confirmation only required when registrant data will be destroyed.
+  const confirmMatches = !hasRegistrants || confirmText.trim() === event.name.trim();
+  const canDelete = !busy && !exporting && confirmMatches;
 
   const remove = async () => {
-    if (disabled) return;
-    if (!window.confirm(`Hapus draft "${event.name}" secara permanen? Tindakan ini tidak dapat dibatalkan.`)) return;
+    if (!canDelete) return;
     setBusy(true);
     setError(null);
     try {
-      await deleteOpenEvent(event.id);
+      await deleteOpenEvent(event.id, hasRegistrants);
       onDeleted();
     } catch (err) {
       if (err instanceof ValidationError) {
         setError(err.errors.event?.[0] ?? err.message);
       } else {
-        setError("Gagal menghapus draft.");
+        setError("Gagal menghapus event.");
       }
-    } finally {
       setBusy(false);
     }
   };
 
   return (
-    <span className="open-toolbar-action">
-      <button type="button" className="button button-ghost open-delete-draft" disabled={disabled} title={title} onClick={() => void remove()}>
-        {busy ? <ButtonSpinner label="Menghapus..." /> : <><Trash2 size={15} /> Hapus draft</>}
-      </button>
-      {error && <small className="field-error">{error}</small>}
-    </span>
+    <div
+      className="open-modal-scrim"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Hapus event Istura Open"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy && !exporting) onClose();
+      }}
+    >
+      <div className="open-modal open-delete-modal">
+        <button
+          ref={closeRef}
+          type="button"
+          className="open-promo-close"
+          aria-label="Tutup"
+          disabled={busy || exporting}
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
+        <h2>Hapus event "{event.name}"?</h2>
+        <p className="open-delete-lead">
+          Tindakan ini permanen dan tidak dapat dibatalkan.
+          {hasRegistrants && (
+            <>
+              {" "}Event ini memiliki <strong>{event.registrationsCount} pendaftar</strong>. Semua data pendaftar
+              (nama, NIK, WhatsApp, add-on) akan ikut terhapus.
+            </>
+          )}
+        </p>
+
+        {hasRegistrants && (
+          <>
+            <div className="open-delete-export">
+              <button
+                type="button"
+                className="button button-ghost"
+                disabled={exporting || busy}
+                onClick={() => void exportRegistrants()}
+              >
+                {exporting ? <ButtonSpinner label="Mengekspor..." /> : <><Download size={15} /> Ekspor pendaftar (Excel)</>}
+              </button>
+              {exported && <small className="open-delete-export-ok">Data berhasil diekspor.</small>}
+            </div>
+            <label className="form-field">
+              <span>Ketik nama event untuk konfirmasi</span>
+              <input
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={event.name}
+                disabled={busy}
+                aria-invalid={confirmText.length > 0 && !confirmMatches}
+              />
+            </label>
+          </>
+        )}
+
+        {error && <small className="field-error">{error}</small>}
+
+        <div className="open-step-actions">
+          <button type="button" className="button button-ghost" disabled={busy || exporting} onClick={onClose}>Batal</button>
+          <button type="button" className="button button-danger" disabled={!canDelete} onClick={() => void remove()}>
+            {busy ? <ButtonSpinner label="Menghapus..." /> : "Hapus permanen"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -810,6 +951,183 @@ function DaysPanel({
   );
 }
 
+function FeedbackLinkField({ url }: { url: string | null }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Salin tautan feedback:", url);
+    }
+  };
+
+  return (
+    <label className="form-field">
+      <span>Link feedback</span>
+      <div className="open-feedback-copy">
+        <input value={url ?? "Link belum tersedia"} readOnly aria-label="Tautan feedback hari ini" />
+        <button
+          type="button"
+          className="button button-ghost open-feedback-copy-btn"
+          disabled={!url}
+          onClick={() => void copy()}
+          title="Salin tautan feedback"
+        >
+          <Copy size={14} /> {copied ? "Tersalin" : "Salin"}
+        </button>
+      </div>
+    </label>
+  );
+}
+
+function FeedbackPanel({ event }: { event: OpenEventAdmin }) {
+  const [rows, setRows] = useState<OpenFeedbackAdmin[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dayFilter, setDayFilter] = useState<number | "">("");
+  const [showExport, setShowExport] = useState(false);
+  const [detail, setDetail] = useState<OpenFeedbackAdmin | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch all event feedback once; day filtering is applied client-side so
+      // the list, summary, and export modal share one source of truth.
+      const response = await fetchOpenEventFeedback(event.id);
+      setRows(response.data);
+    } catch {
+      setError("Gagal memuat feedback.");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id]);
+
+  const visibleRows = useMemo(
+    () => (dayFilter ? rows.filter((r) => r.dayId === dayFilter) : rows),
+    [rows, dayFilter],
+  );
+
+  const averageRating =
+    visibleRows.length > 0
+      ? (visibleRows.reduce((sum, r) => sum + r.rating, 0) / visibleRows.length).toFixed(2)
+      : "-";
+
+  return (
+    <div className="open-feedback-panel">
+      <div className="booking-toolbar open-registrants-filters" role="region" aria-label="Filter feedback Istura Open">
+        <label className="form-field open-feedback-day-filter">
+          <span>Hari</span>
+          <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value ? Number(e.target.value) : "")}>
+            <option value="">Semua hari</option>
+            {event.days.map((day) => (
+              <option key={day.id} value={day.id}>{longDate(day.date)}</option>
+            ))}
+          </select>
+        </label>
+        <div className="open-feedback-summary">
+          <span><MessageSquareText size={14} /> {visibleRows.length} feedback</span>
+          <span><Star size={14} /> Rata-rata {averageRating}</span>
+        </div>
+        <button
+          type="button"
+          className="booking-export-button"
+          disabled={rows.length === 0}
+          onClick={() => setShowExport(true)}
+        >
+          <Download size={14} /> Ekspor
+        </button>
+      </div>
+
+      {error && <p className="field-error">{error}</p>}
+      {loading ? (
+        <div className="open-feedback-loading"><InlineSpinner label="Memuat feedback..." /></div>
+      ) : visibleRows.length === 0 ? (
+        <p className="open-feedback-empty">Belum ada feedback untuk lingkup ini.</p>
+      ) : (
+        <div className="open-feedback-list">
+          {visibleRows.map((row) => (
+            <button key={row.id} type="button" className="open-feedback-row" onClick={() => setDetail(row)}>
+              <span className="open-feedback-row-main">
+                <strong>{row.visitorName ?? "Tanpa nama"}</strong>
+                <small>{longDate(row.dayDate)} · {row.origin ?? "-"}</small>
+              </span>
+              <span className="open-feedback-row-rating">
+                <Star size={14} fill="currentColor" /> {row.rating} · Rek {row.recommend}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {detail && <FeedbackDetailDrawer feedback={detail} onClose={() => setDetail(null)} />}
+      {showExport && (
+        <OpenFeedbackExportModal
+          feedbacks={rows}
+          eventName={event.name}
+          eventSlug={event.slug}
+          days={event.days.map((d) => ({ id: d.id, date: d.date }))}
+          initialDayId={dayFilter || undefined}
+          onClose={() => setShowExport(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FeedbackDetailDrawer({ feedback, onClose }: { feedback: OpenFeedbackAdmin; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="booking-slideover" role="dialog" aria-modal="true" aria-label="Detail feedback Istura Open">
+      <button type="button" className="booking-slideover-backdrop" aria-label="Tutup" onClick={onClose} />
+      <aside className="booking-slideover-panel">
+        <header>
+          <span>
+            <strong>{feedback.visitorName ?? "Tanpa nama"}</strong>
+            <small>{longDate(feedback.dayDate)}</small>
+          </span>
+          <button type="button" className="booking-slideover-close" onClick={onClose} aria-label="Tutup"><X size={18} /></button>
+        </header>
+        <div className="detail-grid">
+          <DetailItem label="NIK" value={feedback.nik ?? "-"} />
+          <DetailItem label="Nomor HP" value={feedback.whatsapp} />
+          <DetailItem label="Jenis Kelamin" value={feedback.gender === "male" ? "Laki-laki" : feedback.gender === "female" ? "Perempuan" : "-"} />
+          <DetailItem label="Usia" value={feedback.age ? String(feedback.age) : "-"} />
+          <DetailItem label="Asal" value={feedback.origin ?? "-"} />
+          <DetailItem label="Rating keseluruhan" value={`${feedback.rating}/5`} />
+          <DetailItem label="Kemudahan booking" value={`${feedback.bookingEase}/5`} />
+          <DetailItem label="Pelayanan" value={`${feedback.service}/5`} />
+          <DetailItem label="Kualitas pemandu" value={feedback.guideQuality ? `${feedback.guideQuality}/5` : "-"} />
+          <DetailItem label="Kenyamanan fasilitas" value={feedback.facilityComfort ? `${feedback.facilityComfort}/5` : "-"} />
+          <DetailItem label="Rekomendasi" value={`${feedback.recommend}/5`} />
+          <DetailItem label="Aspek terbaik" value={feedback.highlights.length ? feedback.highlights.join(", ") : "-"} />
+          <DetailItem label="Aspek perbaikan" value={feedback.improvements.length ? feedback.improvements.join(", ") : "-"} />
+          <DetailItem label="Cerita" value={feedback.comment ?? "-"} />
+          <DetailItem label="Boleh dipublikasikan" value={feedback.allowPublish ? "Ya" : "Tidak"} />
+          {feedback.submittedAt && <DetailItem label="Dikirim" value={feedback.submittedAt} />}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 function DayCard({
   eventId,
   day,
@@ -937,6 +1255,7 @@ function DayCard({
           disabled={readOnly || pending !== null}
         />
       </label>
+      <FeedbackLinkField url={day.feedbackUrl ?? null} />
       <SavingStatus status={saveStatus} />
       <div className="open-day-admin-actions">
         {!readOnly && <button

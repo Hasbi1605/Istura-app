@@ -165,6 +165,73 @@ class BookingService
         return $this->transitionTo($booking, 'Rejected', $actor, 'reject', $note, $request);
     }
 
+    /**
+     * Update a booking's contact identity (name / NIK / WhatsApp / institution)
+     * without touching schedule, group size, status, or document. Used by admin
+     * to fix typos made during manual booking. NIK + WhatsApp go through the
+     * model accessors so encryption/masking/hash + normalization stay correct.
+     */
+    public function updateContact(Booking $booking, array $data, ?User $actor, ?Request $request = null): Booking
+    {
+        return DB::transaction(function () use ($booking, $data, $actor, $request) {
+            $locked = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
+
+            $changed = [];
+            if ($locked->contact_name !== $data['contactName']) {
+                $changed[] = 'nama';
+            }
+            if ($locked->nik !== $data['nik']) {
+                $changed[] = 'NIK';
+            }
+            if ($locked->whatsapp !== $data['whatsapp']) {
+                $changed[] = 'WhatsApp';
+            }
+            if ($locked->institution !== $data['institution']) {
+                $changed[] = 'instansi';
+            }
+
+            $locked->contact_name = $data['contactName'];
+            $locked->nik = $data['nik'];
+            $locked->whatsapp = $data['whatsapp'];
+            $locked->institution = $data['institution'];
+            $locked->save();
+
+            // Audit without ever logging the raw NIK value.
+            $this->logAudit($actor, "Memperbarui data kontak booking {$locked->code}", $locked, [
+                'changed_fields' => $changed,
+                'nik_masked' => $locked->nik_masked,
+            ], $request);
+
+            $this->broadcastAfterCommit(
+                fn () => BookingStatusChanged::dispatch($locked->fresh()->load('slots'), $locked->status, 'edit-contact'),
+                $locked,
+            );
+
+            return $locked->fresh()->load('slots');
+        });
+    }
+
+    /**
+     * Other active bookings that share the same identity NIK (non-blocking
+     * warning surface for admins after editing a booking's NIK).
+     *
+     * @return array<int, string> booking codes
+     */
+    public function activeBookingsSharingNik(Booking $booking): array
+    {
+        if (! $booking->nik_hash) {
+            return [];
+        }
+
+        return Booking::query()
+            ->where('id', '!=', $booking->id)
+            ->where('nik_hash', $booking->nik_hash)
+            ->whereIn('status', Booking::ACTIVE_STATUSES)
+            ->orderBy('id')
+            ->pluck('code')
+            ->all();
+    }
+
     public function complete(Booking $booking, ?User $actor, ?string $note = null, ?Request $request = null, ?string $documentationLink = null): Booking
     {
         return $this->transitionTo($booking, 'Completed', $actor, 'complete', $note, $request, $documentationLink);

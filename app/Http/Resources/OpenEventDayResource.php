@@ -26,6 +26,15 @@ class OpenEventDayResource extends JsonResource
             // WhatsApp link is admin-only; never leak to public surfaces.
             'whatsappGroupUrl' => $this->when($this->isAdminRequest($request), fn () => $this->whatsapp_group_url),
             'hasWhatsappGroupUrl' => (bool) $this->whatsapp_group_url,
+            // Shared per-day feedback link (admin-only). One link per WhatsApp group.
+            'feedbackUrl' => $this->when(
+                $this->isAdminRequest($request),
+                fn () => $this->feedback_token ? url('/feedback-open/'.$this->feedback_token) : null,
+            ),
+            'feedbackCount' => $this->when(
+                $this->isAdminRequest($request),
+                fn () => (int) ($this->feedbacks_count ?? $this->feedbacks()->count()),
+            ),
         ];
     }
 

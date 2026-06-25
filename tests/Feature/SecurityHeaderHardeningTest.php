@@ -104,8 +104,38 @@ class SecurityHeaderHardeningTest extends TestCase
         $this->assertStringContainsString('https://www.google.com', $csp);
         $this->assertStringContainsString('https://maps.google.com', $csp);
         $this->assertStringContainsString("style-src 'self' https://fonts.googleapis.com", $csp);
+        $this->assertStringNotContainsString("style-src 'self' https://fonts.googleapis.com 'unsafe-inline'", $csp);
         $this->assertStringContainsString("style-src-attr 'unsafe-inline'", $csp);
         $this->assertStringContainsString('connect-src \'self\' wss://isturaiky.page:443', $csp);
         $this->assertStringNotContainsString('connect-src \'self\' wss://isturaiky.page:443 ws://isturaiky.page:443', $csp);
+    }
+
+    public function test_local_vite_csp_allows_dev_server_injected_styles(): void
+    {
+        $hotFile = public_path('hot');
+        $originalHot = is_file($hotFile) ? (string) file_get_contents($hotFile) : null;
+        $previousEnvironment = $this->app->environment();
+
+        file_put_contents($hotFile, "http://localhost:5175\n");
+        $this->app->detectEnvironment(fn () => 'local');
+
+        try {
+            $response = $this->get('/')->assertOk();
+            $csp = (string) $response->headers->get('Content-Security-Policy');
+
+            $this->assertStringContainsString("script-src 'self' 'unsafe-inline' http://localhost:5175", $csp);
+            $this->assertStringContainsString("style-src 'self' https://fonts.googleapis.com 'unsafe-inline' http://localhost:5175", $csp);
+            $this->assertStringContainsString('http://localhost:5175', $csp);
+            $this->assertStringContainsString('ws://localhost:5175', $csp);
+            $this->assertStringContainsString("font-src 'self' data: https://fonts.gstatic.com http://localhost:5175", $csp);
+        } finally {
+            $this->app->detectEnvironment(fn () => $previousEnvironment);
+
+            if ($originalHot === null) {
+                @unlink($hotFile);
+            } else {
+                file_put_contents($hotFile, $originalHot);
+            }
+        }
     }
 }

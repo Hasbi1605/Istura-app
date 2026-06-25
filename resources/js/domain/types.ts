@@ -11,7 +11,7 @@ export type FooterContact = {
   iconKey: ContactIconKey;
 };
 
-export type Screen = "home" | "booking" | "feedback" | "open" | "admin";
+export type Screen = "home" | "booking" | "feedback" | "open" | "open-feedback" | "admin";
 
 export type AdminTab =
   | "dashboard"
@@ -512,6 +512,8 @@ export type OpenEventDayAdmin = {
   opensAt: string | null;
   whatsappGroupUrl?: string | null;
   hasWhatsappGroupUrl: boolean;
+  feedbackUrl?: string | null;
+  feedbackCount?: number;
 };
 
 // Active rombongan bookings that collide with a date being opened for Istura Open.
@@ -574,4 +576,30 @@ export type OpenRegistrationAdmin = {
   dayDate?: string;
   registeredAt: string | null;
   cancelledAt: string | null;
+};
+
+export type OpenFeedbackAdmin = {
+  id: number;
+  dayId: number;
+  dayDate: string | null;
+  visitorName: string | null;
+  gender: string | null;
+  age: number | null;
+  origin: string | null;
+  nik: string | null;
+  whatsapp: string;
+  rating: number;
+  bookingEase: number;
+  service: number;
+  guideQuality: number | null;
+  facilityComfort: number | null;
+  recommend: number;
+  visitedBefore: boolean | null;
+  discoverySource: string | null;
+  discoverySourceOther: string | null;
+  highlights: string[];
+  improvements: string[];
+  comment: string | null;
+  allowPublish: boolean;
+  submittedAt: string | null;
 };

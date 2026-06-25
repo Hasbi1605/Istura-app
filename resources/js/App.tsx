@@ -17,6 +17,9 @@ const BookingWizard = lazy(() =>
 const FeedbackScreen = lazy(() =>
   import("./components/feedback/FeedbackScreen").then((module) => ({ default: module.FeedbackScreen })),
 );
+const OpenFeedbackScreen = lazy(() =>
+  import("./components/feedback/OpenFeedbackScreen").then((module) => ({ default: module.OpenFeedbackScreen })),
+);
 const AdminApp = lazy(() =>
   import("./components/admin/AdminApp").then((module) => ({ default: module.AdminApp })),
 );
@@ -40,6 +43,7 @@ function App() {
     submittedCode,
     setSubmittedCode,
     feedbackAccess,
+    openFeedbackToken,
     faqs,
     setFaqs,
     contacts,
@@ -75,7 +79,7 @@ function App() {
   );
 
   const goToScreen = (nextScreen: Screen) => {
-    if (feedbackNavigationLocked && screen === "feedback") return;
+    if (feedbackNavigationLocked && (screen === "feedback" || screen === "open-feedback")) return;
     setScreen(nextScreen);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -202,7 +206,17 @@ function App() {
             </Suspense>
           )}
 
-          {screen !== "booking" && screen !== "open" && screen !== "feedback" && (
+          {screen === "open-feedback" && (
+            <Suspense fallback={screenFallback}>
+              <OpenFeedbackScreen
+                token={openFeedbackToken ?? ""}
+                content={siteContent.feedbackWizard}
+                onNavigationLockChange={setFeedbackNavigationLocked}
+              />
+            </Suspense>
+          )}
+
+          {screen !== "booking" && screen !== "open" && screen !== "feedback" && screen !== "open-feedback" && (
             <FloatingContact contacts={contacts} content={siteContent.floatingContact} />
           )}
         </>

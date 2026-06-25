@@ -15,6 +15,7 @@ import {
   Filter,
   Image as ImageIcon,
   Loader2,
+  Pencil,
   Plus,
   Rows3,
   Rows4,
@@ -68,6 +69,7 @@ import {
   completeBooking as apiCompleteBooking,
   updateBookingSegments as apiUpdateBookingSegments,
   moveBookingDirectly as apiMoveBookingDirectly,
+  updateBookingContact as apiUpdateBookingContact,
 } from "../../api/bookings";
 import { fetchAdminSchedule } from "../../api/schedule";
 import { apiBookingToLocal, apiVisitDayToLocal } from "../../api/adapters";
@@ -119,6 +121,7 @@ export function AdminScreen({
   const [modal, setModal] = useState<{ action: AdminAction; booking: Booking } | null>(null);
 	const [segmentModal, setSegmentModal] = useState<{ booking: Booking } | null>(null);
 	const [moveModal, setMoveModal] = useState<{ booking: Booking } | null>(null);
+	const [editModal, setEditModal] = useState<{ booking: Booking } | null>(null);
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [creatingBooking, setCreatingBooking] = useState(false);
 	const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
@@ -426,6 +429,18 @@ export function AdminScreen({
 		});
 	};
 
+	const handleEditContact = (
+		booking: Booking,
+		payload: { contactName: string; nik: string; whatsapp: string; institution: string },
+	) => {
+		void runBookingAction(booking, "Menyimpan data kontak...", async () => {
+			const { booking: updated, warning } = await apiUpdateBookingContact(booking.code, payload);
+			await syncBookingFromApi(updated);
+			setEditModal(null);
+			setActionNotice(warning ?? `Data kontak booking ${updated.code} diperbarui.`);
+		});
+	};
+
 	const handleCreateAdminBooking = async (payload: Parameters<typeof apiCreateAdminBooking>[0]) => {
 		if (creatingBooking) return;
 		setCreatingBooking(true);
@@ -700,6 +715,7 @@ export function AdminScreen({
                 onCancelReschedule={() => handleCancelReschedule(selectedBooking)}
                 onRejectRescheduledBooking={() => handleRejectRescheduledBooking(selectedBooking)}
                 onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
+                onEditContact={() => setEditModal({ booking: selectedBooking })}
                 onPreviewDocument={(booking) => setPreviewBooking(booking)}
                 onDownloadDocument={handleDownloadDocument}
                 downloadingDocument={downloadingCode === selectedBooking.code}
@@ -755,6 +771,7 @@ export function AdminScreen({
           onCancelReschedule={() => handleCancelReschedule(selectedBooking)}
           onRejectRescheduledBooking={() => handleRejectRescheduledBooking(selectedBooking)}
           onResendReschedule={() => setModal({ action: "reschedule", booking: selectedBooking })}
+          onEditContact={() => setEditModal({ booking: selectedBooking })}
           onPreviewDocument={(booking) => setPreviewBooking(booking)}
           onDownloadDocument={handleDownloadDocument}
           downloadingDocument={downloadingCode === selectedBooking.code}
@@ -792,6 +809,16 @@ export function AdminScreen({
 		  error={actionError}
 		  onClose={() => setMoveModal(null)}
 		  onConfirm={handleMoveDirectly}
+		/>
+	  )}
+
+	  {editModal && (
+		<EditContactModal
+		  booking={editModal.booking}
+		  busy={pendingAction?.code === editModal.booking.code}
+		  error={actionError}
+		  onClose={() => setEditModal(null)}
+		  onConfirm={handleEditContact}
 		/>
 	  )}
 
@@ -1025,6 +1052,7 @@ export function BookingDetailPanel({
   onCancelReschedule,
   onRejectRescheduledBooking,
   onResendReschedule,
+  onEditContact,
   onPreviewDocument,
   onDownloadDocument,
   downloadingDocument = false,
@@ -1042,6 +1070,7 @@ export function BookingDetailPanel({
   onCancelReschedule?: () => void;
   onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
+  onEditContact?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
   downloadingDocument?: boolean;
@@ -1097,6 +1126,7 @@ export function BookingDetailPanel({
         onCancelReschedule={onCancelReschedule}
         onRejectRescheduledBooking={onRejectRescheduledBooking}
         onResendReschedule={onResendReschedule}
+        onEditContact={onEditContact}
         readOnly={readOnly}
       />
     </div>
@@ -1153,6 +1183,7 @@ export function BookingActions({
   onCancelReschedule,
   onRejectRescheduledBooking,
   onResendReschedule,
+  onEditContact,
   readOnly = false,
 }: {
   booking: Booking;
@@ -1167,6 +1198,7 @@ export function BookingActions({
   onCancelReschedule?: () => void;
   onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
+  onEditContact?: () => void;
   readOnly?: boolean;
 }) {
   if (readOnly) {
@@ -1279,6 +1311,18 @@ export function BookingActions({
       )}
       {(booking.status === "Rejected" || booking.status === "Completed") && (
         <span className="admin-actions-locked">Status: {BOOKING_STATUS_LABELS[booking.status]}</span>
+      )}
+      {onEditContact && (
+        <button
+          className="button button-ghost"
+          type="button"
+          onClick={onEditContact}
+          disabled={busy}
+          title="Perbaiki nama, NIK, WhatsApp, atau instansi (mis. typo saat booking manual)"
+        >
+          <Pencil size={16} aria-hidden="true" />
+          Edit data
+        </button>
       )}
     </div>
   );
@@ -1457,6 +1501,7 @@ export function BookingSlideOver({
   onCancelReschedule,
   onRejectRescheduledBooking,
   onResendReschedule,
+  onEditContact,
   onPreviewDocument,
   onDownloadDocument,
   downloadingDocument = false,
@@ -1475,6 +1520,7 @@ export function BookingSlideOver({
   onCancelReschedule?: () => void;
   onRejectRescheduledBooking?: () => void;
   onResendReschedule?: () => void;
+  onEditContact?: () => void;
   onPreviewDocument: (booking: Booking) => void;
   onDownloadDocument: (booking: Booking) => void;
   downloadingDocument?: boolean;
@@ -1549,6 +1595,7 @@ export function BookingSlideOver({
           onCancelReschedule={onCancelReschedule}
           onRejectRescheduledBooking={onRejectRescheduledBooking}
           onResendReschedule={onResendReschedule}
+          onEditContact={onEditContact}
           readOnly={readOnly}
         />
       </aside>
@@ -2045,6 +2092,97 @@ export function DirectMoveModal({
         {(isPastVisitTime(date, time) || hasPast) && <strong className="form-message form-message--error">Jam tujuan sudah lewat.</strong>}
         {error && <strong className="form-message form-message--error">{error}</strong>}
         <div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button><button className="button button-primary" type="button" disabled={invalid || busy} onClick={() => onConfirm(booking, date, time, allowOverbook, confirmedDirectMove)}>{pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Pindahkan jadwal"}</button></div>
+      </div>
+    </div>
+  );
+}
+
+export function EditContactModal({
+  booking,
+  busy = false,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  booking: Booking;
+  busy?: boolean;
+  error?: string;
+  onClose: () => void;
+  onConfirm: (
+    booking: Booking,
+    payload: { contactName: string; nik: string; whatsapp: string; institution: string },
+  ) => void;
+}) {
+  const [contactName, setContactName] = useState(booking.contactName);
+  const [nik, setNik] = useState(booking.nik ?? "");
+  const [whatsapp, setWhatsapp] = useState(booking.whatsapp);
+  const [institution, setInstitution] = useState(booking.institution);
+
+  useModalEscape(onClose, busy);
+
+  const nikValid = /^\d{16}$/.test(nik);
+  const whatsappValid = /^(08|628)\d{8,13}$/.test(whatsapp);
+  const invalid =
+    busy ||
+    contactName.trim() === "" ||
+    !nikValid ||
+    !whatsappValid ||
+    institution.trim() === "";
+
+  const submit = () => {
+    if (invalid) return;
+    onConfirm(booking, {
+      contactName: contactName.trim(),
+      nik,
+      whatsapp,
+      institution: institution.trim(),
+    });
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="modal-card" role="dialog" aria-modal="true" aria-label="Edit data booking">
+        <button className="modal-close" type="button" onClick={onClose} disabled={busy} aria-label="Tutup modal"><X size={18} /></button>
+        <h2>Edit data booking</h2>
+        <p>{booking.code} - perbaiki identitas tamu (mis. salah ketik saat booking manual). Jadwal dan jumlah rombongan tidak berubah di sini.</p>
+        <label className="form-field">
+          <span>Narahubung</span>
+          <input value={contactName} onChange={(event) => setContactName(event.target.value)} disabled={busy} />
+        </label>
+        <label className="form-field">
+          <span>NIK (16 digit, tersimpan terenkripsi)</span>
+          <input
+            inputMode="numeric"
+            maxLength={16}
+            value={nik}
+            onChange={(event) => setNik(event.target.value.replace(/\D/g, ""))}
+            disabled={busy}
+            aria-invalid={nik.length > 0 && !nikValid}
+          />
+          {nik.length > 0 && !nikValid && <small className="field-error">NIK harus 16 digit angka.</small>}
+        </label>
+        <label className="form-field">
+          <span>WhatsApp (08… atau 628…)</span>
+          <input
+            inputMode="tel"
+            value={whatsapp}
+            onChange={(event) => setWhatsapp(event.target.value.replace(/[^\d]/g, ""))}
+            disabled={busy}
+            aria-invalid={whatsapp.length > 0 && !whatsappValid}
+          />
+          {whatsapp.length > 0 && !whatsappValid && <small className="field-error">Nomor harus diawali 08 atau 628 dan berisi 10-15 digit.</small>}
+        </label>
+        <label className="form-field">
+          <span>Instansi</span>
+          <input value={institution} onChange={(event) => setInstitution(event.target.value)} disabled={busy} />
+        </label>
+        {error && <strong className="form-message form-message--error">{error}</strong>}
+        <div className="modal-actions">
+          <button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Batal</button>
+          <button className="button button-primary" type="button" disabled={invalid} onClick={submit}>
+            {busy ? <ButtonSpinner label="Menyimpan data..." /> : "Simpan data"}
+          </button>
+        </div>
       </div>
     </div>
   );

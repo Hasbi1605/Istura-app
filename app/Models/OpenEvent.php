@@ -54,6 +54,11 @@ class OpenEvent extends Model
         return $this->hasMany(OpenRegistration::class);
     }
 
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(OpenFeedback::class);
+    }
+
     /**
      * Public URL for the optional poster/flyer, or null when none uploaded.
      */

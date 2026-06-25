@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\IndexBookingsRequest;
 use App\Http\Requests\Admin\MoveBookingDirectlyRequest;
 use App\Http\Requests\Admin\RescheduleBookingRequest;
 use App\Http\Requests\Admin\StoreAdminBookingRequest;
+use App\Http\Requests\Admin\UpdateBookingContactRequest;
 use App\Http\Requests\Admin\UpdateBookingSegmentsRequest;
 use App\Http\Requests\Admin\UpdateBookingStatusRequest;
 use App\Http\Resources\BookingResource;
@@ -80,6 +81,25 @@ class BookingController extends Controller
         $updated = $this->bookings->accept($booking, $request->user(), $request->input('note'), $request);
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);
+    }
+
+    public function updateContact(UpdateBookingContactRequest $request, string $code): JsonResponse
+    {
+        $booking = Booking::with('slots')->where('code', $code)->firstOrFail();
+        Gate::authorize('update', $booking);
+
+        $updated = $this->bookings->updateContact($booking, $request->validated(), $request->user(), $request);
+
+        // Non-blocking: surface other active bookings sharing the same NIK so
+        // the admin can double-check, without blocking the correction.
+        $conflicts = $this->bookings->activeBookingsSharingNik($updated);
+
+        return response()->json([
+            'data' => (new BookingResource($updated))->resolve(),
+            'warning' => $conflicts !== []
+                ? 'NIK ini juga dipakai booking aktif lain: '.implode(', ', $conflicts).'.'
+                : null,
+        ]);
     }
 
     public function reject(UpdateBookingStatusRequest $request, string $code): JsonResponse

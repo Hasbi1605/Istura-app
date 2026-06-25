@@ -36,7 +36,7 @@ class OpenEventController extends Controller
 
     public function index(): JsonResponse
     {
-        $events = OpenEvent::with('days')->withCount('registrations')->latest('id')->get();
+        $events = OpenEvent::with(['days' => fn ($q) => $q->withCount('feedbacks')])->withCount('registrations')->latest('id')->get();
 
         return response()->json([
             'data' => OpenEventResource::collection($events)->resolve(),
@@ -318,17 +318,29 @@ class OpenEventController extends Controller
 
     public function destroy(Request $request, OpenEvent $event): JsonResponse
     {
+        // Active events must be deactivated first so a live public surface is
+        // never deleted out from under registrants. Draft and archived events
+        // (both already off the public surface) may be deleted; a past event
+        // that has not been archived stays read-only until archived.
         if ($event->is_active) {
             throw ValidationException::withMessages([
                 'event' => ['Nonaktifkan event sebelum menghapusnya.'],
             ]);
         }
 
-        $this->ensureOperationallyMutable($event);
-
-        if ($event->registrations()->exists()) {
+        if ($event->isPast() && ! $event->isArchived()) {
             throw ValidationException::withMessages([
-                'event' => ['Event yang sudah memiliki pendaftar tidak dapat dihapus. Nonaktifkan dan simpan sebagai arsip.'],
+                'event' => ['Event yang sudah lewat bersifat baca-saja. Arsipkan dulu sebelum menghapus.'],
+            ]);
+        }
+
+        // Deleting an event with registrants is destructive (cascade removes
+        // all registrant rows). Require an explicit confirmation flag so it can
+        // never happen by accident; the admin should export first.
+        $registrationCount = $event->registrations()->count();
+        if ($registrationCount > 0 && ! $request->boolean('confirmDeleteWithRegistrants')) {
+            throw ValidationException::withMessages([
+                'event' => ["Event ini memiliki {$registrationCount} pendaftar. Ekspor data dulu, lalu konfirmasi penghapusan permanen."],
             ]);
         }
 
@@ -336,8 +348,12 @@ class OpenEventController extends Controller
         $eventName = $event->name;
         $eventId = $event->id;
 
-        DB::transaction(function () use ($event, $eventName, $eventId, $request) {
-            AuditLogger::record($request->user(), "Menghapus draft event Istura Open {$eventName}", 'open_event', $eventId, [], $request);
+        DB::transaction(function () use ($event, $eventName, $eventId, $registrationCount, $request) {
+            AuditLogger::record($request->user(), "Menghapus event Istura Open {$eventName}", 'open_event', $eventId, [
+                'registrations_deleted' => $registrationCount,
+                'was_archived' => $event->isArchived(),
+            ], $request);
+            // open_event_days and open_registrations cascade on delete (FK).
             $event->delete();
         });
 

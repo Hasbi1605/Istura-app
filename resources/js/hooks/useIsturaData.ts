@@ -129,6 +129,7 @@ export interface IsturaData {
   submittedCode: string;
   setSubmittedCode: Dispatch<SetStateAction<string>>;
   feedbackAccess: FeedbackAccess;
+  openFeedbackToken: string | null;
   faqs: FaqItem[];
   setFaqs: Dispatch<SetStateAction<FaqItem[]>>;
   contacts: FooterContact[];
@@ -194,6 +195,7 @@ export function useIsturaData(): IsturaData {
     if (typeof window !== "undefined") {
       if (window.location.pathname.startsWith("/admin")) return "admin";
       if (window.location.pathname.match(/^\/feedback\/([^/]+)\/?$/)) return "feedback";
+      if (window.location.pathname.match(/^\/feedback-open\/([^/]+)\/?$/)) return "open-feedback";
     }
 
     return hasFreshBookingDraft() ? "booking" : "home";
@@ -203,6 +205,7 @@ export function useIsturaData(): IsturaData {
 	const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
 	const [submittedCode, setSubmittedCode] = useState("");
 	const [feedbackAccess, setFeedbackAccess] = useState<FeedbackAccess>(null);
+	const [openFeedbackToken, setOpenFeedbackToken] = useState<string | null>(null);
 	const [loading, setLoading] = useState<DataLoadingState>(initialLoading);
 	const [cmsSync, setCmsSync] = useState<CmsSyncState>(initialCmsSync);
 
@@ -993,6 +996,13 @@ export function useIsturaData(): IsturaData {
     setScreen("feedback");
   }, []);
 
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/feedback-open\/([^/]+)\/?$/);
+    if (!match) return;
+    setOpenFeedbackToken(decodeURIComponent(match[1]));
+    setScreen("open-feedback");
+  }, []);
+
   return {
     screen,
     setScreen,
@@ -1005,6 +1015,7 @@ export function useIsturaData(): IsturaData {
     submittedCode,
     setSubmittedCode,
     feedbackAccess,
+    openFeedbackToken,
     faqs,
     setFaqs,
     contacts,

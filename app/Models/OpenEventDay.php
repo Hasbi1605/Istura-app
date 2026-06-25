@@ -9,11 +9,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OpenEventDay extends Model
 {
+    /** Days after the visit date that the feedback link stays open. */
+    public const FEEDBACK_WINDOW_DAYS = 14;
+
     protected $fillable = [
         'open_event_id',
         'date',
         'quota_override',
         'whatsapp_group_url',
+        'feedback_token',
         'opens_at',
         'is_open',
     ];
@@ -25,6 +29,22 @@ class OpenEventDay extends Model
         'is_open' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        // Every day gets a shared feedback link token (one link per WhatsApp
+        // group) so admins can distribute it as soon as the day exists.
+        static::creating(function (OpenEventDay $day) {
+            if (blank($day->feedback_token)) {
+                $day->feedback_token = self::generateFeedbackToken();
+            }
+        });
+    }
+
+    public static function generateFeedbackToken(): string
+    {
+        return 'of_'.rtrim(strtr(base64_encode(random_bytes(20)), '+/', '-_'), '=');
+    }
+
     public function event(): BelongsTo
     {
         return $this->belongsTo(OpenEvent::class, 'open_event_id');
@@ -33,6 +53,41 @@ class OpenEventDay extends Model
     public function registrations(): HasMany
     {
         return $this->hasMany(OpenRegistration::class, 'assigned_event_day_id');
+    }
+
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(OpenFeedback::class, 'open_event_day_id');
+    }
+
+    /**
+     * Feedback window: open from the visit date until FEEDBACK_WINDOW_DAYS after.
+     * Returns one of: not_open_yet, available, closed.
+     */
+    public function feedbackAccessStatus(?CarbonInterface $now = null): string
+    {
+        if (! $this->date) {
+            return 'closed';
+        }
+
+        $now = $now ?? now('Asia/Jakarta');
+        $opensAt = $this->date->copy()->startOfDay();
+        $closesAt = $this->date->copy()->addDays(self::FEEDBACK_WINDOW_DAYS)->endOfDay();
+
+        if ($now->lt($opensAt)) {
+            return 'not_open_yet';
+        }
+
+        if ($now->gt($closesAt)) {
+            return 'closed';
+        }
+
+        return 'available';
+    }
+
+    public function feedbackClosesAt(): ?CarbonInterface
+    {
+        return $this->date?->copy()->addDays(self::FEEDBACK_WINDOW_DAYS)->endOfDay();
     }
 
     /**

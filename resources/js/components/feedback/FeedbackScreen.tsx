@@ -918,7 +918,7 @@ export function FeedbackScreen({
   );
 }
 
-function FeedbackGate({
+export function FeedbackGate({
 	icon: Icon,
 	title,
 	message,
@@ -953,7 +953,7 @@ function FeedbackGate({
   );
 }
 
-function ChipField({
+export function ChipField({
   label,
   helper,
   options,
@@ -991,7 +991,7 @@ function ChipField({
   );
 }
 
-function RatingField({
+export function RatingField({
   label,
   value,
   labels,

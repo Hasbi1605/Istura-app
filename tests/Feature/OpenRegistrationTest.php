@@ -437,7 +437,131 @@ class OpenRegistrationTest extends TestCase
         Storage::disk('public')->assertMissing($posterPath);
     }
 
-    public function test_admin_cannot_delete_active_or_registered_event(): void
+    public function test_open_feedback_can_be_submitted_within_window_and_dedups(): void
+    {
+        $event = $this->makeActiveEvent();
+        $day = $event->days()->orderBy('date')->first();
+        $token = $day->feedback_token;
+        $this->assertNotEmpty($token);
+
+        // Travel into the feedback window (the visit day itself).
+        Carbon::setTestNow(Carbon::parse('2026-08-14 12:00:00', 'Asia/Jakarta'));
+
+        $this->getJson("/api/public/open-feedback/{$token}")
+            ->assertOk()
+            ->assertJsonPath('data.accessStatus', 'available')
+            ->assertJsonPath('data.eventName', $event->name);
+
+        $payload = [
+            'nik' => '3374010101019001',
+            'whatsapp' => '081234560001',
+            'visitorName' => 'Sinta Dewi',
+            'gender' => 'female',
+            'age' => 30,
+            'origin' => 'Yogyakarta',
+            'bookingEase' => 5,
+            'service' => 4,
+            'guideQuality' => 5,
+            'facilityComfort' => 4,
+            'recommend' => 5,
+            'visitedBefore' => false,
+            'discoverySource' => 'social_media',
+            'improvements' => ['Toilet'],
+            'allowPublish' => true,
+        ];
+
+        $this->postJson("/api/public/open-feedback/{$token}", $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.submitted', true)
+            ->assertJsonPath('data.rating', 5); // round((5+4+5+4)/4)=5
+
+        $this->assertDatabaseHas('open_feedbacks', [
+            'open_event_day_id' => $day->id,
+            'visitor_name' => 'Sinta Dewi',
+        ]);
+
+        // Same NIK → rejected.
+        $this->postJson("/api/public/open-feedback/{$token}", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('nik');
+
+        // Same phone, different NIK → rejected.
+        $this->postJson("/api/public/open-feedback/{$token}", array_merge($payload, [
+            'nik' => '3374010101019999',
+        ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('nik');
+    }
+
+    public function test_open_feedback_rejected_before_window_opens(): void
+    {
+        $event = $this->makeActiveEvent();
+        $day = $event->days()->orderBy('date')->first();
+        $token = $day->feedback_token;
+
+        // now = 2026-08-01, day = 2026-08-14 → not open yet.
+        $this->getJson("/api/public/open-feedback/{$token}")
+            ->assertOk()
+            ->assertJsonPath('data.accessStatus', 'not_open_yet');
+
+        $this->postJson("/api/public/open-feedback/{$token}", [
+            'nik' => '3374010101019002',
+            'whatsapp' => '081234560002',
+            'visitorName' => 'Andi',
+            'gender' => 'male',
+            'age' => 25,
+            'origin' => 'Sleman',
+            'bookingEase' => 4,
+            'service' => 4,
+            'guideQuality' => 4,
+            'facilityComfort' => 4,
+            'recommend' => 4,
+            'visitedBefore' => false,
+            'discoverySource' => 'web_search',
+            'improvements' => ['Parkir'],
+            'allowPublish' => false,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('token');
+    }
+
+    public function test_admin_day_resource_exposes_feedback_link_and_count(): void
+    {
+        $event = $this->makeActiveEvent();
+        $day = $event->days()->orderBy('date')->first();
+
+        Carbon::setTestNow(Carbon::parse('2026-08-14 12:00:00', 'Asia/Jakarta'));
+        $this->postJson("/api/public/open-feedback/{$day->feedback_token}", [
+            'nik' => '3374010101019003',
+            'whatsapp' => '081234560003',
+            'visitorName' => 'Rara',
+            'gender' => 'female',
+            'age' => 28,
+            'origin' => 'Bantul',
+            'bookingEase' => 5,
+            'service' => 5,
+            'guideQuality' => 5,
+            'facilityComfort' => 5,
+            'recommend' => 5,
+            'visitedBefore' => true,
+            'discoverySource' => 'previous_visit',
+            'improvements' => ['Suvenir'],
+            'allowPublish' => true,
+        ])->assertCreated();
+
+        $this->actingAsAdmin();
+        $response = $this->getJson('/api/admin/open-events')->assertOk();
+        $firstDay = collect($response->json('data.0.days'))->firstWhere('id', $day->id);
+        $this->assertSame(1, $firstDay['feedbackCount']);
+        $this->assertStringContainsString('/feedback-open/'.$day->feedback_token, $firstDay['feedbackUrl']);
+
+        $this->getJson("/api/admin/open-events/{$event->id}/feedback")
+            ->assertOk()
+            ->assertJsonPath('data.0.visitorName', 'Rara')
+            ->assertJsonPath('data.0.nik', '3374010101019003');
+    }
+
+    public function test_admin_cannot_delete_active_event(): void
     {
         $this->actingAsAdmin();
         $active = $this->makeActiveEvent();
@@ -445,15 +569,52 @@ class OpenRegistrationTest extends TestCase
         $this->deleteJson("/api/admin/open-events/{$active->id}")
             ->assertStatus(422)
             ->assertJsonValidationErrors('event');
+        $this->assertDatabaseHas('open_events', ['id' => $active->id]);
+    }
 
+    public function test_admin_deleting_registered_event_requires_confirmation(): void
+    {
+        $this->actingAsAdmin();
+        $active = $this->makeActiveEvent();
         $active->update(['is_active' => false]);
         $day = $active->days()->firstOrFail();
-        $this->makeRegistration($active, $day, '3374010101010080', '081234567080');
+        $registration = $this->makeRegistration($active, $day, '3374010101010080', '081234567080');
 
+        // Without the explicit confirmation flag the destroy is rejected.
         $this->deleteJson("/api/admin/open-events/{$active->id}")
             ->assertStatus(422)
             ->assertJsonValidationErrors('event');
         $this->assertDatabaseHas('open_events', ['id' => $active->id]);
+
+        // With confirmation, the event and its registrants are cascade-deleted.
+        $this->deleteJson("/api/admin/open-events/{$active->id}", [
+            'confirmDeleteWithRegistrants' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.deleted', true);
+
+        $this->assertDatabaseMissing('open_events', ['id' => $active->id]);
+        $this->assertDatabaseMissing('open_registrations', ['id' => $registration->id]);
+        $this->assertDatabaseMissing('open_event_days', ['open_event_id' => $active->id]);
+    }
+
+    public function test_admin_can_delete_archived_event_with_registrants(): void
+    {
+        $this->actingAsAdmin();
+        $event = $this->makeActiveEvent();
+        $day = $event->days()->firstOrFail();
+        $registration = $this->makeRegistration($event, $day, '3374010101010085', '081234567085');
+
+        $this->postJson("/api/admin/open-events/{$event->id}/archive")->assertOk();
+
+        $this->deleteJson("/api/admin/open-events/{$event->id}", [
+            'confirmDeleteWithRegistrants' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.deleted', true);
+
+        $this->assertDatabaseMissing('open_events', ['id' => $event->id]);
+        $this->assertDatabaseMissing('open_registrations', ['id' => $registration->id]);
     }
 
     public function test_admin_can_archive_and_restore_event(): void

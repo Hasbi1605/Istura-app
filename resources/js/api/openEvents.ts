@@ -3,6 +3,7 @@ import type {
   OpenEventAdmin,
   OpenEventDayAdmin,
   OpenEventPublic,
+  OpenFeedbackAdmin,
   OpenQuotaSummary,
   OpenRegistrationAdmin,
   OpenRegistrationResult,
@@ -75,10 +76,11 @@ export const updateOpenEvent = (eventId: number, payload: Partial<CreateOpenEven
     (r) => r.data,
   );
 
-export const deleteOpenEvent = (eventId: number) =>
-  api<{ data: { deleted: boolean } }>(`/api/admin/open-events/${eventId}`, { method: "DELETE" }).then(
-    (r) => r.data,
-  );
+export const deleteOpenEvent = (eventId: number, confirmDeleteWithRegistrants = false) =>
+  api<{ data: { deleted: boolean } }>(`/api/admin/open-events/${eventId}`, {
+    method: "DELETE",
+    body: confirmDeleteWithRegistrants ? { confirmDeleteWithRegistrants: true } : undefined,
+  }).then((r) => r.data);
 
 export const activateOpenEvent = (eventId: number, acknowledgeConflicts = false) =>
   api<{ data: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/activate`, {
@@ -160,3 +162,10 @@ export const cancelAdminOpenRegistration = (eventId: number, code: string) =>
 
 export const fetchOpenEventExport = (eventId: number) =>
   api<{ data: OpenRegistrationAdmin[]; event: OpenEventAdmin }>(`/api/admin/open-events/${eventId}/export`);
+
+export const fetchOpenEventFeedback = (eventId: number, dayId?: number) => {
+  const query = dayId ? `?dayId=${dayId}` : "";
+  return api<{ data: OpenFeedbackAdmin[]; event: { name: string; slug: string } }>(
+    `/api/admin/open-events/${eventId}/feedback${query}`,
+  );
+};

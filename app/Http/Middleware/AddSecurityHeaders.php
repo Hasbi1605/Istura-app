@@ -34,6 +34,7 @@ class AddSecurityHeaders
     private function buildCsp(Request $request): string
     {
         $scriptSrc = "'self'";
+        $styleSrc = "'self' https://fonts.googleapis.com";
         $connectSrc = "'self'";
         $fontSrc = "'self' data: https://fonts.gstatic.com";
         $imgSrc = "'self' data: blob:".$this->cspSourceList($this->publicImageHosts());
@@ -45,6 +46,7 @@ class AddSecurityHeaders
         $viteDevServerUrl = $this->viteDevServerUrl();
         if ($viteDevServerUrl) {
             $scriptSrc .= " 'unsafe-inline' {$viteDevServerUrl}";
+            $styleSrc .= " 'unsafe-inline' {$viteDevServerUrl}";
             $connectSrc .= " {$viteDevServerUrl} ".$this->toWebSocketUrl($viteDevServerUrl);
             $fontSrc .= " {$viteDevServerUrl}";
         }
@@ -54,7 +56,7 @@ class AddSecurityHeaders
         $directives = [
             "default-src 'self'",
             "script-src {$scriptSrc}",
-            "style-src 'self' https://fonts.googleapis.com",
+            "style-src {$styleSrc}",
             "style-src-attr 'unsafe-inline'",
             "img-src {$imgSrc}",
             "font-src {$fontSrc}",

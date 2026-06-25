@@ -64,5 +64,15 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-feedback-submit', fn (Request $request) => Limit::perMinute(120)->by(
             'public-feedback-submit:'.$request->ip(),
         ));
+
+        // Istura Open feedback shares a per-day link, so many attendees on one
+        // network may submit close together. Keep limits generous per IP.
+        RateLimiter::for('public-open-feedback-view', fn (Request $request) => Limit::perMinute(120)->by(
+            'public-open-feedback-view:'.$request->ip(),
+        ));
+
+        RateLimiter::for('public-open-feedback-submit', fn (Request $request) => Limit::perMinute(120)->by(
+            'public-open-feedback-submit:'.$request->ip(),
+        ));
     }
 }

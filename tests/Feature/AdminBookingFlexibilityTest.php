@@ -430,6 +430,73 @@ class AdminBookingFlexibilityTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_edit_booking_contact_fields(): void
+    {
+        $admin = $this->actingAsAdmin();
+        $booking = $this->createBookingWithSlots('IST-EDIT-1', '2026-06-17', '08.00', 30, 'Pending');
+        $originalEncrypted = $booking->getRawOriginal('nik_encrypted');
+
+        $response = $this->putJson("/api/admin/bookings/{$booking->code}", [
+            'contactName' => 'Rina Prasetya Updated',
+            'nik' => '4234567890123456',
+            'whatsapp' => '082199998888',
+            'institution' => 'SMA Nusantara Jaya',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.contactName', 'Rina Prasetya Updated')
+            ->assertJsonPath('data.whatsapp', '082199998888')
+            ->assertJsonPath('data.institution', 'SMA Nusantara Jaya')
+            ->assertJsonPath('warning', null);
+
+        $fresh = $booking->fresh();
+        $this->assertSame('082199998888', $fresh->whatsapp);
+        $this->assertSame('6282199998888', $fresh->whatsapp_normalized);
+        // NIK stays encrypted at rest and re-encrypts on change.
+        $this->assertSame('4234567890123456', $fresh->nik);
+        $this->assertNotSame('4234567890123456', $fresh->getRawOriginal('nik_encrypted'));
+        $this->assertNotSame($originalEncrypted, $fresh->getRawOriginal('nik_encrypted'));
+        // Schedule untouched.
+        $this->assertSame('08.00', $fresh->time);
+        $this->assertSame(30, (int) $fresh->group_size);
+        $this->assertSame('IST-EDIT-1', $response->json('data.code'));
+    }
+
+    public function test_admin_edit_booking_rejects_invalid_whatsapp(): void
+    {
+        $this->actingAsAdmin();
+        $booking = $this->createBookingWithSlots('IST-EDIT-2', '2026-06-17', '08.00', 30, 'Pending');
+
+        $this->putJson("/api/admin/bookings/{$booking->code}", [
+            'contactName' => 'Rina Prasetya',
+            'nik' => '4234567890123456',
+            'whatsapp' => '12345',
+            'institution' => 'SMA Nusantara',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('whatsapp');
+    }
+
+    public function test_admin_edit_booking_warns_on_shared_nik(): void
+    {
+        $this->actingAsAdmin();
+        $first = $this->createBookingWithSlots('IST-EDIT-3A', '2026-06-17', '08.00', 30, 'Accepted');
+        $second = $this->createBookingWithSlots('IST-EDIT-3B', '2026-06-18', '08.00', 30, 'Pending');
+
+        // Edit the second booking; it shares the first booking's NIK.
+        $response = $this->putJson("/api/admin/bookings/{$second->code}", [
+            'contactName' => 'Rina Prasetya',
+            'nik' => $first->nik,
+            'whatsapp' => '081234567893',
+            'institution' => 'SMA Nusantara',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.code', 'IST-EDIT-3B');
+
+        // Non-blocking: edit applied AND a warning naming the other booking is returned.
+        $this->assertStringContainsString('IST-EDIT-3A', (string) $response->json('warning'));
+        $this->assertSame('Rina Prasetya', $second->fresh()->contact_name);
+    }
+
     private function actingAsAdmin(): User
     {
         $admin = User::factory()->create([
