@@ -152,17 +152,16 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
-    public function test_pending_booking_expires_after_configured_ttl_and_releases_slot(): void
+    public function test_pending_booking_does_not_expire_before_visit_start_even_when_old(): void
     {
-        config(['booking.pending_ttl_hours' => 24]);
         Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00', 'Asia/Jakarta'));
 
         $booking = $this->createBooking([
-            'code' => 'ISTURA-2026-TTL',
+            'code' => 'ISTURA-2026-OLD-PENDING',
             'date' => '2026-06-04',
             'time' => '08.00',
             'status' => 'Pending',
-            'submitted_at' => now()->subHours(25),
+            'submitted_at' => now()->subDays(7),
         ]);
 
         $this->assertSame('Held', app(ScheduleService::class)->slotStatusFor('2026-06-04', '08.00'));
@@ -170,11 +169,13 @@ class ScheduleSyncTest extends TestCase
         $this->artisan('bookings:expire-pending')->assertSuccessful();
 
         $booking->refresh();
-        $this->assertSame('Expired', $booking->status);
-        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-04', '08.00'));
-
-        $log = AuditLog::where('target_id', $booking->code)->latest('id')->firstOrFail();
-        $this->assertSame('pending_ttl', $log->payload['reason']);
+        $this->assertSame('Pending', $booking->status);
+        $this->assertNull($booking->expired_at);
+        $this->assertSame('Held', app(ScheduleService::class)->slotStatusFor('2026-06-04', '08.00'));
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_id' => $booking->code,
+            'action' => "Menandai kedaluwarsa booking {$booking->code}",
+        ]);
     }
 
     public function test_stale_reschedule_restores_original_booking_when_original_slot_is_still_valid(): void

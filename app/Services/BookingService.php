@@ -242,24 +242,16 @@ class BookingService
         $now = ($now ?? now('Asia/Jakarta'))->copy()->timezone('Asia/Jakarta');
         $today = $now->toDateString();
         $time = $now->format('H.i');
-        $pendingTtlHours = (int) config('booking.pending_ttl_hours', 48);
-        $pendingSubmittedBefore = $pendingTtlHours > 0
-            ? $now->copy()->subHours($pendingTtlHours)
-            : null;
         $expired = 0;
 
         Booking::query()
             ->where('status', 'Pending')
-            ->where(function ($query) use ($today, $time, $pendingSubmittedBefore) {
+            ->where(function ($query) use ($today, $time) {
                 $query->whereDate('date', '<', $today)
                     ->orWhere(function ($sameDay) use ($today, $time) {
                         $sameDay->whereDate('date', $today)
                             ->where('time', '<=', $time);
                     });
-
-                if ($pendingSubmittedBefore) {
-                    $query->orWhere('submitted_at', '<=', $pendingSubmittedBefore);
-                }
             })
             ->orderBy('id')
             ->chunkById(100, function ($bookings) use ($now, &$expired) {
@@ -271,9 +263,8 @@ class BookingService
                             ->first();
 
                         $expiredByVisitStart = $booking?->hasVisitStarted($now) ?? false;
-                        $expiredByTtl = $booking && $this->isPendingOlderThanTtl($booking, $now);
 
-                        if (! $booking || $booking->status !== 'Pending' || (! $expiredByVisitStart && ! $expiredByTtl)) {
+                        if (! $booking || $booking->status !== 'Pending' || ! $expiredByVisitStart) {
                             return;
                         }
 
@@ -285,7 +276,7 @@ class BookingService
 
                         $this->logAudit(null, "Menandai kedaluwarsa booking {$booking->code}", $booking, [
                             'expired_at' => $booking->expired_at?->toDateTimeString(),
-                            'reason' => $expiredByTtl ? 'pending_ttl' : 'visit_started',
+                            'reason' => 'visit_started',
                         ]);
                         $this->broadcastAfterCommit(fn () => BookingStatusChanged::dispatch($booking->fresh()->load('slots'), $previous, 'expire'), $booking);
 
@@ -834,15 +825,6 @@ class BookingService
                 'status' => ['Usulan jadwal kunjungan sudah terlewat. Tawarkan jadwal baru atau batalkan reschedule.'],
             ]);
         }
-    }
-
-    private function isPendingOlderThanTtl(Booking $booking, Carbon $now): bool
-    {
-        $pendingTtlHours = (int) config('booking.pending_ttl_hours', 48);
-
-        return $pendingTtlHours > 0
-            && $booking->submitted_at !== null
-            && $booking->submitted_at->copy()->timezone('Asia/Jakarta')->lte($now->copy()->subHours($pendingTtlHours));
     }
 
     private const IDENTITY_LIMIT_MESSAGE = 'Identitas atau nomor WhatsApp ini sudah mencapai batas booking aktif. Tunggu proses selesai atau hubungi admin.';

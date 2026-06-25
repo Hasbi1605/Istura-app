@@ -191,7 +191,7 @@ Modul terpisah **Istura Open** sudah diimplementasi (lihat `IsturaOpen.md` & §2
 - **Users (super-admin):** CRUD akun admin. **Dashboard/Feedback/Audit/Ekspor:** lihat KPI, feedback, audit dengan filter, ekspor data.
 
 ### 5.3 State booking
-`Pending → Accepted → Completed` (+feedback); cabang `Rejected`, `Reschedule` (accept/cancel/reject), `Expired` (TTL/lewat jadwal). Detail diagram di `PRD-ISTURA-APP.md` §4.3–§4.4.
+`Pending → Accepted → Completed` (+feedback); cabang `Rejected`, `Reschedule` (accept/cancel/reject), `Expired` (hanya setelah jam kunjungan terlewat). Detail diagram di `PRD-ISTURA-APP.md` §4.3–§4.4.
 
 ---
 

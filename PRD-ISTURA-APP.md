@@ -117,7 +117,7 @@ WebSocket (Laravel Reverb).
 | BR-5 | Jam operasional default: **Senin–Kamis**, slot 08.00, 09.00, 10.00, 11.00, 13.00, 14.00. Jam 12.00 = istirahat (tidak tersedia). |
 | BR-6 | **Jumat, Sabtu, Minggu** dan **tanggal merah nasional** otomatis tertutup (Closed). |
 | BR-7 | Satu identitas (NIK atau WhatsApp) dibatasi jumlah booking aktif bersamaan (konfigurasi `PUBLIC_BOOKING_ACTIVE_IDENTITY_LIMIT`). |
-| BR-8 | Booking Pending kedaluwarsa otomatis bila jam kunjungan terlewat atau melewati TTL (default 48 jam, `PUBLIC_BOOKING_PENDING_TTL_HOURS`). |
+| BR-8 | Booking Pending kedaluwarsa otomatis hanya bila jam kunjungan sudah terlewat. Tidak ada TTL umur pengajuan; Pending tetap menahan slot sampai admin memproses atau jadwalnya lewat. |
 | BR-9 | Feedback dapat dikirim hingga `group_size` kali per booking, hanya setelah status Completed, dan hanya sampai `feedback_expires_at` (default `completed_at + 14 hari`). |
 | BR-10 | Booking tidak dapat ditandai Completed sebelum tanggal kunjungan. |
 
@@ -388,7 +388,7 @@ Istura Open tidak dipindah hari dari admin karena link grup WhatsApp diberikan l
             │ Rejected │         │  Reschedule  │ cancel → (status sebelumnya)
             └──────────┘         └──────┬───────┘ reject → Rejected
                  ▲                      │ (usulan lewat)
-   (TTL/lewat)   │                      ▼
+     (lewat)     │                      ▼
             ┌──────────┐          (Expired / status pulih)
   Pending → │ Expired  │ → reschedule | reject
             └──────────┘
@@ -494,7 +494,7 @@ public.open                      # kuota/status/copy Istura Open
 
 | Command | Fungsi |
 |---------|--------|
-| `ExpirePendingBookings` | Menandai Expired booking Pending yang lewat jadwal/TTL |
+| `ExpirePendingBookings` | Menandai Expired booking Pending yang jadwalnya sudah terlewat |
 | `SyncIndonesianHolidays` | Sinkronisasi tanggal merah nasional dari provider |
 | `PruneAuditLogs` | Memangkas audit log lebih tua dari retensi (default 180 hari) |
 | `CleanupLunchBreakSlots` | Membersihkan slot jam istirahat |
@@ -718,7 +718,7 @@ bookings *───* schedule (via date/time, dihitung ScheduleService)
 - **Anti-overbooking:** dijamin di level DB via unique `active_slot_key` + transaksi
   `lockForUpdate`.
 - **Batas identitas:** satu NIK/WhatsApp dibatasi booking aktif bersamaan (konfigurasi env).
-- **Kedaluwarsa otomatis:** Pending lewat jadwal atau TTL (48 jam default) → Expired via job.
+- **Kedaluwarsa otomatis:** Pending berubah ke Expired hanya setelah jam kunjungan terlewat via job.
 
 ### 7.2 Constraints Keamanan & Privasi
 - NIK tidak pernah disimpan/terkirim sebagai plaintext ke klien (hanya masked/hash).
