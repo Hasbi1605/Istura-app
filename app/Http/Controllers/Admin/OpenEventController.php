@@ -15,6 +15,8 @@ use App\Models\Booking;
 use App\Models\BookingSlot;
 use App\Models\OpenEvent;
 use App\Models\OpenEventDay;
+use App\Models\OpenFeedback;
+use App\Models\OpenRegistration;
 use App\Services\AuditLogger;
 use App\Services\CmsImageService;
 use App\Services\OpenRegistrationService;
@@ -353,7 +355,15 @@ class OpenEventController extends Controller
                 'registrations_deleted' => $registrationCount,
                 'was_archived' => $event->isArchived(),
             ], $request);
-            // open_event_days and open_registrations cascade on delete (FK).
+
+            // Delete children explicitly in a safe order instead of relying on
+            // DB cascade. open_registrations has conflicting cascade actions
+            // (open_event_id CASCADE vs assigned_event_day_id SET NULL) which
+            // MySQL rejects (error 1452) when both paths fire during an event
+            // delete. Explicit ordered deletes are engine-agnostic.
+            OpenFeedback::where('open_event_id', $eventId)->delete();
+            OpenRegistration::where('open_event_id', $eventId)->delete();
+            OpenEventDay::where('open_event_id', $eventId)->delete();
             $event->delete();
         });
 
