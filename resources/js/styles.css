@@ -11036,6 +11036,23 @@ a {
     width: 100%;
   }
 
+  /* On narrow screens the action row wraps. Lay buttons out as two equal
+     columns so widths stop being ragged, and drop the desktop-only
+     margin-left:auto so the destructive cluster no longer floats to the
+     right edge — it becomes a full-width block separated by a thin rule. */
+  .admin-shell-content .admin-actions .button {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .admin-shell-content .admin-actions .admin-actions-danger {
+    flex: 1 1 100%;
+    gap: 8px;
+    margin-left: 0;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(16, 24, 47, 0.08);
+  }
+
   .booking-grid-head,
   .booking-grid-row {
     grid-template-columns: minmax(120px, 0.9fr) minmax(120px, 1fr) minmax(100px, 0.8fr);
