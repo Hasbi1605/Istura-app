@@ -4454,10 +4454,19 @@ a {
   border-bottom: 1px solid rgba(16, 24, 47, 0.06);
 }
 
+.admin-shell-content .detail-head > :first-child {
+  min-width: 0;
+}
+
 .admin-shell-content .detail-head strong {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--navy);
   font-size: 0.95rem;
   font-weight: 800;
+  line-height: 1.28;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .admin-shell-content .detail-head small {
@@ -10672,15 +10681,19 @@ a {
 .admin-shell-content .booking-row-main,
 .booking-row-main {
   display: grid;
+  flex: 1 1 auto;
   gap: 0;
   min-width: 0;
 }
 
 .admin-shell-content .booking-row-main strong,
 .booking-row-main strong {
+  overflow: hidden;
   color: var(--navy);
   font-size: 0.88rem;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-shell-content .booking-row--compact .booking-row-main strong,
@@ -10691,8 +10704,11 @@ a {
 .admin-shell-content .booking-row-main small,
 .booking-row-main small {
   display: block;
+  overflow: hidden;
   color: rgba(16, 24, 47, 0.6);
   font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-shell-content .booking-row--compact .booking-row-main small,

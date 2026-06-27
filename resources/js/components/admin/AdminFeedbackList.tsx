@@ -272,8 +272,8 @@ export function AdminFeedbackList({
                     }}
                   >
                     <span className="booking-row-main">
-                      <strong>{feedback.code}</strong>
-                      <small>{feedback.institution}{feedback.visitorName ? ` · ${feedback.visitorName}` : ""}</small>
+                      <strong title={feedback.institution}>{feedback.institution}</strong>
+                      <small>{feedback.code}{feedback.visitorName ? ` · ${feedback.visitorName}` : ""}</small>
                       <small className="admin-feedback-row-date">{feedback.dateLabel}</small>
                     </span>
                     <span
@@ -360,9 +360,9 @@ function FeedbackDetailPanel({
     <div className="booking-detail admin-feedback-detail">
       <header className="detail-head">
         <div>
-          <strong>{feedback.code}</strong>
+          <strong title={feedback.institution}>{feedback.institution}</strong>
           <small>
-            {feedback.institution} · {feedback.dateLabel}
+            {feedback.code} · {feedback.dateLabel}
           </small>
         </div>
         <span

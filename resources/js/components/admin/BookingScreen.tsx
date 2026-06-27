@@ -908,8 +908,8 @@ export function BookingListRow({
       style={style}
     >
       <span className="booking-row-main">
-        <strong>{booking.code}</strong>
-        <small>{booking.institution}</small>
+        <strong title={booking.institution}>{booking.institution}</strong>
+        <small>{booking.code}</small>
       </span>
       <StatusBadge status={booking.status} />
     </button>
@@ -1115,8 +1115,8 @@ export function BookingDetailPanel({
     <div className="booking-detail">
       <div className="detail-head">
         <span>
-          <strong>{booking.code}</strong>
-          <small>Diajukan {booking.submittedAt}</small>
+          <strong title={booking.institution}>{booking.institution}</strong>
+          <small>{booking.code} · Diajukan {booking.submittedAt}</small>
           <ShortNoticeBadge booking={booking} />
         </span>
         <StatusBadge status={booking.status} />
