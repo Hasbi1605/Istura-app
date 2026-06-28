@@ -13,6 +13,7 @@ class ScheduleOverride extends Model
         'time',
         'status',
         'custom',
+        'public_early_opened_at',
         'note',
         'short_notice_mode',
         'short_notice_closes_at',
@@ -22,6 +23,7 @@ class ScheduleOverride extends Model
     protected $casts = [
         'date' => 'date',
         'custom' => 'boolean',
+        'public_early_opened_at' => 'datetime',
         'short_notice_closes_at' => 'datetime',
         'short_notice_capacity' => 'integer',
     ];

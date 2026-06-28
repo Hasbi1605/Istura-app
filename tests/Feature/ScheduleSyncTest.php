@@ -1245,6 +1245,76 @@ class ScheduleSyncTest extends TestCase
         ]);
     }
 
+    public function test_far_future_available_range_override_does_not_later_open_h_plus_one_publicly(): void
+    {
+        Storage::fake('local');
+        Carbon::setTestNow(Carbon::parse('2026-06-06 05:25:00', 'Asia/Jakarta'));
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/schedule/range', [
+            'from' => '2026-06-29',
+            'to' => '2026-06-29',
+            'status' => 'Available',
+        ])->assertOk();
+
+        $override = ScheduleOverride::whereDate('date', '2026-06-29')
+            ->where('time', '08.00')
+            ->firstOrFail();
+        $this->assertTrue($override->custom);
+        $this->assertNull($override->public_early_opened_at);
+
+        Carbon::setTestNow(Carbon::parse('2026-06-28 05:25:00', 'Asia/Jakarta'));
+
+        $this->getJson('/api/public/schedule?from=2026-06-29&to=2026-06-29')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-29',
+            'time' => '08.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('time');
+
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
+    public function test_admin_opening_h_plus_one_marks_explicit_public_early_opening(): void
+    {
+        Storage::fake('local');
+        Carbon::setTestNow(Carbon::parse('2026-06-28 09:00:00', 'Asia/Jakarta'));
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/schedule/slot', [
+            'date' => '2026-06-29',
+            'time' => '10.00',
+            'status' => 'Available',
+        ])->assertOk();
+
+        $override = ScheduleOverride::whereDate('date', '2026-06-29')
+            ->where('time', '10.00')
+            ->firstOrFail();
+        $this->assertTrue($override->custom);
+        $this->assertNotNull($override->public_early_opened_at);
+
+        $schedule = $this->getJson('/api/public/schedule?from=2026-06-29&to=2026-06-29')
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('Available', $this->slotFromResponse($schedule, '2026-06-29', '10.00')['status']);
+
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-29',
+            'time' => '10.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('bookings', [
+            'date' => '2026-06-29 00:00:00',
+            'time' => '10.00',
+            'status' => 'Pending',
+        ]);
+    }
+
     public function test_admin_collection_endpoints_return_pagination_meta(): void
     {
         $this->actingAsAdmin();

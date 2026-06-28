@@ -526,8 +526,8 @@ class ScheduleService
 
     /**
      * Validate the exact participant allocation used by a public booking.
-     * H/H+1 only pass when every segment has an explicit Available admin
-     * override. H+2 and later keep the normal single-booking slot rule.
+     * H/H+1 only pass when every segment has an explicit early public opening.
+     * H+2 and later keep the normal single-booking slot rule.
      *
      * @param  array<int, array{date:string,time:string,group_size:int}>  $segments
      */
@@ -553,7 +553,7 @@ class ScheduleService
                 return false;
             }
 
-            if (! $this->hasExplicitPublicOverride($date->toDateString(), $time, $lockBookings)) {
+            if (! $this->hasExplicitPublicEarlyOpening($date->toDateString(), $time, $lockBookings)) {
                 return false;
             }
 
@@ -727,14 +727,14 @@ class ScheduleService
         }
 
         $startsAt = Carbon::createFromFormat('Y-m-d H.i', $dateKey.' '.$time, 'Asia/Jakarta');
-        if ($isturaOpenBlocked || $startsAt->lte(now('Asia/Jakarta')) || $override?->status !== 'Available' || ! $override->custom) {
+        if ($isturaOpenBlocked || $startsAt->lte(now('Asia/Jakarta')) || ! $this->overrideIsPublicEarlyOpening($override)) {
             return 'Closed';
         }
 
         return $status;
     }
 
-    private function hasExplicitPublicOverride(string $dateKey, string $time, bool $lock = false): bool
+    private function hasExplicitPublicEarlyOpening(string $dateKey, string $time, bool $lock = false): bool
     {
         $query = ScheduleOverride::whereDate('date', $dateKey)->where('time', $time);
         if ($lock) {
@@ -743,7 +743,12 @@ class ScheduleService
 
         $override = $query->first();
 
-        return $override?->status === 'Available' && (bool) $override->custom;
+        return $this->overrideIsPublicEarlyOpening($override);
+    }
+
+    private function overrideIsPublicEarlyOpening(?ScheduleOverride $override): bool
+    {
+        return $override?->status === 'Available' && $override->public_early_opened_at !== null;
     }
 
     private function statusFromBooking(Booking $booking): string

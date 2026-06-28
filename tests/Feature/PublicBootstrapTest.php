@@ -97,12 +97,14 @@ class PublicBootstrapTest extends TestCase
             'time' => '10.00',
             'status' => 'Available',
             'custom' => true,
+            'public_early_opened_at' => now(),
         ]);
         ScheduleOverride::create([
             'date' => '2026-06-02',
             'time' => '10.00',
             'status' => 'Available',
             'custom' => true,
+            'public_early_opened_at' => now(),
         ]);
 
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-03')
@@ -121,13 +123,13 @@ class PublicBootstrapTest extends TestCase
         $this->assertSame([], collect($response->json('data'))->pluck('date')->all());
     }
 
-    public function test_public_schedule_ignores_legacy_non_custom_early_available_override(): void
+    public function test_public_schedule_ignores_legacy_early_available_override_without_explicit_public_marker(): void
     {
         ScheduleOverride::create([
             'date' => '2026-06-01',
             'time' => '10.00',
             'status' => 'Available',
-            'custom' => false,
+            'custom' => true,
         ]);
 
         $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-01')

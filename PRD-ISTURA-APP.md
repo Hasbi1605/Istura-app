@@ -101,7 +101,7 @@ WebSocket (Laravel Reverb).
 | NFR-3 | Keamanan | Endpoint publik dibatasi rate-limit (booking, feedback view/submit, schedule, login, 2FA). |
 | NFR-4 | Keamanan | Session admin punya absolute lifetime (default 720 menit); auto-logout saat kedaluwarsa. |
 | NFR-5 | Keamanan | Security headers ditambahkan di seluruh respons (middleware AddSecurityHeaders). |
-| NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + `booking_slot_locks`; overbook hanya boleh melalui aksi admin eksplisit dan tercatat di audit. Booking publik H/H+1 hanya boleh lolos bila slot dibuka admin lewat override jadwal biasa dan tetap dikunci ulang saat submit. |
+| NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + `booking_slot_locks`; overbook hanya boleh melalui aksi admin eksplisit dan tercatat di audit. Booking publik H/H+1 hanya boleh lolos bila slot memiliki marker pembukaan publik eksplisit dari admin (`public_early_opened_at`) dan tetap dikunci ulang saat submit. |
 | NFR-7 | Realtime | Perubahan booking/jadwal dipancarkan via WebSocket; dashboard admin auto-update. Dapat dimatikan via `VITE_REVERB_ENABLED=false` (degradasi anggun). |
 | NFR-8 | Lokalisasi | Seluruh teks UI & tanggal dalam Bahasa Indonesia, timezone Asia/Jakarta. |
 | NFR-9 | Aksesibilitas | Komponen interaktif harus accessibility-compliant (role, aria, focus trap pada modal). |
@@ -111,7 +111,7 @@ WebSocket (Laravel Reverb).
 
 | ID | Aturan |
 |----|--------|
-| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 default tertutup untuk publik dan hanya tampil bila admin membuka slot lewat toggle jadwal biasa sebelum jam kunjungan lewat. Admin dapat memakai H/H+1 melalui Booking Manual atau pindah jadwal langsung. |
+| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 default tertutup untuk publik dan hanya tampil bila admin membuka slot saat tanggal itu sudah berada di H/H+1 sebelum jam kunjungan lewat; override `Available` lama dari buka/tutup rentang jauh hari tidak otomatis membuka H/H+1. Admin dapat memakai H/H+1 melalui Booking Manual atau pindah jadwal langsung. |
 | BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 dengan konfirmasi operasional dan audit. |
 | BR-3 | Jumlah rombongan: minimal 1, maksimal **480 orang** per hari kunjungan. |
 | BR-4 | NIK wajib 16 digit angka. WhatsApp wajib format `08...` atau `628...` (8–13 digit setelah prefix). |
@@ -169,7 +169,9 @@ tetapi mempertahankan audit log dan tidak memakai ulang kode booking. Aksi lifec
 Admin melihat hari H/H+1 di Jadwal Kunjungan dalam kondisi default tertutup untuk publik.
 Jika operasional mengizinkan, admin membuka atau menutup slot H/H+1 dengan toggle slot/range
 jadwal biasa. Slot H/H+1 yang dibuka admin tampil di landing page dan Booking Wizard selama
-jam kunjungan belum lewat; bila ditutup kembali, slot hilang dari pilihan publik. Tidak ada
+jam kunjungan belum lewat; sistem menandai pembukaan ini secara eksplisit agar override
+`Available` lama dari pengujian rentang tidak ikut membuka publik saat tanggalnya mendekat.
+Bila ditutup kembali, slot hilang dari pilihan publik. Tidak ada
 kapasitas atau tenggat terpisah di luar status slot jadwal.
 
 ### 3.5 Manajemen Jadwal (Admin)

@@ -203,7 +203,7 @@ class ContentController extends Controller
             ->whereDate('date', '>=', $today->toDateString())
             ->whereDate('date', '<=', $today->copy()->addDay()->toDateString())
             ->where('status', 'Available')
-            ->where('custom', true)
+            ->whereNotNull('public_early_opened_at')
             ->where(function ($query) use ($today) {
                 $query
                     ->whereDate('date', '>', $today->toDateString())

@@ -13,6 +13,7 @@ use App\Models\ScheduleOverride;
 use App\Services\AuditLogger;
 use App\Services\ScheduleService;
 use App\Support\PublicCache;
+use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -46,7 +47,12 @@ class ScheduleController extends Controller
         $override = $this->upsertOverride(
             $data['date'],
             $data['time'],
-            ['status' => $data['status'], 'custom' => true, 'note' => $data['note'] ?? null],
+            [
+                'status' => $data['status'],
+                'custom' => true,
+                'public_early_opened_at' => $this->publicEarlyOpenedAt($data['date'], $data['time'], $data['status']),
+                'note' => $data['note'] ?? null,
+            ],
         );
 
         PublicCache::bumpScheduleVersion();
@@ -103,11 +109,13 @@ class ScheduleController extends Controller
                 }
 
                 foreach ($times as $time) {
+                    $dateKey = $cursor->copy()->startOfDay()->toDateString();
                     $rows[] = [
                         'date' => $cursor->copy()->startOfDay()->toDateTimeString(),
                         'time' => $time,
                         'status' => $data['status'],
                         'custom' => true,
+                        'public_early_opened_at' => $this->publicEarlyOpenedAt($dateKey, $time, $data['status'], $now),
                         'note' => $data['note'] ?? null,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -116,7 +124,7 @@ class ScheduleController extends Controller
             }
 
             if ($rows !== []) {
-                ScheduleOverride::upsert($rows, ['date', 'time'], ['status', 'custom', 'note', 'updated_at']);
+                ScheduleOverride::upsert($rows, ['date', 'time'], ['status', 'custom', 'public_early_opened_at', 'note', 'updated_at']);
             }
         });
 
@@ -180,5 +188,23 @@ class ScheduleController extends Controller
 
             return $override;
         }
+    }
+
+    private function publicEarlyOpenedAt(string $date, string $time, string $status, ?Carbon $timestamp = null): ?Carbon
+    {
+        if ($status !== 'Available') {
+            return null;
+        }
+
+        $startsAt = Carbon::createFromFormat('Y-m-d H.i', "{$date} {$time}", 'Asia/Jakarta');
+        $today = Carbon::today('Asia/Jakarta');
+
+        if ($startsAt->lte(now('Asia/Jakarta'))) {
+            return null;
+        }
+
+        return $startsAt->toDateString() <= $today->copy()->addDay()->toDateString()
+            ? ($timestamp ?? now())
+            : null;
     }
 }
