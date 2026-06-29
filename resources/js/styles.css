@@ -552,11 +552,20 @@ a {
 
 .zoom-media {
   transition: transform 700ms ease;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
-.group:hover .zoom-media,
 .group:focus-visible .zoom-media {
   transform: scale(1.05);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .group:hover .zoom-media {
+    transform: scale(1.05);
+  }
 }
 
 .miky-stage {
@@ -1396,6 +1405,11 @@ a {
   border: 0;
   border-radius: 8px;
   transition: flex 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .accordion-panel.is-open {
@@ -12494,7 +12508,10 @@ a {
   background: #434244;
   color: #f1ebdc;
   overflow: hidden;
-  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  /* Default isi poster = Lora (serif teks, kontras rendah) agar nyaman dibaca
+     dan tahan kompresi WhatsApp. Playfair Display dipakai eksplisit hanya pada
+     elemen display (angka tanggal, nama hari). */
+  font-family: "Lora", Georgia, "Times New Roman", serif;
 }
 
 /* Motif lingkaran saling tumpang-tindih (overlapping circles / pola kelopak)
@@ -12702,9 +12719,10 @@ a {
   color: #2b2b2b;
   background: transparent;
   border: 1px dashed transparent;
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Lora", Georgia, serif;
   font-size: 1.26rem;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .poster-entry-agenda {
@@ -12736,10 +12754,10 @@ a {
   color: #2b2b2b;
   background: transparent;
   border: 1px dashed transparent;
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Lora", Georgia, serif;
   font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1.32;
+  font-weight: 600;
+  line-height: 1.42;
   resize: none;
   overflow: hidden;
 }
@@ -12778,9 +12796,10 @@ a {
   color: #2b2b2b;
   background: transparent;
   border: 1px dashed transparent;
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Lora", Georgia, serif;
   font-size: 1.26rem;
   font-weight: 500;
+  line-height: 1.4;
   text-align: left;
 }
 
