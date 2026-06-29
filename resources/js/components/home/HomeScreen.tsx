@@ -560,6 +560,23 @@ function ProcessCard({
 
 function HorizontalAccordion({ content }: { content: SiteContent["activities"] }) {
   const [active, setActive] = useState(0);
+  // Di perangkat sentuh, hindari setActive lewat focus/mouseenter karena event itu
+  // jalan di tengah gestur tap dan memicu reflow yang membatalkan klik (butuh 2x tap).
+  // Hanya pointer berkemampuan hover (desktop) yang boleh melebar saat hover/focus.
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setCanHover(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  const activateOnHover = (index: number) => {
+    if (canHover) setActive(index);
+  };
 
   return (
     <div className="accordion-block">
@@ -574,8 +591,8 @@ function HorizontalAccordion({ content }: { content: SiteContent["activities"] }
             className={`accordion-panel group ${active === index ? "is-open" : ""}`}
             type="button"
             aria-expanded={active === index}
-            onFocus={() => setActive(index)}
-            onMouseEnter={() => setActive(index)}
+            onFocus={() => activateOnHover(index)}
+            onMouseEnter={() => activateOnHover(index)}
             onClick={() => setActive(index)}
           >
             <img
