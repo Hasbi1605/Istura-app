@@ -18,6 +18,7 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
+        "@fontsource/lora": "5.2.6",
         "@fontsource/montserrat": "5.2.6",
         "@fontsource/playfair-display": "5.2.6",
         "@gsap/react": "2.1",

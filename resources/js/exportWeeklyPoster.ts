@@ -27,8 +27,8 @@ export async function exportPosterToPng(
 ): Promise<PosterImageResult> {
   const { toPng } = await import("html-to-image");
 
-  // Pastikan web font (Montserrat & Playfair Display) sudah termuat sebelum
-  // snapshot, kalau tidak PNG akan jatuh ke font default.
+  // Pastikan web font (Montserrat, Playfair Display & Lora) sudah termuat
+  // sebelum snapshot, kalau tidak PNG akan jatuh ke font default.
   if (document.fonts && "ready" in document.fonts) {
     try {
       await document.fonts.ready;
