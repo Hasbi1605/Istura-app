@@ -573,8 +573,10 @@ function HorizontalAccordion({ content }: { content: SiteContent["activities"] }
             key={item.title}
             className={`accordion-panel group ${active === index ? "is-open" : ""}`}
             type="button"
+            aria-expanded={active === index}
             onFocus={() => setActive(index)}
             onMouseEnter={() => setActive(index)}
+            onClick={() => setActive(index)}
           >
             <img
               className="zoom-media"
