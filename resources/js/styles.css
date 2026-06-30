@@ -5148,6 +5148,11 @@ a {
   border-color: rgba(45, 118, 84, 0.28);
 }
 
+.admin-agenda-item.admin-agenda-item--elapsed {
+  background: rgba(16, 24, 47, 0.035);
+  border-color: rgba(16, 24, 47, 0.14);
+}
+
 .admin-agenda-item.admin-agenda-item--completed {
   background: rgba(16, 24, 47, 0.035);
   border-color: rgba(16, 24, 47, 0.14);
@@ -5184,6 +5189,10 @@ a {
 
 .admin-agenda-item.admin-agenda-item--ongoing .admin-agenda-tag strong {
   color: #1f5f3f;
+}
+
+.admin-agenda-item.admin-agenda-item--elapsed .admin-agenda-tag strong {
+  color: rgba(16, 24, 47, 0.72);
 }
 
 .admin-agenda-item.admin-agenda-item--completed .admin-agenda-tag strong {

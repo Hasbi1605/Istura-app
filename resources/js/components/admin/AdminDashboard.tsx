@@ -27,7 +27,7 @@ import { InlineSpinner, SectionSkeleton, StatCardSkeleton } from "../ui/LoadingS
 const AGENDA_SLOT_DURATION_MINUTES = 60;
 const AGENDA_CLOCK_REFRESH_MS = 60_000;
 
-type AgendaVisualPhase = "upcoming" | "ongoing" | "completed" | "reschedule";
+type AgendaVisualPhase = "upcoming" | "ongoing" | "elapsed" | "completed" | "reschedule";
 
 const visitDateTime = (dateKey: string, time: string): Date | null => {
   const match = time.match(/^(\d{2})\.(\d{2})$/);
@@ -238,8 +238,13 @@ export function AdminDashboard({
     const isOngoing = segmentStarts.some(
       (start) => agendaNow >= start && agendaNow < addMinutes(start, AGENDA_SLOT_DURATION_MINUTES),
     );
+    const hasElapsed = segmentStarts.length > 0 && segmentStarts.every(
+      (start) => agendaNow >= addMinutes(start, AGENDA_SLOT_DURATION_MINUTES),
+    );
 
-    return isOngoing ? "ongoing" : "upcoming";
+    if (isOngoing) return "ongoing";
+    if (hasElapsed) return "elapsed";
+    return "upcoming";
   };
 
   // Rentang minggu untuk header card, mis. "24 – 30 Mei 2026". Tetap ramah
