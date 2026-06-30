@@ -1,117 +1,112 @@
-# ISTURA Web — Laravel + React (monolith)
+# ISTURA Web
 
-Aplikasi kunjungan **Istana Untuk Rakyat (ISTURA)** Yogyakarta. Backend Laravel 13
-melayani REST API + WebSocket realtime (Reverb) dan menghost frontend React 19
-(Vite) sebagai SPA pada satu origin.
+Sistem booking kunjungan **Istana Untuk Rakyat (ISTURA)** Yogyakarta. Repo ini adalah
+monolit **Laravel 13 + React 19**: Laravel melayani REST API, WebSocket Reverb,
+halaman info server-rendered, dan shell SPA React pada satu origin.
 
-Hasil migrasi dari project React murni (`../istura-web`) yang sebelumnya menyimpan
-data di `localStorage`. Tampilan & interaksi dipertahankan; sumber data dipindah
-ke MySQL via API. Lihat `../PRD-MIGRATION.md` untuk rincian.
+## Mulai Dari Sini
+
+- [Handover mentor](docs/00-HANDOVER.md) — ringkasan sistem, status, dan checklist serah terima.
+- [Product overview](docs/01-PRODUCT-OVERVIEW.md) — fitur publik, admin, dan Istura Open.
+- [Panduan admin/operator](docs/02-ADMIN-USER-GUIDE.md) — alur pakai harian non-teknis.
+- [Arsitektur](docs/03-ARCHITECTURE.md) — peta Laravel, React, Reverb, route, dan service.
+- [Environment](docs/04-ENVIRONMENT.md) — variabel `.env` penting.
+- [Deployment](docs/05-DEPLOYMENT.md) — deploy saat ini dan opsi server baru.
+- [Migrasi domain](docs/06-DOMAIN-MIGRATION.md) — checklist ketika domain pindah.
+- [Runbook operasional](docs/07-OPERATIONS-RUNBOOK.md) — backup, restore, logs, 2FA, queue.
+- [Security & privacy](docs/08-SECURITY-PRIVACY.md) — NIK, surat, role, 2FA, rate limit.
+- [Ringkasan database](docs/09-DATABASE-SUMMARY.md) — tabel dan relasi utama.
+- [Codebase context](docs/CODEBASE-CONTEXT.md) — peta detail file untuk developer/agent.
+
+Dokumen produk lengkap tetap ada di [PRD-ISTURA-APP.md](PRD-ISTURA-APP.md). Dokumen
+khusus modul Istura Open ada di [IsturaOpen.md](IsturaOpen.md).
 
 ## Stack
 
-- Laravel 13 (PHP 8.4), MySQL
-- Auth: Laravel Sanctum (SPA cookie session)
-- Realtime: Laravel Reverb + `laravel-echo` / `pusher-js`
-- Frontend: React 19 + Vite, GSAP, lucide-react
-- Ekspor PDF/XLSX/ZIP: tetap di browser (pdfmake, exceljs, jszip)
+- Backend: Laravel 13, PHP 8.4, MySQL.
+- Frontend: React 19, TypeScript, Vite 8, GSAP, lucide-react.
+- Auth admin: Laravel Sanctum cookie session, role `viewer`/`admin`/`super_admin`, 2FA TOTP.
+- Realtime: Laravel Reverb + `laravel-echo` / `pusher-js`.
+- Ekspor browser: pdfmake, exceljs, jszip, html-to-image.
+- Cache, session, dan queue: database driver.
+- File privat: surat booking di `storage/app/private/booking-letters/`.
 
-## Prasyarat
+## Fitur Utama
 
-- PHP 8.4, Composer
-- Node 20+ / npm
-- MySQL berjalan (dev ini di port **3307**; sesuaikan `.env` bila beda)
+- Publik melihat landing page, jadwal, halaman info SEO, wizard booking rombongan,
+  feedback pasca-kunjungan, dan modul Istura Open saat event aktif.
+- Admin mengelola booking, jadwal, feedback, CMS, template WhatsApp, laporan,
+  poster mingguan, audit log, user admin, dan Istura Open.
+- Booking publik normal H+2 sampai 2 bulan. H/H+1 default tertutup dan hanya tampil
+  jika admin membuka slot dengan marker eksplisit.
+- Pending booking tidak punya TTL umur pengajuan; status Expired hanya saat jam kunjungan
+  sudah terlewat.
+- Feedback rombongan dapat diisi sampai `group_size` kali selama 14 hari setelah Completed.
 
-## Setup
+## Prasyarat Lokal
+
+- PHP 8.4 dan Composer.
+- Node.js 22 direkomendasikan sesuai CI, Node 20+ masih cukup untuk Vite modern.
+- MySQL berjalan. Default contoh `.env` memakai port `3306`; sesuaikan jika mesin lokal
+  memakai port lain.
+
+## Setup Lokal
 
 ```bash
-# 1. Dependencies
 composer install
 npm install
 
-# 2. Environment
 cp .env.example .env
 php artisan key:generate
-# Edit .env: set DB_PORT (3306/3307), DB_PASSWORD, DB_SOCKET bila perlu.
-# Untuk membuat akun admin seed lokal, isi SEED_ADMIN_PASSWORD dengan password kuat sementara.
 
-# 3. Database
 mysql -uroot -p -e "CREATE DATABASE istura CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 php artisan migrate --seed
 ```
 
-Seeder mengisi data demo yang identik dengan mock lama di `App.tsx`
-(51 booking, 21 feedback, 6 FAQ, 3 kontak, 4 template WA, 3 user admin).
+Seeder production tidak membuat user admin. Di lokal/testing, `UserSeeder` hanya membuat
+akun dari `database/seeders/data/admin_users.json` jika `SEED_ADMIN_PASSWORD` diisi.
 
-## Menjalankan (dev)
+## Menjalankan Aplikasi
 
-Butuh **3 proses** paralel. Buka 3 terminal:
-
-```bash
-php artisan serve --port=8000      # 1. Laravel  → http://localhost:8000
-npm run dev                        # 2. Vite (HMR) → http://localhost:5175
-php artisan reverb:start --port=8080  # 3. Reverb (WebSocket)
-```
-
-Akses aplikasi di **http://localhost:8000**.
-
-> Realtime dapat dimatikan dengan `VITE_REVERB_ENABLED=false` di `.env`
-> (aplikasi tetap berjalan, hanya tanpa auto-update dashboard).
-
-## Akun admin (seed)
-
-Seeder hanya membuat akun admin bila `SEED_ADMIN_PASSWORD` diisi. Email dan peran demo
-ada di `database/seeders/data/admin_users.json`; password tidak disimpan di repo.
-Setelah bootstrap production, rotate password admin pertama lalu kosongkan env seed.
-
-## Build produksi
+Jalankan proses ini di terminal terpisah:
 
 ```bash
-npm run build      # bundling React → public/build
-php artisan config:cache route:cache
+php artisan serve --port=8000
+npm run dev
+php artisan reverb:start --port=8080
 ```
 
-## Struktur penting
+Akses aplikasi di `http://localhost:8000`.
 
-```
-app/
-  Http/Controllers/{Auth,Public,Admin}/   # thin controllers
-  Http/Requests/                          # validasi per-action
-  Http/Resources/                         # bentuk JSON (camelCase, mirror React)
-  Models/                                 # Eloquent
-  Services/                               # logika domain (BookingService, ScheduleService, ...)
-  Events/                                 # broadcast: BookingCreated, BookingStatusChanged, FeedbackSubmitted
-database/
-  migrations/  seeders/  seeders/data/*.json  # JSON di-extract dari App.tsx lama
-resources/
-  js/        # React (App.tsx + api/ + realtime/ + exports)
-  views/app.blade.php   # shell SPA
-routes/
-  api.php  web.php(catch-all → SPA)  channels.php
-```
+Realtime bisa dimatikan dengan `VITE_REVERB_ENABLED=false`; aplikasi tetap berjalan dengan
+refetch manual/fallback.
 
-## API ringkas
-
-- Public: `GET /api/public/{faqs,contacts,schedule,wa-templates}`, `POST /api/public/bookings`,
-  `GET|POST /api/public/feedback/{code}`
-- Auth: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
-- Admin (Sanctum): `GET /api/admin/dashboard`, CRUD `bookings`, `schedule`,
-  `feedback`, `cms/{faqs,contacts,wa-templates}`, `users`, `audit-logs`
-
-## QA
-
-Skrip Playwright di `scripts/` (jalankan saat dev server hidup):
+## Verifikasi
 
 ```bash
-node scripts/qa-migration.mjs    # data live + Echo init
-node scripts/qa-realtime.mjs     # submit booking → muncul realtime di admin
-node scripts/qa-assets.mjs       # tidak ada 404 asset / error JS
-QA_BASE=http://localhost:8000 node scripts/qa-admin-flow.mjs   # alur admin penuh
+php artisan test
+npm run build
 ```
 
-## Catatan keamanan
+Untuk QA browser lokal, repo saat ini memiliki:
 
-- NIK disimpan terenkripsi (`Crypt`); kolom `nik_masked` untuk tampilan.
-- Surat permohonan disimpan privat di `storage/app/private/booking-letters/`,
-  diakses admin via endpoint download (bukan URL publik).
-- Endpoint publik dibatasi rate-limit; upload divalidasi mime + ukuran ≤ 5 MB.
+```bash
+QA_BASE=http://localhost:8000 node scripts/e2e-user-flow.mjs
+```
+
+## Production Ringkas
+
+Template env production ada di [.env.production.example](.env.production.example).
+Deploy saat ini memakai GitHub Actions `.github/workflows/deploy.yml` ke AWS EC2 via SSM
+dan menjalankan [deploy/aws/deploy.sh](deploy/aws/deploy.sh). Jika sistem dipindah ke
+server/domain milik Istana, ikuti [docs/05-DEPLOYMENT.md](docs/05-DEPLOYMENT.md) dan
+[docs/06-DOMAIN-MIGRATION.md](docs/06-DOMAIN-MIGRATION.md).
+
+## Catatan Keamanan
+
+- Jangan commit `.env`, dump database production, surat permohonan, atau data NIK mentah.
+- NIK disimpan terenkripsi dan hanya `nik_masked`/`nik_hash` yang dipakai untuk tampilan/dedup.
+- Surat permohonan disimpan privat dan diakses melalui endpoint admin.
+- Endpoint publik memakai rate limit; admin memakai Sanctum, role, 2FA, dan audit log.
+
+Lihat [SECURITY.md](SECURITY.md) untuk ringkasan keamanan dan pelaporan isu.

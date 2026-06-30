@@ -168,7 +168,7 @@ class SeoMetadataTest extends TestCase
 
         $response->assertOk();
         $response->assertSee(
-            'Situs isturaiky.page merupakan kanal resmi informasi dan pendaftaran kunjungan ISTURA Gedung Agung / Istana Kepresidenan Yogyakarta.',
+            'Situs ISTURA merupakan kanal resmi informasi dan pendaftaran kunjungan ISTURA Gedung Agung / Istana Kepresidenan Yogyakarta.',
         );
         $response->assertDontSee('bukan merupakan situs institusional resmi');
     }

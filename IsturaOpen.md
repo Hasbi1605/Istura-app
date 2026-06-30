@@ -1,14 +1,15 @@
 # PRD — Istura Open
 
-Status: Final (siap implementasi)
+Status: Sudah diimplementasikan (dokumen keputusan produk + catatan implementasi)
 Versi: 1.0
 Pemilik produk: Admin Istura (Mbak Fit)
 Penyusun: Hasbi
 Terakhir diperbarui: Juni 2026
 
 > Dokumen ini menggantikan draf diskusi sebelumnya (dua usulan mentah Opus/GPT).
-> Semua keputusan di bawah sudah dikonfirmasi ke admin kecuali yang ditandai
-> **TERBUKA** pada bagian "Keputusan yang Masih Terbuka".
+> Modul Istura Open sudah berjalan di repo. Bagian yang masih berbentuk "rencana"
+> dipertahankan sebagai riwayat keputusan desain; peta implementasi paling mutakhir ada
+> di `docs/CODEBASE-CONTEXT.md`.
 
 ---
 
@@ -136,7 +137,8 @@ sisi publik** sampai admin sengaja menyalakannya. Jaminan berlapis:
   hilang, booking reguler tetap jalan.
 - Event yang **diarsipkan** (`archived_at` terisi) atau **sudah lewat** (`end_date` sebelum hari
   ini) tidak dikembalikan oleh endpoint publik dan tidak menerima pendaftaran baru. Arsip adalah
-  jalur utama untuk event yang sudah punya pendaftar; hapus permanen hanya untuk draft kosong.
+  jalur utama untuk event yang sudah punya pendaftar; delete permanen tersedia untuk event
+  nonaktif yang memenuhi guard dan memakai konfirmasi eksplisit.
 
 ---
 
@@ -467,7 +469,8 @@ aktif sebagai jalan masuk permanen. Popup = sekali; banner = selalu selama event
 
 **Admin** (prefix `admin`, middleware `admin-access`)
 - `GET    admin/open-events`, `POST admin/open-events`, `PUT admin/open-events/{event}`
-- `DELETE admin/open-events/{event}` — hanya event nonaktif tanpa riwayat pendaftar
+- `DELETE admin/open-events/{event}` — event nonaktif yang lolos guard; event berpendaftar
+  membutuhkan konfirmasi eksplisit
 - `POST   admin/open-events/{event}/activate`
 - `POST   admin/open-events/{event}/archive` — nonaktifkan dan simpan sebagai arsip
 - `POST   admin/open-events/{event}/unarchive` — pulihkan arsip menjadi draft nonaktif

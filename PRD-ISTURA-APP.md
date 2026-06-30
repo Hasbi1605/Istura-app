@@ -214,7 +214,7 @@ Modul pendaftaran perorangan berbasis kuota harian, terpisah dari booking rombon
 sudah diimplementasikan. Admin dapat memilih satu atau beberapa tanggal (termasuk tanggal
 tidak berurutan), mengatur kuota/link grup per hari, mengaktifkan satu event, memantau,
 membatalkan, dan mengekspor pendaftar, mengarsipkan/memulihkan event yang sudah tidak operasional, serta
-menghapus draft event nonaktif yang belum pernah memiliki pendaftar. Event yang sudah lewat
+menghapus event draft/arsip nonaktif lewat guard dan konfirmasi eksplisit. Event yang sudah lewat
 atau diarsipkan tidak tampil di publik dan bersifat baca-saja untuk mutasi operasional di UI
 dan API. Saat window pendaftaran sudah ditutup tetapi event masih aktif/belum lewat, pendaftar
 lama tetap bisa lookup link grup atau self-cancel dengan NIK + WhatsApp. Event baru tidak dapat

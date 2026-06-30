@@ -318,7 +318,7 @@ return [
                 'heading' => 'Cara Resmi Mengunjungi Gedung Agung',
                 'body' => [
                     'Bagi masyarakat umum yang tertarik untuk mengagumi keindahan arsitektur kolonial, taman yang asri, serta berbagai benda koleksi bernilai seni tinggi di Gedung Agung, pendaftaran wajib diajukan melalui program ISTURA secara online. Sebagai salah satu opsi wisata sejarah di Jogja, program ini diselenggarakan tanpa biaya tiket masuk (kunjungan gratis) untuk mengedukasi publik. Di sini, pengunjung, keluarga, sekolah, komunitas, instansi, maupun pendaftar individu/perorangan dengan satu koordinator/penanggung jawab juga dapat menjelajahi kompleks luar ruangan serta mempelajari koleksi seni di museum Istana Kepresidenan Yogyakarta secara teratur.',
-                    'Situs isturaiky.page merupakan kanal resmi informasi dan pendaftaran kunjungan ISTURA Gedung Agung / Istana Kepresidenan Yogyakarta.',
+                    'Situs ISTURA merupakan kanal resmi informasi dan pendaftaran kunjungan ISTURA Gedung Agung / Istana Kepresidenan Yogyakarta.',
                 ],
                 'items' => [],
             ],

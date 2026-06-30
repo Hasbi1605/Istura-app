@@ -14,11 +14,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ap-southeast-2
-  AWS_ROLE_ARN: arn:aws:iam::875911184139:role/istura-actions-deploy
-  DEPLOY_BUCKET: istura-deploy-artifacts-875911184139-ap-southeast-2
-  INSTANCE_ID: i-072b0ca3970f635b6
-  DEPLOY_PATH: /var/www/istura
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
+  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN || 'arn:aws:iam::875911184139:role/istura-actions-deploy' }}
+  DEPLOY_BUCKET: ${{ vars.DEPLOY_BUCKET || 'istura-deploy-artifacts-875911184139-ap-southeast-2' }}
+  INSTANCE_ID: ${{ vars.INSTANCE_ID || 'i-072b0ca3970f635b6' }}
+  DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/var/www/istura' }}
+  HEALTHCHECK_HOST: ${{ vars.HEALTHCHECK_HOST || 'www.isturaiky.page' }}
+  PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://www.isturaiky.page' }}
 
 jobs:
   quality:
@@ -104,7 +106,7 @@ jobs:
           trap 'rm -rf "\$work_dir"' EXIT
           /usr/local/bin/aws s3 cp '${ARTIFACT_URI}' "\$work_dir/release.tar.gz" --region '${AWS_REGION}' --only-show-errors
           tar -xzf "\$work_dir/release.tar.gz" -C "\$work_dir/source"
-          SOURCE_DIR="\$work_dir/source" DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_SHA='${GITHUB_SHA}' AWS_REGION='${AWS_REGION}' bash "\$work_dir/source/deploy/aws/deploy.sh"
+          SOURCE_DIR="\$work_dir/source" DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_SHA='${GITHUB_SHA}' AWS_REGION='${AWS_REGION}' HEALTHCHECK_HOST='${HEALTHCHECK_HOST}' bash "\$work_dir/source/deploy/aws/deploy.sh"
           REMOTE
           )"
 
@@ -158,7 +160,7 @@ jobs:
         run: |
           set -euo pipefail
           for endpoint in / /up /api/public/bootstrap /api/public/faqs /robots.txt /sitemap.xml; do
-            url="https://www.isturaiky.page${endpoint}"
+            url="${PRODUCTION_BASE_URL}${endpoint}"
             for attempt in $(seq 1 12); do
               if curl --fail --silent --show-error --max-time 20 "$url" >/dev/null; then
                 echo "OK $url"

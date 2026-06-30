@@ -7,6 +7,7 @@ set -Eeuo pipefail
 : "${DEPLOY_SHA:=unknown}"
 : "${DEPLOY_OWNER:=ubuntu}"
 : "${SUPERVISOR_USER:=www-data}"
+: "${HEALTHCHECK_HOST:=www.isturaiky.page}"
 
 if [ ! -f "$SOURCE_DIR/artisan" ]; then
     echo "Invalid deployment source: artisan was not found in $SOURCE_DIR" >&2
@@ -199,8 +200,8 @@ systemctl reload nginx
 sudo -u "$DEPLOY_OWNER" -H php artisan up
 
 curl --fail --silent --show-error \
-    --resolve www.isturaiky.page:443:127.0.0.1 \
-    https://www.isturaiky.page/up >/dev/null
+    --resolve "${HEALTHCHECK_HOST}:443:127.0.0.1" \
+    "https://${HEALTHCHECK_HOST}/up" >/dev/null
 
 trap - EXIT
 echo "Deployment $DEPLOY_SHA completed successfully."
