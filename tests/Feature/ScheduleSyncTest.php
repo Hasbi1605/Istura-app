@@ -545,6 +545,85 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Libur Nasional: Hari Lahir Pancasila', $response->json('data.0.holiday.label'));
     }
 
+    public function test_schedule_policy_defaults_open_friday(): void
+    {
+        $this->actingAsAdmin();
+
+        $policy = $this->getJson('/api/admin/schedule/policy')
+            ->assertOk();
+
+        $this->assertSame([1, 2, 3, 4, 5], $policy->json('data.openWeekdays'));
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-05', '08.00'));
+
+        $response = $this->getJson('/api/public/schedule?from=2026-06-05&to=2026-06-05')
+            ->assertOk();
+
+        $slot = $this->slotFromResponse($response->json('data'), '2026-06-05', '08.00');
+        $this->assertSame('Available', $slot['status']);
+        $this->assertNull($slot['closureReason']);
+        $this->assertNull($response->json('data.0.closureReason'));
+    }
+
+    public function test_admin_can_update_default_operational_days_without_overrides(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->putJson('/api/admin/schedule/policy', [
+            'openWeekdays' => [1, 2, 3, 4, 5, 6],
+            'closedLabels' => [
+                '0' => 'Akhir pekan',
+                '6' => 'Akhir pekan',
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.openWeekdays', [1, 2, 3, 4, 5, 6]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'Memperbarui pola operasional jadwal',
+            'target_id' => 'schedule_policy',
+        ]);
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-06-06', '08.00'));
+        $this->assertDatabaseMissing('schedule_overrides', [
+            'date' => '2026-06-06 00:00:00',
+            'time' => '08.00',
+        ]);
+
+        $response = $this->getJson('/api/public/schedule?from=2026-06-06&to=2026-06-06')
+            ->assertOk();
+
+        $slot = $this->slotFromResponse($response->json('data'), '2026-06-06', '08.00');
+        $this->assertSame('Available', $slot['status']);
+        $this->assertNull($slot['closureReason']);
+    }
+
+    public function test_schedule_policy_does_not_bypass_public_h_and_h_plus_one_gate(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->putJson('/api/admin/schedule/policy', [
+            'openWeekdays' => [0, 1, 2, 3, 4],
+            'closedLabels' => [
+                '0' => 'Akhir pekan',
+                '5' => 'Libur operasional',
+                '6' => 'Akhir pekan',
+            ],
+        ])->assertOk();
+
+        $this->assertSame('Available', app(ScheduleService::class)->slotStatusFor('2026-05-31', '08.00'));
+
+        $this->getJson('/api/public/schedule?from=2026-05-31&to=2026-05-31')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+
+        Storage::fake('local');
+        $this->post('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-05-31',
+            'time' => '08.00',
+        ]), ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date');
+    }
+
     public function test_indonesian_holiday_sync_closes_public_schedule_with_reason(): void
     {
         Http::fake([

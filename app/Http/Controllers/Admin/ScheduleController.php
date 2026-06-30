@@ -7,10 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DestroyScheduleSlotRequest;
 use App\Http\Requests\Admin\StoreScheduleRangeRequest;
 use App\Http\Requests\Admin\StoreScheduleSlotRequest;
+use App\Http\Requests\Admin\UpdateSchedulePolicyRequest;
 use App\Http\Requests\ScheduleRangeRequest;
 use App\Http\Resources\VisitDayResource;
 use App\Models\ScheduleOverride;
+use App\Models\SiteSetting;
 use App\Services\AuditLogger;
+use App\Services\OperationalSchedulePolicy;
 use App\Services\ScheduleService;
 use App\Support\PublicCache;
 use Carbon\Carbon;
@@ -22,7 +25,10 @@ use Illuminate\Support\Facades\Gate;
 
 class ScheduleController extends Controller
 {
-    public function __construct(private readonly ScheduleService $service) {}
+    public function __construct(
+        private readonly ScheduleService $service,
+        private readonly OperationalSchedulePolicy $policy,
+    ) {}
 
     public function index(ScheduleRangeRequest $request): JsonResponse
     {
@@ -36,6 +42,33 @@ class ScheduleController extends Controller
         return response()->json([
             'data' => collect($days)->map(fn ($d) => (new VisitDayResource($d))->resolve())->all(),
         ]);
+    }
+
+    public function policy(): JsonResponse
+    {
+        Gate::authorize('viewAny', ScheduleOverride::class);
+
+        return response()->json(['data' => $this->policy->payload()]);
+    }
+
+    public function updatePolicy(UpdateSchedulePolicyRequest $request): JsonResponse
+    {
+        Gate::authorize('update', ScheduleOverride::class);
+
+        $previous = $this->policy->payload();
+        $policy = $this->policy->update($request->validated());
+        $from = Carbon::today('Asia/Jakarta')->toDateString();
+        $to = Carbon::today('Asia/Jakarta')->addMonths(2)->toDateString();
+
+        PublicCache::bumpScheduleVersion();
+        ScheduleUpdated::dispatch($from, $to);
+
+        AuditLogger::record($request->user(), 'Memperbarui pola operasional jadwal', SiteSetting::class, OperationalSchedulePolicy::SETTING_KEY, [
+            'previous_open_weekdays' => $previous['openWeekdays'],
+            'open_weekdays' => $policy['openWeekdays'],
+        ], $request);
+
+        return response()->json(['data' => $policy]);
     }
 
     public function storeSlot(StoreScheduleSlotRequest $request): JsonResponse

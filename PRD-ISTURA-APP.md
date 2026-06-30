@@ -82,7 +82,7 @@ WebSocket (Laravel Reverb).
 | FR-A5 | Admin dapat menyetujui (accept), menolak (reject), menjadwalkan ulang (reschedule), membatalkan usulan reschedule, dan menandai selesai (complete) sebuah booking. |
 | FR-A6 | Admin dapat menggabungkan/memecah pembagian kloter pada tanggal yang sama. Total peserta terkunci secara default; koreksi total harus diaktifkan eksplisit. Overbook manual, koreksi total, serta kloter >80 wajib memakai checkbox konfirmasi dan menghasilkan catatan audit otomatis. |
 | FR-A7 | Admin dapat mengunduh surat permohonan booking (inline preview atau download). |
-| FR-A8 | Admin dapat mengelola jadwal: menutup/membuka slot tertentu, dan menutup/membuka rentang tanggal. |
+| FR-A8 | Admin dapat mengelola jadwal: mengubah hari operasional default, menutup/membuka slot tertentu, dan menutup/membuka rentang tanggal. |
 | FR-A9 | Admin dapat melihat & mengekspor feedback. |
 | FR-A10 | Admin dapat mengelola konten CMS: FAQ, ketentuan/surat, kontak footer, hero & cerita, landing page, template pesan WhatsApp. |
 | FR-A11 | Admin dapat menyalin pesan WhatsApp tergenerasi (berbasis template per status) untuk dikirim ke pengunjung. |
@@ -115,8 +115,8 @@ WebSocket (Laravel Reverb).
 | BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 dengan konfirmasi operasional dan audit. |
 | BR-3 | Jumlah rombongan: minimal 1, maksimal **480 orang** per hari kunjungan. |
 | BR-4 | NIK wajib 16 digit angka. WhatsApp wajib format `08...` atau `628...` (8–13 digit setelah prefix). |
-| BR-5 | Jam operasional default: **Senin–Kamis**, slot 08.00, 09.00, 10.00, 11.00, 13.00, 14.00. Jam 12.00 = istirahat (tidak tersedia). |
-| BR-6 | **Jumat, Sabtu, Minggu** dan **tanggal merah nasional** otomatis tertutup (Closed). |
+| BR-5 | Jam layanan default: slot 08.00, 09.00, 10.00, 11.00, 13.00, 14.00. Jam 12.00 = istirahat (tidak tersedia). Hari operasional default permanen sistem adalah **Senin–Jumat** dan dapat dikelola admin lewat pola operasional jadwal bila ada perubahan kebijakan resmi. |
+| BR-6 | Hari di luar pola operasional default dan **tanggal merah nasional** otomatis tertutup (Closed). Nilai awal menutup **Sabtu dan Minggu**. Penutupan sementara pada hari kerja tertentu ditangani sebagai override operasional, bukan default permanen. |
 | BR-7 | Satu identitas (NIK atau WhatsApp) dibatasi jumlah booking aktif bersamaan (konfigurasi `PUBLIC_BOOKING_ACTIVE_IDENTITY_LIMIT`). |
 | BR-8 | Booking Pending kedaluwarsa otomatis hanya bila jam kunjungan sudah terlewat. Tidak ada TTL umur pengajuan; Pending tetap menahan slot sampai admin memproses atau jadwalnya lewat. |
 | BR-9 | Feedback dapat dikirim hingga `group_size` kali per booking, hanya setelah status Completed, dan hanya sampai `feedback_expires_at` (default `completed_at + 14 hari`). |
@@ -176,8 +176,10 @@ kapasitas atau tenggat terpisah di luar status slot jadwal.
 
 ### 3.5 Manajemen Jadwal (Admin)
 Grid kalender dengan status per slot (Available, Held, Booked, Closed, Reschedule Hold).
-Admin dapat menutup/membuka slot tunggal atau rentang tanggal (mis. menutup pekan event).
-Status default dihitung runtime; hanya override yang disimpan. Integrasi auto-sync tanggal
+Admin dapat mengubah pola hari operasional default tanpa deploy kode, serta menutup/membuka
+slot tunggal atau rentang tanggal (mis. menutup pekan event). Perubahan pola default dicatat
+di audit, mem-bump cache jadwal publik, dan menyiarkan update realtime. Status default
+dihitung runtime; hanya override yang disimpan. Integrasi auto-sync tanggal
 merah nasional dari provider eksternal.
 
 ### 3.6 Feedback Kunjungan
@@ -471,7 +473,7 @@ GET  /bookings | /bookings/{code}
 POST /bookings/{code}/{accept,reject,reschedule,reschedule/cancel,segments,complete}
 DELETE /bookings/{code}
 GET  /bookings/{code}/document
-GET  /schedule ; POST /schedule/slot ; DELETE /schedule/slot ; POST /schedule/range
+GET  /schedule ; GET/PUT /schedule/policy ; POST /schedule/slot ; DELETE /schedule/slot ; POST /schedule/range
 GET  /feedback | /feedback/{feedback}
 GET/PUT/POST /cms/{faqs,contacts,wa-templates,hero,letter,site-content}
 GET  /audit-logs
@@ -585,12 +587,13 @@ Unique: `(booking_id, slot_order)`, `active_slot_key`. Index: `(date,time)`.
 | date | date | |
 | time | string(5) | |
 | status | enum | Available, Held, Booked, Closed, Reschedule Hold |
-| custom | bool | slot di luar default |
+| custom | bool | slot dimodifikasi admin / jam di luar default |
 | note | string nullable | |
 | timestamps | | |
 
 Unique: `(date, time)`. Index: `date`. Hanya slot termodifikasi yang disimpan; default
-dihitung runtime.
+dihitung runtime dari pola operasional (`site_settings.schedule_policy`) + tanggal merah
+nasional.
 
 ### 6.5 `feedbacks`
 | Kolom | Tipe | Catatan |
@@ -719,8 +722,9 @@ bookings *───* schedule (via date/time, dihitung ScheduleService)
 - **Rentang booking:** H-2 sampai +2 bulan; di luar itu tidak dapat dipesan.
 - **Kapasitas slot:** 80 orang per kloter; rombongan besar dipecah ke slot berurutan
   (maks total 480/hari).
-- **Jam layanan:** Senin–Kamis (08.00–11.00 & 13.00–14.00 WIB); 12.00 istirahat;
-  Jumat–Minggu & libur nasional tertutup.
+- **Jam layanan:** 08.00–11.00 & 13.00–14.00 WIB; 12.00 istirahat. Hari
+  operasional default permanen Senin-Jumat dikelola admin lewat pola operasional jadwal,
+  sedangkan hari di luar pola tersebut dan libur nasional tertutup.
 - **Anti-overbooking:** dijamin di level DB via unique `active_slot_key` + transaksi
   `lockForUpdate`.
 - **Batas identitas:** satu NIK/WhatsApp dibatasi booking aktif bersamaan (konfigurasi env).

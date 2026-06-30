@@ -304,7 +304,7 @@ export const quickInfoCards: Array<{
     icon: Clock3,
     title: "Jam Kunjungan",
     body: "Kunjungan dibuka pada hari kerja sesuai jadwal layanan ISTURA.",
-    points: ["Senin - Kamis", "08.00 - 11.00 & 13.00 - 14.00 WIB", "Istirahat 12.00 - 13.00"],
+    points: ["Senin - Jumat", "08.00 - 11.00 & 13.00 - 14.00 WIB", "Istirahat 12.00 - 13.00"],
   },
   {
     icon: FileCheck2,
@@ -451,7 +451,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
         iconKey: "clock",
         title: "Jam Kunjungan",
         body: "Kunjungan dibuka pada hari kerja sesuai jadwal layanan ISTURA.",
-        points: ["Senin - Kamis", "08.00 - 11.00 & 13.00 - 14.00 WIB", "Istirahat 12.00 - 13.00"],
+        points: ["Senin - Jumat", "08.00 - 11.00 & 13.00 - 14.00 WIB", "Istirahat 12.00 - 13.00"],
       },
       {
         iconKey: "file-check",
@@ -547,7 +547,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     logoSrc: ASSETS.logoGold,
     logoAlt: "Gedung Agung",
     scheduleLabel: "Jadwal buka",
-    scheduleDays: "Senin - Kamis",
+    scheduleDays: "Senin - Jumat",
     scheduleHours: "08.00 - 11.00 & 13.00 - 14.00 WIB (istirahat 12.00 - 13.00)",
     mapUrl: "https://maps.app.goo.gl/iuAhnPB1SkJLMaX9A",
     mapEmbedUrl: "https://www.google.com/maps?q=Gedung+Agung+Yogyakarta&output=embed",

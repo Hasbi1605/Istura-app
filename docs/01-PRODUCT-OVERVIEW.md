@@ -43,7 +43,7 @@ memakai WhatsApp sebagai kanal komunikasi operasional.
 - Kapasitas standar 80 orang per slot; rombongan besar dipecah menjadi kloter.
 - Maksimal rombongan 480 orang per hari kunjungan.
 - Operasional reguler produk Senin-Jumat; Sabtu, Minggu, dan tanggal merah default tertutup.
-- Hari Jumat dapat ditutup sementara jika ada kebijakan WFH atau penyesuaian operasional internal.
+- Penutupan sementara di luar default, termasuk pada hari kerja tertentu, ditangani sebagai override jadwal operasional.
 - Pending tidak kedaluwarsa berdasarkan umur pengajuan; hanya Expired saat jam kunjungan lewat.
 - Feedback berlaku sampai 14 hari setelah Completed dan dapat diisi hingga `group_size` kali.
 - Hard delete tidak memakai ulang kode booking.

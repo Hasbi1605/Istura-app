@@ -64,6 +64,17 @@ export type VisitDay = {
   slots: Slot[];
 };
 
+export type SchedulePolicy = {
+  openWeekdays: number[];
+  closedLabels: Record<string, string>;
+  weekdayOptions: Array<{
+    value: number;
+    label: string;
+    isOpen: boolean;
+    closedLabel: string;
+  }>;
+};
+
 export type AdminSession = {
   email: string;
   name: string;

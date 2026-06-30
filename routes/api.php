@@ -90,6 +90,7 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
     Route::get('bookings/{code}/document', [AdminBookingController::class, 'document']);
 
     Route::get('schedule', [ScheduleController::class, 'index']);
+    Route::get('schedule/policy', [ScheduleController::class, 'policy']);
 
     Route::get('feedback', [AdminFeedbackController::class, 'index']);
     Route::get('feedback/{feedback}', [AdminFeedbackController::class, 'show']);
@@ -120,6 +121,7 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
         Route::post('bookings/{code}/complete', [AdminBookingController::class, 'complete']);
         Route::delete('bookings/{code}', [AdminBookingController::class, 'destroy']);
 
+        Route::put('schedule/policy', [ScheduleController::class, 'updatePolicy']);
         Route::post('schedule/slot', [ScheduleController::class, 'storeSlot']);
         Route::delete('schedule/slot', [ScheduleController::class, 'destroySlot']);
         Route::post('schedule/range', [ScheduleController::class, 'storeRange']);

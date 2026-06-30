@@ -69,7 +69,8 @@ export const isSameMonth = (a: Date, b: Date) =>
 export const isWithinRange = (date: Date, minDate: Date, maxDate: Date) =>
   date >= minDate && date <= maxDate;
 
-export const isDefaultHoliday = (date: Date) => [0, 5, 6].includes(date.getDay());
+export const isDefaultHoliday = (date: Date, openWeekdays = [1, 2, 3, 4, 5]) =>
+  !openWeekdays.includes(date.getDay());
 
 export const formatMonthTitle = (date: Date) =>
   `${monthNames[date.getMonth()]} ${date.getFullYear()}`;

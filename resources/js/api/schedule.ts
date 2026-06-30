@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ClosureReason, NationalHolidayInfo } from "../domain/types";
+import type { ClosureReason, NationalHolidayInfo, SchedulePolicy } from "../domain/types";
 
 export type ApiVisitDay = {
   date: string;
@@ -27,6 +27,9 @@ export const fetchAdminSchedule = (from?: string, to?: string): Promise<ApiVisit
   return api<{ data: ApiVisitDay[] }>(`/api/admin/schedule${qs ? `?${qs}` : ""}`).then((r) => r.data);
 };
 
+export const fetchSchedulePolicy = (): Promise<SchedulePolicy> =>
+  api<{ data: SchedulePolicy }>("/api/admin/schedule/policy").then((r) => r.data);
+
 export const fetchPublicSchedule = (from?: string, to?: string): Promise<ApiVisitDay[]> => {
   const search = new URLSearchParams();
   if (from) search.set("from", from);
@@ -49,3 +52,12 @@ export const upsertScheduleRange = (payload: {
   status: string;
   note?: string;
 }) => api("/api/admin/schedule/range", { method: "POST", body: payload });
+
+export const updateSchedulePolicy = (payload: {
+  openWeekdays: number[];
+  closedLabels: Record<string, string>;
+}): Promise<SchedulePolicy> =>
+  api<{ data: SchedulePolicy }>("/api/admin/schedule/policy", {
+    method: "PUT",
+    body: payload,
+  }).then((r) => r.data);

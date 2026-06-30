@@ -160,7 +160,7 @@ return [
             ],
             [
                 'question' => 'Apakah ISTURA buka pada hari Jumat, Sabtu, dan Minggu?',
-                'answer' => 'Kunjungan reguler ISTURA secara umum dibuka pada hari Senin hingga Jumat. Hari Sabtu, Minggu, serta tanggal merah nasional ditutup. Catatan: Untuk hari Jumat, operasional saat ini dapat disesuaikan mengikuti kebijakan WFH atau penyesuaian operasional internal yang berlaku.',
+                'answer' => 'Kunjungan reguler ISTURA secara umum dibuka pada hari Senin hingga Jumat. Hari Sabtu, Minggu, serta tanggal merah nasional ditutup. Jika ada penyesuaian operasional khusus, kalender pendaftaran akan mengikuti status terbaru.',
             ],
             [
                 'question' => 'Apa yang harus dilakukan jika slot tanggal yang diinginkan penuh?',

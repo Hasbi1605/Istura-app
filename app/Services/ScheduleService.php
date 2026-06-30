@@ -18,8 +18,9 @@ use Throwable;
 /**
  * Port of buildScheduleHorizon + applyBookingsToSchedule from App.tsx.
  *
- * Default operasional Senin-Kamis 08.00-11.00 dan 13.00-14.00 WIB;
- * Jumat/Sabtu/Minggu serta tanggal merah nasional Closed. Override admin
+ * Default operasional mengikuti OperationalSchedulePolicy dengan jam
+ * 08.00-11.00 dan 13.00-14.00 WIB; tanggal merah nasional tetap Closed.
+ * Override admin
  * disimpan di schedule_overrides; default lainnya dihitung saat runtime supaya
  * tidak perlu pre-generate seluruh kalender.
  */
@@ -27,7 +28,10 @@ class ScheduleService
 {
     public const TIME_SLOTS = ['08.00', '09.00', '10.00', '11.00', '13.00', '14.00'];
 
-    public function __construct(private readonly NationalHolidaySyncService $holidaySync) {}
+    public function __construct(
+        private readonly NationalHolidaySyncService $holidaySync,
+        private readonly OperationalSchedulePolicy $operationalPolicy,
+    ) {}
 
     private const ID_MONTHS = [
         1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
@@ -130,7 +134,7 @@ class ScheduleService
 
     public function isDefaultHoliday(Carbon $date): bool
     {
-        return in_array($date->dayOfWeek, [0, 5, 6], true); // Min, Jum, Sab
+        return ! $this->operationalPolicy->isOperationalDay($date);
     }
 
     public function formatLongDate(Carbon $date): string
@@ -229,13 +233,9 @@ class ScheduleService
             ];
         }
 
-        if ($this->isDefaultHoliday($date)) {
-            return [
-                'type' => 'operational_closed',
-                'name' => 'Libur operasional',
-                'label' => 'Libur operasional',
-                'tentative' => false,
-            ];
+        $operationalClosure = $this->operationalPolicy->closureReasonFor($date);
+        if ($operationalClosure) {
+            return $operationalClosure;
         }
 
         return null;

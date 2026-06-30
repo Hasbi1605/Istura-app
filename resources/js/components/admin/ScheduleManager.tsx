@@ -1,13 +1,14 @@
 // Admin schedule manager + sub-dialogs. Extracted from App.tsx.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Lock, X } from "lucide-react";
-import type { Booking, Slot, VisitDay, VisitStatus } from "../../domain/types";
+import type { Booking, SchedulePolicy, Slot, VisitDay, VisitStatus } from "../../domain/types";
 import { bookingKloterSummary, bookingSegments, bookingTimeSummary } from "../../domain/booking";
 import {
   addMonths,
   calendarWeekdays,
   createCalendarDays,
   formatDateKey,
+  fullDayNames,
   formatLongDate,
   formatMonthTitle,
   isDefaultHoliday,
@@ -19,6 +20,8 @@ import {
 import {
   deleteScheduleSlot,
   fetchAdminSchedule,
+  fetchSchedulePolicy,
+  updateSchedulePolicy,
   upsertScheduleRange,
   upsertScheduleSlot,
 } from "../../api/schedule";
@@ -40,6 +43,42 @@ function closureReasonBadge(day?: VisitDay): string | null {
 
 function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
   return slot.closureReason?.label ?? closureReasonLabel(day);
+}
+
+const DEFAULT_SCHEDULE_POLICY: SchedulePolicy = {
+  openWeekdays: [1, 2, 3, 4, 5],
+  closedLabels: {
+    "0": "Akhir pekan",
+    "1": "Libur operasional",
+    "2": "Libur operasional",
+    "3": "Libur operasional",
+    "4": "Libur operasional",
+    "5": "Libur operasional",
+    "6": "Akhir pekan",
+  },
+  weekdayOptions: [1, 2, 3, 4, 5, 6, 0].map((value) => ({
+    value,
+    label: fullDayNames[value],
+    isOpen: [1, 2, 3, 4, 5].includes(value),
+    closedLabel:
+      value === 0 || value === 6
+        ? "Akhir pekan"
+        : "Libur operasional",
+  })),
+};
+
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+function sameWeekdays(left: number[], right: number[]) {
+  const a = [...left].sort().join(",");
+  const b = [...right].sort().join(",");
+  return a === b;
+}
+
+function weekdaySummary(weekdays: number[]) {
+  return DAY_ORDER.filter((day) => weekdays.includes(day))
+    .map((day) => fullDayNames[day])
+    .join(", ");
 }
 
 export function AdminScheduleManager({
@@ -114,6 +153,9 @@ export function AdminScheduleManager({
   const [slotInfoTime, setSlotInfoTime] = useState<string | null>(null);
   // Range modal (#1) state.
   const [showRangeModal, setShowRangeModal] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [schedulePolicy, setSchedulePolicy] = useState<SchedulePolicy>(DEFAULT_SCHEDULE_POLICY);
+  const [policyError, setPolicyError] = useState<string | null>(null);
   // Confirm dialog generic (#3).
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string;
@@ -134,6 +176,22 @@ export function AdminScheduleManager({
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => {
+    let active = true;
+    fetchSchedulePolicy()
+      .then((policy) => {
+        if (!active) return;
+        setSchedulePolicy(policy);
+        setPolicyError(null);
+      })
+      .catch(() => {
+        if (!active) return;
+        setPolicyError("Gagal memuat pola operasional. Kalender tetap memakai data jadwal terbaru.");
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   // Highlight slot baru selama beberapa detik (#10).
   const [newlyAddedSlot, setNewlyAddedSlot] = useState<{
@@ -178,6 +236,25 @@ export function AdminScheduleManager({
 
   const refreshFromApi = () =>
     fetchAdminSchedule().then((days) => onSchedulesChange(days.map(apiVisitDayToLocal)));
+
+  const applySchedulePolicy = (payload: {
+    openWeekdays: number[];
+    closedLabels: Record<string, string>;
+  }) => {
+    if (savingLabel) return;
+    setSavingLabel("Menyimpan pola operasional...");
+    setPolicyError(null);
+    updateSchedulePolicy(payload)
+      .then((policy) => {
+        setSchedulePolicy(policy);
+        setShowPolicyModal(false);
+        return refreshFromApi();
+      })
+      .catch(() => {
+        setPolicyError("Gagal menyimpan pola operasional. Coba lagi.");
+      })
+      .finally(() => setSavingLabel(null));
+  };
 
 	const applyPersistedChange = (
 		label: string,
@@ -422,6 +499,9 @@ export function AdminScheduleManager({
 	const todaySchedule = scheduleByDate.get(todayKey);
 	const todayAvailable = todaySchedule?.slots.filter((s) => s.status === "Available").length ?? 0;
 	const scheduleBusy = Boolean(savingLabel);
+  const defaultOpenWeekdays = schedulePolicy.openWeekdays;
+  const defaultClosedWeekdays = DAY_ORDER.filter((day) => !defaultOpenWeekdays.includes(day));
+  const operationalSummary = weekdaySummary(defaultOpenWeekdays) || "Belum diatur";
 
   const dayKpi = selectedDay
     ? {
@@ -454,6 +534,26 @@ export function AdminScheduleManager({
 				</>
 			)}
 		</div>
+
+		<section className="admin-card admin-schedule-policy-card">
+			<div>
+				<strong>Pola operasional default</strong>
+				<p>
+					Hari buka default: {operationalSummary}. Override slot/range tetap dipakai untuk pengecualian tanggal tertentu.
+				</p>
+				{policyError && <small className="admin-info-note">{policyError}</small>}
+			</div>
+			{!readOnly && (
+				<button
+					type="button"
+					className="admin-pill-button"
+					disabled={scheduleBusy}
+					onClick={() => setShowPolicyModal(true)}
+				>
+					Atur pola
+				</button>
+			)}
+		</section>
 
 		<section className="admin-schedule-shell" aria-busy={loading || scheduleBusy}>
 			{loading && schedules.length === 0 ? (
@@ -514,10 +614,9 @@ export function AdminScheduleManager({
               const totalSlots = day?.slots.length ?? 0;
               const openSlots = day?.slots.filter((slot) => slot.status === "Available").length ?? 0;
               const closedSlots = day?.slots.filter((slot) => slot.status === "Closed").length ?? 0;
-              // Hari Jum/Sab/Min default tertutup; tandai berbeda dari hari
-              // kerja yang sengaja ditutup admin agar admin tahu itu libur
-              // default yang bisa dibuka kapan saja.
-              const isDefaultOff = isDefaultHoliday(cell.date);
+              // Hari di luar pola operasional default ditandai berbeda dari
+              // hari operasional yang sengaja ditutup admin.
+              const isDefaultOff = isDefaultHoliday(cell.date, defaultOpenWeekdays);
               const isNationalHoliday = Boolean(day?.holiday);
               const dayClosureLabel = closureReasonLabel(day);
               const dayClosureBadge = closureReasonBadge(day);
@@ -855,11 +954,22 @@ export function AdminScheduleManager({
           maxDate={maxScheduleDate}
           activeBookingsByDate={activeBookingsByDate}
           schedules={schedules}
+          defaultOpenWeekdays={defaultOpenWeekdays}
+          defaultClosedWeekdays={defaultClosedWeekdays}
           onClose={() => setShowRangeModal(false)}
           onConfirm={(params) => {
             applyRange(params);
             setShowRangeModal(false);
           }}
+        />
+      )}
+
+      {showPolicyModal && (
+        <SchedulePolicyModal
+          policy={schedulePolicy}
+          busy={scheduleBusy}
+          onClose={() => setShowPolicyModal(false)}
+          onConfirm={applySchedulePolicy}
         />
       )}
 
@@ -1000,11 +1110,154 @@ export function ScheduleConfirmDialog({
   );
 }
 
+export function SchedulePolicyModal({
+  policy,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  policy: SchedulePolicy;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (payload: { openWeekdays: number[]; closedLabels: Record<string, string> }) => void;
+}) {
+  const [openWeekdays, setOpenWeekdays] = useState<number[]>(policy.openWeekdays);
+  const [closedLabels, setClosedLabels] = useState<Record<string, string>>(policy.closedLabels);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    setOpenWeekdays(policy.openWeekdays);
+    setClosedLabels(policy.closedLabels);
+  }, [policy]);
+
+  const toggleWeekday = (value: number) => {
+    setOpenWeekdays((current) =>
+      current.includes(value)
+        ? current.filter((day) => day !== value)
+        : DAY_ORDER.filter((day) => [...current, value].includes(day)),
+    );
+  };
+
+  const setLabel = (weekday: number, value: string) => {
+    setClosedLabels((current) => ({
+      ...current,
+      [String(weekday)]: value,
+    }));
+  };
+
+  const canSubmit = openWeekdays.length > 0 && !busy;
+
+  return (
+    <div className="admin-modal-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="admin-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-policy-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="admin-modal-head">
+          <h2 id="schedule-policy-title">Pola operasional default</h2>
+          <button
+            type="button"
+            className="admin-modal-close"
+            onClick={onClose}
+            aria-label="Tutup"
+            disabled={busy}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </header>
+
+        <fieldset className="admin-modal-fieldset">
+          <legend>Hari buka default</legend>
+          <div className="admin-modal-quickpick">
+            <button
+              type="button"
+              onClick={() => setOpenWeekdays([1, 2, 3, 4, 5])}
+              aria-pressed={sameWeekdays(openWeekdays, [1, 2, 3, 4, 5])}
+              disabled={busy}
+            >
+              Senin-Jumat
+            </button>
+          </div>
+          <div className="admin-modal-weekdays">
+            {DAY_ORDER.map((value) => (
+              <label key={value}>
+                <input
+                  type="checkbox"
+                  checked={openWeekdays.includes(value)}
+                  onChange={() => toggleWeekday(value)}
+                  disabled={busy}
+                />
+                <span>{fullDayNames[value]}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="admin-modal-fieldset">
+          <legend>Alasan tutup default</legend>
+          <div className="admin-modal-grid">
+            {DAY_ORDER.map((value) => {
+              const isOpen = openWeekdays.includes(value);
+              return (
+                <label className="admin-modal-field" key={value}>
+                  <span>{fullDayNames[value]}</span>
+                  <input
+                    value={closedLabels[String(value)] ?? ""}
+                    placeholder="Libur operasional"
+                    onChange={(event) => setLabel(value, event.target.value)}
+                    disabled={busy || isOpen}
+                    maxLength={80}
+                  />
+                </label>
+              );
+            })}
+          </div>
+          {openWeekdays.length === 0 && (
+            <p className="admin-modal-preview-error">Minimal satu hari operasional harus dipilih.</p>
+          )}
+        </fieldset>
+
+        <div className="admin-modal-preview">
+          <p>
+            Kalender default akan membuka <strong>{weekdaySummary(openWeekdays) || "belum ada hari"}</strong>.
+          </p>
+        </div>
+
+        <div className="admin-modal-actions">
+          <button type="button" className="admin-pill-button" onClick={onClose} disabled={busy}>
+            Batal
+          </button>
+          <button
+            type="button"
+            className="admin-pill-button admin-pill-button--primary"
+            disabled={!canSubmit}
+            onClick={() => canSubmit && onConfirm({ openWeekdays, closedLabels })}
+          >
+            Simpan pola
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ScheduleRangeModal({
   minDate,
   maxDate,
   activeBookingsByDate,
   schedules,
+  defaultOpenWeekdays,
+  defaultClosedWeekdays,
   onClose,
   onConfirm,
 }: {
@@ -1012,6 +1265,8 @@ export function ScheduleRangeModal({
   maxDate: Date;
   activeBookingsByDate: Map<string, number>;
   schedules: VisitDay[];
+  defaultOpenWeekdays: number[];
+  defaultClosedWeekdays: number[];
   onClose: () => void;
   onConfirm: (params: {
     from: string;
@@ -1028,7 +1283,7 @@ export function ScheduleRangeModal({
   const [action, setAction] = useState<"open" | "close">("close");
 
   const dayLabels = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-  const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+  const dayOrder = DAY_ORDER;
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -1123,21 +1378,18 @@ export function ScheduleRangeModal({
           <div className="admin-modal-quickpick">
             <button
               type="button"
-              onClick={() => setWeekdays([1, 2, 3, 4])}
-              aria-pressed={
-                weekdays.length === 4 && [1, 2, 3, 4].every((d) => weekdays.includes(d))
-              }
+              onClick={() => setWeekdays(defaultOpenWeekdays)}
+              aria-pressed={sameWeekdays(weekdays, defaultOpenWeekdays)}
             >
-              Hari kerja
+              Hari operasional
             </button>
             <button
               type="button"
-              onClick={() => setWeekdays([5, 6, 0])}
-              aria-pressed={
-                weekdays.length === 3 && [5, 6, 0].every((d) => weekdays.includes(d))
-              }
+              onClick={() => setWeekdays(defaultClosedWeekdays)}
+              aria-pressed={sameWeekdays(weekdays, defaultClosedWeekdays)}
+              disabled={defaultClosedWeekdays.length === 0}
             >
-              Akhir pekan
+              Libur default
             </button>
             <button
               type="button"

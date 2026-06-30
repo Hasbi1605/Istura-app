@@ -14,8 +14,8 @@ export const VISIT_TIME_SLOTS = ["08.00", "09.00", "10.00", "11.00", "13.00", "1
 
 export function buildScheduleHorizon(today: Date): VisitDay[] {
   // Generate every calendar day for the next 2 months. Default operating
-  // days (Senin-Kamis) buka 08.00-11.00 dan 13.00-14.00 WIB; default libur
-  // (Jumat/Sabtu/Minggu) tetap dibuat tapi semua slotnya Closed sehingga
+  // days (Senin-Jumat) buka 08.00-11.00 dan 13.00-14.00 WIB; default libur
+  // (Sabtu/Minggu) tetap dibuat tapi semua slotnya Closed sehingga
   // admin bisa membukanya kapan saja jika perlu.
   const start = startOfDay(today);
   const end = addMonths(start, 2);
