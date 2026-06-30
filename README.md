@@ -4,7 +4,7 @@ Sistem booking kunjungan **Istana Untuk Rakyat (ISTURA)** Yogyakarta. Repo ini a
 monolit **Laravel 13 + React 19**: Laravel melayani REST API, WebSocket Reverb,
 halaman info server-rendered, dan shell SPA React pada satu origin.
 
-## Mulai Dari Sini
+## Mulai Dari:
 
 - [Handover mentor](docs/00-HANDOVER.md) — ringkasan sistem, status, dan checklist serah terima.
 - [Product overview](docs/01-PRODUCT-OVERVIEW.md) — fitur publik, admin, dan Istura Open.
