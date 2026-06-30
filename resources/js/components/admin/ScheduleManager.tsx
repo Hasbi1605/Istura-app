@@ -538,9 +538,7 @@ export function AdminScheduleManager({
 		<section className="admin-card admin-schedule-policy-card">
 			<div>
 				<strong>Pola operasional default</strong>
-				<p>
-					Hari buka default: {operationalSummary}. Override slot/range tetap dipakai untuk pengecualian tanggal tertentu.
-				</p>
+				<p>Hari buka default: {operationalSummary}.</p>
 				{policyError && <small className="admin-info-note">{policyError}</small>}
 			</div>
 			{!readOnly && (
@@ -1212,8 +1210,8 @@ export function SchedulePolicyModal({
                 <label className="admin-modal-field" key={value}>
                   <span>{fullDayNames[value]}</span>
                   <input
-                    value={closedLabels[String(value)] ?? ""}
-                    placeholder="Libur operasional"
+                    value={isOpen ? "-" : closedLabels[String(value)] ?? ""}
+                    placeholder={isOpen ? "" : "Libur operasional"}
                     onChange={(event) => setLabel(value, event.target.value)}
                     disabled={busy || isOpen}
                     maxLength={80}
