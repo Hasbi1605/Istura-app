@@ -16,6 +16,11 @@ class SeoMetadataTest extends TestCase
         parent::setUp();
 
         Carbon::setTestNow(Carbon::parse('2026-06-10 08:00:00', 'Asia/Jakarta'));
+        config([
+            'seo.canonical_url' => 'https://www.isturaiky.page',
+            'seo.canonical_host' => 'www.isturaiky.page',
+            'seo.redirect_hosts' => ['isturaiky.page'],
+        ]);
     }
 
     protected function tearDown(): void
