@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 : "${SOURCE_DIR:?SOURCE_DIR is required}"
-: "${DEPLOY_PATH:=/var/www/istura}"
+: "${DEPLOY_PATH:?Set DEPLOY_PATH to the Laravel release path}"
 : "${DEPLOY_SHA:=unknown}"
 : "${DEPLOY_OWNER:=ubuntu}"
 : "${SUPERVISOR_USER:=www-data}"

@@ -1,21 +1,21 @@
 [
   {
     "name": "Admin ISTURA",
-    "email": "admin@istura.id",
+    "email": "admin@example.test",
     "role": "Super Admin",
     "status": "Aktif",
     "lastLogin": "Hari ini"
   },
   {
     "name": "Operator Booking",
-    "email": "operator@istura.id",
+    "email": "operator@example.test",
     "role": "Admin",
     "status": "Aktif",
     "lastLogin": "Kemarin, 16:24"
   },
   {
     "name": "Editor Konten",
-    "email": "editor@istura.id",
+    "email": "editor@example.test",
     "role": "Admin",
     "status": "Nonaktif",
     "lastLogin": "12 Mei 2026"

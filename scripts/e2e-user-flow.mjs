@@ -6,6 +6,8 @@ import path from "node:path";
 
 const BASE_URL = process.env.E2E_BASE_URL ?? process.env.QA_BASE ?? "http://127.0.0.1:8010";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD;
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@example.test";
+const OPERATOR_EMAIL = process.env.E2E_OPERATOR_EMAIL ?? "operator@example.test";
 const TEMP_USER_PASSWORD = "E2E-temp-user-password-123!";
 if (process.env.E2E_CONFIRM_ISOLATED_DB !== "1") {
   console.error(
@@ -29,8 +31,8 @@ let bookingCounter = 10_000;
 const totpSecrets = new Map();
 
 function envSecretForEmail(email) {
-  if (email === "admin@istura.id") return process.env.E2E_ADMIN_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
-  if (email === "operator@istura.id") return process.env.E2E_OPERATOR_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
+  if (email === ADMIN_EMAIL) return process.env.E2E_ADMIN_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
+  if (email === OPERATOR_EMAIL) return process.env.E2E_OPERATOR_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
   return process.env.E2E_VIEWER_TOTP_SECRET ?? process.env.E2E_TOTP_SECRET;
 }
 
@@ -383,14 +385,14 @@ async function runApiMatrix() {
   await scenario("auth rejects invalid login and accepts seeded roles", async () => {
     const invalid = await anon.request("/api/auth/login", {
       method: "POST",
-      body: { email: "admin@istura.id", password: "wrong-password" },
+      body: { email: ADMIN_EMAIL, password: "wrong-password" },
     });
     expect(invalid.status === 422, "invalid login returns 422");
-    const user = await admin.login("admin@istura.id", ADMIN_PASSWORD);
-    await admin.ensureTwoFactor("admin@istura.id");
+    const user = await admin.login(ADMIN_EMAIL, ADMIN_PASSWORD);
+    await admin.ensureTwoFactor(ADMIN_EMAIL);
     expect(user.role === "super_admin", "super admin role returned");
-    await operator.login("operator@istura.id", ADMIN_PASSWORD);
-    await operator.ensureTwoFactor("operator@istura.id");
+    await operator.login(OPERATOR_EMAIL, ADMIN_PASSWORD);
+    await operator.ensureTwoFactor(OPERATOR_EMAIL);
     await admin.json("/api/admin/users", {
       method: "POST",
       body: { name: "E2E Viewer", email: viewerEmail, password: TEMP_USER_PASSWORD, role: "viewer", status: "Aktif" },
@@ -398,7 +400,7 @@ async function runApiMatrix() {
     await viewer.login(viewerEmail, TEMP_USER_PASSWORD);
     await viewer.ensureTwoFactor(viewerEmail);
     const me = await admin.json("/api/auth/me");
-    expect(me.user.email === "admin@istura.id", "auth/me returns current user");
+    expect(me.user.email === ADMIN_EMAIL, "auth/me returns current user");
   });
 
   const scheduleJson = await anon.json("/api/public/schedule");
@@ -695,7 +697,7 @@ async function runApiMatrix() {
     await admin.json(`/api/admin/users/${created.data.id}`, { method: "DELETE" });
     const users = await admin.json("/api/admin/users");
     expect(!users.data.some((user) => user.email === email), "deleted user no longer appears");
-    const selfDelete = await admin.request(`/api/admin/users/${users.data.find((user) => user.email === "admin@istura.id")?.id}`, { method: "DELETE" });
+    const selfDelete = await admin.request(`/api/admin/users/${users.data.find((user) => user.email === ADMIN_EMAIL)?.id}`, { method: "DELETE" });
     expect(selfDelete.status === 422, "self delete returns validation error");
   });
 
@@ -742,8 +744,8 @@ async function runApiMatrix() {
 async function runBrowserFlows() {
   const publicApi = new ApiClient("browser-setup-public");
   const adminApi = new ApiClient("browser-setup-admin");
-  await adminApi.login("admin@istura.id", ADMIN_PASSWORD);
-  await adminApi.ensureTwoFactor("admin@istura.id");
+  await adminApi.login(ADMIN_EMAIL, ADMIN_PASSWORD);
+  await adminApi.ensureTwoFactor(ADMIN_EMAIL);
   const schedule = await publicApi.json("/api/public/schedule");
   const skip = new Set();
   firstAvailable(schedule.data, skip);
@@ -807,10 +809,10 @@ async function runBrowserFlows() {
     const context = await browser.newContext({ baseURL: BASE_URL });
     const page = await context.newPage();
     await page.goto("/admin", { waitUntil: "networkidle" });
-    await page.getByLabel(/Email/i).fill("admin@istura.id");
+    await page.getByLabel(/Email/i).fill(ADMIN_EMAIL);
     await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /^Masuk$/i }).click();
-    await completeBrowserTwoFactorIfPresent(page, "admin@istura.id");
+    await completeBrowserTwoFactorIfPresent(page, ADMIN_EMAIL);
     await expectLocator(page.locator(".admin-shell-menu").first(), "admin shell menu visible");
     await clickAdminMenu(page, "Booking");
     await expectLocator(page.getByRole("heading", { name: /Booking Permohonan/i }), "admin booking page visible");

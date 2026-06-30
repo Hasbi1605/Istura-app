@@ -18,9 +18,9 @@ Alurnya:
 10. Verifikasi endpoint publik.
 
 Variabel workflow `AWS_REGION`, `AWS_ROLE_ARN`, `DEPLOY_BUCKET`, `INSTANCE_ID`,
-`DEPLOY_PATH`, `HEALTHCHECK_HOST`, dan `PRODUCTION_BASE_URL` bisa dipindahkan ke GitHub
-Variables saat server/domain berubah. Jika tidak diset, workflow memakai fallback production
-saat ini.
+`DEPLOY_PATH`, `HEALTHCHECK_HOST`, dan `PRODUCTION_BASE_URL` wajib diset sebagai GitHub
+Actions Variables di repository settings. Nilai production tidak disimpan sebagai fallback
+di file workflow agar repo aman dipublikasikan dan mudah dipindah hosting/domain.
 
 Script deploy saat ini ada di `deploy/aws/deploy.sh` dan mengasumsikan host Linux dengan:
 
@@ -117,9 +117,9 @@ Jangan tertimpa saat deploy:
 Repo belum punya mekanisme release directory/symlink rollback. Jika hosting baru butuh rollback
 cepat, rekomendasi teknisnya adalah memakai struktur release:
 
-- `/var/www/istura/releases/<sha>`
-- `/var/www/istura/shared/.env`
-- `/var/www/istura/shared/storage`
-- `/var/www/istura/current -> releases/<sha>`
+- `/path/to/istura/releases/<sha>`
+- `/path/to/istura/shared/.env`
+- `/path/to/istura/shared/storage`
+- `/path/to/istura/current -> releases/<sha>`
 
 Ini belum diimplementasikan di script saat ini.

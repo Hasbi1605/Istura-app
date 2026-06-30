@@ -207,7 +207,7 @@ Modul terpisah **Istura Open** sudah diimplementasi (lihat `IsturaOpen.md` & §2
 - Push ke `main` menjalankan `.github/workflows/deploy.yml`: test backend SQLite + build frontend harus lolos sebelum deploy.
 - GitHub Actions memakai OIDC role AWS berumur pendek, mengunggah `git archive` ke bucket S3 privat, lalu menjalankan deploy di EC2 melalui AWS Systems Manager (SSM). Port SSH production tidak dibuka untuk runner GitHub.
 - Script `deploy/aws/deploy.sh` melakukan maintenance mode, sinkronisasi source dengan pengecualian data persisten (`.env`, `storage/app`, session/cache/log), install/build, migration, cache Laravel, restart Supervisor, dan health check origin.
-- Target production saat dokumen ini dirapikan: EC2 `i-072b0ca3970f635b6` region `ap-southeast-2`, path `/var/www/istura`; endpoint publik diverifikasi kembali setelah SSM sukses. Jika hosting pindah ke server Istana, gunakan `docs/05-DEPLOYMENT.md` dan `docs/06-DOMAIN-MIGRATION.md`.
+- Target production dikonfigurasi lewat GitHub Actions Variables (`AWS_REGION`, `AWS_ROLE_ARN`, `DEPLOY_BUCKET`, `INSTANCE_ID`, `DEPLOY_PATH`, `HEALTHCHECK_HOST`, `PRODUCTION_BASE_URL`), bukan fallback hardcoded di workflow. Jika hosting pindah ke server Istana, gunakan `docs/05-DEPLOYMENT.md` dan `docs/06-DOMAIN-MIGRATION.md`.
 
 ---
 

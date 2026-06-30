@@ -14,13 +14,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
-  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN || 'arn:aws:iam::875911184139:role/istura-actions-deploy' }}
-  DEPLOY_BUCKET: ${{ vars.DEPLOY_BUCKET || 'istura-deploy-artifacts-875911184139-ap-southeast-2' }}
-  INSTANCE_ID: ${{ vars.INSTANCE_ID || 'i-072b0ca3970f635b6' }}
-  DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/var/www/istura' }}
-  HEALTHCHECK_HOST: ${{ vars.HEALTHCHECK_HOST || 'www.isturaiky.page' }}
-  PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://www.isturaiky.page' }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+  DEPLOY_BUCKET: ${{ vars.DEPLOY_BUCKET }}
+  INSTANCE_ID: ${{ vars.INSTANCE_ID }}
+  DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+  HEALTHCHECK_HOST: ${{ vars.HEALTHCHECK_HOST }}
+  PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
 
 jobs:
   quality:
@@ -74,6 +74,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Validate deployment variables
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AWS_REGION AWS_ROLE_ARN DEPLOY_BUCKET INSTANCE_ID DEPLOY_PATH HEALTHCHECK_HOST PRODUCTION_BASE_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::GitHub Actions variable $name is required for production deploy"
+              missing=1
+            fi
+          done
+          exit "$missing"
 
       - name: Configure short-lived AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.2.0
