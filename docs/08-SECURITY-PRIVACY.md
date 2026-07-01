@@ -16,6 +16,8 @@ Dokumen ini menjelaskan perlindungan yang terlihat di repo saat ini.
 - Login dilindungi throttle dan progressive delay.
 - 2FA TOTP tersedia dengan recovery code dan trusted device.
 - Sesi admin punya absolute lifetime.
+- Cookie session production sebaiknya host-only (`SESSION_DOMAIN=`) kecuali ada
+  kebutuhan eksplisit berbagi sesi lintas subdomain.
 - Role:
   - `viewer`: baca/export/download, tanpa mutasi dan tanpa audit log.
   - `admin`: operasional dan CMS.
@@ -60,6 +62,9 @@ Limiter yang terlihat:
 - Strict-Transport-Security pada HTTPS/production.
 
 Inline frame hanya dilonggarkan untuk preview dokumen admin same-origin.
+Untuk deploy Nginx, `deploy/aws/deploy.sh` juga memasang include HSTS pada server
+block ISTURA yang melayani HTTPS/root aplikasi agar file static yang tidak melewati
+middleware Laravel tetap mengirim `Strict-Transport-Security`.
 
 ## Istura Open
 

@@ -38,6 +38,8 @@ Script deploy saat ini ada di `deploy/aws/deploy.sh` dan mengasumsikan host Linu
 - `rsync` source ke `DEPLOY_PATH`, sambil mempertahankan `.env`, storage persistent, cache/session/log.
 - Set permission folder.
 - Tambah trusted proxy Cloudflare ke `.env`.
+- Sempitkan `SESSION_DOMAIN` parent-domain (mis. `.domain.tld`) menjadi host-only
+  untuk domain canonical agar cookie session tidak terkirim ke subdomain lain.
 - `composer install --no-dev`.
 - `npm ci --ignore-scripts`.
 - `npm run build`.
@@ -48,9 +50,18 @@ Script deploy saat ini ada di `deploy/aws/deploy.sh` dan mengasumsikan host Linu
 - Install config Supervisor untuk queue, Reverb, scheduler.
 - Restart proses Supervisor.
 - Set upload limit PHP-FPM 8M/10M.
+- Pasang include HSTS Nginx pada server block ISTURA yang melayani HTTPS atau root
+  aplikasi agar static asset yang tidak melewati middleware Laravel tetap mengirim
+  `Strict-Transport-Security`.
 - Reload PHP-FPM dan Nginx.
 - `php artisan up`.
 - Health check `/up`.
+
+Jika instalasi memang membutuhkan cookie lintas subdomain, set
+`ISTURA_KEEP_LOOSE_SESSION_DOMAIN=true` pada environment proses deploy. Jika Nginx
+dikelola manual dan tidak boleh disentuh script, set `ISTURA_MANAGE_NGINX_SECURITY_HEADERS=false`
+lalu pastikan HSTS diterapkan sendiri pada seluruh response HTTPS-facing, termasuk
+static asset.
 
 ## Deploy ke Server Istana / Hosting Baru
 
@@ -70,6 +81,10 @@ runtime-nya:
   Supervisor program scheduler seperti repo saat ini.
 - TLS/HTTPS aktif.
 - `.env` production yang benar.
+- `SESSION_DOMAIN` kosong untuk host persis; isi parent-domain hanya jika benar-benar
+  perlu cookie lintas subdomain.
+- HSTS aktif pada seluruh response HTTPS, termasuk file static dan halaman redirect yang
+  dilayani web server/edge.
 - Backup database dan storage.
 
 ## Command Production Umum
