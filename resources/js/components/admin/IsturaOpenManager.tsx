@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { Archive, Ban, CalendarDays, Copy, Download, Eye, ImageIcon, Loader2, Megaphone, MessageSquareText, Pencil, Plus, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
 import type {
   OpenDayBookingConflict,
@@ -31,6 +30,7 @@ import { DetailItem } from "../ui/DetailItem";
 import { Pagination } from "../ui/Pagination";
 import { exportOpenRegistrationsToExcel } from "../../exportOpenRegistrations";
 import { OpenFeedbackExportModal } from "./ExportModals";
+import { OpenEventDateCalendar } from "./OpenEventDateCalendar";
 import { formatCount, formatCountShort } from "../../lib/date";
 
 const MONTHS_ID = [
@@ -43,18 +43,6 @@ function longDate(key?: string | null): string {
   const [year, month, day] = key.split("-").map(Number);
   if (!year || !month || !day) return key;
   return `${day} ${MONTHS_ID[month - 1]} ${year}`;
-}
-
-function dateKeysInRange(start: string, end: string): string[] {
-  if (!start || !end || end < start) return [];
-  const dates: string[] = [];
-  const cursor = new Date(`${start}T00:00:00Z`);
-  const last = new Date(`${end}T00:00:00Z`);
-  while (cursor <= last && dates.length < 366) {
-    dates.push(cursor.toISOString().slice(0, 10));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return dates;
 }
 
 function eventDatesLabel(event: OpenEventAdmin): string {
@@ -1625,104 +1613,6 @@ function OpenRegistrationDetailDrawer({
   );
 }
 
-function OpenEventDateBuilder({
-  selectedDates,
-  setSelectedDates,
-  disabled,
-  todayKey,
-  error,
-  onDateError,
-  helper = "Pilih satu hari, beberapa hari tidak berurutan, atau tambahkan satu rentang sekaligus.",
-}: {
-  selectedDates: string[];
-  setSelectedDates: Dispatch<SetStateAction<string[]>>;
-  disabled: boolean;
-  todayKey: string;
-  error?: string;
-  onDateError: (message: string) => void;
-  helper?: string;
-}) {
-  const [dateToAdd, setDateToAdd] = useState("");
-  const [rangeStart, setRangeStart] = useState("");
-  const [rangeEnd, setRangeEnd] = useState("");
-
-  const addDates = (dates: string[]) => {
-    setSelectedDates((current) => Array.from(new Set([...current, ...dates])).sort());
-    onDateError("");
-  };
-
-  const addSingleDate = () => {
-    if (!dateToAdd) return;
-    addDates([dateToAdd]);
-    setDateToAdd("");
-  };
-
-  const addRange = () => {
-    const dates = dateKeysInRange(rangeStart, rangeEnd);
-    if (dates.length === 0) {
-      onDateError("Tanggal akhir rentang harus sama atau setelah tanggal mulai.");
-      return;
-    }
-    addDates(dates);
-    setRangeStart("");
-    setRangeEnd("");
-  };
-
-  const removeDate = (date: string) => {
-    setSelectedDates((current) => current.filter((item) => item !== date));
-    onDateError("");
-  };
-
-  return (
-    <div className="open-date-builder">
-      <div className="open-date-builder-head">
-        <span>Tanggal event</span>
-        <small>{helper}</small>
-      </div>
-      <div className="open-date-single-row">
-        <label className="form-field">
-          <span>Tambah satu tanggal</span>
-          <input type="date" min={todayKey} value={dateToAdd} disabled={disabled} onChange={(e) => setDateToAdd(e.target.value)} />
-        </label>
-        <button type="button" className="button button-ghost" disabled={!dateToAdd || disabled} onClick={addSingleDate}>
-          <Plus size={14} /> Tambah tanggal
-        </button>
-      </div>
-      <div className="open-date-range-row">
-        <label className="form-field">
-          <span>Dari</span>
-          <input type="date" min={todayKey} value={rangeStart} disabled={disabled} onChange={(e) => setRangeStart(e.target.value)} />
-        </label>
-        <label className="form-field">
-          <span>Sampai</span>
-          <input type="date" min={rangeStart || todayKey} value={rangeEnd} disabled={disabled} onChange={(e) => setRangeEnd(e.target.value)} />
-        </label>
-        <button type="button" className="button button-ghost" disabled={!rangeStart || !rangeEnd || disabled} onClick={addRange}>
-          Tambah rentang
-        </button>
-      </div>
-      <div className="open-selected-dates" aria-live="polite">
-        {selectedDates.length === 0 ? (
-          <span className="open-selected-dates-empty">Belum ada tanggal dipilih.</span>
-        ) : selectedDates.map((date) => (
-          <span className="open-date-chip" key={date}>
-            {longDate(date)}
-            <button
-              type="button"
-              disabled={disabled}
-              aria-label={`Hapus ${longDate(date)}`}
-              onClick={() => removeDate(date)}
-            >
-              <X size={13} />
-            </button>
-          </span>
-        ))}
-      </div>
-      {error && <small className="field-error">{error}</small>}
-    </div>
-  );
-}
-
 function EditEventModal({
   event,
   onClose,
@@ -1740,7 +1630,6 @@ function EditEventModal({
   const closeRef = useRef<HTMLButtonElement>(null);
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -1806,11 +1695,10 @@ function EditEventModal({
           <input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} disabled={pending} />
           {errors.name && <small className="field-error">{errors.name}</small>}
         </label>
-        <OpenEventDateBuilder
+        <OpenEventDateCalendar
           selectedDates={selectedDates}
           setSelectedDates={setSelectedDates}
           disabled={pending}
-          todayKey={todayKey}
           error={errors.dates}
           onDateError={(message) => setErrors((current) => ({ ...current, dates: message }))}
           helper="Tambahkan hari baru atau hapus hari lama untuk memindahkan jadwal event. Hari yang sudah memiliki pendaftar tidak dapat dihapus."
@@ -1863,7 +1751,6 @@ function CreateEventModal({
   const closeRef = useRef<HTMLButtonElement>(null);
   const [pending, setPending] = useState<"create" | "poster" | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
 
   useEffect(() => {
     if (!posterFile) {
@@ -1947,11 +1834,10 @@ function CreateEventModal({
           <input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} disabled={pending !== null} />
           {errors.name && <small className="field-error">{errors.name}</small>}
         </label>
-        <OpenEventDateBuilder
+        <OpenEventDateCalendar
           selectedDates={selectedDates}
           setSelectedDates={setSelectedDates}
           disabled={pending !== null}
-          todayKey={todayKey}
           error={errors.dates}
           onDateError={(message) => setErrors((current) => ({ ...current, dates: message }))}
         />

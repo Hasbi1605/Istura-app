@@ -78,6 +78,24 @@ export const formatMonthTitle = (date: Date) =>
 export const formatLongDate = (date: Date) =>
   `${fullDayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 
+/** Inclusive YYYY-MM-DD range in local calendar days (Asia/Jakarta-safe keys). */
+export const dateKeysInInclusiveRange = (startKey: string, endKey: string, maxDays = 366): string[] => {
+  if (!startKey || !endKey || endKey < startKey) {
+    return [];
+  }
+
+  const dates: string[] = [];
+  let cursor = parseDateKey(startKey);
+  const last = parseDateKey(endKey);
+
+  while (cursor <= last && dates.length < maxDays) {
+    dates.push(formatDateKey(cursor));
+    cursor = addDays(cursor, 1);
+  }
+
+  return dates;
+};
+
 // Locale number formatters. Indonesian uses "." as thousands separator.
 const numberFormatId = new Intl.NumberFormat("id-ID");
 export const formatCount = (value: number) => numberFormatId.format(value);

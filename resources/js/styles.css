@@ -11971,8 +11971,28 @@ a {
 }
 
 .open-date-builder-head small,
-.open-selected-dates-empty {
+.open-selected-dates-empty,
+.open-date-mode-hint {
   color: var(--muted);
+}
+
+.open-date-mode-row {
+  display: grid;
+  gap: 8px;
+}
+
+.open-date-calendar-grid.admin-schedule-calendar {
+  padding: 14px;
+  background: var(--white);
+}
+
+.open-event-cal-cell.is-range-anchor {
+  box-shadow: inset 0 0 0 2px rgba(196, 146, 18, 0.75);
+}
+
+.open-event-cal-cell.is-selected.is-open {
+  background: rgba(229, 189, 85, 0.28);
+  border-color: rgba(196, 146, 18, 0.55);
 }
 
 .open-date-single-row,
