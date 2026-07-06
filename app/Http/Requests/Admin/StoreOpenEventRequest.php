@@ -39,6 +39,14 @@ class StoreOpenEventRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'name.required' => 'Nama event wajib diisi.',
+            'name.max' => 'Nama event maksimal 150 karakter.',
+            'perDayQuota.required' => 'Kuota per hari wajib diisi.',
+            'perDayQuota.min' => 'Kuota per hari minimal 1.',
+            'perDayQuota.max' => 'Kuota per hari maksimal 100.000.',
+            'maxAddons.required' => 'Maks add-on wajib diisi.',
+            'maxAddons.min' => 'Maks add-on tidak boleh negatif.',
+            'maxAddons.max' => 'Maks add-on maksimal 50.',
             'endDate.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
             'dates.min' => 'Pilih minimal satu tanggal event.',
             'dates.*.distinct' => 'Tanggal event tidak boleh duplikat.',

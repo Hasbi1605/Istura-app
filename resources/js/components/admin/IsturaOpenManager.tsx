@@ -118,11 +118,56 @@ function validatePosterFile(file: File): Promise<string | null> {
 }
 
 function flattenValidationErrors(error: ValidationError): Record<string, string> {
+  const idMessages: Record<string, string> = {
+    "The name field is required.": "Nama event wajib diisi.",
+    "The per day quota field is required.": "Kuota per hari wajib diisi.",
+    "The per day quota field must be at least 1.": "Kuota per hari minimal 1.",
+    "The max addons field is required.": "Maks add-on wajib diisi.",
+    "The max addons field must be at least 0.": "Maks add-on tidak boleh negatif.",
+  };
+
   const flat: Record<string, string> = {};
   Object.entries(error.errors).forEach(([key, messages]) => {
-    flat[key.startsWith("dates.") ? "dates" : key] = messages[0];
+    const fieldKey = key.startsWith("dates.") ? "dates" : key;
+    const message = messages[0] ?? "";
+    flat[fieldKey] = idMessages[message] ?? message;
   });
+
   return flat;
+}
+
+function validateOpenEventModalForm(
+  name: string,
+  selectedDates: string[],
+  perDayQuota: string,
+  maxAddons: string,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    errors.name = "Nama event wajib diisi.";
+  } else if (trimmedName.length > 150) {
+    errors.name = "Nama event maksimal 150 karakter.";
+  }
+
+  if (selectedDates.length === 0) {
+    errors.dates = "Pilih minimal satu tanggal event.";
+  }
+
+  const quota = Number(perDayQuota);
+  if (!Number.isInteger(quota) || quota < 1) {
+    errors.perDayQuota = "Kuota per hari minimal 1.";
+  }
+
+  const addons = Number(maxAddons);
+  if (!Number.isInteger(addons) || addons < 0) {
+    errors.maxAddons = "Maks add-on tidak boleh negatif.";
+  } else if (addons > 50) {
+    errors.maxAddons = "Maks add-on maksimal 50.";
+  }
+
+  return errors;
 }
 
 function OpenStatusBadge({ status }: { status: string }) {
@@ -1648,10 +1693,12 @@ function EditEventModal({
   }, [onClose, pending]);
 
   const submit = async () => {
-    if (selectedDates.length === 0) {
-      setErrors((current) => ({ ...current, dates: "Pilih minimal satu tanggal event." }));
+    const clientErrors = validateOpenEventModalForm(name, selectedDates, perDayQuota, maxAddons);
+    if (Object.keys(clientErrors).length > 0) {
+      setErrors(clientErrors);
       return;
     }
+
     setPending(true);
     setErrors({});
     try {
@@ -1779,10 +1826,12 @@ function CreateEventModal({
   }, [onClose, pending]);
 
   const submit = async () => {
-    if (selectedDates.length === 0) {
-      setErrors((current) => ({ ...current, dates: "Pilih minimal satu tanggal event." }));
+    const clientErrors = validateOpenEventModalForm(name, selectedDates, perDayQuota, maxAddons);
+    if (Object.keys(clientErrors).length > 0) {
+      setErrors(clientErrors);
       return;
     }
+
     setPending("create");
     setErrors({});
     try {
