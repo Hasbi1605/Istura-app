@@ -42,6 +42,16 @@ npm run dev                 # Vite HMR
 php artisan reverb:start    # WebSocket
 ```
 
+## Cursor Cloud specific instructions
+Catatan operasional untuk agent Cursor Cloud (VM dengan update script `composer install` + `npm install` sudah jalan otomatis saat startup). Perintah standar ada di "### Perintah cepat" di atas — bagian ini hanya menyoroti caveat non-obvious.
+
+- **MySQL harus di-start manual tiap boot** (tidak ada systemd): `sudo service mysql start`. Data (DB `istura_local` + hasil migrate & seed) sudah ada di snapshot. Kredensial dev: DB `istura_local` / user `istura_local` / password `istura_local` (sudah diisi di `.env`).
+- **`.env` sudah dikonfigurasi** untuk dev lokal (APP_KEY, DB, `SEED_ADMIN_PASSWORD=Password123!`). File ini di luar git; jika hilang, buat ulang dari `.env.example`, set `DB_PASSWORD` + `SEED_ADMIN_PASSWORD`, lalu `php artisan key:generate` dan `php artisan migrate --seed`.
+- **Login admin dev:** `admin@example.test` / `Password123!` (super_admin, 2FA nonaktif). Juga ada `operator@example.test` (admin). Akun ini hanya ada bila `SEED_ADMIN_PASSWORD` diisi saat seed.
+- **`php artisan test` butuh manifest Vite lebih dulu.** Test homepage/SEO (mis. `SeoMetadataTest`, `SecurityHeaderHardeningTest`) memuat `resources/views/app.blade.php` dan gagal 500 (`ViteManifestNotFoundException`) bila `public/build/manifest.json` belum ada. Jalankan `npm run build` sekali sebelum suite penuh. Suite lain memakai SQLite in-memory (lihat `phpunit.xml`), tidak butuh MySQL.
+- **Menjalankan app (dev):** `php artisan serve --host=0.0.0.0 --port=8000` + `npm run dev`. Vite otomatis memilih port bebas (5173→5175 dst) dan menulis `public/hot`, sehingga Blade shell memakai dev server itu tanpa konfigurasi tambahan. Reverb opsional: `php artisan reverb:start --port=8080` (app tetap jalan tanpanya; set `VITE_REVERB_ENABLED=false` untuk melewatkannya).
+- Health check cepat: `GET http://localhost:8000/api/health` → `{"status":"ok"}`. Payload publik utama: `GET /api/public/bootstrap`. Slot booking hanya tersedia di hari kerja (Senin-Jumat) sesuai pola operasional default.
+
 ## Keamanan (jaga selalu)
 - NIK selalu terenkripsi; jangan log/echo nilai NIK mentah. Surat permohonan tetap privat.
 - Pertahankan rate-limit endpoint publik, validasi upload (mime + ≤5MB), security headers,
@@ -71,6 +81,7 @@ bagian "## Changelog" di bawah. Aturan:
 - Jangan menghapus entri lama; changelog bersifat append-only sebagai jejak riwayat.
 
 ## Changelog
+- 2026-07-10 — **Setup dev environment Cursor Cloud + instruksi startup.** Menambahkan section "## Cursor Cloud specific instructions" (caveat MySQL start manual, `.env` dev siap pakai, kredensial admin dev, keharusan `npm run build` sebelum suite test penuh, cara run backend/Vite/Reverb) dan update script minimal (`composer install` + `npm install`). Tidak mengubah kode aplikasi. — `AGENTS.md` — (test: `php artisan test` 250 pass/2031 assertions; `vendor/bin/pint --test` pass kecuali 2 file migrasi lama pre-existing; `npm run build` pass; E2E booking publik `ISTURA-2026-0000` tersimpan)
 - 2026-07-06 — **Rapikan kalender & validasi modal Buat/Edit Istura Open.** Tanggal terpilih kini memakai gold solid selaras admin Jadwal (bukan wash tipis), grid kalender diperkecil (sel ~38px), error field modal lebih menonjol (border merah + teks bold), validasi klien Bahasa Indonesia sebelum submit, serta pesan FormRequest `Store/UpdateOpenEventRequest` untuk nama/kuota/add-on. — `resources/js/components/admin/IsturaOpenManager.tsx`, `resources/js/styles.css`, `app/Http/Requests/Admin/{StoreOpenEventRequest,UpdateOpenEventRequest}.php` — (test: `npx tsc --noEmit` pass; `npm run build` pass; `php artisan test --filter=OpenRegistrationTest` 41 pass/228 assertions)
 - 2026-07-06 — **Ganti picker tanggal Istura Open dengan kalender multi-select selaras admin.** Modal Buat/Edit Event kini memakai `OpenEventDateCalendar`: grid kalender reuse `createCalendarDays` + styling `admin-schedule-cal`, klik langsung toggle tanggal (tanpa langkah "Tambah tanggal"), mode rentang dua-klik, chip ringkasan, serta helper kontekstual; `dateKeysInInclusiveRange` di `lib/date.ts` menggantikan iterasi UTC yang rawan off-by-one. — `resources/js/components/admin/{OpenEventDateCalendar.tsx,IsturaOpenManager.tsx}`, `resources/js/lib/date.ts`, `resources/js/styles.css` — (test: `npx tsc --noEmit` pass; `npm run build` pass; `php artisan test --filter=OpenRegistrationTest` 41 pass/228 assertions)
 - 2026-07-01 — **Sembunyikan sementara credit pengembangan di footer publik.** Footer publik kini hanya menampilkan copyright resmi tanpa baris "Pengembangan situs oleh Hasbi Ashiddiqi" untuk sementara; struktur footer lain tidak berubah. — `resources/js/components/layout/Footer.tsx`, `AGENTS.md` — (test: `npx tsc --noEmit` pass; `npm run build` pass; `npm audit --audit-level=high` 0 vulnerabilities; `git diff --check` pass)
