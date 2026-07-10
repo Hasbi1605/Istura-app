@@ -8060,6 +8060,17 @@ a {
   outline-offset: 1px;
 }
 
+.admin-modal-helper {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: rgba(16, 24, 47, 0.5);
+  line-height: 1.45;
+}
+
+.admin-modal-helper strong {
+  color: rgba(16, 24, 47, 0.72);
+}
+
 .admin-modal-radio {
   display: grid;
   gap: 10px;

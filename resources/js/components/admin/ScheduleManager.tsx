@@ -502,7 +502,7 @@ export function AdminScheduleManager({
 	const todayAvailable = todaySchedule?.slots.filter((s) => s.status === "Available").length ?? 0;
 	const scheduleBusy = Boolean(savingLabel);
   const defaultOpenWeekdays = schedulePolicy.openWeekdays;
-  const defaultClosedWeekdays = DAY_ORDER.filter((day) => !defaultOpenWeekdays.includes(day));
+
   const operationalSummary = weekdaySummary(defaultOpenWeekdays) || "Belum diatur";
 
   const dayKpi = selectedDay
@@ -954,8 +954,6 @@ export function AdminScheduleManager({
           maxDate={maxScheduleDate}
           activeBookingsByDate={activeBookingsByDate}
           schedules={schedules}
-          defaultOpenWeekdays={defaultOpenWeekdays}
-          defaultClosedWeekdays={defaultClosedWeekdays}
           onClose={() => setShowRangeModal(false)}
           onConfirm={(params) => {
             applyRange(params);
@@ -1256,8 +1254,6 @@ export function ScheduleRangeModal({
   maxDate,
   activeBookingsByDate,
   schedules,
-  defaultOpenWeekdays,
-  defaultClosedWeekdays,
   onClose,
   onConfirm,
 }: {
@@ -1265,8 +1261,6 @@ export function ScheduleRangeModal({
   maxDate: Date;
   activeBookingsByDate: Map<string, number>;
   schedules: VisitDay[];
-  defaultOpenWeekdays: number[];
-  defaultClosedWeekdays: number[];
   onClose: () => void;
   onConfirm: (params: {
     from: string;
@@ -1278,7 +1272,6 @@ export function ScheduleRangeModal({
   const [from, setFrom] = useState(formatDateKey(minDate));
   const [to, setTo] = useState(formatDateKey(maxDate));
   // Default kosong agar admin sengaja memilih hari yang ingin diubah.
-  // Tidak menebak intent (lihat juga quick-pick di bawah).
   const [weekdays, setWeekdays] = useState<number[]>([]);
   const [action, setAction] = useState<"open" | "close">("close");
 
@@ -1380,21 +1373,6 @@ export function ScheduleRangeModal({
           <div className="admin-modal-quickpick">
             <button
               type="button"
-              onClick={() => setWeekdays(defaultOpenWeekdays)}
-              aria-pressed={sameWeekdays(weekdays, defaultOpenWeekdays)}
-            >
-              Hari operasional
-            </button>
-            <button
-              type="button"
-              onClick={() => setWeekdays(defaultClosedWeekdays)}
-              aria-pressed={sameWeekdays(weekdays, defaultClosedWeekdays)}
-              disabled={defaultClosedWeekdays.length === 0}
-            >
-              Libur default
-            </button>
-            <button
-              type="button"
               onClick={() => setWeekdays([0, 1, 2, 3, 4, 5, 6])}
               aria-pressed={weekdays.length === 7}
             >
@@ -1413,6 +1391,10 @@ export function ScheduleRangeModal({
               </label>
             ))}
           </div>
+          <p className="admin-modal-helper">
+            Mengubah tanggal tertentu saja (pengecualian). Untuk mengatur hari buka
+            rutin, gunakan <strong>Pola operasional default</strong>.
+          </p>
         </fieldset>
 
         <fieldset className="admin-modal-fieldset">
