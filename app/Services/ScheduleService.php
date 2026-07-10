@@ -81,6 +81,7 @@ class ScheduleService
         foreach (CarbonPeriod::create($from, '1 day', $to) as $cursor) {
             $key = $cursor->toDateString();
             $holiday = $nationalHolidays->get($key);
+            $isNationalHoliday = $holiday !== null;
             $defaultClosure = $this->defaultClosureFor($cursor, $holiday, true);
             $isturaOpenBlocked = isset($isturaOpenDates[$key]);
             if ($isturaOpenBlocked) {
@@ -97,10 +98,10 @@ class ScheduleService
                 ->sort()
                 ->values();
 
-            $slots = $times->map(function (string $time) use ($key, $closedByDefault, $defaultClosure, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked) {
+            $slots = $times->map(function (string $time) use ($key, $closedByDefault, $defaultClosure, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked, $isNationalHoliday) {
                 $bookingCount = $this->activeBookingCount($key, $time, $bookings, $bookingSlots);
                 $override = $overrides->get($key)?->firstWhere('time', $time);
-                $status = $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked);
+                $status = $this->resolveSlotStatus($key, $time, $closedByDefault, $overrides, $bookings, $bookingSlots, $isturaOpenBlocked, $isNationalHoliday);
                 $participantCount = $this->activeParticipantCount($key, $time, $bookings, $bookingSlots);
 
                 return [
@@ -280,6 +281,15 @@ class ScheduleService
     }
 
     /**
+     * Whether a single date is a synced national holiday / collective leave.
+     * Such dates stay Closed and cannot be opened by admin overrides.
+     */
+    private function isNationalHoliday(string $dateKey): bool
+    {
+        return NationalHoliday::whereDate('date', $dateKey)->exists();
+    }
+
+    /**
      * Whether a single date is reserved by the active Istura Open event.
      */
     private function isturaOpenBlocksDate(string $dateKey): bool
@@ -415,6 +425,11 @@ class ScheduleService
             return 'Closed';
         }
 
+        // Tanggal merah nasional selalu tutup, tak bisa dibuka override admin.
+        if ($this->isNationalHoliday($dateKey)) {
+            return 'Closed';
+        }
+
         if ($override?->status === 'Closed') {
             return $override->status;
         }
@@ -449,6 +464,7 @@ class ScheduleService
 
         $defaultStatus = $this->defaultClosureFor($date) !== null ? 'Closed' : 'Available';
         $isturaOpenBlocked = $this->isturaOpenBlocksDate($dateKey);
+        $isNationalHoliday = $this->isNationalHoliday($dateKey);
         $statuses = $times
             ->mapWithKeys(fn (string $time): array => [
                 $time => in_array($time, self::TIME_SLOTS, true) ? $defaultStatus : 'Closed',
@@ -464,10 +480,11 @@ class ScheduleService
             $statuses[$time] = $override->status;
         }
 
-        // Days reserved for an active Istura Open event close to rombongan
-        // bookings even if an admin override marked them Available. Existing
-        // bookings (Held/Booked/Reschedule Hold) are applied later and win.
-        if ($isturaOpenBlocked) {
+        // Days reserved for an active Istura Open event — or national holidays —
+        // close to rombongan bookings even if an admin override marked them
+        // Available. Existing bookings (Held/Booked/Reschedule Hold) are applied
+        // later and win.
+        if ($isturaOpenBlocked || $isNationalHoliday) {
             foreach ($statuses as $time => $status) {
                 if ($status === 'Available') {
                     $statuses[$time] = 'Closed';
@@ -573,6 +590,7 @@ class ScheduleService
         Collection $bookings,
         Collection $bookingSlots,
         bool $isturaOpenBlocked = false,
+        bool $isNationalHoliday = false,
     ): string {
         $override = $overrides->get($dateKey)?->firstWhere('time', $time);
 
@@ -593,6 +611,13 @@ class ScheduleService
         // Istura Open reservation overrides any admin "Available" override so
         // rombongan cannot be booked on a day used for the open event.
         if ($isturaOpenBlocked) {
+            return 'Closed';
+        }
+
+        // Tanggal merah nasional selalu tutup dan tidak bisa dibuka oleh
+        // override admin (mis. buka rentang/slot). Booking aktif yang sudah
+        // ada tetap ditampilkan karena dicek lebih dulu di atas.
+        if ($isNationalHoliday) {
             return 'Closed';
         }
 

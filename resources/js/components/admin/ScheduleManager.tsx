@@ -449,6 +449,8 @@ export function AdminScheduleManager({
       const d = parseDateKey(day.date);
       if (d < fromDate || d > toDate) return day;
       if (!weekdaySet.has(d.getDay())) return day;
+      // Tanggal merah nasional tidak bisa dibuka; biarkan tetap tutup.
+      if (action === "open" && day.holiday) return day;
       return {
         ...day,
         slots: day.slots.map((slot): Slot =>
@@ -1301,14 +1303,16 @@ export function ScheduleRangeModal({
     const set = new Set(weekdays);
     let days = 0;
     let bookingsInRange = 0;
+    let holidaysInRange = 0;
     for (const day of schedules) {
       const d = parseDateKey(day.date);
       if (d < fromDate || d > toDate) continue;
       if (!set.has(d.getDay())) continue;
       days += 1;
       bookingsInRange += activeBookingsByDate.get(day.date) ?? 0;
+      if (day.holiday) holidaysInRange += 1;
     }
-    return { days, bookingsInRange };
+    return { days, bookingsInRange, holidaysInRange };
   })();
 
   const toggleWeekday = (value: number) => {
@@ -1448,6 +1452,13 @@ export function ScheduleRangeModal({
                 <>
                   {" "}
                   <strong>{preview.bookingsInRange}</strong> booking aktif tetap aman.
+                </>
+              )}
+              {action === "open" && preview.holidaysInRange > 0 && (
+                <>
+                  {" "}
+                  <strong>{preview.holidaysInRange}</strong> tanggal merah nasional dilewati
+                  (tetap tutup).
                 </>
               )}
             </p>

@@ -815,7 +815,7 @@ class ScheduleSyncTest extends TestCase
         $this->assertDatabaseCount('bookings', 0);
     }
 
-    public function test_admin_available_override_can_open_synced_national_holiday(): void
+    public function test_admin_available_override_cannot_open_synced_national_holiday(): void
     {
         NationalHoliday::create([
             'date' => '2026-06-01',
@@ -831,6 +831,8 @@ class ScheduleSyncTest extends TestCase
 
         $this->actingAsAdmin();
 
+        // Admin boleh menyimpan override, tetapi tanggal merah nasional tetap
+        // tutup (Opsi C): override Available tidak dapat membuka hari libur.
         $this->postJson('/api/admin/schedule/slot', [
             'date' => '2026-06-01',
             'time' => '08.00',
@@ -841,9 +843,82 @@ class ScheduleSyncTest extends TestCase
             ->assertOk();
 
         $slot = $this->slotFromResponse($response->json('data'), '2026-06-01', '08.00');
-        $this->assertSame('Available', $slot['status']);
-        $this->assertNull($slot['closureReason']);
-        $this->assertNull($response->json('data.0.closureReason'));
+        $this->assertSame('Closed', $slot['status']);
+        $this->assertSame('national_holiday', $slot['closureReason']['type']);
+        $this->assertSame('national_holiday', $response->json('data.0.closureReason.type'));
+    }
+
+    public function test_range_open_does_not_open_national_holiday(): void
+    {
+        NationalHoliday::create([
+            'date' => '2026-06-01',
+            'year' => 2026,
+            'name' => 'Hari Lahir Pancasila',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+            'tentative' => false,
+            'source' => 'test',
+            'source_url' => 'https://example.test/holidays.json',
+            'synced_at' => now(),
+            'checksum' => hash('sha256', '2026-06-01'),
+        ]);
+
+        $this->actingAsAdmin();
+
+        // Buka rentang yang mencakup tanggal merah 2026-06-01 (Senin).
+        $this->postJson('/api/admin/schedule/range', [
+            'from' => '2026-06-01',
+            'to' => '2026-06-05',
+            'weekdays' => [1, 2, 3, 4, 5],
+            'status' => 'Available',
+        ])->assertOk();
+
+        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-05')
+            ->assertOk();
+
+        // Tanggal merah tetap tutup meski masuk rentang yang dibuka.
+        $holidaySlot = $this->slotFromResponse($response->json('data'), '2026-06-01', '08.00');
+        $this->assertSame('Closed', $holidaySlot['status']);
+        $this->assertSame('national_holiday', $holidaySlot['closureReason']['type']);
+
+        // Hari kerja non-libur dalam rentang tetap terbuka seperti biasa.
+        $workdaySlot = $this->slotFromResponse($response->json('data'), '2026-06-02', '08.00');
+        $this->assertSame('Available', $workdaySlot['status']);
+    }
+
+    public function test_public_booking_rejected_on_national_holiday_opened_by_range(): void
+    {
+        NationalHoliday::create([
+            'date' => '2026-06-01',
+            'year' => 2026,
+            'name' => 'Hari Lahir Pancasila',
+            'type' => NationalHoliday::TYPE_NATIONAL_HOLIDAY,
+            'tentative' => false,
+            'source' => 'test',
+            'source_url' => 'https://example.test/holidays.json',
+            'synced_at' => now(),
+            'checksum' => hash('sha256', '2026-06-01'),
+        ]);
+
+        $this->actingAsAdmin();
+        $this->postJson('/api/admin/schedule/range', [
+            'from' => '2026-06-01',
+            'to' => '2026-06-01',
+            'weekdays' => [1],
+            'status' => 'Available',
+        ])->assertOk();
+
+        // Sesi admin tidak boleh mempengaruhi request booking publik.
+        $this->flushSession();
+        app('auth')->forgetGuards();
+
+        $response = $this->postJson('/api/public/bookings', $this->publicBookingPayload([
+            'date' => '2026-06-01',
+            'time' => '08.00',
+            'groupSize' => 20,
+        ]));
+
+        $response->assertStatus(422);
+        $this->assertSame(0, Booking::whereDate('date', '2026-06-01')->count());
     }
 
     public function test_public_schedule_omits_lunch_break_from_default_slots(): void
