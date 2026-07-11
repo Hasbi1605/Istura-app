@@ -360,17 +360,26 @@ class BookingService
         string $proposedTime,
         ?string $note = null,
         ?Request $request = null,
+        bool $allowOverbook = false,
     ): Booking {
         $booking->proposed_date = $proposedDate;
         $booking->proposed_time = $proposedTime;
         $booking->proposed_date_label = $this->schedule->formatLongDate(Carbon::createFromFormat('Y-m-d', $proposedDate, 'Asia/Jakarta')->startOfDay());
-        $booking->proposed_segments = $this->buildSlotSegments(
-            Carbon::createFromFormat('Y-m-d', $proposedDate, 'Asia/Jakarta')->startOfDay(),
-            $proposedTime,
-            $booking->group_size,
-            false,
-            $booking->id,
-        );
+
+        $date = Carbon::createFromFormat('Y-m-d', $proposedDate, 'Asia/Jakarta')->startOfDay();
+        $segments = $this->buildSequentialSegments($date, $proposedTime, $booking->group_size);
+
+        if ($allowOverbook) {
+            $this->assertManualSegmentsUsable($booking, $segments, $allowOverbook);
+        } else {
+            $selectedTimes = collect($segments)->pluck('time')->all();
+            $statuses = $this->schedule->slotStatusesFor($date, $selectedTimes, false, $booking->id);
+            if (collect($selectedTimes)->contains(fn (string $time): bool => ($statuses[$time] ?? 'Closed') !== 'Available')) {
+                $this->throwUnavailableSlot();
+            }
+        }
+
+        $booking->proposed_segments = $segments;
         $booking->proposed_at = now();
 
         return $this->transitionTo($booking, 'Reschedule', $actor, 'reschedule', $note, $request);
@@ -733,7 +742,7 @@ class BookingService
                     $booking->reschedule_previous_status = null;
                 }
 
-                if ($newStatus === 'Reschedule' && $booking->proposed_date && $booking->proposed_time) {
+                if ($newStatus === 'Reschedule' && $booking->proposed_date && $booking->proposed_time && empty($booking->proposed_segments)) {
                     $proposedDate = Carbon::parse($booking->proposed_date, 'Asia/Jakarta')->startOfDay();
                     $booking->proposed_segments = $this->buildSlotSegments($proposedDate, $booking->proposed_time, $booking->group_size, true, $booking->id);
                 }

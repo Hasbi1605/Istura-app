@@ -330,8 +330,9 @@ export function AdminScreen({
     proposedDate: string,
 		proposedTime: string,
 		note: string,
+		allowOverbook = false,
 	) => {
-		const updated = await apiRescheduleBooking(booking.code, { proposedDate, proposedTime, note });
+		const updated = await apiRescheduleBooking(booking.code, { proposedDate, proposedTime, note, allowOverbook: allowOverbook || undefined });
 		const localBooking = await syncBookingFromApi(updated);
 		openWhatsApp(
 			localBooking,
@@ -370,7 +371,7 @@ export function AdminScreen({
 		});
 	};
 
-	const handleAction = (action: AdminAction, booking: Booking, note: string, proposed?: string, documentationLink?: string) => {
+	const handleAction = (action: AdminAction, booking: Booking, note: string, proposed?: string, documentationLink?: string, allowOverbook?: boolean) => {
 		const labelMap: Record<AdminAction, string> = {
 			accept: "Menyetujui booking...",
 			reject: booking.status === "Expired" ? "Menutup kasus..." : "Menolak booking...",
@@ -399,7 +400,7 @@ export function AdminScreen({
 			// proposed is "Senin, 1 Juni 2026, 09.00 WIB" - parse back to date/time
 			const parsed = parseProposedSlot(proposed, schedules);
 			if (!parsed) throw new Error("Pilih jadwal alternatif yang tersedia.");
-			await handleProposeReschedule(booking, parsed.date, parsed.time, note);
+			await handleProposeReschedule(booking, parsed.date, parsed.time, note, allowOverbook);
 			setModal(null);
 			}
 		});
@@ -1701,16 +1702,17 @@ export function AdminActionModal({
   pendingLabel?: string | null;
   error?: string;
   onClose: () => void;
-  onConfirm: (action: AdminAction, booking: Booking, note: string, proposed?: string, documentationLink?: string) => void;
+  onConfirm: (action: AdminAction, booking: Booking, note: string, proposed?: string, documentationLink?: string, allowOverbook?: boolean) => void;
 }) {
   const [note, setNote] = useState("");
   const [documentationLink, setDocumentationLink] = useState(modal.booking.documentationLink ?? "");
   const segments = bookingSegments(modal.booking);
   const requiredSlots = segments.length > 1 ? segments.length : 1;
   const minProposedDate = addDays(jakartaToday(), 1);
+  const [allowOverbook, setAllowOverbook] = useState(false);
   const rescheduleDateOptions = schedules
     .filter((day) => parseDateKey(day.date) >= minProposedDate)
-    .map((day) => guestDateOption(day, requiredSlots))
+    .map((day) => adminDateOption(day, requiredSlots))
     .filter((option) => !option.disabled);
   const eligibleDays = rescheduleDateOptions.map((option) => option.day);
   const bookingDateInList = eligibleDays.find((day) => day.date === modal.booking.date);
@@ -1723,6 +1725,9 @@ export function AdminActionModal({
     return first?.time ?? "";
   });
   const proposed = currentDay && selectedTime ? `${currentDay.label}, ${selectedTime} WIB` : "";
+  const rescheduleCandidates = currentDay ? candidateSlots(currentDay, selectedTime, requiredSlots) : [];
+  const rescheduleConflicts = rescheduleCandidates.filter(({ slot }) => slot.status !== "Available" && !isPastVisitTime(currentDay?.date ?? "", slot.time));
+  const hasClosedOrPast = rescheduleCandidates.some(({ slot }) => slot.status === "Closed" || isPastVisitTime(currentDay?.date ?? "", slot.time));
   const titleMap = {
     accept: "Setujui booking",
     reject: modal.booking.status === "Expired" ? "Tutup kasus" : modal.booking.status === "Accepted" ? "Batalkan jadwal yang disetujui" : "Tolak booking",
@@ -1733,6 +1738,7 @@ export function AdminActionModal({
 
   const handleDayChange = (date: string) => {
     setSelectedDay(date);
+    setAllowOverbook(false);
     const day = eligibleDays.find((d) => d.date === date);
     if (day) {
       const first = day.slots.find((slot) => slot.status === "Available" && canFitConsecutiveSlots(day, slot.time, requiredSlots));
@@ -1740,6 +1746,13 @@ export function AdminActionModal({
     } else {
       setSelectedTime("");
     }
+  };
+
+  const canSelectRescheduleStart = (startTime: string) => {
+    if (!currentDay) return false;
+    const group = candidateSlots(currentDay, startTime, requiredSlots);
+    return group.length === requiredSlots
+      && group.every(({ slot }) => slot.status !== "Closed" && !isPastVisitTime(currentDay.date, slot.time));
   };
 
   // Compute the set of consecutive slot times that are part of the selection
@@ -1760,15 +1773,17 @@ export function AdminActionModal({
   const slotChipClass = (slot: { time: string; status: string }) => {
     const available = slot.status === "Available";
     const closed = slot.status === "Closed";
+    const past = currentDay ? isPastVisitTime(currentDay.date, slot.time) : false;
     const selected = selectedSlotSet.has(slot.time);
+    const selectable = canSelectRescheduleStart(slot.time);
     const fits = currentDay ? canFitConsecutiveSlots(currentDay, slot.time, requiredSlots) : false;
     return [
       "segment-slot-chip",
       selected ? "is-selected" : "",
-      !selected && available && fits ? "is-available" : "",
+      !selected && available && fits && selectable ? "is-available" : "",
       !selected && available && !fits ? "is-full" : "",
-      !selected && !available && !closed ? "is-occupied" : "",
-      !selected && closed ? "is-closed" : "",
+      !selected && !available && !closed && selectable ? "is-occupied" : "",
+      !selected && (closed || past) ? "is-closed" : "",
     ].filter(Boolean).join(" ");
   };
 
@@ -1780,6 +1795,7 @@ export function AdminActionModal({
         return `Kloter ${slotIndex - startIndex + 1}`;
       }
     }
+    if (currentDay && isPastVisitTime(currentDay.date, slot.time)) return "Lewat";
     if (slot.status === "Available") {
       const fits = currentDay ? canFitConsecutiveSlots(currentDay, slot.time, requiredSlots) : false;
       return fits ? "Tersedia" : "Tidak cukup";
@@ -1825,19 +1841,20 @@ export function AdminActionModal({
               <>
                 <div className="segment-slot-picker-head">
                   <span>Pilih jam{requiredSlots > 1 ? ` (butuh ${requiredSlots} slot layanan)` : ""}</span>
+                  <small>Slot terisi butuh izin gabung.</small>
                 </div>
                 <div className="segment-slot-grid">
                   {currentDay.slots.map((slot) => {
-                    const closed = slot.status === "Closed";
-                    const fits = canFitConsecutiveSlots(currentDay, slot.time, requiredSlots);
-                    const available = slot.status === "Available";
+                    const closed = slot.status === "Closed" || isPastVisitTime(currentDay.date, slot.time);
+                    const selectable = canSelectRescheduleStart(slot.time);
+                    const selected = selectedSlotSet.has(slot.time);
                     return (
                       <button
                         key={slot.time}
                         type="button"
                         className={slotChipClass(slot)}
-                        onClick={() => setSelectedTime(slot.time)}
-                        disabled={!selectedSlotSet.has(slot.time) && (closed || !(available && fits))}
+                        onClick={() => { setSelectedTime(slot.time); setAllowOverbook(false); }}
+                        disabled={!selected && !selectable}
                       >
                         <strong>{slot.time}</strong>
                         <small>{slotLabel(slot)}</small>
@@ -1846,6 +1863,16 @@ export function AdminActionModal({
                   })}
                 </div>
               </>
+            )}
+            {rescheduleConflicts.length > 0 && (
+              <div className="admin-confirmation-group" aria-label="Konfirmasi overbook">
+                <SlotConflictPermission
+                  slots={rescheduleConflicts.map(({ slot }) => slot)}
+                  checked={allowOverbook}
+                  onChange={setAllowOverbook}
+                  disabled={Boolean(pendingLabel)}
+                />
+              </div>
             )}
           </div>
         )}
@@ -1876,8 +1903,8 @@ export function AdminActionModal({
           <button
             className="button button-primary"
             type="button"
-            disabled={Boolean(pendingLabel) || (needsNote && !note.trim()) || (modal.action === "reschedule" && !proposed)}
-            onClick={() => onConfirm(modal.action, modal.booking, note, proposed, documentationLink)}
+            disabled={Boolean(pendingLabel) || (needsNote && !note.trim()) || (modal.action === "reschedule" && (!proposed || (rescheduleConflicts.length > 0 && !allowOverbook) || hasClosedOrPast))}
+            onClick={() => onConfirm(modal.action, modal.booking, note, proposed, documentationLink, allowOverbook)}
           >
             {pendingLabel ? <ButtonSpinner label={pendingLabel} /> : "Konfirmasi & Buka WhatsApp"}
           </button>

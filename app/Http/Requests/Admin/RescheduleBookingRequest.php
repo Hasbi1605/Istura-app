@@ -25,6 +25,7 @@ class RescheduleBookingRequest extends FormRequest
                 'before_or_equal:'.$today->copy()->addMonths(2)->toDateString(),
             ],
             'proposedTime' => ['required', 'string', 'regex:/^\d{2}\.\d{2}$/', new VisitTime],
+            'allowOverbook' => ['sometimes', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];
     }

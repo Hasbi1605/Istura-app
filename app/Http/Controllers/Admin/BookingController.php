@@ -125,6 +125,7 @@ class BookingController extends Controller
             $payload['proposedTime'],
             $payload['note'] ?? null,
             $request,
+            (bool) ($payload['allowOverbook'] ?? false),
         );
 
         return response()->json(['data' => (new BookingResource($updated))->resolve()]);

@@ -81,7 +81,7 @@ export const rejectBooking = (code: string, note?: string) =>
 
 export const rescheduleBooking = (
   code: string,
-  payload: { proposedDate: string; proposedTime: string; note?: string },
+  payload: { proposedDate: string; proposedTime: string; note?: string; allowOverbook?: boolean },
 ) =>
   api<{ data: ApiBooking }>(`/api/admin/bookings/${encodeURIComponent(code)}/reschedule`, {
     method: "POST",
