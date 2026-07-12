@@ -29,6 +29,8 @@ import { apiVisitDayToLocal } from "../../api/adapters";
 import { StatCard } from "../ui/StatCard";
 import { InlineSpinner, SectionSkeleton, StatCardSkeleton } from "../ui/LoadingStates";
 
+const bookableSlots = (slots: Slot[]): Slot[] => slots.filter((slot) => slot.time !== "12.00");
+
 function closureReasonLabel(day?: VisitDay): string | null {
   return day?.closureReason?.label ?? day?.holiday?.label ?? null;
 }
@@ -480,18 +482,18 @@ export function AdminScheduleManager({
   };
 
   const totalAvailable = schedules.reduce(
-    (sum, day) => sum + day.slots.filter((slot) => slot.status === "Available").length,
+    (sum, day) => sum + bookableSlots(day.slots).filter((slot) => slot.status === "Available").length,
     0,
   );
   const totalBooked = schedules.reduce(
-    (sum, day) => sum + day.slots.filter((slot) => slot.status === "Booked").length,
+    (sum, day) => sum + bookableSlots(day.slots).filter((slot) => slot.status === "Booked").length,
     0,
   );
   // Hari aktif = hari (>= hari ini) yang punya minimal satu slot Available.
   const totalActiveDays = schedules.reduce(
     (sum, day) =>
       parseDateKey(day.date) >= today &&
-      day.slots.some((slot) => slot.status === "Available")
+      bookableSlots(day.slots).some((slot) => slot.status === "Available")
         ? sum + 1
         : sum,
     0,
@@ -499,18 +501,19 @@ export function AdminScheduleManager({
 
   // KPI hari ini untuk kartu "Hari ini".
 	const todaySchedule = scheduleByDate.get(todayKey);
-	const todayAvailable = todaySchedule?.slots.filter((s) => s.status === "Available").length ?? 0;
+	const todayAvailable = todaySchedule ? bookableSlots(todaySchedule.slots).filter((s) => s.status === "Available").length : 0;
 	const scheduleBusy = Boolean(savingLabel);
   const defaultOpenWeekdays = schedulePolicy.openWeekdays;
 
   const operationalSummary = weekdaySummary(defaultOpenWeekdays) || "Belum diatur";
 
+  const selectedSlots = selectedDay ? bookableSlots(selectedDay.slots) : [];
   const dayKpi = selectedDay
     ? {
-        available: selectedDay.slots.filter((slot) => slot.status === "Available").length,
-        booked: selectedDay.slots.filter((slot) => slot.status === "Booked").length,
-        held: selectedDay.slots.filter((slot) => slot.status === "Held").length,
-        closed: selectedDay.slots.filter((slot) => slot.status === "Closed").length,
+        available: selectedSlots.filter((slot) => slot.status === "Available").length,
+        booked: selectedSlots.filter((slot) => slot.status === "Booked").length,
+        held: selectedSlots.filter((slot) => slot.status === "Held").length,
+        closed: selectedSlots.filter((slot) => slot.status === "Closed").length,
       }
     : null;
 
@@ -611,9 +614,10 @@ export function AdminScheduleManager({
                 cell.date.getFullYear() === today.getFullYear() &&
                 cell.date.getMonth() === today.getMonth() &&
                 cell.date.getDate() === today.getDate();
-              const totalSlots = day?.slots.length ?? 0;
-              const openSlots = day?.slots.filter((slot) => slot.status === "Available").length ?? 0;
-              const closedSlots = day?.slots.filter((slot) => slot.status === "Closed").length ?? 0;
+              const slots = day ? bookableSlots(day.slots) : [];
+              const totalSlots = slots.length;
+              const openSlots = slots.filter((slot) => slot.status === "Available").length;
+              const closedSlots = slots.filter((slot) => slot.status === "Closed").length;
               // Hari di luar pola operasional default ditandai berbeda dari
               // hari operasional yang sengaja ditutup admin.
               const isDefaultOff = isDefaultHoliday(cell.date, defaultOpenWeekdays);
@@ -677,7 +681,7 @@ export function AdminScheduleManager({
         <div className="admin-schedule-day-panel">
           {selectedDay && dayKpi ? (
             (() => {
-              const totalSlots = selectedDay.slots.length;
+              const totalSlots = selectedSlots.length;
               const selectedClosureLabel = closureReasonLabel(selectedDay);
               const fullyClosed = totalSlots > 0 && dayKpi.closed === totalSlots;
               const fullyOpen =
@@ -739,7 +743,7 @@ export function AdminScheduleManager({
                   </header>
 
                   <div className="admin-schedule-slots">
-                    {selectedDay.slots.map((slot) => {
+                    {selectedSlots.map((slot) => {
                       const locked = slot.status === "Booked" || slot.status === "Held" || slot.status === "Reschedule Hold";
                       const past = isSlotPast(selectedDay.date, slot.time);
                       const disabled = locked || past;

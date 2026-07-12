@@ -751,7 +751,7 @@ class ScheduleService
             return $status;
         }
 
-        $startsAt = Carbon::createFromFormat('Y-m-d H.i', $dateKey.' '.$time, 'Asia/Jakarta');
+        $startsAt = Carbon::createFromFormat('Y-m-d H.i', $dateKey.' '.str_replace(':', '.', $time), 'Asia/Jakarta');
         if ($isturaOpenBlocked || $startsAt->lte(now('Asia/Jakarta')) || ! $this->overrideIsPublicEarlyOpening($override)) {
             return 'Closed';
         }

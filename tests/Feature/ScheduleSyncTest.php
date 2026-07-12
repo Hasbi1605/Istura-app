@@ -934,6 +934,25 @@ class ScheduleSyncTest extends TestCase
         $this->assertNotContains('12.00', $times);
     }
 
+    public function test_schedule_horizon_handles_legacy_colon_formatted_booking_time(): void
+    {
+        $date = '2026-06-01';
+        $this->createBooking([
+            'date' => $date,
+            'time' => '11:00',
+            'status' => 'Accepted',
+        ]);
+
+        $days = app(ScheduleService::class)->buildHorizon(
+            Carbon::parse($date, 'Asia/Jakarta'),
+            Carbon::parse($date, 'Asia/Jakarta'),
+        );
+
+        $slot = collect($days[0]['slots'])->firstWhere('time', '11:00');
+        $this->assertNotNull($slot);
+        $this->assertSame('Booked', $slot['status']);
+    }
+
     public function test_public_schedule_hides_lunch_break_even_when_legacy_data_exists(): void
     {
         $date = '2026-06-04';
@@ -2002,6 +2021,56 @@ class ScheduleSyncTest extends TestCase
             'code' => $booking->code,
             'status' => 'Accepted',
             'proposed_time' => null,
+        ]);
+    }
+
+    public function test_reschedule_proposal_allows_today(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-01 07:00:00', 'Asia/Jakarta'));
+        $this->actingAsAdmin();
+        $booking = $this->createBooking([
+            'date' => '2026-06-02',
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => '2026-06-01',
+            'proposedTime' => '10.00',
+            'note' => 'Tawarkan jadwal hari ini.',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule')
+            ->assertJsonPath('data.proposedDate', '2026-06-01');
+    }
+
+    public function test_reschedule_proposal_can_overbook_when_admin_confirms(): void
+    {
+        $this->actingAsAdmin();
+        $date = '2026-06-01';
+        $this->createBooking([
+            'date' => $date,
+            'time' => '08.00',
+            'status' => 'Accepted',
+        ]);
+        $booking = $this->createBooking([
+            'date' => $date,
+            'time' => '09.00',
+            'status' => 'Accepted',
+        ]);
+
+        $this->postJson("/api/admin/bookings/{$booking->code}/reschedule", [
+            'proposedDate' => $date,
+            'proposedTime' => '08.00',
+            'note' => 'Gabungkan ke slot yang sudah terisi.',
+            'allowOverbook' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'Reschedule')
+            ->assertJsonPath('data.proposedSegments.0.time', '08.00');
+
+        $this->assertDatabaseHas('booking_slots', [
+            'booking_id' => $booking->id,
+            'kind' => BookingSlot::KIND_PROPOSED,
+            'time' => '08.00',
         ]);
     }
 

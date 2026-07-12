@@ -62,7 +62,7 @@ import {
   splitGroupSizes,
   VIRTUALIZE_THRESHOLD,
 } from "../../domain/booking";
-import { addDays, addMonths, formatCount, formatCountShort, formatDateKey, formatLongDate, jakartaToday, parseDateKey } from "../../lib/date";
+import { addMonths, formatCount, formatCountShort, formatDateKey, formatLongDate, jakartaToday, parseDateKey } from "../../lib/date";
 import { openWhatsApp, createWhatsappMessage } from "../../lib/waActions";
 import { useMediaQuery, useVirtualWindow } from "../../hooks";
 import {
@@ -1708,7 +1708,7 @@ export function AdminActionModal({
   const [documentationLink, setDocumentationLink] = useState(modal.booking.documentationLink ?? "");
   const segments = bookingSegments(modal.booking);
   const requiredSlots = segments.length > 1 ? segments.length : 1;
-  const minProposedDate = addDays(jakartaToday(), 1);
+  const minProposedDate = jakartaToday();
   const [allowOverbook, setAllowOverbook] = useState(false);
   const rescheduleDateOptions = schedules
     .filter((day) => parseDateKey(day.date) >= minProposedDate)
