@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Models\Booking;
 use App\Models\Feedback;
+use App\Models\OpenEvent;
 use App\Models\ScheduleOverride;
 use App\Policies\BookingPolicy;
 use App\Policies\FeedbackPolicy;
+use App\Policies\OpenEventPolicy;
 use App\Policies\ScheduleOverridePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -31,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Booking::class, BookingPolicy::class);
         Gate::policy(Feedback::class, FeedbackPolicy::class);
+        Gate::policy(OpenEvent::class, OpenEventPolicy::class);
         Gate::policy(ScheduleOverride::class, ScheduleOverridePolicy::class);
 
         if (! $this->app->environment(['local', 'testing']) && config('app.debug')) {
@@ -43,6 +46,10 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('two-factor', fn (Request $request) => Limit::perMinute(5)->by(
             'two-factor:'.sha1(($request->user()?->id ?? 'guest').'|'.$request->ip()),
+        ));
+
+        RateLimiter::for('admin-mutations', fn (Request $request) => Limit::perMinute(60)->by(
+            'admin-mutations:user:'.($request->user()?->id ?? 'guest'),
         ));
 
         RateLimiter::for('public-bookings', fn (Request $request) => Limit::perMinute(30)->by(

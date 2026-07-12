@@ -1225,10 +1225,12 @@ export function AdminHeroManager({ onChange, readOnly = false }: { onChange?: (n
 export function AdminLandingManager({
   content,
   onChange,
+  onDirtyChange,
   readOnly = false,
 }: {
   content: SiteContent;
   onChange?: (next: SiteContent) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState<SiteContent>(content);
@@ -2017,6 +2019,22 @@ export function AdminLandingManager({
       JSON.stringify(normalizeLandingContentForSave(content)) ||
     activityUploads.some(Boolean) ||
     Object.values(siteImageUploads).some(Boolean);
+
+  useEffect(() => {
+    onDirtyChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onDirtyChange]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
   const saveStatus = saving
     ? "Menyimpan perubahan..."
     : error

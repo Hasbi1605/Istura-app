@@ -110,51 +110,55 @@ Route::middleware('admin-access')->prefix('admin')->group(function () {
 
     // === MUTATION routes (admin + super_admin only) ===
     Route::middleware('operator')->group(function () {
-        Route::post('bookings', [AdminBookingController::class, 'store']);
-        Route::put('bookings/{code}', [AdminBookingController::class, 'updateContact']);
-        Route::post('bookings/{code}/accept', [AdminBookingController::class, 'accept']);
-        Route::post('bookings/{code}/reject', [AdminBookingController::class, 'reject']);
-        Route::post('bookings/{code}/reschedule', [AdminBookingController::class, 'reschedule']);
-        Route::post('bookings/{code}/reschedule/cancel', [AdminBookingController::class, 'cancelReschedule']);
-        Route::post('bookings/{code}/segments', [AdminBookingController::class, 'segments']);
-        Route::post('bookings/{code}/move', [AdminBookingController::class, 'move']);
-        Route::post('bookings/{code}/complete', [AdminBookingController::class, 'complete']);
-        Route::delete('bookings/{code}', [AdminBookingController::class, 'destroy']);
-
-        Route::put('schedule/policy', [ScheduleController::class, 'updatePolicy']);
-        Route::post('schedule/slot', [ScheduleController::class, 'storeSlot']);
-        Route::delete('schedule/slot', [ScheduleController::class, 'destroySlot']);
-        Route::post('schedule/range', [ScheduleController::class, 'storeRange']);
-
-        Route::put('cms/faqs', [CmsController::class, 'updateFaqs']);
-        Route::put('cms/contacts', [CmsController::class, 'updateContacts']);
-        Route::put('cms/wa-templates', [CmsController::class, 'updateWaTemplates']);
-        Route::put('cms/hero', [CmsController::class, 'updateHero']);
-        Route::post('cms/letter', [CmsController::class, 'updateLetter']);
-        Route::put('cms/site-content', [CmsController::class, 'updateSiteContent']);
-        Route::post('cms/site-content', [CmsController::class, 'updateSiteContent']);
-
         Route::get('audit-logs', [AuditLogController::class, 'index']);
 
-        // Istura Open mutations
-        Route::post('open-events', [OpenEventController::class, 'store']);
-        Route::put('open-events/{event}', [OpenEventController::class, 'update']);
-        Route::delete('open-events/{event}', [OpenEventController::class, 'destroy']);
-        Route::post('open-events/{event}/activate', [OpenEventController::class, 'activate']);
-        Route::post('open-events/{event}/deactivate', [OpenEventController::class, 'deactivate']);
-        Route::post('open-events/{event}/archive', [OpenEventController::class, 'archive']);
-        Route::post('open-events/{event}/unarchive', [OpenEventController::class, 'unarchive']);
-        Route::post('open-events/{event}/poster', [OpenEventController::class, 'uploadPoster']);
-        Route::delete('open-events/{event}/poster', [OpenEventController::class, 'deletePoster']);
-        Route::put('open-events/{event}/days/{day}', [OpenEventController::class, 'updateDay']);
-        Route::post('open-events/{event}/registrations/{code}/cancel', [AdminOpenRegistrationController::class, 'cancel']);
+        Route::middleware('throttle:admin-mutations')->group(function () {
+            Route::post('bookings', [AdminBookingController::class, 'store']);
+            Route::put('bookings/{code}', [AdminBookingController::class, 'updateContact']);
+            Route::post('bookings/{code}/accept', [AdminBookingController::class, 'accept']);
+            Route::post('bookings/{code}/reject', [AdminBookingController::class, 'reject']);
+            Route::post('bookings/{code}/reschedule', [AdminBookingController::class, 'reschedule']);
+            Route::post('bookings/{code}/reschedule/cancel', [AdminBookingController::class, 'cancelReschedule']);
+            Route::post('bookings/{code}/segments', [AdminBookingController::class, 'segments']);
+            Route::post('bookings/{code}/move', [AdminBookingController::class, 'move']);
+            Route::post('bookings/{code}/complete', [AdminBookingController::class, 'complete']);
+            Route::delete('bookings/{code}', [AdminBookingController::class, 'destroy']);
+
+            Route::put('schedule/policy', [ScheduleController::class, 'updatePolicy']);
+            Route::post('schedule/slot', [ScheduleController::class, 'storeSlot']);
+            Route::delete('schedule/slot', [ScheduleController::class, 'destroySlot']);
+            Route::post('schedule/range', [ScheduleController::class, 'storeRange']);
+
+            Route::put('cms/faqs', [CmsController::class, 'updateFaqs']);
+            Route::put('cms/contacts', [CmsController::class, 'updateContacts']);
+            Route::put('cms/wa-templates', [CmsController::class, 'updateWaTemplates']);
+            Route::put('cms/hero', [CmsController::class, 'updateHero']);
+            Route::post('cms/letter', [CmsController::class, 'updateLetter']);
+            Route::put('cms/site-content', [CmsController::class, 'updateSiteContent']);
+            Route::post('cms/site-content', [CmsController::class, 'updateSiteContent']);
+
+            // Istura Open mutations
+            Route::post('open-events', [OpenEventController::class, 'store']);
+            Route::put('open-events/{event}', [OpenEventController::class, 'update']);
+            Route::delete('open-events/{event}', [OpenEventController::class, 'destroy']);
+            Route::post('open-events/{event}/activate', [OpenEventController::class, 'activate']);
+            Route::post('open-events/{event}/deactivate', [OpenEventController::class, 'deactivate']);
+            Route::post('open-events/{event}/archive', [OpenEventController::class, 'archive']);
+            Route::post('open-events/{event}/unarchive', [OpenEventController::class, 'unarchive']);
+            Route::post('open-events/{event}/poster', [OpenEventController::class, 'uploadPoster']);
+            Route::delete('open-events/{event}/poster', [OpenEventController::class, 'deletePoster']);
+            Route::put('open-events/{event}/days/{day}', [OpenEventController::class, 'updateDay']);
+            Route::post('open-events/{event}/registrations/{code}/cancel', [AdminOpenRegistrationController::class, 'cancel']);
+        });
     });
 
     // === USER MANAGEMENT (super_admin only) ===
     Route::middleware('super-admin')->group(function () {
         Route::get('users', [UserController::class, 'index']);
-        Route::post('users', [UserController::class, 'store']);
-        Route::put('users/{user}', [UserController::class, 'update']);
-        Route::delete('users/{user}', [UserController::class, 'destroy']);
+        Route::middleware('throttle:admin-mutations')->group(function () {
+            Route::post('users', [UserController::class, 'store']);
+            Route::put('users/{user}', [UserController::class, 'update']);
+            Route::delete('users/{user}', [UserController::class, 'destroy']);
+        });
     });
 });

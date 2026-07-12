@@ -98,7 +98,7 @@ WebSocket (Laravel Reverb).
 |----|----------|-------------|
 | NFR-1 | Keamanan | NIK disimpan terenkripsi (Laravel Crypt); hanya `nik_masked` & `nik_hash` untuk tampilan/dedup. |
 | NFR-2 | Keamanan | Surat permohonan disimpan privat di `storage/app/private/booking-letters/`, diakses hanya via endpoint admin terautentikasi. |
-| NFR-3 | Keamanan | Endpoint publik dibatasi rate-limit (booking, feedback view/submit, schedule, login, 2FA). |
+| NFR-3 | Keamanan | Endpoint publik dibatasi rate-limit (booking, feedback view/submit, schedule, login, 2FA); mutasi admin dibatasi 60 request/menit per akun tanpa membatasi endpoint baca/realtime. |
 | NFR-4 | Keamanan | Session admin punya absolute lifetime (default 720 menit); auto-logout saat kedaluwarsa. |
 | NFR-5 | Keamanan | Security headers ditambahkan di seluruh respons (middleware AddSecurityHeaders). |
 | NFR-6 | Konkurensi | Pemesanan slot menggunakan transaksi DB + `booking_slot_locks`; overbook hanya boleh melalui aksi admin eksplisit dan tercatat di audit. Booking publik H/H+1 hanya boleh lolos bila slot memiliki marker pembukaan publik eksplisit dari admin (`public_early_opened_at`) dan tetap dikunci ulang saat submit. |

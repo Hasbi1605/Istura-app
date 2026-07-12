@@ -3424,6 +3424,10 @@ a {
   color: #b3261e;
 }
 
+.form-message--warning {
+  color: #8a6218;
+}
+
 .form-check {
   align-items: center;
   color: rgba(16, 24, 47, 0.78);
@@ -4807,6 +4811,49 @@ a {
     radial-gradient(circle at 88% 92%, rgba(31, 107, 103, 0.18), transparent 32rem),
     var(--navy);
   color: var(--white);
+}
+
+.admin-error-boundary {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f4f1e9;
+  color: var(--navy);
+}
+
+.admin-error-boundary-card {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 14px;
+  padding: clamp(24px, 5vw, 40px);
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  text-align: center;
+}
+
+.admin-error-boundary-card > svg {
+  margin: 0 auto;
+  color: #9b6b14;
+}
+
+.admin-error-boundary-card h1,
+.admin-error-boundary-card p {
+  margin: 0;
+}
+
+.admin-error-boundary-card p {
+  color: rgba(16, 24, 47, 0.7);
+  line-height: 1.65;
+}
+
+.admin-error-boundary-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
 }
 
 .admin-login-back {

@@ -136,6 +136,7 @@ export function AdminScreen({
 	const [downloadingCode, setDownloadingCode] = useState<string | null>(null);
 	const [actionError, setActionError] = useState("");
 	const [actionNotice, setActionNotice] = useState("");
+	const [actionWarning, setActionWarning] = useState("");
   // Mobile breakpoint: split-pane tidak punya cukup ruang untuk dua kolom,
   // jadi kita reuse pola SlideOver (yang sudah dipakai di mode "table" desktop)
   // sebagai panel detail. List tetap full-width.
@@ -277,6 +278,7 @@ export function AdminScreen({
 		setPendingAction({ code: booking.code, label });
 		setActionError("");
 		setActionNotice("");
+		setActionWarning("");
 		try {
 			await task();
 		} catch (err) {
@@ -445,7 +447,11 @@ export function AdminScreen({
 			const { booking: updated, warning } = await apiUpdateBookingContact(booking.code, payload);
 			await syncBookingFromApi(updated);
 			setEditModal(null);
-			setActionNotice(warning ?? `Data kontak booking ${updated.code} diperbarui.`);
+			if (warning) {
+				setActionWarning(warning);
+			} else {
+				setActionNotice(`Data kontak booking ${updated.code} diperbarui.`);
+			}
 		});
 	};
 
@@ -487,6 +493,26 @@ export function AdminScreen({
 		const timeout = window.setTimeout(() => setActionNotice(""), 5000);
 		return () => window.clearTimeout(timeout);
 	}, [actionNotice]);
+
+	useEffect(() => {
+		if (!actionWarning) return;
+		const timeout = window.setTimeout(() => setActionWarning(""), 8000);
+		return () => window.clearTimeout(timeout);
+	}, [actionWarning]);
+
+	const modalContext = [
+		modal ? `${modal.action}:${modal.booking.code}` : "",
+		segmentModal?.booking.code ?? "",
+		moveModal?.booking.code ?? "",
+		editModal?.booking.code ?? "",
+		deleteModal?.booking.code ?? "",
+		showCreateModal ? "create" : "",
+	].join("|");
+
+	useEffect(() => {
+		if (!modalContext) return;
+		setActionError("");
+	}, [modalContext]);
 
   const handleRowClick = (code: string) => {
     setSelectedCode(code);
@@ -564,8 +590,9 @@ export function AdminScreen({
 			)}
 		</div>
 
-		{actionError && <strong className="form-message form-message--error">{actionError}</strong>}
-		{actionNotice && <strong className="form-message">{actionNotice}</strong>}
+			{actionError && <strong className="form-message form-message--error">{actionError}</strong>}
+			{actionNotice && <strong className="form-message">{actionNotice}</strong>}
+			{actionWarning && <strong className="form-message form-message--warning">{actionWarning}</strong>}
 
       <div className="booking-toolbar" role="region" aria-label="Filter dan tampilan booking">
         <div className="booking-chip-group" role="tablist" aria-label="Filter status">
@@ -2199,6 +2226,7 @@ export function DirectMoveModal({
       ?? day?.slots.find((slot) => canSelectStart(slot));
     setTime(first?.time ?? "");
     setAllowOverbook(false);
+	setConfirmedDirectMove(false);
   }, [date, day, requiredSlots]);
 
   return (
@@ -2239,7 +2267,11 @@ export function DirectMoveModal({
                       key={slot.time}
                       type="button"
                       className={slotChipClass(slot)}
-                      onClick={() => { setTime(slot.time); setAllowOverbook(false); }}
+					  onClick={() => {
+					    setTime(slot.time);
+					    setAllowOverbook(false);
+					    setConfirmedDirectMove(false);
+					  }}
                       disabled={disabled}
                     >
                       <strong>{slot.time}</strong>

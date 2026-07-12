@@ -221,7 +221,13 @@ const OPEN_REGISTRATION_FILTER_CHIPS: Array<{
   { value: "Cancelled", label: "Batal", countKey: "cancelled", className: "booking-chip--rejected" },
 ];
 
-export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) {
+export function IsturaOpenManager({
+  readOnly = false,
+  onOpenBooking,
+}: {
+  readOnly?: boolean;
+  onOpenBooking?: (bookingCode: string) => void;
+}) {
   const [events, setEvents] = useState<OpenEventAdmin[]>([]);
   const [quota, setQuota] = useState<Record<number, OpenQuotaSummary[]>>({});
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -361,15 +367,16 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
                 </select>
               </label>
               {!readOnly && (
-                <EventToolbarActions
+	                <EventToolbarActions
                   event={selected}
                   onEdit={() => setEditingEvent(selected)}
                   onChanged={() => void reload()}
-                  onDeleted={async () => {
+	                  onDeleted={async () => {
                     setSelectedId(null);
                     await reload(false);
-                  }}
-                />
+	                  }}
+	                  onOpenBooking={onOpenBooking}
+	                />
               )}
             </div>
             <div className="booking-toolbar-row booking-toolbar-row--secondary open-admin-summary">
@@ -407,7 +414,13 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
 
           {tab === "settings" && (
             <>
-              <DaysPanel event={selected} quota={selectedQuota} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
+	              <DaysPanel
+	                event={selected}
+	                quota={selectedQuota}
+	                onChanged={() => void reload()}
+	                onOpenBooking={onOpenBooking}
+	                readOnly={readOnly || selectedLocked}
+	              />
               <div className="open-promo-media">
                 <PosterCard event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
                 <PromoCard event={selected} onChanged={() => void reload()} readOnly={readOnly || selectedLocked} />
@@ -444,7 +457,17 @@ export function IsturaOpenManager({ readOnly = false }: { readOnly?: boolean }) 
   );
 }
 
-function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEventAdmin; onChanged: () => void; readOnly?: boolean }) {
+function ActivateButton({
+  event,
+  onChanged,
+  onOpenBooking,
+  readOnly = false,
+}: {
+  event: OpenEventAdmin;
+  onChanged: () => void;
+  onOpenBooking?: (bookingCode: string) => void;
+  readOnly?: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<OpenDayBookingConflict[] | null>(null);
@@ -508,11 +531,21 @@ function ActivateButton({ event, onChanged, readOnly = false }: { event: OpenEve
               </li>
             ))}
           </ul>
-          <div className="open-day-conflict-actions">
+	          <div className="open-day-conflict-actions">
             <button type="button" className="button button-ghost" disabled={busy} onClick={() => setConflicts(null)}>
               Batal
-            </button>
-            <button type="button" className="button button-danger" disabled={busy} onClick={() => void toggle(true)}>
+	            </button>
+	            {onOpenBooking && conflicts[0] && (
+	              <button
+	                type="button"
+	                className="button button-outline"
+	                disabled={busy}
+	                onClick={() => onOpenBooking(conflicts[0].code)}
+	              >
+	                Buka Booking
+	              </button>
+	            )}
+	            <button type="button" className="button button-danger" disabled={busy} onClick={() => void toggle(true)}>
               {busy ? <ButtonSpinner label="Mengaktifkan..." /> : "Tetap aktifkan"}
             </button>
           </div>
@@ -528,11 +561,13 @@ function EventToolbarActions({
   onEdit,
   onChanged,
   onDeleted,
+	onOpenBooking,
 }: {
   event: OpenEventAdmin;
   onEdit: () => void;
   onChanged: () => void;
   onDeleted: () => void;
+	onOpenBooking?: (bookingCode: string) => void;
 }) {
   const editDisabled = event.isArchived || event.isPast;
   const editTitle = editDisabled
@@ -546,7 +581,12 @@ function EventToolbarActions({
           <Pencil size={15} /> Edit event
         </button>
       </span>
-      <ActivateButton event={event} onChanged={onChanged} readOnly={event.isArchived || event.isPast} />
+	      <ActivateButton
+	        event={event}
+	        onChanged={onChanged}
+	        onOpenBooking={onOpenBooking}
+	        readOnly={event.isArchived || event.isPast}
+	      />
       <ArchiveButton event={event} onChanged={onChanged} />
       <DeleteDraftButton event={event} onDeleted={onDeleted} />
     </div>
@@ -954,11 +994,13 @@ function DaysPanel({
   event,
   quota,
   onChanged,
+	onOpenBooking,
   readOnly = false,
 }: {
   event: OpenEventAdmin;
   quota: OpenQuotaSummary[];
   onChanged: () => void;
+	onOpenBooking?: (bookingCode: string) => void;
   readOnly?: boolean;
 }) {
   const usedByDay = useMemo(() => {
@@ -976,7 +1018,8 @@ function DaysPanel({
           day={day}
           fallbackQuota={event.perDayQuota}
           used={usedByDay[day.id] ?? 0}
-          onChanged={onChanged}
+	          onChanged={onChanged}
+	          onOpenBooking={onOpenBooking}
           readOnly={readOnly}
         />
       ))}
@@ -1167,6 +1210,7 @@ function DayCard({
   fallbackQuota,
   used,
   onChanged,
+	onOpenBooking,
   readOnly = false,
 }: {
   eventId: number;
@@ -1174,6 +1218,7 @@ function DayCard({
   fallbackQuota: number;
   used: number;
   onChanged: () => void;
+	onOpenBooking?: (bookingCode: string) => void;
   readOnly?: boolean;
 }) {
   const [quotaOverride, setQuotaOverride] = useState(day.quotaOverride?.toString() ?? "");
@@ -1321,11 +1366,21 @@ function DayCard({
               </li>
             ))}
           </ul>
-          <div className="open-day-conflict-actions">
+	          <div className="open-day-conflict-actions">
             <button type="button" className="button button-ghost" disabled={pending !== null} onClick={() => setConflicts(null)}>
-              Batal
-            </button>
-            <button type="button" className="button button-danger" disabled={pending !== null} onClick={() => void toggleOpen(true)}>
+	              Batal
+	            </button>
+	            {onOpenBooking && conflicts[0] && (
+	              <button
+	                type="button"
+	                className="button button-outline"
+	                disabled={pending !== null}
+	                onClick={() => onOpenBooking(conflicts[0].code)}
+	              >
+	                Buka Booking
+	              </button>
+	            )}
+	            <button type="button" className="button button-danger" disabled={pending !== null} onClick={() => void toggleOpen(true)}>
               {pending === "toggle" ? <ButtonSpinner label="Membuka..." /> : "Tetap buka"}
             </button>
           </div>

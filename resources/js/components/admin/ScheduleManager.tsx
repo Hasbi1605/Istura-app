@@ -98,8 +98,9 @@ export function AdminScheduleManager({
   onOpenBooking: (bookingCode: string) => void;
   readOnly?: boolean;
 }) {
-  const today = useState(() => startOfDay(new Date()))[0];
-  const minMonth = startOfMonth(today);
+	  const [now, setNow] = useState(() => new Date());
+	  const today = startOfDay(now);
+	  const minMonth = startOfMonth(today);
   const maxScheduleDate = addMonths(today, 2);
   const maxMonth = startOfMonth(maxScheduleDate);
   const [visibleMonth, setVisibleMonth] = useState(() => minMonth);
@@ -166,19 +167,27 @@ export function AdminScheduleManager({
     confirmVariant?: "default" | "danger";
     onConfirm: () => void;
   } | null>(null);
-  // Sumber kebenaran "sekarang" untuk menandai jam yang sudah lewat di hari
-  // ini. Diperbarui per menit.
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    if (!firstActive) return;
-    if (!selectedDate || !scheduleByDate.has(selectedDate)) {
-      setSelectedDate(firstActive);
-    }
-  }, [firstActive, scheduleByDate, selectedDate]);
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
+	  // Sumber kebenaran "sekarang" untuk jam lewat dan batas kalender. Karena
+	  // diperbarui per menit, halaman yang dibiarkan terbuka ikut berganti hari.
+	  useEffect(() => {
+	    if (!firstActive) return;
+	    if (!selectedDate || selectedDate < todayKey || !scheduleByDate.has(selectedDate)) {
+	      setSelectedDate(firstActive);
+	    }
+	  }, [firstActive, scheduleByDate, selectedDate, todayKey]);
+	  useEffect(() => {
+	    const id = window.setInterval(() => setNow(new Date()), 60_000);
+	    return () => window.clearInterval(id);
+	  }, []);
+	  const minMonthKey = formatDateKey(minMonth);
+	  const maxMonthKey = formatDateKey(maxMonth);
+	  useEffect(() => {
+	    setVisibleMonth((current) => {
+	      if (current < minMonth) return minMonth;
+	      if (current > maxMonth) return maxMonth;
+	      return current;
+	    });
+	  }, [maxMonthKey, minMonthKey]);
   useEffect(() => {
     let active = true;
     fetchSchedulePolicy()

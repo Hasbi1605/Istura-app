@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Fragment } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
@@ -102,6 +102,20 @@ export function AdminApp({
 	  const [needsSetup, setNeedsSetup] = useState(false);
 	  const [checking2fa, setChecking2fa] = useState(false);
 	  const [refreshNonce, setRefreshNonce] = useState(0);
+	  const [landingDraftDirty, setLandingDraftDirty] = useState(false);
+
+	  const confirmDiscardLandingDraft = useCallback(() => {
+	    if (!landingDraftDirty) return true;
+
+	    return window.confirm("Perubahan Landing Page belum disimpan. Tinggalkan halaman dan buang perubahan?");
+	  }, [landingDraftDirty]);
+
+	  const guardedAdminTabChange = useCallback((nextTab: AdminTab) => {
+	    if (nextTab === adminTab) return;
+	    if (!confirmDiscardLandingDraft()) return;
+	    setLandingDraftDirty(false);
+	    onAdminTabChange(nextTab);
+	  }, [adminTab, confirmDiscardLandingDraft, onAdminTabChange]);
 
   const sessionFromUser = (user: AuthUser): AdminSession => ({
     email: user.email,
@@ -265,22 +279,28 @@ export function AdminApp({
     <AdminShell
       session={session}
       tab={safeAdminTab}
-      onTabChange={onAdminTabChange}
+	      onTabChange={guardedAdminTabChange}
       refreshing={refreshing}
       realtimeStatus={realtimeStatus}
       adminRealtimeReady={adminRealtimeReady}
-      onRefresh={() => {
-        onReload();
+	      onRefresh={() => {
+	        if (!confirmDiscardLandingDraft()) return;
+	        setLandingDraftDirty(false);
+	        onReload();
         setRefreshNonce((n) => n + 1);
       }}
-      onLogout={() => {
+	      onLogout={() => {
+	        if (!confirmDiscardLandingDraft()) return;
+	        setLandingDraftDirty(false);
         clearAdminSession();
         onSessionChange(null);
         destroyEcho();
         window.history.replaceState(null, "", "/admin");
         void apiLogout().catch(() => {});
       }}
-      onExitToPublic={() => {
+	      onExitToPublic={() => {
+	        if (!confirmDiscardLandingDraft()) return;
+	        setLandingDraftDirty(false);
         onExitToPublic("home");
         window.history.replaceState(null, "", "/");
       }}
@@ -291,7 +311,7 @@ export function AdminApp({
 			bookings={bookings}
 			feedbacks={feedbacks}
 			loading={loading.admin || loading.bookings || loading.feedbacks}
-			onJumpTab={onAdminTabChange}
+				onJumpTab={guardedAdminTabChange}
           adminName={session.name}
         />
       )}
@@ -325,12 +345,20 @@ export function AdminApp({
 			onSchedulesChange={onSchedulesChange}
           onOpenBooking={(code) => {
             onBookingFocusCodeChange(code);
-            onAdminTabChange("bookings");
+	            guardedAdminTabChange("bookings");
           }}
           readOnly={isViewer}
         />
       )}
-      {safeAdminTab === "istura-open" && <IsturaOpenManager readOnly={isViewer} />}
+	      {safeAdminTab === "istura-open" && (
+	        <IsturaOpenManager
+	          readOnly={isViewer}
+	          onOpenBooking={(code) => {
+	            onBookingFocusCodeChange(code);
+	            guardedAdminTabChange("bookings");
+	          }}
+	        />
+	      )}
 		{safeAdminTab === "cms-faq" && (
 			<AdminFaqManager faqs={faqs} syncStatus={cmsSync.faqs} onChange={onFaqsChange} readOnly={isViewer} />
 		)}
@@ -340,7 +368,12 @@ export function AdminApp({
 	  {safeAdminTab === "cms-letter" && <AdminLetterManager onChange={onLetterChange} readOnly={isViewer} />}
       {safeAdminTab === "cms-hero" && <AdminHeroManager onChange={onHeroChange} readOnly={isViewer} />}
 		{safeAdminTab === "cms-landing" && (
-			<AdminLandingManager content={siteContent} onChange={onSiteContentChange} readOnly={isViewer} />
+				<AdminLandingManager
+				  content={siteContent}
+				  onChange={onSiteContentChange}
+				  onDirtyChange={setLandingDraftDirty}
+				  readOnly={isViewer}
+				/>
 		)}
 		{safeAdminTab === "cms-wa" && (
 			<AdminWaTemplates templates={waTemplates} syncStatus={cmsSync.waTemplates} onChange={onWaTemplatesChange} readOnly={isViewer} />

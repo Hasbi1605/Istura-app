@@ -4,6 +4,7 @@ import { FloatingContact } from "./components/layout/FloatingContact";
 import { HomeScreen } from "./components/home/HomeScreen";
 import { IsturaOpenPromo } from "./components/open/IsturaOpenPromo";
 import { InlineSpinner } from "./components/ui/LoadingStates";
+import { AdminErrorBoundary } from "./components/admin/AdminErrorBoundary";
 import { useIsturaData } from "./hooks/useIsturaData";
 import type { Screen } from "./domain/types";
 
@@ -98,8 +99,14 @@ function App() {
         <HomeAnimationLayer pageRef={pageRef} screen={screen} />
       </Suspense>
       {screen === "admin" ? (
-        <Suspense fallback={screenFallback}>
-          <AdminApp
+        <AdminErrorBoundary
+          onBackToPublic={() => {
+            setScreen("home");
+            window.history.replaceState(null, "", "/");
+          }}
+        >
+          <Suspense fallback={screenFallback}>
+            <AdminApp
             session={adminSession}
             onSessionChange={setAdminSession}
             adminTab={adminTab}
@@ -128,8 +135,9 @@ function App() {
             realtimeStatus={realtimeStatus}
             adminRealtimeReady={adminRealtimeReady}
             onExitToPublic={setScreen}
-          />
-        </Suspense>
+            />
+          </Suspense>
+        </AdminErrorBoundary>
       ) : (
         <>
           <Navigation

@@ -25,6 +25,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -38,6 +39,8 @@ class OpenEventController extends Controller
 
     public function index(): JsonResponse
     {
+        Gate::authorize('viewAny', OpenEvent::class);
+
         $events = OpenEvent::with(['days' => fn ($q) => $q->withCount('feedbacks')])->withCount('registrations')->latest('id')->get();
 
         return response()->json([
@@ -50,6 +53,8 @@ class OpenEventController extends Controller
 
     public function store(StoreOpenEventRequest $request): JsonResponse
     {
+        Gate::authorize('create', OpenEvent::class);
+
         $data = $request->validated();
         $dates = $this->selectedDates($data);
 
@@ -87,6 +92,8 @@ class OpenEventController extends Controller
 
     public function update(UpdateOpenEventRequest $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         $this->ensureOperationallyMutable($event);
 
         $data = $request->validated();
@@ -136,6 +143,8 @@ class OpenEventController extends Controller
 
     public function activate(Request $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         $event->loadMissing('days');
 
         if ($event->isArchived()) {
@@ -202,6 +211,8 @@ class OpenEventController extends Controller
 
     public function deactivate(Request $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         $affectedScheduleDates = $this->openScheduleDates($event);
         $event->is_active = false;
         $event->save();
@@ -218,6 +229,8 @@ class OpenEventController extends Controller
 
     public function archive(Request $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         $affectedScheduleDates = $event->is_active ? $this->openScheduleDates($event) : [];
 
         $event->is_active = false;
@@ -236,6 +249,8 @@ class OpenEventController extends Controller
 
     public function unarchive(Request $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         $event->archived_at = null;
         $event->is_active = false;
         $event->save();
@@ -251,6 +266,8 @@ class OpenEventController extends Controller
 
     public function updateDay(UpdateOpenEventDayRequest $request, OpenEvent $event, OpenEventDay $day): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         abort_unless($day->open_event_id === $event->id, 404);
         $this->ensureOperationallyMutable($event);
 
@@ -320,6 +337,8 @@ class OpenEventController extends Controller
 
     public function destroy(Request $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('delete', $event);
+
         // Active events must be deactivated first so a live public surface is
         // never deleted out from under registrants. Draft and archived events
         // (both already off the public surface) may be deleted; a past event
@@ -381,6 +400,8 @@ class OpenEventController extends Controller
      */
     public function export(OpenEvent $event): JsonResponse
     {
+        Gate::authorize('view', $event);
+
         $registrations = $event->registrations()
             ->with('day')
             ->orderBy('assigned_event_day_id')
@@ -395,6 +416,8 @@ class OpenEventController extends Controller
 
     public function uploadPoster(Request $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         $this->ensureOperationallyMutable($event);
 
         $request->validate([
@@ -447,6 +470,8 @@ class OpenEventController extends Controller
 
     public function deletePoster(Request $request, OpenEvent $event): JsonResponse
     {
+        Gate::authorize('update', $event);
+
         $this->ensureOperationallyMutable($event);
 
         $oldPath = $event->poster_path;

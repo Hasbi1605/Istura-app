@@ -19,13 +19,16 @@ use App\Http\Requests\Admin\UpdateOpenEventRequest;
 use App\Http\Requests\Admin\UpdateSiteContentRequest;
 use App\Http\Requests\Admin\UpdateWaTemplatesRequest;
 use App\Models\Booking;
+use App\Models\OpenEvent;
 use App\Models\ScheduleOverride;
 use App\Models\User;
 use App\Policies\BookingPolicy;
+use App\Policies\OpenEventPolicy;
 use App\Policies\ScheduleOverridePolicy;
 use App\Services\TwoFactorService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class ViewerRoleTest extends TestCase
@@ -152,8 +155,49 @@ class ViewerRoleTest extends TestCase
 
     public function test_viewer_cannot_mutate_open_events(): void
     {
+        $event = OpenEvent::create([
+            'name' => 'Event Policy Test',
+            'slug' => 'event-policy-test',
+            'start_date' => now('Asia/Jakarta')->addWeek()->toDateString(),
+            'end_date' => now('Asia/Jakarta')->addWeek()->toDateString(),
+        ]);
+        $day = $event->days()->create([
+            'date' => $event->start_date,
+        ]);
+
         $this->actingAsAdminSession($this->viewer);
         $this->postJson('/api/admin/open-events', [])->assertForbidden();
+        $this->putJson("/api/admin/open-events/{$event->id}", [])->assertForbidden();
+        $this->deleteJson("/api/admin/open-events/{$event->id}")->assertForbidden();
+        $this->postJson("/api/admin/open-events/{$event->id}/activate")->assertForbidden();
+        $this->postJson("/api/admin/open-events/{$event->id}/deactivate")->assertForbidden();
+        $this->postJson("/api/admin/open-events/{$event->id}/archive")->assertForbidden();
+        $this->postJson("/api/admin/open-events/{$event->id}/unarchive")->assertForbidden();
+        $this->postJson("/api/admin/open-events/{$event->id}/poster")->assertForbidden();
+        $this->deleteJson("/api/admin/open-events/{$event->id}/poster")->assertForbidden();
+        $this->putJson("/api/admin/open-events/{$event->id}/days/{$day->id}", [])->assertForbidden();
+
+        $this->getJson("/api/admin/open-events/{$event->id}/export")->assertOk();
+    }
+
+    public function test_admin_mutations_are_rate_limited_per_user_without_limiting_reads(): void
+    {
+        RateLimiter::clear('admin-mutations:user:'.$this->superAdmin->id);
+        $this->actingAsAdminSession($this->superAdmin);
+
+        foreach (range(1, 60) as $_) {
+            $this->postJson('/api/admin/bookings', [])->assertUnprocessable();
+        }
+
+        $this->postJson('/api/admin/bookings', [])->assertTooManyRequests();
+        $this->getJson('/api/admin/dashboard')->assertOk();
+
+        $otherAdmin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'two_factor_confirmed_at' => now(),
+        ]);
+        $this->actingAsAdminSession($otherAdmin);
+        $this->postJson('/api/admin/bookings', [])->assertUnprocessable();
     }
 
     public function test_viewer_cannot_manage_users(): void
@@ -196,10 +240,16 @@ class ViewerRoleTest extends TestCase
     {
         $operator = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $bookingPolicy = new BookingPolicy;
+        $openEventPolicy = new OpenEventPolicy;
         $schedulePolicy = new ScheduleOverridePolicy;
 
         $this->assertFalse($bookingPolicy->update($this->viewer, new Booking));
         $this->assertTrue($bookingPolicy->update($operator, new Booking));
+        $this->assertFalse($openEventPolicy->update($this->viewer, new OpenEvent));
+        $this->assertFalse($openEventPolicy->delete($this->viewer, new OpenEvent));
+        $this->assertTrue($openEventPolicy->view($this->viewer, new OpenEvent));
+        $this->assertTrue($openEventPolicy->update($operator, new OpenEvent));
+        $this->assertTrue($openEventPolicy->delete($operator, new OpenEvent));
         $this->assertFalse($schedulePolicy->update($this->viewer, new ScheduleOverride));
         $this->assertFalse($schedulePolicy->delete($this->viewer, new ScheduleOverride));
         $this->assertTrue($schedulePolicy->update($operator, new ScheduleOverride));
