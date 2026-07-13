@@ -3842,6 +3842,40 @@ a {
   padding-left: 42px;
 }
 
+/* Dropdown bulan compact di samping search box */
+
+.month-selector {
+  flex-shrink: 0;
+}
+
+.month-selector__select {
+  height: 44px;
+  padding: 0 32px 0 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--navy);
+  background: var(--white);
+  border: 1px solid rgba(16, 24, 47, 0.12);
+  border-radius: 10px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%2310182f' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 160ms ease;
+}
+
+.month-selector__select:hover {
+  border-color: rgba(16, 24, 47, 0.28);
+}
+
+.month-selector__select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(196, 146, 18, 0.15);
+}
+
 .admin-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -10860,6 +10894,36 @@ a {
 .admin-shell-content .booking-density-compact .booking-table,
 .booking-density-compact .booking-table {
   gap: 4px;
+}
+
+/* Month divider di daftar booking split-view */
+
+.booking-month-group:first-child .booking-month-divider {
+  margin-top: 0;
+}
+
+.booking-month-divider {
+  display: flex;
+  align-items: center;
+  margin: 6px 0 4px;
+  padding: 0 2px;
+}
+
+.booking-month-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(16, 24, 47, 0.08);
+  margin-left: 10px;
+}
+
+.booking-month-divider span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(16, 24, 47, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 /* Virtualized list */

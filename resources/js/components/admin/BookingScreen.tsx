@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CalendarX,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -61,6 +62,7 @@ import {
   segmentListLabel,
   splitGroupSizes,
   VIRTUALIZE_THRESHOLD,
+  reportDateKeyForBooking,
 } from "../../domain/booking";
 import { addMonths, formatCount, formatCountShort, formatDateKey, formatLongDate, jakartaToday, parseDateKey } from "../../lib/date";
 import { openWhatsApp, createWhatsappMessage } from "../../lib/waActions";
@@ -89,6 +91,29 @@ import { BookingExportModal } from "./ExportModals";
 
 const MAX_ADMIN_DOCUMENT_BYTES = 5 * 1024 * 1024;
 
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+const formatShortDate = (dateKey: string): string => {
+  const parts = dateKey.split("-");
+  if (parts.length !== 3) return "";
+  const day = parseInt(parts[2], 10);
+  const monthIndex = parseInt(parts[1], 10) - 1;
+  const year = parts[0];
+  const month = SHORT_MONTHS[monthIndex];
+  if (!month) return "";
+  return `${day} ${month} ${year}`;
+};
+
+const formatMonthLabel = (monthKey: string): string => {
+  const parts = monthKey.split("-");
+  if (parts.length !== 2) return monthKey;
+  const monthIndex = parseInt(parts[1], 10) - 1;
+  const year = parts[0];
+  const month = SHORT_MONTHS[monthIndex];
+  if (!month) return monthKey;
+  return `${month} ${year}`;
+};
+
 export function AdminScreen({
 	schedules,
 	bookings,
@@ -115,6 +140,7 @@ export function AdminScreen({
   );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<BookingStatusFilter>(null);
+  const [monthFilter, setMonthFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<BookingSort>("smart");
   const [dateRange, setDateRange] = useState<BookingDateRange>("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -183,6 +209,7 @@ export function AdminScreen({
     if (!focusCode) return;
     setSelectedCode(focusCode);
     setStatusFilter(null);
+    setMonthFilter(null);
     setSearch("");
     setDateRange("all");
     setPage(1);
@@ -202,10 +229,14 @@ export function AdminScreen({
       Rejected: 0,
       Expired: 0,
     };
+    const byMonth: Record<string, number> = {};
     bookings.forEach((booking) => {
       byStatus[booking.status] += 1;
+      const monthKey = reportDateKeyForBooking(booking).substring(0, 7);
+      byMonth[monthKey] = (byMonth[monthKey] ?? 0) + 1;
     });
-    return { total, byStatus };
+    const sortedMonths = Object.keys(byMonth).sort();
+    return { total, byStatus, byMonth, sortedMonths };
   }, [bookings]);
 
   const visibleBookings = useMemo(() => {
@@ -217,17 +248,18 @@ export function AdminScreen({
         if (!haystack.includes(q)) return false;
       }
       if (statusFilter !== null && booking.status !== statusFilter) return false;
+      if (monthFilter !== null && reportDateKeyForBooking(booking).substring(0, 7) !== monthFilter) return false;
       if (!inDateRange(booking, dateRange, customFrom, customTo)) return false;
       return true;
     });
     return sortBookings(matched, sort);
-  }, [bookings, search, statusFilter, dateRange, customFrom, customTo, sort]);
+  }, [bookings, search, statusFilter, monthFilter, dateRange, customFrom, customTo, sort]);
 
   // Reset pagination whenever the underlying list shrinks/grows from a filter
   // change so the user is never stranded on an empty page.
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, dateRange, customFrom, customTo, sort, viewMode]);
+  }, [search, statusFilter, monthFilter, dateRange, customFrom, customTo, sort, viewMode]);
 
   const pageSize = viewMode === "table" ? PAGE_SIZE_BOOKING_TABLE : PAGE_SIZE_BOOKING_SPLIT;
   const totalPages = Math.max(1, Math.ceil(visibleBookings.length / pageSize));
@@ -524,6 +556,7 @@ export function AdminScreen({
   const resetFilters = () => {
     setSearch("");
     setStatusFilter(null);
+    setMonthFilter(null);
     setDateRange("all");
     setCustomFrom("");
     setCustomTo("");
@@ -533,6 +566,7 @@ export function AdminScreen({
   const filtersActive =
     !!search.trim() ||
     statusFilter !== null ||
+    monthFilter !== null ||
     dateRange !== "all" ||
     sort !== "smart";
 
@@ -557,6 +591,23 @@ export function AdminScreen({
 		      Booking Manual
 		    </button>
 		  )}
+          {counts.sortedMonths.length > 1 && (
+            <div className="month-selector">
+              <select
+                value={monthFilter ?? ""}
+                onChange={(e) => setMonthFilter(e.target.value || null)}
+                className="month-selector__select"
+                aria-label="Filter bulan"
+              >
+                <option value="">Semua bulan</option>
+                {counts.sortedMonths.map((monthKey) => (
+                  <option key={monthKey} value={monthKey}>
+                    {formatMonthLabel(monthKey)} ({counts.byMonth[monthKey] ?? 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="search-box">
             <Search size={18} aria-hidden="true" />
             <input
@@ -728,15 +779,25 @@ export function AdminScreen({
                   onSelect={handleRowClick}
                 />
               ) : (
-                pagedBookings.map((booking) => (
-                  <BookingListRow
-                    key={booking.code}
-                    booking={booking}
-                    isSelected={selectedBooking?.code === booking.code}
-                    density={density}
-                    onSelect={handleRowClick}
-                  />
-                ))
+                pagedBookings.map((booking, index) => {
+                  const monthKey = reportDateKeyForBooking(booking).substring(0, 7);
+                  const prevKey = index > 0 ? reportDateKeyForBooking(pagedBookings[index - 1]).substring(0, 7) : null;
+                  return (
+                    <div className="booking-month-group" key={booking.code}>
+                      {monthKey !== prevKey && (
+                        <div className="booking-month-divider">
+                          <span>{formatMonthLabel(monthKey)}</span>
+                        </div>
+                      )}
+                      <BookingListRow
+                        booking={booking}
+                        isSelected={selectedBooking?.code === booking.code}
+                        density={density}
+                        onSelect={handleRowClick}
+                      />
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -937,7 +998,7 @@ export function BookingListRow({
     >
       <span className="booking-row-main">
         <strong title={booking.institution}>{booking.institution}</strong>
-        <small>{booking.code}</small>
+        <small>{booking.code}{booking.date ? ` · ${formatShortDate(booking.date)}` : ""}</small>
       </span>
       <StatusBadge status={booking.status} />
     </button>
