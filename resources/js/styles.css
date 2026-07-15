@@ -23,6 +23,88 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* ──────────────── Dark Mode ──────────────── */
+
+html.dark {
+  color-scheme: dark;
+  --navy: #e0ddd5;
+  --navy-2: #c4c0b5;
+  --ink: #f0ede6;
+  --muted: #9e9888;
+  --paper: #121620;
+  --paper-2: #1a1f2a;
+  --white: #1c2332;
+  --line: rgba(255, 255, 255, 0.08);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+}
+
+html.dark body {
+  background: #121620;
+}
+
+/* Lindungi halaman publik: kembalikan variable light */
+html.dark .app-shell {
+  --navy: #10182f;
+  --navy-2: #172346;
+  --ink: #171717;
+  --muted: #696f7d;
+  --paper: #fffaf0;
+  --paper-2: #f6eddc;
+  --white: #ffffff;
+  --line: rgba(16, 24, 47, 0.14);
+  --shadow: 0 24px 70px rgba(16, 24, 47, 0.18);
+}
+
+/* Kembalikan variable dark untuk admin (override reset app-shell) */
+html.dark .admin-shell {
+  --navy: #e0ddd5;
+  --navy-2: #c4c0b5;
+  --ink: #f0ede6;
+  --muted: #9e9888;
+  --paper: #121620;
+  --paper-2: #1a1f2a;
+  --white: #1c2332;
+  --line: rgba(255, 255, 255, 0.08);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  --admin-shell-bg: #0e1525;
+  --admin-topbar-bg: rgba(20, 28, 42, 0.94);
+  --admin-topbar-border: rgba(255, 255, 255, 0.06);
+  --admin-card-bg: #1c2332;
+  --admin-card-border: rgba(255, 255, 255, 0.06);
+  --admin-border: rgba(255, 255, 255, 0.06);
+  --admin-border-soft: rgba(255, 255, 255, 0.08);
+  --admin-border-strong: rgba(255, 255, 255, 0.12);
+  --admin-border-heavy: rgba(255, 255, 255, 0.16);
+  --admin-border-heavier: rgba(255, 255, 255, 0.24);
+  --admin-bg-subtle: rgba(255, 255, 255, 0.04);
+  --admin-bg-softer: rgba(255, 255, 255, 0.02);
+  --admin-bg-hover: rgba(255, 255, 255, 0.04);
+  --admin-bg-active: rgba(255, 255, 255, 0.06);
+  --admin-bg-soft: rgba(255, 255, 255, 0.025);
+  --admin-text: #e0ddd5;
+  --admin-text-soft: rgba(240, 237, 230, 0.6);
+  --admin-text-softer: rgba(240, 237, 230, 0.55);
+  --admin-text-muted: rgba(240, 237, 230, 0.45);
+  --admin-text-faint: rgba(240, 237, 230, 0.35);
+  --admin-input-bg: #161e2e;
+  --admin-input-border: rgba(255, 255, 255, 0.1);
+  --admin-hover: rgba(255, 255, 255, 0.05);
+}
+
+/* Admin login dan error boundary juga di dalam .app-shell, perlu variable dark */
+html.dark .admin-login,
+html.dark .admin-error-boundary {
+  --navy: #e0ddd5;
+  --navy-2: #c4c0b5;
+  --ink: #f0ede6;
+  --muted: #9e9888;
+  --paper: #121620;
+  --paper-2: #1a1f2a;
+  --white: #1c2332;
+  --line: rgba(255, 255, 255, 0.08);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+}
+
 * {
   box-sizing: border-box;
   letter-spacing: 0;
@@ -2623,7 +2705,7 @@ a {
 .admin-shell-content p {
   font-size: 0.92rem;
   margin: 0;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
 }
 
 .admin-page-head {
@@ -2645,7 +2727,7 @@ a {
 
 .admin-page-head p {
   font-size: 0.88rem;
-  color: rgba(16, 24, 47, 0.65);
+  color: var(--admin-text-soft);
 }
 
 /* Compatibility: existing usages of .admin-heading get the same styling so we
@@ -2672,7 +2754,7 @@ a {
 .admin-shell-content .admin-heading p {
   margin: 0;
   font-size: 0.88rem;
-  color: rgba(16, 24, 47, 0.65);
+  color: var(--admin-text-soft);
 }
 
 .prep-grid,
@@ -2739,7 +2821,7 @@ a {
 
 .kloter-breakdown-copy {
   margin: 0 0 12px;
-  color: rgba(16, 24, 47, 0.76);
+  color: var(--admin-text-soft);
   font-size: 0.92rem;
   line-height: 1.55;
 }
@@ -2861,7 +2943,7 @@ a {
   gap: 5px;
   font-size: 0.82rem;
   font-weight: 700;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
 }
 
 .admin-shell-content .form-field input:not([type="checkbox"]):not([type="radio"]),
@@ -2874,7 +2956,7 @@ a {
   font-weight: 600;
   color: var(--navy);
   border-radius: 8px;
-  border-color: rgba(16, 24, 47, 0.1);
+  border-color: var(--admin-border-strong);
 }
 
 .admin-shell-content .form-field textarea {
@@ -3447,7 +3529,7 @@ a {
   align-items: flex-start;
   padding: 10px 12px;
   background: rgba(248, 250, 252, 0.82);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   line-height: 1.4;
 }
@@ -3886,14 +3968,14 @@ a {
 .stat-card {
   padding: 14px 16px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
-  box-shadow: 0 1px 0 rgba(16, 24, 47, 0.02);
+  box-shadow: 0 1px 0 var(--admin-bg-softer);
 }
 
 .stat-card span {
   display: block;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -3912,7 +3994,7 @@ a {
 .stat-card-hint {
   display: block;
   margin-top: 6px;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.74rem;
   font-weight: 600;
   letter-spacing: 0;
@@ -4060,14 +4142,39 @@ a {
 
 .admin-shell {
   --admin-topbar-height: 56px;
+  --admin-sidebar-width: 232px;
+  --admin-shell-bg: #f6f5f1;
+  --admin-topbar-bg: rgba(255, 255, 255, 0.94);
+  --admin-topbar-border: rgba(16, 24, 47, 0.06);
+  --admin-card-bg: #ffffff;
+  --admin-card-border: rgba(16, 24, 47, 0.06);
+  --admin-border: rgba(16, 24, 47, 0.06);
+  --admin-border-soft: rgba(16, 24, 47, 0.08);
+  --admin-border-strong: rgba(16, 24, 47, 0.12);
+  --admin-border-heavy: rgba(16, 24, 47, 0.18);
+  --admin-border-heavier: rgba(16, 24, 47, 0.24);
+  --admin-bg-subtle: rgba(16, 24, 47, 0.04);
+  --admin-bg-softer: rgba(16, 24, 47, 0.02);
+  --admin-bg-hover: rgba(16, 24, 47, 0.04);
+  --admin-bg-active: rgba(16, 24, 47, 0.06);
+  --admin-bg-soft: rgba(16, 24, 47, 0.035);
+  --admin-text: var(--navy);
+  --admin-text-soft: rgba(16, 24, 47, 0.6);
+  --admin-text-softer: rgba(16, 24, 47, 0.55);
+  --admin-text-muted: rgba(16, 24, 47, 0.45);
+  --admin-text-faint: rgba(16, 24, 47, 0.35);
+  --admin-input-bg: #ffffff;
+  --admin-input-border: rgba(16, 24, 47, 0.12);
+  --admin-hover: rgba(16, 24, 47, 0.05);
 
   position: relative;
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
-  background: #f6f5f1;
+  background: var(--admin-shell-bg);
+  transition: grid-template-columns 300ms ease-in-out;
   color: var(--navy);
 }
 
@@ -4086,6 +4193,7 @@ a {
   top: 0;
   display: flex;
   flex-direction: column;
+  width: var(--admin-sidebar-width);
   height: 100vh;
   max-height: 100vh;
   padding: 16px 12px;
@@ -4093,6 +4201,11 @@ a {
   background: var(--navy);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
+  transition: width 300ms ease-in-out, padding 300ms ease-in-out;
+}
+
+.admin-shell.is-collapsed {
+  --admin-sidebar-width: 72px;
 }
 
 .admin-shell-brand {
@@ -4113,10 +4226,126 @@ a {
 }
 
 .admin-shell-brand strong {
-  color: var(--white);
+  color: #ffffff;
   font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: opacity 200ms ease, transform 200ms ease, max-width 300ms ease-in-out;
+}
+
+.admin-shell-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 180ms ease, color 180ms ease, transform 200ms ease;
+}
+
+.admin-shell-collapse-toggle:hover,
+.admin-shell-collapse-toggle:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+/* Collapsed text fade */
+.admin-shell-brand strong,
+.admin-shell-menu-label,
+.admin-shell-menu-item span,
+.admin-shell-menu-tag,
+.admin-shell-exit span {
+  transition: opacity 200ms ease, transform 200ms ease, max-width 300ms ease-in-out, margin 300ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.admin-shell.is-collapsed .admin-shell-brand {
+  justify-content: center;
+  padding-left: 6px;
+  padding-right: 6px;
+  gap: 0;
+  border-bottom-color: transparent;
+}
+
+.admin-shell.is-collapsed .admin-shell-brand img {
+  opacity: 0;
+  max-width: 0;
+  max-height: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.admin-shell.is-collapsed .admin-shell-brand strong,
+.admin-shell.is-collapsed .admin-shell-menu-item span,
+.admin-shell.is-collapsed .admin-shell-menu-tag,
+.admin-shell.is-collapsed .admin-shell-exit span {
+  opacity: 0;
+  max-width: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+}
+
+.admin-shell.is-collapsed .admin-shell-menu-label {
+  display: block;
+  width: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  height: 1px;
+  min-height: 1px;
+  max-height: 1px;
+  margin: 8px auto;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.14);
+  color: transparent;
+  opacity: 1;
+  overflow: hidden;
+  text-indent: -9999px;
+  white-space: nowrap;
+  transform: none;
+  pointer-events: none;
+}
+
+.admin-shell.is-collapsed .admin-shell-menu-group:first-child .admin-shell-menu-label {
+  display: none;
+}
+
+.admin-shell.is-collapsed .admin-shell-menu-item {
+  justify-content: center;
+  gap: 0;
+  padding: 0 6px;
+}
+
+.admin-shell.is-collapsed .admin-shell-menu-group {
+  gap: 8px;
+}
+
+.admin-shell.is-collapsed .admin-shell-exit {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.admin-shell.is-collapsed .admin-shell-collapse-toggle {
+  margin-left: 0;
+}
+
+@media (max-width: 768px) {
+  .admin-shell-collapse-toggle {
+    display: none;
+  }
 }
 
 .admin-shell-menu {
@@ -4201,7 +4430,7 @@ a {
 
 .admin-shell-menu-item.is-active .admin-shell-menu-tag {
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.12);
+  background: var(--admin-border-strong);
 }
 
 .admin-shell-exit {
@@ -4249,7 +4478,7 @@ a {
   flex: 0 0 var(--admin-topbar-height);
   padding: 0 24px;
   background: rgba(255, 255, 255, 0.94);
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
   backdrop-filter: blur(10px);
 }
 
@@ -4260,8 +4489,8 @@ a {
   align-items: center;
   justify-content: center;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   cursor: pointer;
 }
@@ -4328,9 +4557,9 @@ a {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   background: transparent;
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.86rem;
@@ -4342,8 +4571,8 @@ a {
 .admin-shell-logout:focus-visible {
   outline: none;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.05);
-  border-color: rgba(16, 24, 47, 0.16);
+  background: var(--admin-hover);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-shell-refresh {
@@ -4352,9 +4581,9 @@ a {
   gap: 6px;
   padding: 6px 12px;
   margin-right: 4px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   background: transparent;
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.86rem;
@@ -4366,8 +4595,8 @@ a {
 .admin-shell-refresh:focus-visible {
   outline: none;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.05);
-  border-color: rgba(16, 24, 47, 0.16);
+  background: var(--admin-hover);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-shell-refresh:disabled {
@@ -4455,14 +4684,14 @@ a {
   padding: 10px 14px;
   text-align: left;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease;
 }
 
 .admin-shell-content .booking-table button:hover {
-  border-color: rgba(16, 24, 47, 0.18);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-shell-content .booking-table button.is-selected {
@@ -4485,14 +4714,14 @@ a {
 
 .admin-shell-content .booking-table small {
   display: block;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
 }
 
 .admin-shell-content .booking-detail {
   padding: 18px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -4503,7 +4732,7 @@ a {
   gap: 10px;
   margin-bottom: 14px;
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-shell-content .detail-head > :first-child {
@@ -4523,7 +4752,7 @@ a {
 
 .admin-shell-content .detail-head small {
   display: block;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
 }
 
@@ -4548,12 +4777,12 @@ a {
 }
 
 .admin-shell-content .detail-item:hover {
-  background: rgba(16, 24, 47, 0.025);
+  background: var(--admin-bg-softer);
 }
 
 .admin-shell-content .detail-item span {
   margin: 0;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -4605,9 +4834,9 @@ a {
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  color: rgba(16, 24, 47, 0.64);
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 999px;
   font-size: 0.76rem;
   font-weight: 800;
@@ -4634,9 +4863,9 @@ a {
 .booking-system-note-list p {
   margin: 0;
   padding: 8px 10px;
-  color: rgba(16, 24, 47, 0.68);
+  color: var(--admin-text-soft);
   background: rgba(248, 250, 252, 0.82);
-  border: 1px dashed rgba(16, 24, 47, 0.1);
+  border: 1px dashed var(--admin-border-strong);
   border-radius: 8px;
   font-size: 0.76rem;
   font-weight: 700;
@@ -4661,8 +4890,8 @@ a {
   gap: 10px;
   min-width: 0;
   padding: 8px 10px;
-  background: rgba(16, 24, 47, 0.025);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-softer);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
@@ -4677,7 +4906,7 @@ a {
 .admin-shell-content .detail-item--kloter-list .kloter-detail-row span,
 .booking-slideover .detail-item--kloter-list .kloter-detail-row span {
   margin: 0;
-  color: rgba(16, 24, 47, 0.78);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.25;
@@ -4724,7 +4953,7 @@ a {
   /* Underline carries the "this is a link" cue. Keep it dark enough to feel
      intentional without overpowering the text itself. */
   text-decoration: underline;
-  text-decoration-color: rgba(16, 24, 47, 0.55);
+  text-decoration-color: var(--admin-text-softer);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
   transition: text-decoration-color 140ms ease, text-decoration-thickness 140ms ease;
@@ -4748,7 +4977,7 @@ a {
 .document-detail-link:focus-visible {
   /* Keep keyboard focus discoverable without bringing back the button-like
      fill — a thin focus ring is enough. */
-  box-shadow: 0 0 0 2px rgba(16, 24, 47, 0.15);
+  box-shadow: 0 0 0 2px var(--admin-border-heavy);
 }
 
 .document-detail-link:hover strong,
@@ -4773,9 +5002,9 @@ a {
   width: 32px;
   height: 32px;
   background: transparent;
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 6px;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   cursor: pointer;
   transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
 }
@@ -4793,7 +5022,7 @@ a {
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid rgba(16, 24, 47, 0.06);
+  border-top: 1px solid var(--admin-border);
 }
 
 .admin-shell-content .admin-actions .button {
@@ -4816,7 +5045,7 @@ a {
   align-items: center;
   height: 36px;
   padding: 0 12px;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.84rem;
   font-weight: 700;
 }
@@ -4861,7 +5090,7 @@ a {
   display: grid;
   gap: 14px;
   padding: clamp(24px, 5vw, 40px);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 14px;
   background: #fff;
   text-align: center;
@@ -4878,7 +5107,7 @@ a {
 }
 
 .admin-error-boundary-card p {
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   line-height: 1.65;
 }
 
@@ -4934,7 +5163,7 @@ a {
   height: 44px;
   object-fit: contain;
   padding: 6px;
-  background: rgba(16, 24, 47, 0.05);
+  background: var(--admin-hover);
   border-radius: 10px;
 }
 
@@ -4953,7 +5182,7 @@ a {
 
 .admin-login-card > p {
   margin: 0 0 20px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.94rem;
 }
 
@@ -5008,7 +5237,7 @@ a {
 
 .admin-login-toggle {
   padding: 4px 10px;
-  color: rgba(16, 24, 47, 0.65);
+  color: var(--admin-text-soft);
   background: transparent;
   border: 0;
   border-radius: 8px;
@@ -5071,7 +5300,7 @@ a {
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: 18px;
-  box-shadow: 0 18px 40px rgba(16, 24, 47, 0.06);
+  box-shadow: 0 18px 40px var(--admin-border);
 }
 
 .admin-placeholder-badge {
@@ -5095,13 +5324,13 @@ a {
 
 .admin-placeholder-card p {
   margin: 0;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
 }
 
 .admin-placeholder-card ul {
   margin: 6px 0 0;
   padding-left: 18px;
-  color: rgba(16, 24, 47, 0.65);
+  color: var(--admin-text-soft);
 }
 
 .admin-placeholder-card li {
@@ -5153,13 +5382,13 @@ a {
 }
 
 .admin-dashboard-alert-body small {
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
   line-height: 1.4;
 }
 
 .admin-dashboard-alert-body em {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-style: normal;
   font-weight: 600;
 }
@@ -5183,7 +5412,7 @@ a {
 .admin-dashboard-alert-cta:focus-visible {
   outline: none;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 24, 47, 0.18);
+  box-shadow: 0 4px 12px var(--admin-border-heavy);
 }
 
 .admin-dashboard-grid {
@@ -5209,8 +5438,8 @@ a {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: rgba(16, 24, 47, 0.03);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -5230,13 +5459,13 @@ a {
 }
 
 .admin-agenda-item.admin-agenda-item--elapsed {
-  background: rgba(16, 24, 47, 0.035);
-  border-color: rgba(16, 24, 47, 0.14);
+  background: var(--admin-bg-subtle);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-agenda-item.admin-agenda-item--completed {
-  background: rgba(16, 24, 47, 0.035);
-  border-color: rgba(16, 24, 47, 0.14);
+  background: var(--admin-bg-subtle);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-agenda-item.admin-agenda-item--reschedule {
@@ -5248,7 +5477,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
 }
 
@@ -5259,7 +5488,7 @@ a {
 }
 
 .admin-agenda-tag em {
-  color: rgba(16, 24, 47, 0.62);
+  color: var(--admin-text-soft);
   font-style: normal;
   font-size: 0.78rem;
 }
@@ -5273,11 +5502,11 @@ a {
 }
 
 .admin-agenda-item.admin-agenda-item--elapsed .admin-agenda-tag strong {
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
 }
 
 .admin-agenda-item.admin-agenda-item--completed .admin-agenda-tag strong {
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
 }
 
 .admin-agenda-item.admin-agenda-item--reschedule .admin-agenda-tag strong {
@@ -5300,7 +5529,7 @@ a {
 }
 
 .admin-agenda-meta small {
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
 }
 
@@ -5356,9 +5585,9 @@ a {
 }
 
 .admin-dashboard-day-status--past {
-  color: rgba(16, 24, 47, 0.65);
-  background: rgba(16, 24, 47, 0.06);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  color: var(--admin-text-soft);
+  background: var(--admin-border);
+  border: 1px solid var(--admin-border-strong);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -5378,9 +5607,9 @@ a {
   align-self: flex-start;
   padding: 3px 8px;
   background: transparent;
-  border: 1px dashed rgba(16, 24, 47, 0.22);
+  border: 1px dashed var(--admin-border-heavier);
   border-radius: 999px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
@@ -5391,8 +5620,8 @@ a {
 .admin-dashboard-day-reset:focus-visible {
   outline: none;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.05);
-  border-color: rgba(16, 24, 47, 0.35);
+  background: var(--admin-hover);
+  border-color: var(--admin-text-faint);
 }
 
 .admin-dashboard-empty {
@@ -5425,7 +5654,7 @@ a {
 .admin-dashboard-week-head small {
   display: block;
   margin-top: 2px;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.76rem;
 }
 
@@ -5445,8 +5674,8 @@ a {
   padding: 8px 4px 6px;
   width: 100%;
   text-align: center;
-  background: rgba(16, 24, 47, 0.03);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
   color: inherit;
   font: inherit;
@@ -5459,8 +5688,8 @@ a {
 }
 
 .admin-dashboard-week-cell:hover {
-  background: rgba(16, 24, 47, 0.06);
-  border-color: rgba(16, 24, 47, 0.14);
+  background: var(--admin-border);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-dashboard-week-cell:focus-visible {
@@ -5474,10 +5703,10 @@ a {
    bersamaan, dan dua treatment-nya saling melengkapi. */
 .admin-dashboard-week-cell.is-active {
   background: var(--white, #fff);
-  border-color: rgba(16, 24, 47, 0.55);
+  border-color: var(--admin-text-soft);
   border-width: 2px;
   padding: 7px 3px 5px;
-  box-shadow: 0 2px 6px rgba(16, 24, 47, 0.08);
+  box-shadow: 0 2px 6px var(--admin-border-soft);
 }
 
 .admin-dashboard-week-cell.is-today {
@@ -5503,13 +5732,13 @@ a {
 }
 
 .admin-dashboard-week-cell.is-empty {
-  background: rgba(16, 24, 47, 0.015);
+  background: var(--admin-bg-softer);
 }
 
 .admin-dashboard-week-day {
   font-size: 0.72rem;
   font-weight: 700;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -5530,7 +5759,7 @@ a {
 }
 
 .admin-dashboard-week-cell.is-empty .admin-dashboard-week-date {
-  color: rgba(16, 24, 47, 0.45);
+  color: var(--admin-text-muted);
 }
 
 /* Indikator beban kunjungan: 1-3 dot, 4+ pakai badge "3+", 0 reserve
@@ -5548,7 +5777,7 @@ a {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(16, 24, 47, 0.55);
+  background: var(--admin-text-soft);
 }
 
 .admin-dashboard-week-cell.is-today .admin-dashboard-week-dot {
@@ -5562,7 +5791,7 @@ a {
 .admin-dashboard-week-load-more {
   font-size: 0.65rem;
   font-weight: 800;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   letter-spacing: 0.02em;
   line-height: 1;
 }
@@ -5574,7 +5803,7 @@ a {
 .admin-dashboard-week-load-empty {
   width: 12px;
   height: 1px;
-  background: rgba(16, 24, 47, 0.18);
+  background: var(--admin-border-heavy);
   border-radius: 1px;
 }
 
@@ -5584,9 +5813,9 @@ a {
   align-self: flex-start;
   gap: 6px;
   padding: 6px 10px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   background: transparent;
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   font-size: 0.78rem;
   font-weight: 700;
@@ -5599,7 +5828,7 @@ a {
 .admin-dashboard-week-cta:focus-visible {
   outline: none;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.05);
+  background: var(--admin-hover);
 }
 
 /* Aksi di header card "Minggu ini": tombol poster + atur jadwal. */
@@ -5642,13 +5871,13 @@ a {
   gap: 12px;
   padding: 16px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
 .admin-card--empty {
   text-align: center;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
 }
 
 .admin-card-head {
@@ -5667,7 +5896,7 @@ a {
 
 .admin-card-head p {
   margin: 2px 0 0;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
 }
 
@@ -5676,7 +5905,7 @@ a {
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  color: rgba(16, 24, 47, 0.65);
+  color: var(--admin-text-soft);
   background: transparent;
   border: 0;
   border-radius: 6px;
@@ -5689,7 +5918,7 @@ a {
 .admin-card-link:hover,
 .admin-card-link:focus-visible {
   outline: none;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   color: var(--navy);
 }
 
@@ -5714,8 +5943,8 @@ a {
 .admin-card-empty {
   margin: 0;
   padding: 12px 14px;
-  color: rgba(16, 24, 47, 0.6);
-  background: rgba(16, 24, 47, 0.04);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
   border-radius: 10px;
   font-size: 0.88rem;
 }
@@ -5734,8 +5963,8 @@ a {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: rgba(16, 24, 47, 0.03);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -5752,7 +5981,7 @@ a {
 }
 
 .admin-action-list small {
-  color: rgba(16, 24, 47, 0.62);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
 }
 
@@ -5768,8 +5997,8 @@ a {
   display: grid;
   gap: 4px;
   padding: 12px;
-  background: rgba(16, 24, 47, 0.03);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -5791,12 +6020,12 @@ a {
 }
 
 .admin-feedback-empty {
-  color: rgba(16, 24, 47, 0.55) !important;
+  color: var(--admin-text-softer) !important;
   font-style: italic;
 }
 
 .admin-feedback-list small {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
 }
 
@@ -5856,7 +6085,7 @@ a {
   background: var(--white)
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%2310182f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>")
     no-repeat right 10px center;
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 999px;
   color: var(--navy);
   font-size: 0.8rem;
@@ -5868,7 +6097,7 @@ a {
 .admin-feedback-sort select:hover,
 .admin-feedback-sort select:focus-visible {
   outline: none;
-  border-color: rgba(16, 24, 47, 0.28);
+  border-color: var(--admin-text-faint);
 }
 
 .visually-hidden {
@@ -5892,7 +6121,7 @@ a {
 }
 
 .admin-feedback-row-date {
-  color: rgba(16, 24, 47, 0.45) !important;
+  color: var(--admin-text-muted) !important;
   font-size: 0.74rem !important;
 }
 
@@ -5926,7 +6155,7 @@ a {
   align-items: flex-start;
   margin-bottom: 0;
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-feedback-detail .detail-head strong {
@@ -5939,7 +6168,7 @@ a {
 .admin-feedback-detail .detail-head small {
   display: block;
   margin-top: 2px;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
 }
 
@@ -5961,7 +6190,7 @@ a {
 }
 
 .admin-feedback-score-label span {
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.84rem;
   font-weight: 600;
 }
@@ -5975,7 +6204,7 @@ a {
 
 .admin-feedback-score-bar {
   height: 6px;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -5992,13 +6221,13 @@ a {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   padding-top: 14px;
-  border-top: 1px solid rgba(16, 24, 47, 0.06);
+  border-top: 1px solid var(--admin-border);
 }
 
 .admin-feedback-aspect-label {
   display: block;
   margin-bottom: 6px;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -6007,7 +6236,7 @@ a {
 
 .admin-feedback-aspect-empty {
   margin: 0;
-  color: rgba(16, 24, 47, 0.45);
+  color: var(--admin-text-muted);
   font-size: 0.84rem;
   font-style: italic;
 }
@@ -6042,7 +6271,7 @@ a {
 
 .admin-feedback-comment {
   padding-top: 14px;
-  border-top: 1px solid rgba(16, 24, 47, 0.06);
+  border-top: 1px solid var(--admin-border);
 }
 
 .admin-feedback-comment blockquote {
@@ -6059,11 +6288,11 @@ a {
 
 .admin-feedback-detail-foot {
   padding-top: 12px;
-  border-top: 1px solid rgba(16, 24, 47, 0.06);
+  border-top: 1px solid var(--admin-border);
 }
 
 .admin-feedback-detail-foot small {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
 }
 
@@ -6096,7 +6325,7 @@ a {
   color: var(--navy);
   text-align: left;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
@@ -6105,7 +6334,7 @@ a {
 .admin-wa-template-card:hover,
 .admin-wa-template-card:focus-visible {
   outline: none;
-  border-color: rgba(16, 24, 47, 0.18);
+  border-color: var(--admin-border-heavy);
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -6120,8 +6349,8 @@ a {
   width: 36px;
   height: 36px;
   place-items: center;
-  color: rgba(16, 24, 47, 0.66);
-  background: rgba(16, 24, 47, 0.04);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
   border-radius: 8px;
 }
 
@@ -6167,7 +6396,7 @@ a {
 .admin-wa-template-copy small,
 .admin-wa-template-preview {
   overflow: hidden;
-  color: rgba(16, 24, 47, 0.58);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
   line-height: 1.35;
   display: -webkit-box;
@@ -6179,7 +6408,7 @@ a {
 }
 
 .admin-wa-template-preview {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   -webkit-line-clamp: 1;
 }
 
@@ -6193,7 +6422,7 @@ a {
   padding: 16px;
   overflow-y: auto;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -6203,13 +6432,13 @@ a {
   justify-content: space-between;
   gap: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-wa-editor-head span,
 .admin-wa-variable-panel > span,
 .admin-wa-editor-label {
-  color: rgba(16, 24, 47, 0.56);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -6224,7 +6453,7 @@ a {
 
 .admin-wa-editor-head p {
   margin: 0;
-  color: rgba(16, 24, 47, 0.62);
+  color: var(--admin-text-soft);
   font-size: 0.86rem;
 }
 
@@ -6243,8 +6472,8 @@ a {
 .admin-wa-meta span,
 .admin-wa-meta strong {
   padding: 4px 8px;
-  color: rgba(16, 24, 47, 0.62);
-  background: rgba(16, 24, 47, 0.04);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
   border-radius: 999px;
   font-size: 0.74rem;
   font-weight: 800;
@@ -6264,8 +6493,8 @@ a {
   font-family: inherit;
   line-height: 1.5;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.02);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-softer);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
   resize: vertical;
 }
@@ -6287,20 +6516,20 @@ a {
 }
 
 .admin-wa-textarea::-webkit-scrollbar-thumb {
-  background-color: rgba(16, 24, 47, 0.15);
+  background-color: var(--admin-border-heavy);
   border-radius: 10px;
 }
 
 .admin-wa-textarea::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(16, 24, 47, 0.25);
+  background-color: var(--admin-border-heavier);
 }
 
 .admin-wa-variable-panel {
   display: grid;
   gap: 8px;
   padding: 12px;
-  background: rgba(16, 24, 47, 0.025);
-  border: 1px dashed rgba(16, 24, 47, 0.12);
+  background: var(--admin-bg-softer);
+  border: 1px dashed var(--admin-border-strong);
   border-radius: 10px;
 }
 
@@ -6313,7 +6542,7 @@ a {
 .admin-wa-variable-chip {
   padding: 4px 8px;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   border: 1px solid transparent;
   border-radius: 6px;
   font-family: monospace;
@@ -6413,7 +6642,7 @@ a {
   min-height: 38px;
   padding: 0 6px 0 12px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
@@ -6439,8 +6668,8 @@ a {
 .admin-password-toggle {
   min-height: 28px;
   padding: 0 10px;
-  color: rgba(16, 24, 47, 0.65);
-  background: rgba(16, 24, 47, 0.04);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
   border: 1px solid transparent;
   border-radius: 7px;
   font: inherit;
@@ -6470,13 +6699,13 @@ a {
   gap: 12px;
   padding: 12px 14px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
   transition: border-color 0.18s ease, background 0.18s ease;
 }
 
 .admin-cms-row:hover {
-  border-color: rgba(16, 24, 47, 0.16);
+  border-color: var(--admin-border-heavy);
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -6491,7 +6720,7 @@ a {
   width: 48px;
   height: 48px;
   place-items: center;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   border-radius: 10px;
 }
 
@@ -6539,7 +6768,7 @@ a {
 .admin-file-field-label {
   font-size: 0.82rem;
   font-weight: 700;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
 }
 
 .admin-file-row {
@@ -6576,7 +6805,7 @@ a {
 
 .admin-file-name {
   font-size: 0.85rem;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6597,12 +6826,12 @@ a {
 
 .admin-cms-row-body p {
   margin: 0;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.86rem;
 }
 
 .admin-cms-row-body small {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
 }
 
@@ -6624,7 +6853,7 @@ a {
   width: 28px;
   height: 28px;
   place-items: center;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -6636,8 +6865,8 @@ a {
 .admin-icon-btn:focus-visible {
   outline: none;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.06);
-  border-color: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border);
+  border-color: var(--admin-border-soft);
 }
 
 .admin-icon-btn:disabled {
@@ -6661,7 +6890,7 @@ a {
 .admin-save-status {
   display: inline-block;
   margin-top: 2px;
-  color: rgba(16, 24, 47, 0.62);
+  color: var(--admin-text-soft);
   font-size: 0.76rem;
   font-weight: 800;
   line-height: 1.3;
@@ -6689,7 +6918,7 @@ a {
   display: flex;
   min-width: 0;
   gap: 6px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.1);
+  border-bottom: 1px solid var(--admin-border-strong);
 }
 
 .admin-section-tabs button {
@@ -6736,8 +6965,8 @@ a {
   display: grid;
   gap: 10px;
   padding: 12px;
-  background: rgba(16, 24, 47, 0.035);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
@@ -6763,8 +6992,8 @@ a {
 .admin-activity-image-preview {
   overflow: hidden;
   aspect-ratio: 3 / 2;
-  background: rgba(16, 24, 47, 0.08);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 10px;
 }
 
@@ -6788,7 +7017,7 @@ a {
 }
 
 .admin-activity-image-hint {
-  color: rgba(16, 24, 47, 0.58);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
   line-height: 1.45;
 }
@@ -6799,8 +7028,8 @@ a {
   gap: 14px;
   align-items: center;
   padding: 12px;
-  background: rgba(16, 24, 47, 0.035);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 10px;
 }
 
@@ -6854,7 +7083,7 @@ a {
 
 .admin-schedule-policy-card p {
   margin: 4px 0 0;
-  color: rgba(16, 24, 47, 0.62);
+  color: var(--admin-text-soft);
   font-size: 0.86rem;
   line-height: 1.45;
 }
@@ -6865,7 +7094,7 @@ a {
   gap: 14px;
   padding: 20px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -6894,8 +7123,8 @@ a {
   height: 32px;
   place-items: center;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
   cursor: pointer;
 }
@@ -6903,7 +7132,7 @@ a {
 .admin-schedule-cal-head-nav button:hover:not(:disabled),
 .admin-schedule-cal-head-nav button:focus-visible {
   outline: none;
-  background: rgba(16, 24, 47, 0.1);
+  background: var(--admin-border-strong);
 }
 
 .admin-schedule-cal-head-nav button:disabled {
@@ -6919,7 +7148,7 @@ a {
 
 .admin-schedule-cal-weekdays span {
   text-align: center;
-  color: rgba(16, 24, 47, 0.5);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -6942,7 +7171,7 @@ a {
   padding: 8px 4px;
   color: var(--navy);
   background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 800;
@@ -6952,7 +7181,7 @@ a {
 
 .admin-schedule-cal-cell:disabled {
   cursor: default;
-  color: rgba(16, 24, 47, 0.32);
+  color: var(--admin-text-faint);
   background: transparent;
   border-color: transparent;
 }
@@ -6964,7 +7193,7 @@ a {
 .admin-schedule-cal-cell.is-past {
   background: transparent;
   border-color: transparent;
-  color: rgba(16, 24, 47, 0.28);
+  color: var(--admin-text-faint);
 }
 
 /* --- Status colors mirror the public landing calendar --- */
@@ -6978,35 +7207,35 @@ a {
 /* Penuh (semua slot booked/held) - di admin idle dibuat lebih terang
    supaya tidak menabrak warna sel terpilih (yang full navy). */
 .admin-schedule-cal-cell.is-full {
-  background: rgba(16, 24, 47, 0.18);
-  border-color: rgba(16, 24, 47, 0.4);
+  background: var(--admin-border-heavy);
+  border-color: var(--admin-text-faint);
   color: var(--navy);
 }
 
 /* Tutup oleh admin (Sen-Kam) - mirip public is-closed */
 .admin-schedule-cal-cell.is-closed {
   background: rgba(238, 232, 220, 0.58);
-  border-color: rgba(16, 24, 47, 0.06);
-  color: rgba(16, 24, 47, 0.36);
+  border-color: var(--admin-border);
+  color: var(--admin-text-faint);
 }
 
 /* Libur default (Jum/Sab/Min) - serupa is-closed tapi lebih pudar dengan
    garis dashed agar admin tahu masih bisa dibuka. */
 .admin-schedule-cal-cell.is-holiday {
   background: rgba(238, 232, 220, 0.32);
-  border: 1px dashed rgba(16, 24, 47, 0.18);
-  color: rgba(16, 24, 47, 0.5);
+  border: 1px dashed var(--admin-border-heavy);
+  color: var(--admin-text-softer);
 }
 
 .admin-schedule-cal-cell:hover:not(:disabled) {
-  border-color: rgba(16, 24, 47, 0.24);
+  border-color: var(--admin-border-heavier);
   transform: translateY(-2px);
 }
 
 /* Saat dipilih, isi sel dengan warna utuh sesuai status (mirip publik). */
 .admin-schedule-cal-cell.is-selected {
-  border-color: rgba(16, 24, 47, 0.12);
-  box-shadow: 0 14px 28px rgba(16, 24, 47, 0.14);
+  border-color: var(--admin-border-strong);
+  box-shadow: 0 14px 28px var(--admin-border-heavy);
   transform: translateY(-2px);
 }
 
@@ -7077,8 +7306,8 @@ a {
   flex-wrap: wrap;
   gap: 14px;
   padding-top: 10px;
-  border-top: 1px dashed rgba(16, 24, 47, 0.08);
-  color: rgba(16, 24, 47, 0.7);
+  border-top: 1px dashed var(--admin-border-soft);
+  color: var(--admin-text-soft);
   font-size: 0.76rem;
   font-weight: 700;
 }
@@ -7094,7 +7323,7 @@ a {
   width: 14px;
   height: 14px;
   border-radius: 4px;
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  border: 1px solid var(--admin-border-soft);
 }
 
 .admin-schedule-cal-legend .swatch.is-open {
@@ -7103,18 +7332,18 @@ a {
 }
 
 .admin-schedule-cal-legend .swatch.is-full {
-  background: rgba(16, 24, 47, 0.18);
-  border-color: rgba(16, 24, 47, 0.4);
+  background: var(--admin-border-heavy);
+  border-color: var(--admin-text-faint);
 }
 
 .admin-schedule-cal-legend .swatch.is-closed {
   background: rgba(238, 232, 220, 0.58);
-  border-color: rgba(16, 24, 47, 0.12);
+  border-color: var(--admin-border-strong);
 }
 
 .admin-schedule-cal-legend .swatch.is-holiday {
   background: rgba(238, 232, 220, 0.4);
-  border: 1px dashed rgba(16, 24, 47, 0.3);
+  border: 1px dashed var(--admin-text-faint);
 }
 
 .admin-schedule-day-panel {
@@ -7123,7 +7352,7 @@ a {
   gap: 12px;
   padding: 16px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -7134,12 +7363,12 @@ a {
   flex-wrap: wrap;
   align-items: flex-start;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-schedule-day-panel header small {
   display: block;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0;
@@ -7160,7 +7389,7 @@ a {
 
 .admin-link-button {
   padding: 4px 8px;
-  color: rgba(16, 24, 47, 0.65);
+  color: var(--admin-text-soft);
   background: transparent;
   border: 0;
   border-radius: 6px;
@@ -7173,7 +7402,7 @@ a {
 .admin-link-button:hover,
 .admin-link-button:focus-visible {
   outline: none;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   color: var(--navy);
 }
 
@@ -7192,7 +7421,7 @@ a {
   gap: 6px;
   padding: 32px 20px;
   text-align: center;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
 }
 
 .admin-schedule-empty svg {
@@ -7225,7 +7454,7 @@ a {
   align-items: stretch;
   min-height: 76px;
   background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 10px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease,
     transform 0.18s ease, background 0.18s ease;
@@ -7251,18 +7480,18 @@ a {
 
 .admin-schedule-slot.is-full {
   background: linear-gradient(135deg, var(--navy), var(--navy-2));
-  border-color: rgba(16, 24, 47, 0.25);
+  border-color: var(--admin-border-heavier);
   color: var(--white);
 }
 
 .admin-schedule-slot.is-closed {
   background: rgba(238, 232, 220, 0.5);
-  border-color: rgba(16, 24, 47, 0.06);
-  color: rgba(16, 24, 47, 0.5);
+  border-color: var(--admin-border);
+  color: var(--admin-text-softer);
 }
 
 .admin-schedule-slot.is-closed:hover {
-  border-color: rgba(16, 24, 47, 0.18);
+  border-color: var(--admin-border-heavy);
   background: rgba(238, 232, 220, 0.7);
 }
 
@@ -7405,9 +7634,9 @@ a {
   width: 24px;
   height: 24px;
   background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 6px;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
@@ -7429,9 +7658,9 @@ a {
   gap: 4px;
   min-height: 24px;
   padding: 2px 7px;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
   background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(16, 24, 47, 0.14);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 6px;
   font-size: 0.66rem;
   font-weight: 850;
@@ -7493,8 +7722,8 @@ a {
   grid-template-columns: 1fr auto;
   gap: 8px 10px;
   padding: 12px;
-  background: rgba(16, 24, 47, 0.03);
-  border: 1px dashed rgba(16, 24, 47, 0.12);
+  background: var(--admin-bg-subtle);
+  border: 1px dashed var(--admin-border-strong);
   border-radius: 10px;
 }
 
@@ -7507,7 +7736,7 @@ a {
 .admin-schedule-add-field span {
   font-size: 0.74rem;
   font-weight: 800;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -7515,7 +7744,7 @@ a {
 .admin-schedule-add-field input {
   padding: 8px 10px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.9rem;
@@ -7545,7 +7774,7 @@ a {
 
 .admin-schedule-add-hint {
   grid-column: 1 / -1;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
 }
 
@@ -7556,7 +7785,7 @@ a {
   padding: 6px 12px;
   background: var(--white);
   color: var(--navy);
-  border: 1px solid rgba(16, 24, 47, 0.14);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 800;
@@ -7567,8 +7796,8 @@ a {
 .admin-pill-button:hover:not(:disabled),
 .admin-pill-button:focus-visible:not(:disabled) {
   outline: none;
-  border-color: rgba(16, 24, 47, 0.3);
-  background: rgba(16, 24, 47, 0.04);
+  border-color: var(--admin-text-faint);
+  background: var(--admin-bg-subtle);
 }
 
 .admin-pill-button:disabled {
@@ -7609,7 +7838,7 @@ a {
   gap: 12px;
   flex-wrap: wrap;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-schedule-day-head-title {
@@ -7657,14 +7886,14 @@ a {
 
 .admin-schedule-day-status.is-closed {
   background: rgba(238, 232, 220, 0.65);
-  color: rgba(16, 24, 47, 0.6);
-  border-color: rgba(16, 24, 47, 0.18);
+  color: var(--admin-text-soft);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-schedule-day-status.is-holiday {
   background: rgba(238, 232, 220, 0.4);
-  color: rgba(16, 24, 47, 0.55);
-  border: 1px dashed rgba(16, 24, 47, 0.3);
+  color: var(--admin-text-softer);
+  border: 1px dashed var(--admin-text-faint);
 }
 
 .admin-schedule-day-pill {
@@ -7692,7 +7921,7 @@ a {
   flex-wrap: wrap;
   align-items: center;
   gap: 0;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 600;
 }
@@ -7711,11 +7940,11 @@ a {
 .admin-schedule-day-counters em {
   margin: 0 5px;
   font-style: normal;
-  color: rgba(16, 24, 47, 0.25);
+  color: var(--admin-text-faint);
 }
 
 .admin-schedule-day-counters .is-empty {
-  color: rgba(16, 24, 47, 0.5);
+  color: var(--admin-text-softer);
   font-style: italic;
   font-weight: 600;
 }
@@ -7732,8 +7961,8 @@ a {
 .admin-schedule-segment {
   display: inline-flex;
   padding: 3px;
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 999px;
 }
 
@@ -7744,7 +7973,7 @@ a {
   background: transparent;
   border: 0;
   border-radius: 999px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
@@ -7754,14 +7983,14 @@ a {
 .admin-segment-button:hover:not(:disabled),
 .admin-segment-button:focus-visible:not(:disabled) {
   outline: none;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   color: var(--navy);
 }
 
 .admin-segment-button.is-active {
   background: var(--white);
   color: var(--navy);
-  box-shadow: 0 1px 0 rgba(16, 24, 47, 0.04), 0 4px 10px rgba(16, 24, 47, 0.08);
+  box-shadow: 0 1px 0 var(--admin-bg-subtle), 0 4px 10px var(--admin-border-soft);
 }
 
 .admin-segment-button:disabled {
@@ -7772,9 +8001,9 @@ a {
 /* ---- Slot extras (past + highlight + popover) ---- */
 
 .admin-schedule-slot.is-past {
-  background: rgba(16, 24, 47, 0.04);
-  border-color: rgba(16, 24, 47, 0.08);
-  color: rgba(16, 24, 47, 0.4);
+  background: var(--admin-bg-subtle);
+  border-color: var(--admin-border-soft);
+  color: var(--admin-text-muted);
 }
 
 .admin-schedule-slot.is-past .admin-schedule-slot-main {
@@ -7811,9 +8040,9 @@ a {
   gap: 12px;
   padding: 16px 18px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.14);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 14px;
-  box-shadow: 0 18px 42px rgba(16, 24, 47, 0.16);
+  box-shadow: 0 18px 42px var(--admin-border-heavy);
   color: var(--navy);
   text-align: left;
   font-weight: 600;
@@ -7832,7 +8061,7 @@ a {
   gap: 12px;
   min-width: 0;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.08);
+  border-bottom: 1px solid var(--admin-border-soft);
 }
 
 .admin-schedule-slot-popover header strong {
@@ -7849,7 +8078,7 @@ a {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   color: var(--navy);
   border-radius: 999px;
   font-size: 0.68rem;
@@ -7889,7 +8118,7 @@ a {
 
 .admin-schedule-slot-popover dt {
   margin: 0;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-weight: 700;
 }
 
@@ -7961,7 +8190,7 @@ a {
   padding: 22px;
   background: var(--white);
   border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(16, 24, 47, 0.25);
+  box-shadow: 0 24px 60px var(--admin-border-heavier);
 }
 
 .admin-modal--confirm {
@@ -7986,7 +8215,7 @@ a {
 .admin-modal-head p,
 .admin-modal p {
   margin: 4px 0 0;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.88rem;
   line-height: 1.4;
 }
@@ -7996,9 +8225,9 @@ a {
   width: 28px;
   height: 28px;
   place-items: center;
-  color: rgba(16, 24, 47, 0.6);
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
   cursor: pointer;
 }
@@ -8006,7 +8235,7 @@ a {
 .admin-modal-close:hover,
 .admin-modal-close:focus-visible {
   outline: none;
-  background: rgba(16, 24, 47, 0.1);
+  background: var(--admin-border-strong);
   color: var(--navy);
 }
 
@@ -8024,7 +8253,7 @@ a {
 .admin-modal-field span {
   font-size: 0.74rem;
   font-weight: 800;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -8032,7 +8261,7 @@ a {
 .admin-modal-field input {
   padding: 8px 10px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.14);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.92rem;
@@ -8047,8 +8276,8 @@ a {
 
 .admin-modal-field input:disabled {
   cursor: not-allowed;
-  background: rgba(16, 24, 47, 0.04);
-  color: rgba(16, 24, 47, 0.42);
+  background: var(--admin-bg-subtle);
+  color: var(--admin-text-muted);
 }
 
 .admin-modal-fieldset {
@@ -8064,7 +8293,7 @@ a {
   margin-bottom: 4px;
   font-size: 0.74rem;
   font-weight: 800;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -8084,9 +8313,9 @@ a {
 
 .admin-modal-quickpick button {
   padding: 4px 10px;
-  background: rgba(16, 24, 47, 0.04);
-  color: rgba(16, 24, 47, 0.7);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  background: var(--admin-bg-subtle);
+  color: var(--admin-text-soft);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 800;
@@ -8097,7 +8326,7 @@ a {
 .admin-modal-quickpick button:hover,
 .admin-modal-quickpick button:focus-visible {
   outline: none;
-  background: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
   color: var(--navy);
 }
 
@@ -8123,7 +8352,7 @@ a {
   padding: 6px 12px;
   background: var(--white);
   color: var(--navy);
-  border: 1px solid rgba(16, 24, 47, 0.14);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 800;
@@ -8144,12 +8373,12 @@ a {
 .admin-modal-helper {
   margin: 8px 0 0;
   font-size: 0.78rem;
-  color: rgba(16, 24, 47, 0.5);
+  color: var(--admin-text-softer);
   line-height: 1.45;
 }
 
 .admin-modal-helper strong {
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
 }
 
 .admin-modal-radio {
@@ -8163,8 +8392,8 @@ a {
   align-items: start;
   gap: 8px;
   padding: 10px 12px;
-  background: rgba(16, 24, 47, 0.03);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 10px;
   font-size: 0.88rem;
   font-weight: 700;
@@ -8182,15 +8411,15 @@ a {
 }
 
 .admin-modal-radio span small {
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   font-weight: 600;
   line-height: 1.4;
 }
 
 .admin-modal-radio label:hover {
-  border-color: rgba(16, 24, 47, 0.18);
-  background: rgba(16, 24, 47, 0.05);
+  border-color: var(--admin-border-heavy);
+  background: var(--admin-hover);
 }
 
 .admin-modal-radio input:checked ~ span {
@@ -8215,14 +8444,14 @@ a {
 
 .admin-modal-preview-hint {
   margin: 0;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.86rem;
   font-style: italic;
 }
 
 .admin-modal-preview {
   padding: 10px 12px;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.86rem;
@@ -8262,16 +8491,16 @@ a {
   grid-template-columns: auto 1fr;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 10px;
-  background: rgba(16, 24, 47, 0.02);
+  background: var(--admin-bg-softer);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .booking-export-option:hover {
-  border-color: rgba(16, 24, 47, 0.18);
-  background: rgba(16, 24, 47, 0.04);
+  border-color: var(--admin-border-heavy);
+  background: var(--admin-bg-subtle);
 }
 
 .booking-export-option:has(input:checked) {
@@ -8295,7 +8524,7 @@ a {
 }
 
 .booking-export-option span small {
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
 }
 
@@ -8307,7 +8536,7 @@ a {
 
 .booking-export-range-button {
   appearance: none;
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   background: var(--white);
   color: var(--navy);
   padding: 6px 14px;
@@ -8321,8 +8550,8 @@ a {
 .booking-export-range-button:hover:not(:disabled),
 .booking-export-range-button:focus-visible:not(:disabled) {
   outline: none;
-  border-color: rgba(16, 24, 47, 0.25);
-  background: rgba(16, 24, 47, 0.04);
+  border-color: var(--admin-border-heavier);
+  background: var(--admin-bg-subtle);
 }
 
 .booking-export-range-button.is-active {
@@ -8372,7 +8601,7 @@ a {
   padding: 0 16px;
   height: 38px;
   border-radius: 999px;
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   background: var(--white);
   color: var(--navy);
   font-size: 0.86rem;
@@ -8404,7 +8633,7 @@ a {
   background: var(--navy);
   color: var(--white);
   border-radius: 999px;
-  box-shadow: 0 18px 40px rgba(16, 24, 47, 0.3);
+  box-shadow: 0 18px 40px var(--admin-text-faint);
   font-size: 0.86rem;
   font-weight: 700;
   animation: admin-schedule-toast-in 0.2s ease-out;
@@ -8471,7 +8700,7 @@ a {
   display: grid;
   place-items: center;
   padding: 12px;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   border-radius: 12px;
 }
 
@@ -8479,7 +8708,7 @@ a {
   max-width: min(640px, 100%);
   height: auto;
   border-radius: 8px;
-  box-shadow: 0 12px 28px rgba(16, 24, 47, 0.08);
+  box-shadow: 0 12px 28px var(--admin-border-soft);
 }
 
 .admin-checklist {
@@ -8522,7 +8751,7 @@ a {
   grid-template-columns: 160px minmax(0, 1fr);
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px dashed rgba(16, 24, 47, 0.06);
+  border-bottom: 1px dashed var(--admin-border);
 }
 
 .admin-kv-list > div:last-child {
@@ -8531,7 +8760,7 @@ a {
 
 .admin-kv-list dt {
   margin: 0;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -8547,12 +8776,12 @@ a {
   display: grid;
   gap: 4px;
   padding: 12px 14px;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   border-radius: 10px;
 }
 
 .admin-info-grid small {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -8577,10 +8806,10 @@ a {
 .admin-info-note {
   margin: 0;
   padding: 10px 14px;
-  background: rgba(16, 24, 47, 0.03);
-  border: 1px dashed rgba(16, 24, 47, 0.12);
+  background: var(--admin-bg-subtle);
+  border: 1px dashed var(--admin-border-strong);
   border-radius: 10px;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
 }
 
@@ -8588,7 +8817,7 @@ a {
   display: inline-block;
   padding: 1px 6px;
   margin: 0 2px;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   border-radius: 4px;
   font-size: 0.78rem;
   font-family: monospace;
@@ -8604,12 +8833,12 @@ a {
 .admin-table td {
   padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
   font-size: 0.88rem;
 }
 
 .admin-table th {
-  color: rgba(16, 24, 47, 0.5);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -8634,8 +8863,8 @@ a {
 }
 
 .admin-pill--off {
-  color: rgba(16, 24, 47, 0.6);
-  background: rgba(16, 24, 47, 0.08);
+  color: var(--admin-text-soft);
+  background: var(--admin-border-soft);
 }
 
 .admin-form-error {
@@ -8663,7 +8892,7 @@ a {
   gap: 14px;
   align-items: flex-start;
   padding: 10px 0;
-  border-bottom: 1px dashed rgba(16, 24, 47, 0.06);
+  border-bottom: 1px dashed var(--admin-border);
 }
 
 .admin-audit-list li:last-child {
@@ -8687,12 +8916,12 @@ a {
 
 .admin-audit-list p {
   margin: 2px 0 0;
-  color: rgba(16, 24, 47, 0.78);
+  color: var(--admin-text-soft);
   font-size: 0.86rem;
 }
 
 .admin-audit-list small {
-  color: rgba(16, 24, 47, 0.5);
+  color: var(--admin-text-softer);
   font-size: 0.74rem;
   white-space: nowrap;
 }
@@ -8711,12 +8940,12 @@ a {
 .admin-audit-filter-field span {
   font-size: 0.74rem;
   font-weight: 600;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
 }
 
 .admin-audit-filter-field input {
   padding: 8px 10px;
-  border: 1px solid rgba(16, 24, 47, 0.16);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 8px;
   font-size: 0.84rem;
   color: var(--navy);
@@ -8728,16 +8957,16 @@ a {
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  border: 1px solid rgba(16, 24, 47, 0.16);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 8px;
   background: var(--white);
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
   cursor: pointer;
 }
 
 .admin-audit-filter-clear:hover {
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   color: var(--navy);
 }
 
@@ -8749,11 +8978,11 @@ a {
   gap: 12px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid rgba(16, 24, 47, 0.08);
+  border-top: 1px solid var(--admin-border-soft);
 }
 
 .admin-audit-count {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
 }
 
@@ -8802,15 +9031,15 @@ a {
 .booking-delete-modal .modal-close {
   width: 36px;
   height: 36px;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
   background: transparent;
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
 }
 
 .booking-delete-modal .modal-close:hover,
 .booking-delete-modal .modal-close:focus-visible {
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
 }
 
 .booking-delete-meta {
@@ -8819,7 +9048,7 @@ a {
   gap: 6px 10px;
   align-items: center;
   margin: -4px 0 18px;
-  color: rgba(16, 24, 47, 0.68);
+  color: var(--admin-text-soft);
   font-size: 0.9rem;
   line-height: 1.45;
 }
@@ -8831,7 +9060,7 @@ a {
 .booking-delete-meta > * + *::before {
   content: "/";
   margin-right: 10px;
-  color: rgba(16, 24, 47, 0.35);
+  color: var(--admin-text-faint);
 }
 
 .segment-modal-card {
@@ -8849,7 +9078,7 @@ a {
 
 .segment-modal-card .segment-modal-summary {
   margin: 2px 0 0;
-  color: rgba(16, 24, 47, 0.66);
+  color: var(--admin-text-soft);
   line-height: 1.45;
 }
 
@@ -8865,9 +9094,9 @@ a {
   align-items: center;
   gap: 7px;
   padding: 0 10px;
-  color: rgba(16, 24, 47, 0.72);
-  background: rgba(16, 24, 47, 0.035);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 999px;
   font-size: 0.76rem;
   font-weight: 800;
@@ -8878,7 +9107,7 @@ a {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: rgba(16, 24, 47, 0.24);
+  background: var(--admin-border-heavier);
 }
 
 .segment-legend-dot.is-available::before {
@@ -8894,7 +9123,7 @@ a {
 }
 
 .segment-legend-dot.is-closed::before {
-  background: rgba(16, 24, 47, 0.34);
+  background: var(--admin-text-faint);
 }
 
 .segment-editor-list {
@@ -8907,7 +9136,7 @@ a {
   gap: 12px;
   padding: 14px;
   background: rgba(248, 250, 252, 0.88);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
 }
 
@@ -8935,7 +9164,7 @@ a {
   display: grid;
   gap: 5px;
   min-width: 0;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   font-weight: 800;
 }
@@ -8947,7 +9176,7 @@ a {
   padding: 0 12px;
   color: var(--navy);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 700;
@@ -8961,7 +9190,7 @@ a {
 }
 
 .segment-date-field small {
-  color: rgba(16, 24, 47, 0.58);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -8974,9 +9203,9 @@ a {
 .segment-slot-picker-context {
   margin: 0;
   padding: 10px 12px;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
   background: rgba(248, 250, 252, 0.8);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
   font-size: 0.82rem;
   font-weight: 750;
@@ -8993,13 +9222,13 @@ a {
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   font-weight: 800;
 }
 
 .segment-slot-picker-head small {
-  color: rgba(16, 24, 47, 0.54);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
   font-weight: 700;
   text-align: right;
@@ -9020,7 +9249,7 @@ a {
   color: var(--navy);
   text-align: left;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
@@ -9033,7 +9262,7 @@ a {
 }
 
 .segment-slot-chip small {
-  color: rgba(16, 24, 47, 0.58);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1.2;
@@ -9043,8 +9272,8 @@ a {
 .segment-slot-chip:focus-visible:not(:disabled) {
   outline: none;
   transform: translateY(-1px);
-  border-color: rgba(16, 24, 47, 0.2);
-  box-shadow: 0 8px 18px rgba(16, 24, 47, 0.08);
+  border-color: var(--admin-border-heavy);
+  box-shadow: 0 8px 18px var(--admin-border-soft);
 }
 
 .segment-slot-chip.is-selected {
@@ -9092,7 +9321,7 @@ a {
 .segment-slot-chip.is-full {
   color: var(--white);
   background: linear-gradient(135deg, var(--navy), var(--navy-2));
-  border-color: rgba(16, 24, 47, 0.2);
+  border-color: var(--admin-border-heavy);
 }
 
 .segment-slot-chip.is-full small {
@@ -9100,9 +9329,9 @@ a {
 }
 
 .segment-slot-chip.is-closed {
-  color: rgba(16, 24, 47, 0.38);
+  color: var(--admin-text-faint);
   background: rgba(238, 232, 220, 0.42);
-  border-color: rgba(16, 24, 47, 0.06);
+  border-color: var(--admin-border);
 }
 
 .segment-slot-chip:disabled {
@@ -9121,7 +9350,7 @@ a {
 
 .segment-row-note {
   margin: 0;
-  color: rgba(16, 24, 47, 0.64);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -9153,7 +9382,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
   font-weight: 800;
 }
@@ -9161,15 +9390,15 @@ a {
 .admin-segmented-control {
   display: inline-flex;
   padding: 3px;
-  background: rgba(16, 24, 47, 0.06);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-border);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
 .admin-segmented-control button {
   min-height: 30px;
   padding: 0 12px;
-  color: rgba(16, 24, 47, 0.64);
+  color: var(--admin-text-soft);
   background: transparent;
   border: 0;
   border-radius: 6px;
@@ -9181,7 +9410,7 @@ a {
 .admin-segmented-control button.is-active {
   color: var(--navy);
   background: var(--white);
-  box-shadow: 0 1px 4px rgba(16, 24, 47, 0.12);
+  box-shadow: 0 1px 4px var(--admin-border-strong);
 }
 
 .admin-manual-kloter {
@@ -9195,7 +9424,7 @@ a {
 
 .admin-manual-total {
   margin-right: auto;
-  color: rgba(16, 24, 47, 0.64);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   font-weight: 850;
 }
@@ -9221,12 +9450,12 @@ a {
   gap: 8px;
   padding: 10px;
   background: rgba(248, 250, 252, 0.64);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
 .admin-confirmation-title {
-  color: rgba(16, 24, 47, 0.54);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -9248,7 +9477,7 @@ a {
 }
 
 .admin-confirm-check-copy small {
-  color: rgba(16, 24, 47, 0.58);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
   font-weight: 750;
   line-height: 1.35;
@@ -9271,8 +9500,8 @@ a {
   grid-column: 1 / -1;
   margin: 0;
   padding: 10px 12px;
-  color: rgba(16, 24, 47, 0.62);
-  background: rgba(16, 24, 47, 0.04);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
   border-radius: 8px;
   font-size: 0.86rem;
   font-weight: 700;
@@ -9337,7 +9566,7 @@ a {
 }
 
 .segment-modal-kicker {
-  color: rgba(16, 24, 47, 0.54);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.06em;
@@ -9353,7 +9582,7 @@ a {
 
 .segment-modal-head p {
   margin: 0;
-  color: rgba(16, 24, 47, 0.62);
+  color: var(--admin-text-soft);
   font-size: 0.86rem;
   line-height: 1.45;
 }
@@ -9363,7 +9592,7 @@ a {
   gap: 12px;
   padding: 16px;
   background: rgba(248, 250, 252, 0.8);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
@@ -9371,7 +9600,7 @@ a {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  color: rgba(16, 24, 47, 0.72);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
   font-weight: 850;
 }
@@ -9383,7 +9612,7 @@ a {
 }
 
 .segment-total-status {
-  color: rgba(16, 24, 47, 0.56);
+  color: var(--admin-text-softer);
   font-size: 0.76rem;
   font-weight: 800;
 }
@@ -9423,7 +9652,7 @@ a {
 }
 
 .segment-table-head {
-  color: rgba(16, 24, 47, 0.48);
+  color: var(--admin-text-muted);
   font-size: 0.68rem;
   font-weight: 850;
   text-transform: uppercase;
@@ -9432,7 +9661,7 @@ a {
 .segment-table-row {
   padding: 6px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
@@ -9450,7 +9679,7 @@ a {
   padding: 0 10px;
   color: var(--navy);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   font-size: 0.86rem;
   font-weight: 750;
@@ -9459,8 +9688,8 @@ a {
 .segment-table-row select:focus,
 .segment-table-row input:focus {
   outline: none;
-  border-color: rgba(16, 24, 47, 0.36);
-  box-shadow: 0 0 0 3px rgba(16, 24, 47, 0.1);
+  border-color: var(--admin-text-faint);
+  box-shadow: 0 0 0 3px var(--admin-border-strong);
 }
 
 .segment-icon-button {
@@ -9468,9 +9697,9 @@ a {
   height: 32px;
   display: grid;
   place-items: center;
-  color: rgba(16, 24, 47, 0.58);
+  color: var(--admin-text-softer);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   cursor: pointer;
 }
@@ -9479,7 +9708,7 @@ a {
 .segment-icon-button:focus-visible:not(:disabled) {
   outline: none;
   color: var(--navy);
-  border-color: rgba(16, 24, 47, 0.22);
+  border-color: var(--admin-border-heavier);
 }
 
 .segment-icon-button:disabled {
@@ -9492,7 +9721,7 @@ a {
   display: flex;
   align-items: flex-start;
   gap: 7px;
-  color: rgba(16, 24, 47, 0.66);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.35;
@@ -9509,12 +9738,12 @@ a {
   margin: 0 -24px -24px;
   padding: 14px 24px 18px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), var(--white) 34%);
-  border-top: 1px solid rgba(16, 24, 47, 0.08);
+  border-top: 1px solid var(--admin-border-soft);
 }
 
 .segment-row-note {
   margin: 0;
-  color: rgba(16, 24, 47, 0.56);
+  color: var(--admin-text-softer);
   font-size: 0.8rem;
   font-weight: 750;
 }
@@ -9589,8 +9818,8 @@ a {
      scrollbar; images get this container's scrollbar. */
   overflow: auto;
   overscroll-behavior: contain;
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
@@ -9636,7 +9865,7 @@ a {
 }
 
 .document-preview-fallback svg {
-  color: rgba(16, 24, 47, 0.4);
+  color: var(--admin-text-muted);
 }
 
 .document-preview-fallback p {
@@ -10581,7 +10810,7 @@ a {
   gap: 10px;
   padding: 10px 14px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -10599,7 +10828,7 @@ a {
 
 .booking-toolbar-row--secondary {
   justify-content: space-between;
-  border-top: 1px dashed rgba(16, 24, 47, 0.06);
+  border-top: 1px dashed var(--admin-border);
   padding-top: 10px;
 }
 
@@ -10619,8 +10848,8 @@ a {
   gap: 6px;
   height: 28px;
   padding: 0 12px;
-  background: rgba(16, 24, 47, 0.04);
-  color: rgba(16, 24, 47, 0.78);
+  background: var(--admin-bg-subtle);
+  color: var(--admin-text-soft);
   border: 1px solid transparent;
   border-radius: 999px;
   font-size: 0.8rem;
@@ -10629,7 +10858,7 @@ a {
 }
 
 .booking-chip:hover {
-  background: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
   color: var(--navy);
 }
 
@@ -10640,7 +10869,7 @@ a {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  background: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
   border-radius: 999px;
   font-style: normal;
   font-size: 0.68rem;
@@ -10676,9 +10905,9 @@ a {
 }
 
 .booking-chip.booking-chip--completed.is-active {
-  background: rgba(16, 24, 47, 0.78);
+  background: var(--admin-text);
   color: var(--white);
-  border-color: rgba(16, 24, 47, 0.78);
+  border-color: var(--admin-text);
 }
 
 .booking-chip.booking-chip--rejected.is-active {
@@ -10713,9 +10942,9 @@ a {
   height: 34px;
   padding: 0 10px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
 }
 
@@ -10739,7 +10968,7 @@ a {
   height: 34px;
   padding: 0 8px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.82rem;
@@ -10754,7 +10983,7 @@ a {
 .booking-toggle {
   display: inline-flex;
   padding: 2px;
-  background: rgba(16, 24, 47, 0.05);
+  background: var(--admin-hover);
   border-radius: 8px;
 }
 
@@ -10769,7 +10998,7 @@ a {
   background: transparent;
   border: 0;
   border-radius: 6px;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   font-weight: 700;
   transition: background 140ms ease, color 140ms ease;
@@ -10778,14 +11007,14 @@ a {
 .booking-toggle button[aria-pressed="true"] {
   background: var(--white);
   color: var(--navy);
-  box-shadow: 0 1px 2px rgba(16, 24, 47, 0.12);
+  box-shadow: 0 1px 2px var(--admin-border-strong);
 }
 
 .booking-reset {
   height: 34px;
   padding: 0 12px;
   background: transparent;
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.82rem;
@@ -10802,7 +11031,7 @@ a {
   gap: 4px;
   padding-left: 4px;
   font-size: 0.78rem;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   white-space: nowrap;
   /* Once the toolbar wraps onto its own row the summary should stay on a
      single line, but never push siblings off-screen. */
@@ -10828,7 +11057,7 @@ a {
   width: 100%;
   padding: 10px 14px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
   text-align: left;
   cursor: pointer;
@@ -10837,7 +11066,7 @@ a {
 
 .admin-shell-content .booking-row:hover,
 .booking-row:hover {
-  border-color: rgba(16, 24, 47, 0.18);
+  border-color: var(--admin-border-heavy);
 }
 
 .admin-shell-content .booking-row.is-selected,
@@ -10880,7 +11109,7 @@ a {
 .booking-row-main small {
   display: block;
   overflow: hidden;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10913,14 +11142,14 @@ a {
   content: "";
   flex: 1;
   height: 1px;
-  background: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
   margin-left: 10px;
 }
 
 .booking-month-divider span {
   font-size: 0.72rem;
   font-weight: 700;
-  color: rgba(16, 24, 47, 0.45);
+  color: var(--admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -10932,9 +11161,9 @@ a {
   position: relative;
   height: 540px;
   overflow-y: auto;
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: rgba(16, 24, 47, 0.015);
+  background: var(--admin-bg-softer);
 }
 
 .booking-virtual-spacer {
@@ -10958,7 +11187,7 @@ a {
   display: grid;
   place-items: center;
   min-height: 240px;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.9rem;
 }
 
@@ -10966,7 +11195,7 @@ a {
 
 .booking-grid {
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -10991,13 +11220,13 @@ a {
 .booking-grid-head {
   position: sticky;
   top: 0;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(16, 24, 47, 0.55);
-  border-bottom: 1px solid rgba(16, 24, 47, 0.08);
+  color: var(--admin-text-softer);
+  border-bottom: 1px solid var(--admin-border-soft);
   z-index: 1;
 }
 
@@ -11007,7 +11236,7 @@ a {
 
 .booking-grid-row {
   background: var(--white);
-  border-bottom: 1px solid rgba(16, 24, 47, 0.04);
+  border-bottom: 1px solid var(--admin-bg-subtle);
   cursor: pointer;
   transition: background 140ms ease;
   border-left: 0;
@@ -11016,7 +11245,7 @@ a {
 }
 
 .booking-grid-row:hover {
-  background: rgba(16, 24, 47, 0.02);
+  background: var(--admin-bg-softer);
 }
 
 .booking-grid-row.is-selected {
@@ -11035,7 +11264,7 @@ a {
 
 .booking-grid-cell small {
   display: block;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.74rem;
   margin-top: 2px;
 }
@@ -11053,7 +11282,7 @@ a {
 }
 
 .booking-grid-meta {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
 }
 
@@ -11112,7 +11341,7 @@ a {
   gap: 14px;
   padding: 22px;
   background: var(--white);
-  border-left: 1px solid rgba(16, 24, 47, 0.08);
+  border-left: 1px solid var(--admin-border-soft);
   box-shadow: -22px 0 48px rgba(8, 12, 24, 0.2);
   overflow-y: auto;
   animation: bookingSlideOverIn 220ms ease both;
@@ -11133,7 +11362,7 @@ a {
 
 .booking-slideover-panel header small {
   display: block;
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.78rem;
 }
 
@@ -11143,7 +11372,7 @@ a {
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: rgba(16, 24, 47, 0.05);
+  background: var(--admin-hover);
   border: 0;
   border-radius: 8px;
   color: var(--navy);
@@ -11151,7 +11380,7 @@ a {
 }
 
 .booking-slideover-close:hover {
-  background: rgba(16, 24, 47, 0.1);
+  background: var(--admin-border-strong);
 }
 
 .booking-slideover-status {
@@ -11184,7 +11413,7 @@ a {
   gap: 4px;
   padding: 8px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.06);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   align-self: end;
   justify-self: end;
@@ -11200,7 +11429,7 @@ a {
   background: transparent;
   border: 0;
   border-radius: 8px;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
@@ -11208,7 +11437,7 @@ a {
 }
 
 .booking-pagination button:hover:not(:disabled) {
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   color: var(--navy);
 }
 
@@ -11224,7 +11453,7 @@ a {
 
 .booking-pagination-gap {
   padding: 0 4px;
-  color: rgba(16, 24, 47, 0.45);
+  color: var(--admin-text-muted);
   font-size: 0.82rem;
 }
 
@@ -11271,7 +11500,7 @@ a {
     margin-left: 0;
     margin-top: 4px;
     padding-top: 12px;
-    border-top: 1px solid rgba(16, 24, 47, 0.08);
+    border-top: 1px solid var(--admin-border-soft);
   }
 
   .booking-grid-head,
@@ -11320,7 +11549,7 @@ a {
 .booking-detail .button-outline {
   color: var(--navy);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.18);
+  border: 1px solid var(--admin-border-heavy);
 }
 
 /* Reschedule proposal banner inside detail panel and slide-over */
@@ -11359,7 +11588,7 @@ a {
 }
 
 .reschedule-banner-slot span {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -11373,7 +11602,7 @@ a {
 }
 
 .reschedule-banner-slot small {
-  color: rgba(16, 24, 47, 0.65);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
 }
 
@@ -11389,14 +11618,14 @@ a {
 }
 
 .reschedule-banner-meta {
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.78rem;
 }
 
 .reschedule-banner-note {
   padding: 8px 10px;
   background: var(--white);
-  border: 1px dashed rgba(16, 24, 47, 0.12);
+  border: 1px dashed var(--admin-border-strong);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.82rem;
@@ -11427,7 +11656,7 @@ a {
   height: 30px;
   padding: 0 12px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.14);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.82rem;
@@ -11437,13 +11666,13 @@ a {
 }
 
 .booking-filter-trigger:hover {
-  border-color: rgba(16, 24, 47, 0.32);
-  background: rgba(16, 24, 47, 0.02);
+  border-color: var(--admin-text-faint);
+  background: var(--admin-bg-softer);
 }
 
 .booking-filter-trigger[aria-expanded="true"] {
   border-color: var(--navy);
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
 }
 
 .booking-filter-trigger.has-active {
@@ -11469,7 +11698,7 @@ a {
   gap: 14px;
   padding: 14px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 12px;
   box-shadow: 0 22px 38px rgba(8, 12, 24, 0.18);
   animation: bookingFilterIn 140ms ease both;
@@ -11492,7 +11721,7 @@ a {
 }
 
 .booking-filter-label {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -11512,10 +11741,10 @@ a {
 .booking-filter-option {
   height: 28px;
   padding: 0 10px;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   border: 1px solid transparent;
   border-radius: 8px;
-  color: rgba(16, 24, 47, 0.78);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
   font-weight: 700;
   text-align: left;
@@ -11524,7 +11753,7 @@ a {
 }
 
 .booking-filter-option:hover {
-  background: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
   color: var(--navy);
 }
 
@@ -11549,7 +11778,7 @@ a {
   height: 30px;
   padding: 0 8px;
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.14);
+  border: 1px solid var(--admin-border-heavy);
   border-radius: 8px;
   color: var(--navy);
   font-size: 0.8rem;
@@ -11561,7 +11790,7 @@ a {
   align-items: center;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid rgba(16, 24, 47, 0.06);
+  border-top: 1px solid var(--admin-border);
 }
 
 .booking-filter-reset {
@@ -11569,7 +11798,7 @@ a {
   padding: 0 12px;
   background: transparent;
   border: 0;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -11791,7 +12020,7 @@ a {
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: rgba(16, 24, 47, 0.5);
+    color: var(--admin-text-softer);
   }
 
   /* Schedule page: kalender penuh, sidebar slot di bawahnya */
@@ -11900,7 +12129,7 @@ a {
     align-items: stretch;
     gap: 4px;
     padding: 12px;
-    border: 1px solid rgba(16, 24, 47, 0.08);
+    border: 1px solid var(--admin-border-soft);
     border-radius: 10px;
     background: var(--white);
   }
@@ -11914,7 +12143,7 @@ a {
 
   .admin-shell-content .booking-grid-row .booking-grid-cell::before {
     content: attr(data-label);
-    color: rgba(16, 24, 47, 0.55);
+    color: var(--admin-text-softer);
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -11922,6 +12151,300 @@ a {
   }
 
   /* Reschedule banner sudah punya stack rule sendiri @540px — biarkan */
+}
+
+/* ============================================================
+   Admin display accessibility control
+   `rem` mengikuti root hanya selama AdminShell aktif; atribut dibersihkan
+   ketika kembali ke sisi publik agar skala tidak bocor ke halaman publik.
+   ============================================================ */
+
+html[data-admin-display="compact"] {
+  font-size: 100%;
+}
+
+html[data-admin-display="comfortable"] {
+  font-size: 112.5%;
+}
+
+html[data-admin-display="large"] {
+  font-size: 125%;
+}
+
+.admin-shell[data-admin-display="compact"] {
+  --admin-sidebar-width: 232px;
+  --admin-topbar-height: 56px;
+  --admin-content-padding: 24px;
+  --admin-control-height: 38px;
+  --admin-menu-height: 36px;
+}
+
+.admin-shell[data-admin-display="comfortable"] {
+  --admin-sidebar-width: 252px;
+  --admin-topbar-height: 62px;
+  --admin-content-padding: 26px;
+  --admin-control-height: 44px;
+  --admin-menu-height: 42px;
+}
+
+.admin-shell[data-admin-display="large"] {
+  --admin-sidebar-width: 272px;
+  --admin-topbar-height: 68px;
+  --admin-content-padding: 28px;
+  --admin-control-height: 48px;
+  --admin-menu-height: 46px;
+}
+
+.admin-shell[data-admin-display] {
+  grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
+}
+
+.admin-shell.is-collapsed,
+.admin-shell.is-collapsed[data-admin-display="compact"],
+.admin-shell.is-collapsed[data-admin-display="comfortable"],
+.admin-shell.is-collapsed[data-admin-display="large"] {
+  --admin-sidebar-width: 72px;
+}
+
+.admin-shell[data-admin-display] .admin-shell-content {
+  padding: var(--admin-content-padding);
+  padding-bottom: calc(var(--admin-content-padding) + 72px);
+}
+
+.admin-shell[data-admin-display] .admin-shell-menu-item {
+  min-height: var(--admin-menu-height);
+}
+
+.admin-shell[data-admin-display] .admin-shell-refresh,
+.admin-shell[data-admin-display] .admin-shell-logout,
+.admin-shell[data-admin-display] .admin-shell-exit,
+.admin-shell[data-admin-display] .admin-shell-content .button {
+  min-height: var(--admin-control-height);
+  height: auto;
+}
+
+.admin-shell[data-admin-display] .admin-shell-content .form-field input:not([type="checkbox"]):not([type="radio"]),
+.admin-shell[data-admin-display] .admin-shell-content .form-field select,
+.admin-shell[data-admin-display] .admin-shell-content .search-box input {
+  min-height: var(--admin-control-height);
+}
+
+.admin-display-control {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.admin-display-fab {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  padding: 0;
+  color: #10182f;
+  background: var(--gold-2);
+  border: 2px solid rgba(16, 24, 47, 0.12);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(196, 146, 18, 0.28), 0 2px 8px rgba(0, 0, 0, 0.14);
+  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.admin-display-fab:hover {
+  transform: translateY(-2px);
+  background: #f0cb66;
+  box-shadow: 0 12px 32px rgba(196, 146, 18, 0.36), 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.admin-display-fab:focus-visible {
+  outline: 3px solid var(--navy);
+  outline-offset: 3px;
+}
+
+.admin-display-panel {
+  width: min(310px, calc(100vw - 32px));
+  padding: 14px;
+  color: var(--navy);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px var(--admin-border-heavier);
+  transform-origin: bottom right;
+  animation: admin-display-panel-in 160ms ease-out;
+}
+
+@keyframes admin-display-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.admin-display-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 2px 12px;
+  border-bottom: 1px solid var(--admin-border-soft);
+}
+
+.admin-display-panel-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-display-panel-head strong {
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.admin-display-panel-head span {
+  color: var(--admin-text-softer);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.admin-display-panel-head .admin-display-panel-mark {
+  color: var(--gold);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.admin-display-options {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.admin-display-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 54px;
+  padding: 8px 10px 8px 12px;
+  color: var(--navy);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.admin-display-option:hover,
+.admin-display-option:focus-visible {
+  outline: none;
+  background: var(--admin-bg-subtle);
+  border-color: var(--admin-border-strong);
+}
+
+.admin-display-option.is-selected {
+  background: rgba(229, 189, 85, 0.18);
+  border-color: rgba(196, 146, 18, 0.32);
+}
+
+.admin-display-option-copy {
+  display: grid;
+  gap: 1px;
+}
+
+.admin-display-option-copy strong {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.admin-display-option-copy small {
+  color: var(--admin-text-softer);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.admin-display-option-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.admin-display-option-meta em {
+  color: var(--admin-text-softer);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.admin-display-option-check {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: var(--navy);
+  background: var(--admin-border);
+  border-radius: 999px;
+}
+
+.admin-display-option.is-selected .admin-display-option-check {
+  color: var(--white);
+  background: var(--navy);
+}
+
+@media (max-width: 980px) {
+  .admin-shell[data-admin-display] {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-shell[data-admin-display="compact"] {
+    --admin-topbar-height: 52px;
+    --admin-content-padding: 14px;
+  }
+
+  .admin-shell[data-admin-display="comfortable"] {
+    --admin-topbar-height: 56px;
+    --admin-content-padding: 16px;
+  }
+
+  .admin-shell[data-admin-display="large"] {
+    --admin-topbar-height: 60px;
+    --admin-content-padding: 18px;
+  }
+
+  .admin-display-control {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .admin-display-fab {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-display-panel {
+    animation: none;
+  }
+
+  .admin-display-fab {
+    transition: none;
+  }
 }
 
 .admin-users-card {
@@ -11965,8 +12488,8 @@ a {
 
   .admin-users-table tr {
     padding: 12px;
-    background: rgba(16, 24, 47, 0.025);
-    border: 1px solid rgba(16, 24, 47, 0.08);
+    background: var(--admin-bg-softer);
+    border: 1px solid var(--admin-border-soft);
     border-radius: 10px;
   }
 
@@ -11976,7 +12499,7 @@ a {
     gap: 10px;
     align-items: start;
     padding: 7px 0;
-    border-bottom: 1px dashed rgba(16, 24, 47, 0.08);
+    border-bottom: 1px dashed var(--admin-border-soft);
     font-size: 0.86rem;
   }
 
@@ -11986,7 +12509,7 @@ a {
 
   .admin-users-table td::before {
     content: attr(data-label);
-    color: rgba(16, 24, 47, 0.5);
+    color: var(--admin-text-softer);
     font-size: 0.68rem;
     font-weight: 800;
     letter-spacing: 0.05em;
@@ -12042,9 +12565,9 @@ a {
   gap: 7px;
   min-height: 32px;
   padding: 6px 10px;
-  color: rgba(16, 24, 47, 0.66);
-  background: rgba(16, 24, 47, 0.035);
-  border: 1px solid rgba(16, 24, 47, 0.09);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
@@ -12092,8 +12615,8 @@ a {
   display: grid;
   gap: 12px;
   padding: 16px;
-  background: rgba(16, 24, 47, 0.025);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  background: var(--admin-bg-softer);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 12px;
 }
 
@@ -12488,7 +13011,7 @@ a {
   margin-bottom: 14px;
   padding: 12px 16px;
   background: #f5f5f3;
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
 }
 
@@ -12542,7 +13065,7 @@ a {
 
 .poster-modal-sub {
   margin: 4px 0 0;
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
 }
 
@@ -12568,8 +13091,8 @@ a {
   height: 30px;
   padding: 0;
   color: var(--navy);
-  background: rgba(16, 24, 47, 0.04);
-  border: 1px solid rgba(16, 24, 47, 0.12);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.18s ease;
@@ -12578,7 +13101,7 @@ a {
 .poster-week-nav-btn:hover:not(:disabled),
 .poster-week-nav-btn:focus-visible:not(:disabled) {
   outline: none;
-  background: rgba(16, 24, 47, 0.09);
+  background: var(--admin-border-soft);
 }
 
 .poster-week-nav-btn:disabled {
@@ -12595,7 +13118,7 @@ a {
 }
 
 .poster-row-count {
-  color: rgba(16, 24, 47, 0.6);
+  color: var(--admin-text-soft);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -12619,7 +13142,7 @@ a {
   background: rgba(20, 24, 38, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  box-shadow: 0 8px 24px rgba(16, 24, 47, 0.28);
+  box-shadow: 0 8px 24px var(--admin-text-faint);
   backdrop-filter: blur(4px);
 }
 
@@ -12700,7 +13223,7 @@ a {
   padding: 16px 16px 64px;
   overflow: auto;
   max-height: 60vh;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   border-radius: 12px;
   display: flex;
   justify-content: center;
@@ -12720,7 +13243,7 @@ a {
 .poster-empty {
   padding: 48px 24px;
   text-align: center;
-  color: rgba(16, 24, 47, 0.7);
+  color: var(--admin-text-soft);
 }
 
 .poster-empty p {
@@ -12729,7 +13252,7 @@ a {
 }
 
 .poster-empty small {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
 }
 
 /* ---- The poster canvas itself (this node is exported to PNG) ---- */
@@ -13440,8 +13963,8 @@ a {
 }
 
 .open-wizard .btn-secondary:hover:not(:disabled) {
-  background: rgba(16, 24, 47, 0.05);
-  border-color: rgba(16, 24, 47, 0.24);
+  background: var(--admin-hover);
+  border-color: var(--admin-border-heavier);
 }
 
 .open-wizard .btn-primary:disabled,
@@ -13541,7 +14064,7 @@ a {
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
   font-size: 0.75rem;
 }
 
@@ -13552,7 +14075,7 @@ a {
 .open-wizard-card {
   padding: clamp(22px, 4vw, 36px);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 16px;
   box-shadow: var(--shadow);
 }
@@ -13600,7 +14123,7 @@ a {
   text-align: left;
   color: var(--navy);
   background: rgba(229, 189, 85, 0.08);
-  border: 1.5px solid rgba(16, 24, 47, 0.1);
+  border: 1.5px solid var(--admin-border-strong);
   border-radius: 14px;
   cursor: pointer;
   transition: border-color 140ms ease, background 140ms ease;
@@ -13683,7 +14206,7 @@ a {
   display: grid;
   gap: 0;
   margin: 0 0 16px;
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -13693,7 +14216,7 @@ a {
   grid-template-columns: 140px 1fr;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.06);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .open-review > div:last-child { border-bottom: 0; }
@@ -13704,7 +14227,7 @@ a {
   margin: 0 0 14px;
   padding: 12px 14px;
   color: var(--muted);
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   border-radius: 10px;
   font-size: 0.88rem;
 }
@@ -13731,7 +14254,7 @@ a {
 
 .open-success code {
   padding: 2px 8px;
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   border-radius: 6px;
   font-weight: 800;
 }
@@ -13747,7 +14270,7 @@ a {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(16, 24, 47, 0.55);
+  background: var(--admin-text-soft);
   backdrop-filter: blur(3px);
 }
 
@@ -13782,7 +14305,7 @@ a {
   width: 34px;
   height: 34px;
   color: var(--muted);
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   border: 0;
   border-radius: 999px;
   cursor: pointer;
@@ -13813,11 +14336,11 @@ a {
   margin: 0 calc(-1 * clamp(22px, 4vw, 32px));
   max-height: 46vh;
   object-fit: contain;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
   border-radius: 18px 18px 0 0;
 }
 .open-promo-modal.has-poster .open-promo-close {
-  background: rgba(16, 24, 47, 0.55);
+  background: var(--admin-text-soft);
   color: var(--white);
 }
 
@@ -13837,9 +14360,9 @@ a {
   max-height: 320px;
   width: auto;
   border-radius: 12px;
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   object-fit: contain;
-  background: rgba(16, 24, 47, 0.04);
+  background: var(--admin-bg-subtle);
 }
 .open-poster-empty {
   display: grid;
@@ -13851,7 +14374,7 @@ a {
   color: var(--muted);
   font-size: 0.85rem;
   text-align: center;
-  border: 1px dashed rgba(16, 24, 47, 0.2);
+  border: 1px dashed var(--admin-border-heavy);
   border-radius: 12px;
 }
 .open-poster-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -13916,7 +14439,7 @@ a {
   max-width: min(640px, calc(100% - 32px));
   padding: 7px 8px 7px 16px;
   color: var(--white);
-  background: rgba(16, 24, 47, 0.84);
+  background: var(--admin-text);
   border: 1.5px solid rgba(229, 189, 85, 0.35);
   border-radius: 999px;
   backdrop-filter: blur(14px);
@@ -14077,7 +14600,7 @@ a {
   padding: 0 34px 0 12px;
   color: var(--navy);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   font: inherit;
   font-size: 0.86rem;
@@ -14107,7 +14630,7 @@ a {
   gap: 5px;
   padding: 4px 12px;
   color: var(--muted);
-  background: rgba(16, 24, 47, 0.06);
+  background: var(--admin-border);
   border: 1px solid var(--line);
   border-radius: 999px;
   font-size: 0.8rem;
@@ -14116,7 +14639,7 @@ a {
 
 .open-pill.is-on { color: var(--green); background: rgba(45, 118, 84, 0.12); border-color: rgba(45, 118, 84, 0.3); }
 .open-pill.is-past { color: #8a6a09; background: rgba(196, 146, 18, 0.13); border-color: rgba(196, 146, 18, 0.32); }
-.open-pill.is-archived { color: rgba(16, 24, 47, 0.64); background: rgba(16, 24, 47, 0.07); border-color: rgba(16, 24, 47, 0.16); }
+.open-pill.is-archived { color: var(--admin-text-soft); background: var(--admin-border); border-color: var(--admin-border-heavy); }
 
 .open-activate,
 .open-toolbar-action {
@@ -14132,9 +14655,9 @@ a {
 .open-archive-note {
   margin: 0;
   padding: 12px 14px;
-  color: rgba(16, 24, 47, 0.72);
-  background: rgba(16, 24, 47, 0.045);
-  border: 1px solid rgba(16, 24, 47, 0.08);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
   font-size: 0.88rem;
   font-weight: 650;
@@ -14162,7 +14685,7 @@ a {
 .open-day-fill {
   position: relative;
   height: 22px;
-  background: rgba(16, 24, 47, 0.08);
+  background: var(--admin-border-soft);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -14226,7 +14749,7 @@ a {
   padding: 0 10px;
   color: var(--navy);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
   font: inherit;
   font-size: 0.86rem;
@@ -14248,9 +14771,9 @@ a {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  color: rgba(16, 24, 47, 0.56);
+  color: var(--admin-text-softer);
   background: var(--white);
-  border: 1px solid rgba(16, 24, 47, 0.1);
+  border: 1px solid var(--admin-border-strong);
   border-radius: 8px;
 }
 
@@ -14297,13 +14820,13 @@ a {
 }
 
 .open-registrants-grid-head {
-  background: rgba(16, 24, 47, 0.04);
-  color: rgba(16, 24, 47, 0.55);
+  background: var(--admin-bg-subtle);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-bottom: 1px solid rgba(16, 24, 47, 0.08);
+  border-bottom: 1px solid var(--admin-border-soft);
 }
 
 .open-registrants-grid-head span,
@@ -14314,12 +14837,12 @@ a {
 
 .open-registrants-grid-row {
   background: var(--white);
-  border-bottom: 1px solid rgba(16, 24, 47, 0.04);
+  border-bottom: 1px solid var(--admin-bg-subtle);
   transition: background 140ms ease;
 }
 
 .open-registrants-grid-row:hover {
-  background: rgba(16, 24, 47, 0.02);
+  background: var(--admin-bg-softer);
 }
 
 .open-registrants-grid-row:last-of-type {
@@ -14345,7 +14868,7 @@ a {
 }
 
 .open-registrants-name small {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.74rem;
   font-weight: 700;
   overflow: hidden;
@@ -14363,7 +14886,7 @@ a {
 }
 
 .open-registrants-participants small {
-  color: rgba(16, 24, 47, 0.55);
+  color: var(--admin-text-softer);
   font-size: 0.72rem;
   font-weight: 700;
   overflow: hidden;
@@ -14424,8 +14947,8 @@ a {
   height: 32px;
   align-items: center;
   justify-content: center;
-  color: rgba(16, 24, 47, 0.66);
-  background: rgba(16, 24, 47, 0.04);
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-subtle);
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
@@ -14710,4 +15233,2213 @@ a {
   padding: 24px;
   text-align: center;
   color: #6b7280;
+}
+
+/* ════════════════════════════════════════════
+   DARK MODE — Admin Overrides
+   ════════════════════════════════════════════ */
+
+/* ── Shell ── */
+
+html.dark .admin-shell {
+  background: var(--admin-shell-bg, #0e1525);
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-shell-sidebar {
+  background: #0a101c;
+  border-right-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-shell-topbar {
+  background: var(--admin-topbar-bg, rgba(20, 28, 42, 0.94));
+  border-bottom-color: var(--admin-topbar-border, rgba(255, 255, 255, 0.06));
+}
+
+html.dark .admin-shell-brand {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+html.dark .admin-shell-brand strong {
+  color: #ffffff !important;
+}
+
+html.dark .admin-shell-mobile-toggle {
+  color: var(--navy, #e0ddd5);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Sidebar menu ── */
+
+html.dark .admin-shell-menu-label {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+html.dark .admin-shell-menu-item {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+html.dark .admin-shell-menu-item:hover,
+html.dark .admin-shell-menu-item:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .admin-shell-menu-item.is-active {
+  color: var(--navy, #10182f);
+  background: var(--gold-2, #e5bd55);
+}
+
+html.dark .admin-shell-menu-tag {
+  color: rgba(229, 189, 85, 0.95);
+  background: rgba(229, 189, 85, 0.14);
+}
+
+html.dark .admin-shell-menu-item.is-active .admin-shell-menu-tag {
+  color: var(--navy, #10182f);
+  background: var(--admin-border-heavy);
+}
+
+html.dark .admin-shell-exit {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .admin-shell-exit:hover,
+html.dark .admin-shell-exit:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Topbar user & refresh ── */
+
+html.dark .admin-shell-user-avatar {
+  color: var(--navy, #10182f);
+  background: linear-gradient(180deg, #ffe8a3, #f3c247);
+}
+
+html.dark .admin-shell-user-meta strong {
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-shell-user-meta small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-shell-refresh {
+  color: rgba(240, 237, 230, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .admin-shell-refresh:hover:not(:disabled) {
+  color: var(--navy, #e0ddd5);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html.dark .admin-shell-logout {
+  color: rgba(240, 237, 230, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .admin-shell-logout:hover {
+  color: var(--navy, #e0ddd5);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html.dark .admin-shell-crumb small {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.45));
+}
+
+html.dark .admin-realtime-status {
+  color: rgba(240, 237, 230, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Cards & sections ── */
+
+html.dark .admin-card,
+html.dark .stat-card,
+html.dark .admin-section,
+html.dark .admin-shell-content .booking-detail,
+html.dark .admin-schedule-calendar {
+  background: var(--admin-card-bg, #1c2332);
+  border-color: var(--admin-card-border, rgba(255, 255, 255, 0.06));
+}
+
+html.dark .admin-card-head h2,
+html.dark .stat-card strong {
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-card-head p,
+html.dark .stat-card span,
+html.dark .admin-card-link,
+html.dark .admin-card-empty {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-card-empty {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Detail items ── */
+
+html.dark .admin-shell-content .detail-head {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-shell-content .detail-head strong {
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-shell-content .detail-head small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-shell-content .detail-item span {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-shell-content .detail-item strong {
+  color: var(--navy, #e0ddd5);
+}
+
+/* ── Forms ── */
+
+html.dark .admin-shell-content .form-field {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-shell-content .form-field input:not([type="checkbox"]):not([type="radio"]),
+html.dark .admin-shell-content .form-field textarea,
+html.dark .admin-shell-content .form-field select,
+html.dark .admin-shell-content .search-box input {
+  color: var(--navy, #e0ddd5);
+  background: var(--admin-input-bg, #161e2e);
+  border-color: var(--admin-input-border, rgba(255, 255, 255, 0.1));
+}
+
+html.dark .admin-modal-field input {
+  background: var(--admin-input-bg, #161e2e);
+  border-color: var(--admin-input-border, rgba(255, 255, 255, 0.1));
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-modal-field input:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(240, 237, 230, 0.35);
+}
+
+html.dark .admin-modal-field span {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-modal-field textarea {
+  background: var(--admin-input-bg, #161e2e);
+  border-color: var(--admin-input-border, rgba(255, 255, 255, 0.1));
+  color: var(--navy, #e0ddd5);
+}
+
+/* ── Modals ── */
+
+html.dark .admin-modal {
+  background: var(--admin-card-bg, #1c2332);
+}
+
+html.dark .admin-modal-head h2 {
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-modal p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-modal-close {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .admin-modal-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--navy, #e0ddd5);
+}
+
+/* Gold circle close button (.modal-close) must have hitam X in dark */
+html.dark .modal-close,
+html.dark .carousel-controls button {
+  color: #10182f !important;
+  background: var(--gold-2, #e5bd55) !important;
+}
+html.dark .modal-close svg,
+html.dark .carousel-controls button svg {
+  color: #10182f !important;
+}
+html.dark .booking-delete-modal .modal-close {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .booking-delete-modal .modal-close:hover {
+  color: var(--navy, #e0ddd5) !important;
+  background: var(--admin-bg-subtle, rgba(255,255,255,0.04)) !important;
+}
+
+/* ── Tables ── */
+
+html.dark .admin-table th,
+html.dark .admin-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-table th {
+  color: rgba(240, 237, 230, 0.45);
+}
+
+html.dark .admin-shell-content .booking-table button {
+  background: var(--admin-card-bg, #1c2332);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-shell-content .booking-table button.is-selected {
+  border-color: var(--gold, #c49212);
+  background: rgba(196, 146, 18, 0.14);
+  box-shadow: 0 0 0 2px rgba(196, 146, 18, 0.22);
+}
+
+/* ── Calendar ── */
+
+html.dark .admin-schedule-cal-cell {
+  color: var(--navy, #e0ddd5);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-schedule-cal-cell.is-open {
+  background: rgba(229, 189, 85, 0.1);
+  border-color: rgba(196, 146, 18, 0.25);
+}
+
+html.dark .admin-schedule-cal-cell.is-full {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+html.dark .admin-schedule-cal-cell.is-closed {
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.22);
+}
+
+html.dark .admin-schedule-cal-cell.is-holiday {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+/* ── Status badges ── */
+
+html.dark .status-pending {
+  color: #f5cc5c;
+  background: rgba(196, 146, 18, 0.16);
+  border-color: rgba(196, 146, 18, 0.3);
+}
+
+html.dark .status-accepted {
+  color: #5edb9a;
+  background: rgba(45, 118, 84, 0.18);
+  border-color: rgba(45, 118, 84, 0.3);
+}
+
+html.dark .status-completed {
+  color: rgba(240, 237, 230, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html.dark .status-rejected {
+  color: #f0908a;
+  background: rgba(161, 61, 54, 0.16);
+  border-color: rgba(161, 61, 54, 0.28);
+}
+
+html.dark .status-reschedule {
+  color: #9eafff;
+  background: rgba(75, 95, 196, 0.16);
+  border-color: rgba(75, 95, 196, 0.3);
+}
+
+html.dark .status-expired {
+  color: rgba(240, 237, 230, 0.5);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Pills ── */
+
+html.dark .admin-pill--ok {
+  color: #60cfb0;
+  background: rgba(31, 107, 103, 0.16);
+}
+
+html.dark .admin-pill--off {
+  color: rgba(240, 237, 230, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Display control ── */
+
+html.dark .admin-display-fab {
+  color: #10182f !important;
+  background: var(--gold-2, #e5bd55) !important;
+  border-color: rgba(196, 146, 18, 0.35) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark .admin-display-fab:hover {
+  background: #f0cb66 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark .admin-display-panel {
+  color: var(--navy, #e0ddd5);
+  background: rgba(30, 40, 58, 0.98);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .admin-display-panel-head {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-display-panel-head strong {
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-display-panel-head span {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-display-option {
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-display-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-display-option.is-selected {
+  background: rgba(229, 189, 85, 0.16);
+  border-color: rgba(196, 146, 18, 0.3);
+}
+
+html.dark .admin-display-option-check {
+  color: var(--navy, #e0ddd5);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-display-option.is-selected .admin-display-option-check {
+  color: var(--white, #1c2332);
+  background: var(--navy, #e0ddd5);
+}
+
+/* ── Toast ── */
+
+html.dark .admin-schedule-toast {
+  background: var(--admin-card-bg, #1c2332);
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-schedule-toast--saving {
+  background: var(--admin-card-bg, #1c2332);
+  color: var(--navy, #e0ddd5);
+  border-color: rgba(196, 146, 18, 0.22);
+}
+
+html.dark .admin-schedule-toast--saved {
+  background: var(--admin-card-bg, #1c2332);
+  color: #5edb9a;
+  border-color: rgba(69, 200, 140, 0.25);
+}
+
+/* ── Dashboard ── */
+
+html.dark .admin-dashboard-alert {
+  background: linear-gradient(180deg, rgba(229, 189, 85, 0.08), rgba(196, 146, 18, 0.04));
+  border-color: rgba(196, 146, 18, 0.22);
+}
+
+html.dark .admin-dashboard-alert-icon {
+  color: var(--navy, #10182f);
+  background: linear-gradient(180deg, #ffe28a, #f3c247);
+}
+
+html.dark .admin-agenda-item {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+html.dark .admin-agenda-item.is-today {
+  background: rgba(196, 146, 18, 0.12);
+  border-color: rgba(196, 146, 18, 0.3);
+}
+
+html.dark .admin-agenda-item.is-elapsed {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Error boundary ── */
+
+html.dark .admin-error-boundary {
+  background: #0e1525;
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-error-boundary-card {
+  background: var(--admin-card-bg, #1c2332);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .admin-error-boundary-card > svg {
+  color: var(--gold, #c49212);
+}
+
+/* ── Placeholder ── */
+
+html.dark .admin-placeholder-card {
+  background: var(--admin-card-bg, #1c2332);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+html.dark .admin-placeholder-badge {
+  color: rgba(229, 189, 85, 0.9);
+  background: rgba(196, 146, 18, 0.1);
+  border-color: rgba(196, 146, 18, 0.22);
+}
+
+/* ── Schedule modal weekday chips ── */
+
+html.dark .admin-modal-weekdays span {
+  background: var(--admin-input-bg, #161e2e);
+  color: var(--navy, #e0ddd5);
+  border-color: var(--admin-input-border, rgba(255, 255, 255, 0.1));
+}
+
+/* ── Buttons ── */
+
+html.dark .button-outline {
+  color: var(--navy, #e0ddd5);
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html.dark .button-ghost {
+  color: var(--navy, #e0ddd5);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.dark .button-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+html.dark .button-danger-outline {
+  color: #f0908a;
+  background: transparent;
+  border-color: rgba(161, 61, 54, 0.35);
+}
+
+html.dark .button-primary,
+html.dark .admin-shell-content .button-primary,
+html.dark .admin-create-booking-button {
+  color: #10182f !important;
+  background: linear-gradient(135deg, var(--gold-2, #e5bd55), var(--gold, #c49212)) !important;
+  border-color: var(--gold, #c49212) !important;
+}
+html.dark .button-primary:hover,
+html.dark .button-primary:focus-visible,
+html.dark .admin-shell-content .button-primary:hover,
+html.dark .admin-shell-content .button-primary:focus-visible,
+html.dark .admin-create-booking-button:hover,
+html.dark .admin-create-booking-button:focus-visible {
+  color: #10182f !important;
+}
+html.dark .button-primary svg,
+html.dark .admin-shell-content .button-primary svg,
+html.dark .admin-create-booking-button svg,
+html.dark .button-primary:hover svg,
+html.dark .admin-create-booking-button:hover svg {
+  color: #10182f !important;
+}
+
+/* ── Saving status ── */
+
+html.dark .saving-status--saving {
+  color: var(--navy, #e0ddd5);
+  background: rgba(196, 146, 18, 0.14);
+}
+
+html.dark .saving-status--saved {
+  color: #5edb9a;
+  background: rgba(45, 118, 84, 0.12);
+}
+
+html.dark .saving-status--error {
+  color: #f0908a;
+  background: rgba(161, 61, 54, 0.12);
+}
+
+/* ── Idle overlay ── */
+
+html.dark .admin-idle-modal {
+  background: var(--admin-card-bg, #1c2332);
+}
+
+html.dark .admin-idle-modal h2 {
+  color: var(--navy, #e0ddd5);
+}
+
+html.dark .admin-idle-modal p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .admin-idle-modal p strong {
+  color: var(--navy, #e0ddd5);
+}
+
+/* ── Open tabs / open admin tabs ── */
+
+html.dark .open-admin-tabs button {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+html.dark .open-admin-tabs button.is-active {
+  color: var(--gold, #c49212);
+}
+
+/* ── Theme toggle button ── */
+
+.admin-shell-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border-strong);
+  background: transparent;
+  color: var(--navy, #10182f);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  margin-right: 4px;
+}
+
+.admin-shell-theme-toggle:hover {
+  background: var(--admin-hover);
+  border-color: var(--admin-border-heavy);
+}
+
+html.dark .admin-shell-theme-toggle {
+  color: var(--gold-2, #e5bd55);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .admin-shell-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* ──────────────── Admin Dark Mode Accessibility & Contrast Polish ──────────────── */
+
+/* 1. General Typography & Text */
+html.dark .admin-shell-content p,
+html.dark .admin-page-head p,
+html.dark .admin-shell-content .admin-heading p,
+html.dark .kloter-breakdown-copy,
+html.dark .schedule-kloter-callout-copy p,
+html.dark .admin-schedule-empty p,
+html.dark .admin-schedule-day-panel header small,
+html.dark .admin-actions-locked {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+
+/* 2. Tab Filter Status Booking (.booking-chip) */
+html.dark .booking-chip {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(240, 237, 230, 0.75);
+}
+html.dark .booking-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--navy, #e0ddd5);
+}
+html.dark .booking-chip em {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--navy, #e0ddd5);
+}
+html.dark .booking-chip.booking-chip--completed.is-active {
+  background: var(--navy, #e0ddd5);
+  color: var(--white, #1c2332);
+  border-color: var(--navy, #e0ddd5);
+}
+
+/* 3. List Card Booking (booking table row button) */
+html.dark .admin-shell-content .booking-table button {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+html.dark .admin-shell-content .booking-table button:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+}
+html.dark .admin-shell-content .booking-table small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+/* 4. Detail Panel */
+html.dark .admin-shell-content .detail-item span,
+html.dark .booking-slideover .detail-item span {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.65)) !important;
+}
+html.dark .admin-shell-content .detail-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+html.dark .kloter-detail-row {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+html.dark .booking-system-note summary {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+html.dark .booking-system-note[open] summary {
+  color: var(--gold, #c49212);
+  background: rgba(196, 146, 18, 0.12);
+  border-color: rgba(196, 146, 18, 0.25);
+}
+html.dark .booking-system-note-list p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 5. Kalender Jadwal Kunjungan */
+html.dark .admin-schedule-cal-weekdays span {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.65));
+}
+html.dark .admin-schedule-cal-legend {
+  border-top-color: rgba(255, 255, 255, 0.08);
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.65));
+}
+html.dark .admin-schedule-cal-legend .swatch {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+
+/* 7. Banner Pengaturan */
+html.dark .admin-schedule-banner {
+  background: rgba(229, 189, 85, 0.1);
+  border-color: rgba(196, 146, 18, 0.25);
+  color: #f5cc5c;
+}
+html.dark .admin-schedule-banner strong {
+  color: #f5cc5c;
+}
+html.dark .admin-schedule-banner svg {
+  color: #f5cc5c;
+}
+
+/* 8. Toolbar View Toggles & Booking Summary */
+html.dark .booking-toggle {
+  background: rgba(255, 255, 255, 0.05);
+}
+html.dark .booking-toggle button {
+  color: rgba(240, 237, 230, 0.45);
+}
+html.dark .booking-toggle button:hover {
+  color: var(--navy, #e0ddd5);
+}
+html.dark .booking-toggle button[aria-pressed="true"] {
+  background: var(--white, #1c2332);
+  color: var(--navy, #e0ddd5);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+html.dark .booking-summary {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+/* 9. Dropdown Filter Bulan */
+html.dark .month-selector__select {
+  color: var(--navy, #e0ddd5);
+  background-color: var(--admin-input-bg, #161e2e);
+  border-color: var(--admin-input-border, rgba(255, 255, 255, 0.12));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23e0ddd5' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+html.dark .month-selector__select:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+html.dark .month-selector__select option {
+  background: #161e2e;
+  color: #e0ddd5;
+}
+
+/* 10. Dashboard Notifikasi / Alert Banner */
+html.dark .admin-dashboard-alert-body small,
+html.dark .admin-dashboard-alert-body em {
+  color: rgba(240, 237, 230, 0.65) !important;
+}
+
+/* 11. Kalender Mingguan Dashboard ("Minggu ini") */
+html.dark .admin-dashboard-week-head small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+html.dark .admin-dashboard-week-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--navy, #e0ddd5);
+}
+html.dark .admin-dashboard-week-cell:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+html.dark .admin-dashboard-week-cell.is-active {
+  background: var(--white, #1c2332);
+  border-color: var(--gold, #c49212);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+html.dark .admin-dashboard-week-day {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+html.dark .admin-dashboard-week-cell.is-empty .admin-dashboard-week-date {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* 12. Agenda Harian & List Item */
+html.dark .admin-agenda-tag {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+html.dark .admin-agenda-tag em {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.4));
+}
+html.dark .admin-agenda-meta small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+html.dark .admin-agenda-item.admin-agenda-item--ongoing .admin-agenda-tag strong {
+  color: #5edb9a;
+}
+html.dark .admin-agenda-item.admin-agenda-item--elapsed .admin-agenda-tag strong,
+html.dark .admin-agenda-item.admin-agenda-item--completed .admin-agenda-tag strong {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+
+/* 13. Feedback Terbaru Widget */
+html.dark .admin-feedback-list small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6));
+}
+html.dark .admin-feedback-empty {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.4)) !important;
+}
+html.dark .admin-card-head p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+
+/* 14. Slot Jam Kunjungan UX Alignment */
+html.dark .admin-schedule-slot.is-past {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+html.dark .admin-schedule-slot.is-available {
+  background: rgba(229, 189, 85, 0.14) !important;
+  border-color: rgba(196, 146, 18, 0.45) !important;
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-schedule-slot.is-available:hover {
+  border-color: var(--gold, #c49212) !important;
+  background: rgba(229, 189, 85, 0.2) !important;
+}
+html.dark .admin-schedule-slot.is-available .admin-schedule-slot-text strong {
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-schedule-slot.is-available .admin-schedule-slot-text small {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+html.dark .admin-schedule-slot.is-full {
+  background: #0a101c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+html.dark .admin-schedule-slot.is-full .admin-schedule-slot-text strong {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+html.dark .admin-schedule-slot.is-closed {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+html.dark .admin-schedule-slot.is-closed:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* 15. Kalender Tanggal Terpilih (Selected Day Cell) UX Alignment */
+html.dark .admin-schedule-cal-cell.is-selected.is-open {
+  background: var(--gold, #c49212) !important;
+  border-color: var(--gold, #c49212) !important;
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-schedule-cal-cell.is-selected.is-full {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
+  color: #10182f !important;
+}
+html.dark .admin-schedule-cal-cell.is-selected.is-closed {
+  background: #928b7e !important;
+  border-color: rgba(146, 139, 126, 0.8) !important;
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-schedule-cal-cell.is-selected.is-holiday {
+  background: rgba(238, 232, 220, 0.95) !important;
+  border: 1.5px solid var(--gold, #c49212) !important;
+  color: #10182f !important;
+}
+
+/* 16. Segmented Actions ("Tutup semua", "Buka semua") UX Alignment */
+html.dark .admin-schedule-segment {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-segment-button {
+  color: rgba(240, 237, 230, 0.45) !important;
+}
+html.dark .admin-segment-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-segment-button.is-active {
+  background: var(--white, #1c2332) !important;
+  color: var(--navy, #e0ddd5) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 17. Tambah Jam Khusus Section */
+html.dark .admin-schedule-add-field span {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.65)) !important;
+}
+html.dark .admin-schedule-add-hint {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.4)) !important;
+}
+html.dark .admin-schedule-add-field input {
+  background-color: var(--admin-input-bg, #161e2e) !important;
+  border-color: var(--admin-input-border, rgba(255, 255, 255, 0.12)) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-schedule-add-field input:focus-visible {
+  border-color: var(--gold, #c49212) !important;
+  outline-color: rgba(196, 146, 18, 0.5) !important;
+}
+
+/* 18. Memaksa Teks Jam, Ikon Jam, Status, dan Tutup Slot Berwarna Putih Bersih di Dark Mode */
+html.dark .admin-schedule-slot.is-available .admin-schedule-slot-main,
+html.dark .admin-schedule-slot.is-available .admin-schedule-slot-main svg,
+html.dark .admin-schedule-slot.is-available .admin-schedule-slot-text strong,
+html.dark .admin-schedule-slot.is-available .admin-schedule-slot-text small,
+html.dark .admin-schedule-slot.is-available .admin-schedule-slot-action {
+  color: #ffffff !important;
+}
+
+/* 19. Tombol Navigasi Kalender (< dan >) di Dark Mode */
+html.dark .admin-schedule-cal-head-nav button {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(240, 237, 230, 0.65) !important;
+}
+html.dark .admin-schedule-cal-head-nav button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-schedule-cal-head-nav button:disabled {
+  opacity: 0.3 !important;
+  cursor: default !important;
+}
+
+/* 20. Tombol Pill Default (Pengaturan rentang, dll) di Dark Mode */
+html.dark .admin-pill-button {
+  background: var(--white, #1c2332) !important;
+  color: var(--navy, #e0ddd5) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+html.dark .admin-pill-button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* 21. Border Card Tambah Jam Khusus di Dark Mode */
+html.dark .admin-schedule-add {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 22. Status KPI Ringkasan Hari di Dark Mode */
+html.dark .admin-schedule-day-counters {
+  color: rgba(240, 237, 230, 0.6) !important;
+}
+html.dark .admin-schedule-day-counters strong {
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-schedule-day-counters em {
+  color: rgba(255, 255, 255, 0.15) !important;
+}
+html.dark .admin-schedule-day-counters .is-empty {
+  color: rgba(240, 237, 230, 0.4) !important;
+}
+
+/* 23. Label Metadata & Batasan Popover Detail Booking di Dark Mode */
+html.dark .admin-schedule-slot-popover {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+}
+html.dark .admin-schedule-slot-popover dt {
+  color: rgba(240, 237, 230, 0.5) !important;
+}
+
+/* 24. Outline Abu Tipis untuk Slot Jam Sudah Terisi (Penuh) di Dark Mode */
+html.dark .admin-schedule-slot.is-full {
+  background: #0a101c !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* 25. Divider Bulan List Booking di Dark Mode */
+html.dark .booking-month-divider::after {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .booking-month-divider span {
+  color: rgba(240, 237, 230, 0.5) !important;
+}
+
+/* 26. Pagination di Dark Mode */
+html.dark .booking-pagination {
+  background: var(--white-2, #0e1525) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .booking-pagination button {
+  color: rgba(240, 237, 230, 0.5) !important;
+}
+html.dark .booking-pagination button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--white, #ffffff) !important;
+}
+html.dark .booking-pagination button:disabled {
+  opacity: 0.25 !important;
+}
+html.dark .booking-pagination button.is-current {
+  background: var(--gold, #c49212) !important;
+  color: var(--white-2, #0e1525) !important;
+}
+html.dark .booking-pagination-gap {
+  color: rgba(240, 237, 230, 0.3) !important;
+}
+
+/* 27. Detail Ulasan / Feedback di Dark Mode */
+html.dark .admin-feedback-aspect-label {
+  color: rgba(240, 237, 230, 0.5) !important;
+}
+html.dark .admin-feedback-aspect-empty {
+  color: rgba(240, 237, 230, 0.4) !important;
+}
+html.dark .admin-feedback-score-label span {
+  color: rgba(240, 237, 230, 0.6) !important;
+}
+html.dark .admin-feedback-score-label strong {
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-feedback-score-bar {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-feedback-detail-foot {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-feedback-detail-foot small {
+  color: rgba(240, 237, 230, 0.4) !important;
+}
+html.dark .admin-feedback-aspects {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 28. WhatsApp Template Editor - Sidebar Cards di Dark Mode */
+html.dark .admin-wa-template-card {
+  background: var(--white, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-wa-template-card:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+html.dark .admin-wa-template-card.is-selected {
+  background: rgba(196, 146, 18, 0.12) !important;
+  border-color: var(--gold, #c49212) !important;
+  box-shadow: 0 0 0 2px rgba(196, 146, 18, 0.3) !important;
+}
+html.dark .admin-wa-template-icon {
+  color: rgba(240, 237, 230, 0.5) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+html.dark .admin-wa-template-card.is-selected .admin-wa-template-icon {
+  color: var(--white, #ffffff) !important;
+  background: rgba(196, 146, 18, 0.22) !important;
+}
+html.dark .admin-wa-template-copy small {
+  color: rgba(240, 237, 230, 0.45) !important;
+}
+html.dark .admin-wa-template-card.is-selected .admin-wa-template-copy small {
+  color: rgba(240, 237, 230, 0.75) !important;
+}
+
+/* 29. WhatsApp Template Editor - Labels, Header, & Inputs di Dark Mode */
+html.dark .admin-wa-editor-panel {
+  background: var(--white, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-wa-editor-head {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-wa-editor-head span,
+html.dark .admin-wa-variable-panel > span,
+html.dark .admin-wa-editor-label {
+  color: rgba(240, 237, 230, 0.5) !important;
+}
+html.dark .admin-wa-editor-head p {
+  color: rgba(240, 237, 230, 0.6) !important;
+}
+html.dark .admin-wa-textarea {
+  background: var(--admin-input-bg, #161e2e) !important;
+  border-color: var(--admin-input-border, rgba(255, 255, 255, 0.12)) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-wa-textarea:focus {
+  border-color: var(--gold, #c49212) !important;
+  background: var(--white-2, #0e1525) !important;
+}
+html.dark .admin-wa-variable-panel {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-wa-variable-chip {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-wa-variable-chip:hover {
+  background: rgba(196, 146, 18, 0.22) !important;
+  border-color: rgba(196, 146, 18, 0.45) !important;
+  color: var(--white, #ffffff) !important;
+}
+
+/* 30. Dashboard - Alert Banner Permohonan di Dark Mode */
+html.dark .admin-dashboard-alert .admin-dashboard-alert-body small,
+html.dark .admin-dashboard-alert .admin-dashboard-alert-body em {
+  color: rgba(240, 237, 230, 0.65) !important;
+}
+
+/* 31. Dashboard - Kalender Mingguan ("Minggu ini") di Dark Mode */
+html.dark .admin-dashboard-week-cell .admin-dashboard-week-day {
+  color: rgba(240, 237, 230, 0.5) !important;
+}
+html.dark .admin-dashboard-week-cell .admin-dashboard-week-date {
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-dashboard-week-cell.is-empty .admin-dashboard-week-date {
+  color: rgba(255, 255, 255, 0.25) !important;
+}
+html.dark .admin-dashboard-week-cell.is-past .admin-dashboard-week-day,
+html.dark .admin-dashboard-week-cell.is-past .admin-dashboard-week-date {
+  opacity: 0.45 !important;
+}
+
+/* 32. Dashboard - Agenda Hari Ini di Dark Mode */
+html.dark .admin-agenda-item .admin-agenda-tag {
+  color: rgba(240, 237, 230, 0.7) !important;
+}
+html.dark .admin-agenda-item .admin-agenda-tag strong {
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-agenda-item.is-today .admin-agenda-tag strong {
+  color: #f3c247 !important; /* Emas terang */
+}
+html.dark .admin-agenda-item .admin-agenda-meta strong {
+  color: var(--white, #ffffff) !important;
+}
+html.dark .admin-agenda-item .admin-agenda-meta small {
+  color: rgba(240, 237, 230, 0.65) !important;
+}
+
+/* 33. Dashboard - Widget Feedback Terbaru di Dark Mode */
+html.dark .admin-feedback-list small,
+html.dark .admin-feedback-list .admin-feedback-foot small {
+  color: rgba(240, 237, 230, 0.45) !important;
+}
+
+/* 34. Booking List Tabel View di Dark Mode */
+html.dark .booking-grid-head {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(240, 237, 230, 0.55) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .booking-grid-row {
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+}
+html.dark .booking-grid-row.is-selected {
+  background: rgba(196, 146, 18, 0.12) !important;
+}
+html.dark .booking-grid-cell small {
+  color: rgba(240, 237, 230, 0.45) !important;
+}
+html.dark .booking-grid-meta {
+  color: rgba(240, 237, 230, 0.45) !important;
+}
+
+/* 35. Feedback Filter Sort Dropdown di Dark Mode */
+html.dark .admin-feedback-sort select {
+  background: var(--white, #1c2332)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23e0ddd5' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>")
+    no-repeat right 10px center !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-feedback-sort select:hover {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   36. Dashboard — Proper Dark Contrast Fix (fixes screenshot fails)
+   ────────────────────────────────────────────────────────────── */
+
+/* --- StatCards --- */
+html.dark .stat-card span,
+html.dark .stat-card-hint {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .stat-card strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+
+/* --- Topbar & Export Buttons --- */
+html.dark .booking-export-button {
+  background: var(--admin-card-bg, #1c2332) !important;
+  color: var(--navy, #e0ddd5) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .booking-export-button:hover,
+html.dark .booking-export-button:focus-visible {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(196, 146, 18, 0.45) !important;
+  color: #fff !important;
+}
+html.dark .admin-shell-refresh,
+html.dark .admin-realtime-status {
+  color: rgba(240, 237, 230, 0.75) !important;
+}
+html.dark .admin-shell-refresh:hover:not(:disabled) {
+  color: #fff !important;
+}
+
+/* --- Alert Banner --- */
+html.dark .admin-dashboard-alert {
+  background: linear-gradient(180deg, rgba(229, 189, 85, 0.14), rgba(196, 146, 18, 0.08)) !important;
+  border-color: rgba(196, 146, 18, 0.28) !important;
+}
+html.dark .admin-dashboard-alert-body strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-dashboard-alert-body small,
+html.dark .admin-dashboard-alert-body em {
+  color: rgba(240, 237, 230, 0.7) !important;
+}
+html.dark .admin-dashboard-alert-cta {
+  background: var(--gold-2, #e5bd55) !important;
+  color: #10182f !important;
+  border: 1px solid rgba(196, 146, 18, 0.5) !important;
+}
+html.dark .admin-dashboard-alert-cta:hover,
+html.dark .admin-dashboard-alert-cta:focus-visible {
+  background: var(--gold, #c49212) !important;
+  color: #10182f !important;
+  box-shadow: 0 4px 14px rgba(196, 146, 18, 0.25);
+}
+
+/* --- Weekly Calendar (MINGGU INI) --- */
+html.dark .admin-dashboard-week-head h3 {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-dashboard-week-head small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .admin-dashboard-week-cell {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-dashboard-week-cell:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+html.dark .admin-dashboard-week-day {
+  color: rgba(240, 237, 230, 0.55) !important;
+}
+html.dark .admin-dashboard-week-date {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-dashboard-week-cell.is-empty {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+html.dark .admin-dashboard-week-cell.is-empty .admin-dashboard-week-date {
+  color: rgba(255, 255, 255, 0.28) !important;
+}
+html.dark .admin-dashboard-week-dot {
+  background: rgba(240, 237, 230, 0.5) !important;
+}
+html.dark .admin-dashboard-week-load-empty {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .admin-dashboard-week-load-more {
+  color: rgba(240, 237, 230, 0.65) !important;
+}
+/* today cell */
+html.dark .admin-dashboard-week-cell.is-today {
+  background: rgba(196, 146, 18, 0.16) !important;
+  border-color: rgba(196, 146, 18, 0.36) !important;
+}
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-day,
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-date,
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-load-more {
+  color: #f5cc5c !important;
+}
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-dot {
+  background: #f3c247 !important;
+}
+/* active (selected day) */
+html.dark .admin-dashboard-week-cell.is-active {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: var(--gold, #c49212) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45) !important;
+}
+html.dark .admin-dashboard-week-cell.is-today.is-active {
+  background: rgba(196, 146, 18, 0.22) !important;
+  border-color: var(--gold, #c49212) !important;
+}
+/* past fading */
+html.dark .admin-dashboard-week-cell.is-past {
+  opacity: 0.7 !important;
+}
+html.dark .admin-dashboard-week-cell.is-past:hover,
+html.dark .admin-dashboard-week-cell.is-past.is-active {
+  opacity: 1 !important;
+}
+
+/* Week header actions */
+html.dark .admin-dashboard-week-cta {
+  color: rgba(240, 237, 230, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .admin-dashboard-week-cta:hover,
+html.dark .admin-dashboard-week-cta:focus-visible {
+  color: var(--navy, #e0ddd5) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+html.dark .admin-dashboard-week-poster {
+  background: var(--gold-2, #e5bd55) !important;
+  color: #10182f !important;
+  border-color: var(--gold, #c49212) !important;
+}
+html.dark .admin-dashboard-week-poster:hover,
+html.dark .admin-dashboard-week-poster:focus-visible {
+  background: var(--gold, #c49212) !important;
+  color: #10182f !important;
+}
+
+/* --- Day Detail Header --- */
+html.dark .admin-dashboard-day-title h2 {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-dashboard-day-status--today {
+  color: #10182f !important;
+  background: rgba(229, 189, 85, 0.82) !important;
+  border-color: rgba(196, 146, 18, 0.5) !important;
+}
+html.dark .admin-dashboard-day-status--past {
+  color: rgba(240, 237, 230, 0.65) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .admin-dashboard-day-status--future {
+  color: #9eafff !important;
+  background: rgba(75, 95, 196, 0.16) !important;
+  border-color: rgba(75, 95, 196, 0.28) !important;
+}
+html.dark .admin-dashboard-day-reset {
+  color: rgba(240, 237, 230, 0.65) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+html.dark .admin-dashboard-day-reset:hover,
+html.dark .admin-dashboard-day-reset:focus-visible {
+  color: var(--navy, #e0ddd5) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* --- Agenda List --- */
+html.dark .admin-agenda-item {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+/* Upcoming / Today - yellow, but lower priority than elapsed/ongoing/reschedule */
+html.dark .admin-agenda-item.is-today,
+html.dark .admin-agenda-item.admin-agenda-item--upcoming {
+  background: rgba(196, 146, 18, 0.13) !important;
+  border-color: rgba(196, 146, 18, 0.26) !important;
+}
+html.dark .admin-agenda-item.admin-agenda-item--ongoing {
+  background: rgba(45, 118, 84, 0.15) !important;
+  border-color: rgba(45, 118, 84, 0.28) !important;
+}
+/* Elapsed / Completed - abu, must win over is-today/upcoming */
+html.dark .admin-agenda-item.admin-agenda-item--elapsed,
+html.dark .admin-agenda-item.admin-agenda-item--completed,
+html.dark .admin-agenda-item.is-elapsed,
+html.dark .admin-agenda-item.admin-agenda-item--elapsed.is-today,
+html.dark .admin-agenda-item.admin-agenda-item--completed.is-today,
+html.dark .admin-agenda-item.is-elapsed.is-today {
+  background: rgba(255, 255, 255, 0.025) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .admin-agenda-item.admin-agenda-item--reschedule,
+html.dark .admin-agenda-item.admin-agenda-item--reschedule.is-today {
+  background: rgba(75, 95, 196, 0.13) !important;
+  border-color: rgba(75, 95, 196, 0.24) !important;
+}
+html.dark .admin-agenda-tag {
+  color: rgba(240, 237, 230, 0.65) !important;
+}
+html.dark .admin-agenda-tag em {
+  color: rgba(240, 237, 230, 0.45) !important;
+}
+html.dark .admin-agenda-tag strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+/* Phase colors - order matters, later wins. Use 2-class specificity */
+html.dark .admin-agenda-item.is-today .admin-agenda-tag strong,
+html.dark .admin-agenda-item.admin-agenda-item--upcoming .admin-agenda-tag strong {
+  color: #f3c247 !important;
+}
+html.dark .admin-agenda-item.admin-agenda-item--ongoing .admin-agenda-tag strong,
+html.dark .admin-agenda-item.admin-agenda-item--ongoing.is-today .admin-agenda-tag strong {
+  color: #5edb9a !important;
+}
+html.dark .admin-agenda-item.admin-agenda-item--elapsed .admin-agenda-tag strong,
+html.dark .admin-agenda-item.admin-agenda-item--completed .admin-agenda-tag strong,
+html.dark .admin-agenda-item.is-elapsed .admin-agenda-tag strong,
+html.dark .admin-agenda-item.admin-agenda-item--elapsed.is-today .admin-agenda-tag strong,
+html.dark .admin-agenda-item.admin-agenda-item--completed.is-today .admin-agenda-tag strong {
+  color: rgba(240, 237, 230, 0.55) !important;
+}
+html.dark .admin-agenda-item.admin-agenda-item--reschedule .admin-agenda-tag strong,
+html.dark .admin-agenda-item.admin-agenda-item--reschedule.is-today .admin-agenda-tag strong {
+  color: #9eafff !important;
+}
+/* Institution name must be white readable on all agenda phases in dark */
+html.dark .admin-agenda-meta strong {
+  color: #ffffff !important;
+}
+html.dark .admin-agenda-meta small {
+  color: rgba(240, 237, 230, 0.68) !important;
+}
+
+/* Ensure time tag and institution keep phase color semantics but remain readable */
+html.dark .admin-agenda-item--upcoming .admin-agenda-meta strong,
+html.dark .admin-agenda-item.is-today .admin-agenda-meta strong {
+  color: #ffffff !important;
+}
+html.dark .admin-agenda-item--ongoing .admin-agenda-meta strong {
+  color: #ffffff !important;
+}
+html.dark .admin-agenda-item--elapsed .admin-agenda-meta strong,
+html.dark .admin-agenda-item--completed .admin-agenda-meta strong {
+  color: rgba(240, 237, 230, 0.85) !important;
+}
+html.dark .admin-agenda-item--reschedule .admin-agenda-meta strong {
+  color: #ffffff !important;
+}
+
+/* Date numbers should be white in dark for readability (except gold today cell) */
+html.dark .admin-dashboard-week-cell:not(.is-today) .admin-dashboard-week-date {
+  color: #ffffff !important;
+}
+html.dark .admin-dashboard-week-cell:not(.is-today) .admin-dashboard-week-day {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-date,
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-day {
+  color: #10182f !important;
+}
+
+/* --- Card Links (Buka booking, Atur jadwal, Lihat semua) --- */
+html.dark .admin-card-link {
+  color: rgba(240, 237, 230, 0.65) !important;
+}
+html.dark .admin-card-link:hover,
+html.dark .admin-card-link:focus-visible {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+
+/* --- Feedback Widget --- */
+html.dark .admin-feedback-list li {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+html.dark .admin-feedback-list li.is-low {
+  background: rgba(220, 80, 80, 0.10) !important;
+  border-color: rgba(220, 80, 80, 0.26) !important;
+}
+html.dark .admin-feedback-head strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-feedback-list p {
+  color: rgba(240, 237, 230, 0.82) !important;
+}
+html.dark .admin-feedback-list small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .admin-feedback-flag {
+  color: #f5a9a4 !important;
+  background: rgba(161, 61, 54, 0.22) !important;
+  border-color: rgba(161, 61, 54, 0.38) !important;
+}
+html.dark .admin-card-empty,
+html.dark .admin-feedback-empty {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.45)) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+html.dark .admin-card-head p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+
+/* Status badge inside agenda */
+html.dark .admin-agenda-item .status-badge {
+  /* keep light-mode colors but ensure contrast via dark overrides already defined for .status-* */
+}
+
+/* --- StatCard extra polish for dark --- */
+html.dark .admin-stats .stat-card {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   37. Yellow / Gold Cards — icon & text must be hitam #10182f in dark
+   (ref: Poster agenda button)
+   Covers: active sidebar, alert icon circle, today week cell, today pill
+   ────────────────────────────────────────────────────────────── */
+html.dark .admin-shell-menu-item.is-active {
+  color: #10182f !important;
+  background: var(--gold-2, #e5bd55) !important;
+}
+html.dark .admin-shell-menu-item.is-active svg {
+  color: #10182f !important;
+}
+html.dark .admin-shell-menu-item.is-active .admin-shell-menu-tag {
+  color: #10182f !important;
+  background: var(--admin-border-heavy) !important;
+}
+
+html.dark .admin-dashboard-alert-icon {
+  color: #10182f !important;
+  background: linear-gradient(180deg, #ffe28a, #f3c247) !important;
+}
+html.dark .admin-dashboard-alert-icon svg {
+  color: #10182f !important;
+}
+
+/* Today cell — make solid gold like Poster agenda, black text */
+html.dark .admin-dashboard-week-cell.is-today {
+  background: var(--gold-2, #e5bd55) !important;
+  border-color: var(--gold, #c49212) !important;
+}
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-day,
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-date,
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-load-more {
+  color: #10182f !important;
+}
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-dot {
+  background: #10182f !important;
+}
+html.dark .admin-dashboard-week-cell.is-today .admin-dashboard-week-load-empty {
+  background: var(--admin-text-faint) !important;
+}
+
+/* Today active (selected + today) — slightly darker gold */
+html.dark .admin-dashboard-week-cell.is-today.is-active {
+  background: var(--gold, #c49212) !important;
+  border-color: #a67a0f !important;
+  color: #10182f !important;
+  box-shadow: 0 2px 8px rgba(196, 146, 18, 0.35) !important;
+}
+html.dark .admin-dashboard-week-cell.is-today.is-active .admin-dashboard-week-day,
+html.dark .admin-dashboard-week-cell.is-today.is-active .admin-dashboard-week-date,
+html.dark .admin-dashboard-week-cell.is-today.is-active .admin-dashboard-week-load-more {
+  color: #10182f !important;
+}
+html.dark .admin-dashboard-week-cell.is-today.is-active .admin-dashboard-week-dot {
+  background: #10182f !important;
+}
+
+/* Today pill RABU, 15 JULI — ensure black text on gold */
+html.dark .admin-dashboard-day-status--today {
+  color: #10182f !important;
+  background: var(--gold-2, #e5bd55) !important;
+  border-color: var(--gold, #c49212) !important;
+}
+
+/* Poster agenda — enforce black (ref correctness) */
+html.dark .admin-dashboard-week-poster,
+html.dark .admin-dashboard-week-poster svg {
+  color: #10182f !important;
+}
+html.dark .admin-dashboard-alert-cta,
+html.dark .admin-dashboard-alert-cta svg {
+  color: #10182f !important;
+}
+
+/* Avatar AI circle — gold bg must have black text in dark */
+html.dark .admin-shell-user-avatar {
+  color: #10182f !important;
+  background: linear-gradient(180deg, #ffe8a3, #f3c247) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   38. Phase 1 High — Full Admin Dark Contrast (CMS, Booking filter,
+   Schedule status pills, Segment editor & slot chips, 2FA recovery,
+   Poster/Export modals, Istura Open)
+   ══════════════════════════════════════════════════════════════════ */
+
+/* --- CMS rows & editors --- */
+html.dark .admin-cms-row {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .admin-cms-row:hover,
+html.dark .admin-cms-row:focus-within {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .admin-cms-row-body strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-cms-row-body p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .admin-cms-row-body small,
+html.dark .admin-file-field-label,
+html.dark .admin-activity-image-hint,
+html.dark .admin-cms-row-icon {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.45)) !important;
+}
+html.dark .admin-site-image-editor,
+html.dark .admin-activity-image-preview,
+html.dark .admin-landing-subcard,
+html.dark .admin-cms-link .admin-site-image-editor {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-section-tabs {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-section-tabs button {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .admin-section-tabs button:hover,
+html.dark .admin-section-tabs button:focus-visible {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-section-tabs button.is-active {
+  color: var(--navy, #e0ddd5) !important;
+  border-bottom-color: var(--gold, #c49212) !important;
+}
+html.dark .admin-info-grid > div {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+html.dark .admin-kv-list > div {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .admin-kv-list dt,
+html.dark .admin-password-input-toggle,
+html.dark .admin-file-name {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .admin-kv-list dd {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-password-input {
+  background: var(--admin-input-bg, #161e2e) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html.dark .admin-icon-btn {
+  color: rgba(240, 237, 230, 0.55) !important;
+}
+html.dark .admin-icon-btn:hover:not(:disabled),
+html.dark .admin-icon-btn:focus-visible {
+  color: var(--navy, #e0ddd5) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* --- Booking filter popover (High) --- */
+html.dark .booking-filter-trigger {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-filter-popover {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55) !important;
+}
+html.dark .booking-filter-label {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .booking-filter-option {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(240, 237, 230, 0.75) !important;
+  border-color: transparent !important;
+}
+html.dark .booking-filter-option:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-filter-option.is-active {
+  background: var(--gold, #c49212) !important;
+  color: #10182f !important;
+  border-color: var(--gold, #c49212) !important;
+}
+html.dark .booking-filter-range input[type="date"],
+html.dark .booking-control,
+html.dark .booking-range input[type="date"],
+html.dark .booking-control select {
+  background: var(--admin-input-bg, #161e2e) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-filter-footer {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .booking-filter-reset {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .booking-filter-reset:hover:not(:disabled) {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-filter-apply {
+  background: var(--gold, #c49212) !important;
+  color: #10182f !important;
+}
+html.dark .booking-filter-apply:hover {
+  background: var(--gold-2, #e5bd55) !important;
+}
+html.dark .booking-export-option {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .booking-export-option:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+html.dark .booking-export-option:has(input:checked) {
+  background: rgba(196, 146, 18, 0.12) !important;
+  border-color: var(--gold, #c49212) !important;
+}
+html.dark .booking-export-option span small,
+html.dark .booking-filter-option span small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+
+/* --- Schedule day status pills (High) --- */
+html.dark .admin-schedule-day-status.is-open,
+html.dark .admin-schedule-day-status.is-mixed {
+  background: rgba(196, 146, 18, 0.18) !important;
+  color: #f5cc5c !important;
+  border-color: rgba(196, 146, 18, 0.32) !important;
+}
+html.dark .admin-schedule-day-status.is-closed {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(240, 237, 230, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html.dark .admin-schedule-day-status.is-holiday {
+  background: rgba(238, 232, 220, 0.08) !important;
+  color: rgba(240, 237, 230, 0.6) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.14) !important;
+}
+
+/* --- Segment editor & slot chips (High) --- */
+html.dark .segment-editor-row {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .segment-editor-row.has-error {
+  background: rgba(161, 61, 54, 0.08) !important;
+  border-color: rgba(161, 61, 54, 0.28) !important;
+}
+html.dark .segment-size-field,
+html.dark .segment-date-field,
+html.dark .segment-slot-picker-head,
+html.dark .segment-slot-picker-context,
+html.dark .admin-kloter-mode,
+html.dark .admin-manual-total {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .segment-size-field input,
+html.dark .segment-date-field select {
+  background: var(--admin-input-bg, #161e2e) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-slot-picker-context {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .segment-slot-grid .segment-slot-chip {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-slot-chip.is-available {
+  background: rgba(229, 189, 85, 0.12) !important;
+  border-color: rgba(196, 146, 18, 0.24) !important;
+}
+html.dark .segment-slot-chip.is-own,
+html.dark .segment-slot-chip.is-occupied {
+  background: rgba(31, 107, 103, 0.16) !important;
+  border-color: rgba(31, 107, 103, 0.28) !important;
+  color: #5edb9a !important;
+}
+html.dark .segment-slot-chip.is-own strong,
+html.dark .segment-slot-chip.is-own small,
+html.dark .segment-slot-chip.is-occupied strong,
+html.dark .segment-slot-chip.is-occupied small {
+  color: #5edb9a !important;
+}
+html.dark .segment-slot-chip.is-full {
+  background: #0a101c !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(240, 237, 230, 0.8) !important;
+}
+html.dark .segment-slot-chip.is-full small {
+  color: rgba(240, 237, 230, 0.5) !important;
+}
+html.dark .segment-slot-chip.is-closed {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(240, 237, 230, 0.4) !important;
+}
+html.dark .segment-slot-chip.is-selected {
+  background: var(--gold, #c49212) !important;
+  border-color: var(--gold, #c49212) !important;
+  color: #10182f !important;
+}
+html.dark .segment-slot-chip.is-selected strong,
+html.dark .segment-slot-chip.is-selected small {
+  color: #10182f !important;
+}
+html.dark .segment-slot-chip:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+html.dark .segment-size-field small,
+html.dark .segment-date-field small,
+html.dark .segment-slot-chip small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .segment-row-note,
+html.dark .segment-row-errors {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .admin-confirmation-group {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-confirmation-title {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.45)) !important;
+}
+html.dark .admin-segmented-control {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-segmented-control button {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .admin-segmented-control button.is-active {
+  background: var(--admin-card-bg, #1c2332) !important;
+  color: var(--navy, #e0ddd5) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32) !important;
+}
+
+/* --- 2FA recovery codes (High) --- */
+html.dark .admin-2fa-recovery-codes {
+  background: var(--admin-input-bg, #161e2e) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-2fa-recovery-note {
+  color: #f5a9a4 !important;
+}
+
+/* --- Poster & Export modals (High) --- */
+html.dark .poster-modal-sub,
+html.dark .poster-row-count {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .poster-week-nav-btn {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .poster-week-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .poster-week-nav-label {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-export-modal .admin-modal-head,
+html.dark .poster-modal .admin-modal-head {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .booking-export-range-button {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-export-range-button.is-active {
+  background: var(--gold, #c49212) !important;
+  color: #10182f !important;
+  border-color: var(--gold, #c49212) !important;
+}
+html.dark .booking-export-preview p,
+html.dark .booking-export-custom small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+
+/* --- Feedback detail blockquote & chips --- */
+html.dark .admin-feedback-comment blockquote {
+  background: rgba(196, 146, 18, 0.1) !important;
+  color: var(--navy, #e0ddd5) !important;
+  border-left-color: var(--gold, #c49212) !important;
+}
+html.dark .admin-feedback-chip--positive {
+  background: rgba(31, 107, 103, 0.16) !important;
+  color: #5edb9a !important;
+}
+html.dark .admin-feedback-chip--warn {
+  background: rgba(196, 146, 18, 0.16) !important;
+  color: #f5cc5c !important;
+}
+html.dark .admin-feedback-score-bar,
+html.dark .admin-feedback-score-bar {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .admin-feedback-detail-foot,
+html.dark .admin-feedback-aspects,
+html.dark .admin-feedback-comment {
+  border-top-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* --- Tables, audit, users --- */
+html.dark .admin-table th,
+html.dark .admin-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .admin-table th {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.45)) !important;
+}
+html.dark .admin-users-table tr {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .admin-action-list li,
+html.dark .admin-kv-list > div,
+html.dark .admin-checklist li {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .admin-action-list small,
+html.dark .admin-cms-save-status,
+html.dark .admin-audit-count {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .admin-audit-list li {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .admin-audit-list li p {
+  color: rgba(240, 237, 230, 0.78) !important;
+}
+html.dark .admin-audit-list li small,
+html.dark .admin-audit-filter-field span {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .booking-detail--empty,
+html.dark .admin-cms-page .admin-card--empty {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+
+/* --- Booking grid/table --- */
+html.dark .booking-grid {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .booking-grid-head {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .booking-grid-row {
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+}
+html.dark .booking-grid-row:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+html.dark .booking-grid-row.is-selected {
+  background: rgba(196, 146, 18, 0.12) !important;
+}
+html.dark .booking-grid-cell {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-grid-cell small,
+html.dark .booking-grid-meta,
+html.dark .booking-row-main small {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .booking-slideover-panel {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-left-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .booking-slideover-backdrop {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+html.dark .booking-slideover-panel header strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .booking-slideover-panel header small,
+html.dark .booking-slideover-close {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .booking-slideover-close:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .booking-virtual {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: rgba(255, 255, 255, 0.015) !important;
+}
+
+/* --- Istura Open manager (High) --- */
+html.dark .open-date-builder {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .open-date-builder-head > span,
+html.dark .open-day-admin-head strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .open-date-builder-head small,
+html.dark .open-selected-dates-empty,
+html.dark .open-date-mode-hint,
+html.dark .open-danger-zone p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .open-date-calendar-grid.admin-schedule-calendar {
+  background: var(--admin-card-bg, #1c2332) !important;
+}
+html.dark .open-danger-zone {
+  background: rgba(161, 61, 54, 0.08) !important;
+  border-color: rgba(161, 61, 54, 0.22) !important;
+}
+html.dark .open-day-admin-card {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .open-day-inline-table-head {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .open-day-inline-table-row {
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+}
+html.dark .open-day-conflict {
+  background: rgba(220, 80, 80, 0.08) !important;
+  border-color: rgba(220, 80, 80, 0.24) !important;
+}
+html.dark .open-registrants-grid-head {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .open-registrants-grid-row {
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+}
+html.dark .open-registrants-grid-row:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+html.dark .open-poster-preview {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+html.dark .open-poster-empty {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+html.dark .open-date-chip {
+  color: var(--navy, #e0ddd5) !important;
+  background: rgba(196, 146, 18, 0.16) !important;
+  border-color: rgba(196, 146, 18, 0.24) !important;
+}
+
+/* --- Document links & popover --- */
+html.dark .document-detail-link {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .document-detail-link strong {
+  text-decoration-color: rgba(240, 237, 230, 0.35) !important;
+}
+html.dark .document-detail-download {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .document-detail-download:hover,
+html.dark .document-detail-download:focus-visible {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-schedule-slot-popover {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55) !important;
+}
+html.dark .admin-schedule-slot-popover dd,
+html.dark .admin-schedule-slot-popover header strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+
+/* --- Reschedule banner inside detail --- */
+html.dark .reschedule-banner {
+  background: rgba(196, 146, 18, 0.1) !important;
+  border-color: rgba(196, 146, 18, 0.22) !important;
+}
+html.dark .reschedule-banner-head {
+  color: #f5cc5c !important;
+}
+html.dark .reschedule-banner-slot span,
+html.dark .reschedule-banner-meta {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .reschedule-banner-slot strong,
+html.dark .reschedule-banner-note {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .reschedule-banner-note {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* --- Misc small helpers --- */
+html.dark .admin-file-field-label span,
+html.dark .kloter-detail-row span,
+html.dark .kloter-detail-row strong {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .admin-file-field-label strong,
+html.dark .admin-file-name strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .admin-modal-helper,
+html.dark .admin-modal-preview-hint,
+html.dark .admin-modal-preview p {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .admin-modal-preview {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+html.dark .open-day-fill,
+html.dark .admin-audit-filter-field input {
+  background: var(--admin-input-bg, #161e2e) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+
+/* --- Segment modal (Atur pembagian kloter) — light panel with white text bug --- */
+html.dark .segment-task-panel {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .segment-total-field {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .segment-total-field strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-modal-head p,
+html.dark .segment-row-note,
+html.dark .segment-preview-state {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .segment-modal-kicker {
+  color: var(--admin-text-muted, rgba(240, 237, 230, 0.45)) !important;
+}
+html.dark .segment-modal-card h2 {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-table-head {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.55)) !important;
+}
+html.dark .segment-table-row {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.dark .segment-table-row > strong {
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-table-row select,
+html.dark .segment-table-row input {
+  background: var(--admin-input-bg, #161e2e) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-table-toolbar .button,
+html.dark .segment-add-button {
+  background: var(--admin-card-bg, #1c2332) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-table-toolbar .button:hover,
+html.dark .segment-add-button:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
+}
+html.dark .segment-icon-button {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .segment-icon-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--navy, #e0ddd5) !important;
+}
+html.dark .segment-correction-toggle,
+html.dark .admin-confirm-check {
+  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+}
+html.dark .segment-modal-card > .modal-actions {
+  background: linear-gradient(180deg, rgba(28, 35, 50, 0.82), var(--admin-card-bg, #1c2332) 34%) !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
 }

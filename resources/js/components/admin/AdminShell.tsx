@@ -1,13 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
+  ChevronLeft,
+  ChevronRight,
   Lock,
   LogOut,
   Mail,
   Menu,
+  Moon,
   RefreshCw,
+  Sun,
   Timer,
 } from "lucide-react";
 import type { AdminSession, AdminTab } from "../../domain/types";
@@ -19,6 +24,71 @@ import { login as apiLogin, me as apiMe } from "../../api/auth";
 import { ApiError, ValidationError } from "../../api/client";
 import { ButtonSpinner } from "../ui/LoadingStates";
 import { useIdleTimeout } from "../../hooks/useIdleTimeout";
+
+type AdminDisplayScale = "compact" | "comfortable" | "large";
+
+const ADMIN_DISPLAY_STORAGE_KEY = "istura.admin.display-scale.v1";
+const ADMIN_THEME_STORAGE_KEY = "istura.admin.theme.v1";
+const ADMIN_SIDEBAR_COLLAPSED_KEY = "istura.admin.sidebar-collapsed.v1";
+const DEFAULT_ADMIN_DISPLAY: AdminDisplayScale = "comfortable";
+const ADMIN_DISPLAY_OPTIONS: Array<{
+  value: AdminDisplayScale;
+  label: string;
+  description: string;
+  scale: string;
+}> = [
+  {
+    value: "compact",
+    label: "Ringkas",
+    description: "Lebih banyak data terlihat",
+    scale: "100%",
+  },
+  {
+    value: "comfortable",
+    label: "Nyaman",
+    description: "Seimbang dan mudah dibaca",
+    scale: "112%",
+  },
+  {
+    value: "large",
+    label: "Besar",
+    description: "Teks dan kontrol paling jelas",
+    scale: "125%",
+  },
+];
+
+function readAdminDisplayScale(): AdminDisplayScale {
+  if (typeof window === "undefined") return DEFAULT_ADMIN_DISPLAY;
+
+  try {
+    const stored = window.localStorage.getItem(ADMIN_DISPLAY_STORAGE_KEY);
+    if (stored === "compact" || stored === "comfortable" || stored === "large") {
+      return stored;
+    }
+  } catch {
+    // Storage bisa diblokir browser; fallback tetap membuat kontrol berfungsi per sesi.
+  }
+
+  return DEFAULT_ADMIN_DISPLAY;
+}
+
+function readAdminTheme(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(ADMIN_THEME_STORAGE_KEY) === "dark";
+  } catch {
+    return false;
+  }
+}
+
+function readAdminSidebarCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(ADMIN_SIDEBAR_COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 export function AdminShell({
   session,
@@ -45,6 +115,84 @@ export function AdminShell({
 }) {
   const [isMobileNavOpen, setMobileNavOpen] = useState(false);
   const [justRefreshed, setJustRefreshed] = useState(false);
+  const [displayScale, setDisplayScale] = useState<AdminDisplayScale>(readAdminDisplayScale);
+  const [darkMode, setDarkMode] = useState(readAdminTheme);
+  const [isCollapsed, setIsCollapsed] = useState(readAdminSidebarCollapsed);
+  const [isDisplayPanelOpen, setDisplayPanelOpen] = useState(false);
+  const displayControlRef = useRef<HTMLDivElement>(null);
+  const displayButtonRef = useRef<HTMLButtonElement>(null);
+  const displayPanelId = useId();
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.adminDisplay = displayScale;
+
+    return () => {
+      if (document.documentElement.dataset.adminDisplay === displayScale) {
+        delete document.documentElement.dataset.adminDisplay;
+      }
+    };
+  }, [displayScale]);
+
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+
+    return () => {
+      document.documentElement.classList.remove("dark");
+    };
+  }, [darkMode]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ADMIN_DISPLAY_STORAGE_KEY, displayScale);
+    } catch {
+      // Preferensi tetap aktif untuk sesi berjalan bila storage tidak tersedia.
+    }
+  }, [displayScale]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        ADMIN_THEME_STORAGE_KEY,
+        darkMode ? "dark" : "light",
+      );
+    } catch {
+      // Preferensi tetap aktif untuk sesi berjalan.
+    }
+  }, [darkMode]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ADMIN_SIDEBAR_COLLAPSED_KEY, isCollapsed ? "true" : "false");
+    } catch {
+      // ignore
+    }
+  }, [isCollapsed]);
+
+  useEffect(() => {
+    if (!isDisplayPanelOpen) return;
+
+    displayControlRef.current
+      ?.querySelector<HTMLButtonElement>(".admin-display-option.is-selected")
+      ?.focus();
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!displayControlRef.current?.contains(event.target as Node)) {
+        setDisplayPanelOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setDisplayPanelOpen(false);
+      displayButtonRef.current?.focus();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDisplayPanelOpen]);
   // Tampilkan konfirmasi singkat "Diperbarui" saat refresh selesai.
   useEffect(() => {
     if (refreshing || !justRefreshed) return;
@@ -87,7 +235,7 @@ export function AdminShell({
   }, {});
 
   return (
-    <div className="admin-shell">
+    <div className={`admin-shell${isCollapsed ? " is-collapsed" : ""}`} data-admin-display={displayScale}>
       <button
         type="button"
         className={`admin-shell-scrim${isMobileNavOpen ? " is-open" : ""}`}
@@ -100,6 +248,15 @@ export function AdminShell({
         <div className="admin-shell-brand">
           <img src={ASSETS.logoGold} alt="Gedung Agung" />
           <strong>ISTURA Admin</strong>
+          <button
+            type="button"
+            className="admin-shell-collapse-toggle"
+            onClick={() => setIsCollapsed((v) => !v)}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronLeft size={16} aria-hidden="true" />}
+          </button>
         </div>
         <nav className="admin-shell-menu" aria-label="Navigasi admin">
           {Object.entries(grouped).map(([group, items]) => (
@@ -113,6 +270,7 @@ export function AdminShell({
                     type="button"
                     key={item.key}
                     className={`admin-shell-menu-item${isActive ? " is-active" : ""}`}
+                    title={isCollapsed ? item.label : undefined}
                     onClick={() => {
                       onTabChange(item.key);
                       setMobileNavOpen(false);
@@ -133,9 +291,10 @@ export function AdminShell({
           type="button"
           className="admin-shell-exit"
           onClick={onExitToPublic}
+          title={isCollapsed ? "Lihat sisi publik" : undefined}
         >
           <ArrowLeft size={16} aria-hidden="true" />
-          Lihat sisi publik
+          <span>Lihat sisi publik</span>
         </button>
       </aside>
 
@@ -184,6 +343,16 @@ export function AdminShell({
             </div>
           </div>
           <div className="admin-shell-user">
+            <button
+              type="button"
+              className="admin-shell-theme-toggle"
+              onClick={() => setDarkMode((prev) => !prev)}
+              aria-label={darkMode ? "Aktifkan mode terang" : "Aktifkan mode gelap"}
+              aria-pressed={darkMode}
+              title={darkMode ? "Mode gelap · klik untuk mode terang" : "Mode terang · klik untuk mode gelap"}
+            >
+              {darkMode ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+            </button>
             <div className="admin-shell-user-avatar" aria-hidden="true">
               {session.name
                 .split(" ")
@@ -226,6 +395,63 @@ export function AdminShell({
             )}
           </div>
         )}
+      </div>
+
+      <div className="admin-display-control" ref={displayControlRef}>
+        {isDisplayPanelOpen && (
+          <section
+            className="admin-display-panel"
+            id={displayPanelId}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby={`${displayPanelId}-title`}
+          >
+            <div className="admin-display-panel-head">
+              <div>
+                <strong id={`${displayPanelId}-title`}>Ukuran tampilan</strong>
+                <span>Hanya berlaku di panel admin</span>
+              </div>
+              <span className="admin-display-panel-mark" aria-hidden="true">Aa</span>
+            </div>
+            <div className="admin-display-options" role="group" aria-label="Pilih ukuran tampilan admin">
+              {ADMIN_DISPLAY_OPTIONS.map((option) => {
+                const selected = displayScale === option.value;
+                return (
+                  <button
+                    type="button"
+                    key={option.value}
+                    className={`admin-display-option${selected ? " is-selected" : ""}`}
+                    aria-pressed={selected}
+                    onClick={() => setDisplayScale(option.value)}
+                  >
+                    <span className="admin-display-option-copy">
+                      <strong>{option.label}</strong>
+                      <small>{option.description}</small>
+                    </span>
+                    <span className="admin-display-option-meta">
+                      <em>{option.scale}</em>
+                      <span className="admin-display-option-check" aria-hidden="true">
+                        {selected && <Check size={15} strokeWidth={3} />}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+        <button
+          ref={displayButtonRef}
+          type="button"
+          className="admin-display-fab"
+          aria-label={`Ukuran tampilan: ${ADMIN_DISPLAY_OPTIONS.find((option) => option.value === displayScale)?.label}`}
+          aria-expanded={isDisplayPanelOpen}
+          aria-controls={isDisplayPanelOpen ? displayPanelId : undefined}
+          title="Atur ukuran tampilan"
+          onClick={() => setDisplayPanelOpen((open) => !open)}
+        >
+          <span aria-hidden="true">Aa</span>
+        </button>
       </div>
 
       {showWarning && (

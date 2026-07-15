@@ -35,9 +35,23 @@ export function AdminFeedbackList({
   const isCompactScreen = useMediaQuery("(max-width: 980px)");
   const [showSlideOver, setShowSlideOver] = useState(false);
 
+  const safeFeedbacks = useMemo(
+    () =>
+      feedbacks.map((feedback) => ({
+        ...feedback,
+        highlights: Array.isArray(feedback.highlights)
+          ? feedback.highlights
+          : [],
+        improvements: Array.isArray(feedback.improvements)
+          ? feedback.improvements
+          : [],
+      })),
+    [feedbacks],
+  );
+
   const enriched = useMemo(
     () =>
-      feedbacks.map((feedback) => {
+      safeFeedbacks.map((feedback) => {
         const booking = bookings.find((item) => item.code === feedback.code);
         return {
           ...feedback,
@@ -49,7 +63,7 @@ export function AdminFeedbackList({
           dateKey: booking?.date ?? "",
         };
       }),
-    [feedbacks, bookings],
+    [safeFeedbacks, bookings],
   );
 
   // Counts dipakai sebagai badge angka di chip filter, sama seperti pola
@@ -113,11 +127,14 @@ export function AdminFeedbackList({
     pagedFeedbacks[0] ??
     null;
 
+  const hasFeedbacks = safeFeedbacks.length > 0;
+
   // KPI: agregat dipakai untuk evaluasi internal, jadi kita pakai dataset
   // penuh, bukan hasil filter.
-  const averageRating = feedbacks.length
+  const averageRating = safeFeedbacks.length
     ? (
-        feedbacks.reduce((sum, feedback) => sum + feedback.rating, 0) / feedbacks.length
+        safeFeedbacks.reduce((sum, feedback) => sum + feedback.rating, 0) /
+        safeFeedbacks.length
       ).toFixed(1)
     : "0.0";
   const needsAttention = feedbacks.filter((feedback) => feedback.rating <= 3).length;
@@ -126,7 +143,7 @@ export function AdminFeedbackList({
     .filter((booking) => booking.status === "Completed")
     .reduce((sum, booking) => sum + booking.groupSize, 0);
   const responseRate = totalCompletedQuota
-    ? Math.round((feedbacks.length / totalCompletedQuota) * 100)
+    ? Math.round((safeFeedbacks.length / totalCompletedQuota) * 100)
     : 0;
 
   const filtersActive = ratingFilter !== "all" || search.trim().length > 0;
@@ -314,7 +331,7 @@ export function AdminFeedbackList({
       {showExportModal && (
         <FeedbackExportModal
           bookings={bookings}
-          feedbacks={feedbacks}
+          feedbacks={safeFeedbacks}
           feedbackContent={feedbackContent}
           adminName={adminName}
           onClose={() => setShowExportModal(false)}
