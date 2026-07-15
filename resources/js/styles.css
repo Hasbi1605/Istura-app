@@ -17436,8 +17436,27 @@ html.dark .segment-icon-button:hover:not(:disabled) {
   color: var(--navy, #e0ddd5) !important;
 }
 html.dark .segment-correction-toggle,
-html.dark .admin-confirm-check {
-  color: var(--admin-text-soft, rgba(240, 237, 230, 0.6)) !important;
+html.dark .admin-confirm-check,
+html.dark .form-check.admin-confirm-check {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: rgba(240, 237, 230, 0.85) !important;
+}
+html.dark .admin-confirm-check-copy {
+  color: rgba(240, 237, 230, 0.85) !important;
+}
+html.dark .admin-confirm-check-copy small {
+  color: rgba(240, 237, 230, 0.60) !important;
+}
+html.dark .admin-slot-conflict-check {
+  background: rgba(196, 146, 18, 0.12) !important;
+  border-color: rgba(196, 146, 18, 0.28) !important;
+}
+html.dark .admin-slot-conflict-check .admin-confirm-check-copy {
+  color: rgba(240, 237, 230, 0.85) !important;
+}
+html.dark .admin-slot-conflict-check .admin-confirm-check-copy small {
+  color: #f5cc5c !important;
 }
 html.dark .segment-modal-card > .modal-actions {
   background: linear-gradient(180deg, rgba(28, 35, 50, 0.82), var(--admin-card-bg, #1c2332) 34%) !important;
