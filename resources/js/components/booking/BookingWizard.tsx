@@ -147,7 +147,7 @@ function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
   const type = slot.closureReason?.type ?? day?.closureReason?.type ?? day?.holiday?.type;
   if (type === "national_holiday") return "Libur Nasional";
   if (type === "collective_leave") return "Cuti Bersama";
-  if (type === "operational_closed") return "Ditutup admin";
+  if (type === "operational_closed") return "Kunjungan tutup";
   return slot.closureReason?.label ?? closureReasonLabel(day);
 }
 

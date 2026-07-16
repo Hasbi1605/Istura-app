@@ -515,7 +515,7 @@ class ScheduleSyncTest extends TestCase
         $this->assertSame('Booked', $slot['status']);
         $this->assertSame(1, $slot['bookingCount']);
         $this->assertSame('manual_closed', $slot['closureReason']['type']);
-        $this->assertSame('Ditutup admin', $slot['closureReason']['label']);
+        $this->assertSame('Kunjungan tutup', $slot['closureReason']['label']);
         $this->assertSame('Booked', app(ScheduleService::class)->slotStatusFor($date, '08.00'));
         $this->assertSame('Booked', app(ScheduleService::class)->slotStatusesFor($date, ['08.00'])['08.00']);
     }

@@ -341,8 +341,8 @@ class ScheduleService
         if ($status !== 'Closed' && $override?->status === 'Closed') {
             return [
                 'type' => 'manual_closed',
-                'name' => 'Ditutup admin',
-                'label' => 'Ditutup admin',
+                'name' => 'Kunjungan tutup',
+                'label' => 'Kunjungan tutup',
                 'tentative' => false,
             ];
         }
@@ -358,8 +358,8 @@ class ScheduleService
         if ($override?->status === 'Closed') {
             return [
                 'type' => 'manual_closed',
-                'name' => 'Ditutup admin',
-                'label' => 'Ditutup admin',
+                'name' => 'Kunjungan tutup',
+                'label' => 'Kunjungan tutup',
                 'tentative' => false,
             ];
         }
