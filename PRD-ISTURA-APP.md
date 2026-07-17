@@ -111,7 +111,7 @@ WebSocket (Laravel Reverb).
 
 | ID | Aturan |
 |----|--------|
-| BR-1 | Booking publik normal paling cepat **H+2** dan paling lambat **2 bulan** ke depan. H/H+1 default tertutup untuk publik dan hanya tampil bila admin membuka slot saat tanggal itu sudah berada di H/H+1 sebelum jam kunjungan lewat; override `Available` lama dari buka/tutup rentang jauh hari tidak otomatis membuka H/H+1. Admin dapat memakai H/H+1 melalui Booking Manual atau pindah jadwal langsung. |
+| BR-1 | Booking publik normal paling cepat **H+3** dan paling lambat **2 bulan** ke depan. H, H+1, H+2 default tertutup untuk publik dan hanya tampil bila admin membuka slot saat tanggal itu sudah berada di H..H+2 sebelum jam kunjungan lewat; override `Available` lama dari buka/tutup rentang jauh hari tidak otomatis membuka H..H+2. Admin dapat memakai H..H+2 melalui Booking Manual atau pindah jadwal langsung. |
 | BR-2 | Kapasitas standar per slot jam (kloter) = **80 orang**. Rombongan >80 dipecah otomatis; admin dapat menggabungkan kloter >80 dengan konfirmasi operasional dan audit. |
 | BR-3 | Jumlah rombongan: minimal 1, maksimal **480 orang** per hari kunjungan. |
 | BR-4 | NIK wajib 16 digit angka. WhatsApp wajib format `08...` atau `628...` (8–13 digit setelah prefix). |

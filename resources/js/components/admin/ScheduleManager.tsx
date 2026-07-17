@@ -2,8 +2,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Lock, X } from "lucide-react";
 import type { Booking, SchedulePolicy, Slot, VisitDay, VisitStatus } from "../../domain/types";
-import { bookingKloterSummary, bookingSegments, bookingTimeSummary } from "../../domain/booking";
 import {
+  bookingKloterSummary,
+  bookingSegments,
+  bookingTimeSummary,
+  PUBLIC_EARLY_MAX_DAYS,
+  PUBLIC_MIN_LEAD_DAYS,
+} from "../../domain/booking";
+import {
+  addDays,
   addMonths,
   calendarWeekdays,
   createCalendarDays,
@@ -103,6 +110,11 @@ export function AdminScheduleManager({
 	  const minMonth = startOfMonth(today);
   const maxScheduleDate = addMonths(today, 2);
   const maxMonth = startOfMonth(maxScheduleDate);
+  const earlyMaxDate = addDays(today, PUBLIC_EARLY_MAX_DAYS);
+  const earlyMaxKey = formatDateKey(earlyMaxDate);
+  const todayKeyEarly = formatDateKey(today);
+  const isEarlyDateKey = (dateKey: string) => dateKey >= todayKeyEarly && dateKey <= earlyMaxKey;
+  const earlyLabel = PUBLIC_EARLY_MAX_DAYS === 2 ? "H/H+1/H+2" : `H..H+${PUBLIC_EARLY_MAX_DAYS}`;
   const [visibleMonth, setVisibleMonth] = useState(() => minMonth);
 
   // Map booking by `${date}|${time}` agar lookup detail booking di slot
@@ -292,6 +304,28 @@ export function AdminScheduleManager({
     if (!slot) return;
     const nextStatus: VisitStatus =
       slot.status === "Closed" ? "Available" : slot.status === "Available" ? "Closed" : slot.status;
+
+    if (nextStatus === "Available" && isEarlyDateKey(dayDate)) {
+      const dayLabel = day?.label ?? dayDate;
+      setConfirmDialog({
+        title: `Buka slot ${earlyLabel} untuk publik?`,
+        body: `Slot ${dayLabel} jam ${time} termasuk ${earlyLabel} (minimal publik sekarang H+${PUBLIC_MIN_LEAD_DAYS}). Jika dibuka, pengunjung bisa langsung booking jam ini. Lanjutkan?`,
+        confirmLabel: "Ya, buka untuk publik",
+        onConfirm: () => {
+          const next = schedules.map((d) =>
+            d.date === dayDate
+              ? {
+                  ...d,
+                  slots: d.slots.map((s) => (s.time === time ? { ...s, status: nextStatus } : s)),
+                }
+              : d,
+          );
+          applyPersistedChange(`Slot ${time} diperbarui`, next, () => upsertScheduleSlot(dayDate, time, nextStatus));
+        },
+      });
+      return;
+    }
+
     const next = schedules.map((day) =>
         day.date === dayDate
           ? {
@@ -350,8 +384,6 @@ export function AdminScheduleManager({
           slot.status === "Available" && !isSlotPast(dayDate, slot.time),
       ).length;
       const activeBooking = activeBookingsByDate.get(dayDate) ?? 0;
-      // Konfirmasi hanya kalau ada banyak slot yang akan tertutup atau ada
-      // booking aktif di hari itu (#3, #4).
       if (willClose >= 3 || activeBooking > 0) {
         setConfirmDialog({
           title: "Tutup semua slot?",
@@ -363,6 +395,20 @@ export function AdminScheduleManager({
           confirmLabel: "Tutup semua",
           confirmVariant: "danger",
           onConfirm: () => performSetDayAll(dayDate, "close"),
+        });
+        return;
+      }
+    }
+    if (action === "open" && isEarlyDateKey(dayDate)) {
+      const willOpen = day.slots.filter(
+        (slot) => slot.status !== "Available" && !isSlotPast(dayDate, slot.time) && slot.status !== "Booked" && slot.status !== "Held" && slot.status !== "Reschedule Hold",
+      ).length;
+      if (willOpen > 0) {
+        setConfirmDialog({
+          title: `Buka ${earlyLabel} untuk publik?`,
+          body: `Anda akan membuka ${willOpen} slot pada ${day.label} yang termasuk ${earlyLabel}. Slot ini akan langsung bisa dibooking publik (minimal normal H+${PUBLIC_MIN_LEAD_DAYS}). Lanjutkan?`,
+          confirmLabel: "Ya, buka untuk publik",
+          onConfirm: () => performSetDayAll(dayDate, "open"),
         });
         return;
       }
@@ -404,6 +450,32 @@ export function AdminScheduleManager({
       setCustomError("Jam tersebut sudah lewat untuk hari ini.");
       return;
     }
+    if (isEarlyDateKey(dayDate)) {
+      const day = scheduleByDate.get(dayDate);
+      setConfirmDialog({
+        title: `Buka jam khusus ${earlyLabel} untuk publik?`,
+        body: `Jam khusus ${normalized} pada ${day?.label ?? dayDate} termasuk ${earlyLabel} dan akan langsung bisa dibooking publik. Lanjutkan?`,
+        confirmLabel: "Ya, buka untuk publik",
+        onConfirm: () => {
+          setCustomError(null);
+          setCustomDraft("");
+          const next = schedules.map((d) =>
+            d.date === dayDate
+              ? {
+                  ...d,
+                  slots: sortSlots([...d.slots, { time: normalized, status: "Available", custom: true }]),
+                }
+              : d,
+          );
+          applyPersistedChange(`Jam khusus ${normalized} ditambahkan`, next, () =>
+            upsertScheduleSlot(dayDate, normalized, "Available"),
+          );
+          setNewlyAddedSlot({ date: dayDate, time: normalized });
+        },
+      });
+      return;
+    }
+
     setCustomError(null);
     setCustomDraft("");
     const next = schedules.map((d) =>
@@ -456,38 +528,75 @@ export function AdminScheduleManager({
     const toDate = parseDateKey(params.to);
     const action = params.action;
     const weekdaySet = new Set(params.weekdays);
-    const next = schedules.map((day) => {
-      const d = parseDateKey(day.date);
-      if (d < fromDate || d > toDate) return day;
-      if (!weekdaySet.has(d.getDay())) return day;
-      // Tanggal merah nasional tidak bisa dibuka; biarkan tetap tutup.
-      if (action === "open" && day.holiday) return day;
-      return {
-        ...day,
-        slots: day.slots.map((slot): Slot =>
-          slot.status === "Booked" || slot.status === "Held" || slot.status === "Reschedule Hold"
-            ? slot
-            : isSlotPast(day.date, slot.time)
+
+    if (action === "open") {
+      const overlapsEarly = !(params.to < todayKeyEarly || params.from > earlyMaxKey);
+      if (overlapsEarly) {
+        // Hitung estimasi slot yang akan jadi publik
+        let earlyCount = 0;
+        for (const day of schedules) {
+          if (day.date < params.from || day.date > params.to) continue;
+          if (!isEarlyDateKey(day.date)) continue;
+          const d = parseDateKey(day.date);
+          if (!weekdaySet.has(d.getDay())) continue;
+          if (day.holiday) continue;
+          const openable = day.slots.filter(
+            (slot) =>
+              slot.status !== "Booked" &&
+              slot.status !== "Held" &&
+              slot.status !== "Reschedule Hold" &&
+              !isSlotPast(day.date, slot.time),
+          ).length;
+          earlyCount += openable;
+        }
+        if (earlyCount > 0) {
+          setConfirmDialog({
+            title: `Buka rentang termasuk ${earlyLabel} untuk publik?`,
+            body: `Rentang ${params.from} s/d ${params.to} mencakup ${earlyLabel} (${earlyCount} slot potensial). Slot ${earlyLabel} yang dibuka akan langsung bisa dibooking publik (minimal H+${PUBLIC_MIN_LEAD_DAYS}). Lanjutkan?`,
+            confirmLabel: "Ya, buka termasuk H/H+1/H+2",
+            onConfirm: () => {
+              doApplyRange();
+            },
+          });
+          return;
+        }
+      }
+    }
+
+    const doApplyRange = () => {
+      const next = schedules.map((day) => {
+        const d = parseDateKey(day.date);
+        if (d < fromDate || d > toDate) return day;
+        if (!weekdaySet.has(d.getDay())) return day;
+        if (action === "open" && day.holiday) return day;
+        return {
+          ...day,
+          slots: day.slots.map((slot): Slot =>
+            slot.status === "Booked" || slot.status === "Held" || slot.status === "Reschedule Hold"
               ? slot
-              : {
-                  ...slot,
-                  status: action === "open" ? "Available" : "Closed",
-                },
-        ),
-      };
-    });
-    applyPersistedChange(
-      action === "open"
-        ? "Rentang tanggal dibuka"
-        : "Rentang tanggal ditutup",
-      next,
-      () => upsertScheduleRange({
-        from: params.from,
-        to: params.to,
-        weekdays: params.weekdays,
-        status: action === "open" ? "Available" : "Closed",
-      }),
-    );
+              : isSlotPast(day.date, slot.time)
+                ? slot
+                : {
+                    ...slot,
+                    status: action === "open" ? "Available" : "Closed",
+                  },
+          ),
+        };
+      });
+      applyPersistedChange(
+        action === "open" ? "Rentang tanggal dibuka" : "Rentang tanggal ditutup",
+        next,
+        () =>
+          upsertScheduleRange({
+            from: params.from,
+            to: params.to,
+            weekdays: params.weekdays,
+            status: action === "open" ? "Available" : "Closed",
+          }),
+      );
+    };
+
+    doApplyRange();
   };
 
   const totalAvailable = schedules.reduce(
@@ -801,6 +910,11 @@ export function AdminScheduleManager({
                       const isHighlight =
                         newlyAddedSlot?.date === selectedDay.date &&
                         newlyAddedSlot?.time === slot.time;
+                      const showPublicBadge =
+                        isEarlyDateKey(selectedDay.date) &&
+                        slot.status === "Available" &&
+                        slot.publicStatus === "Available" &&
+                        !past;
                       return (
                         <div
                           key={slot.time}
@@ -865,6 +979,11 @@ export function AdminScheduleManager({
                           {slot.custom && (
                             <span className="admin-schedule-slot-tag" aria-hidden="true">
                               Khusus
+                            </span>
+                          )}
+                          {showPublicBadge && (
+                            <span className="admin-schedule-slot-tag is-public" aria-hidden="true">
+                              Publik
                             </span>
                           )}
                           {slot.custom && !locked && !past && !readOnly && (
@@ -1288,6 +1407,17 @@ export function ScheduleRangeModal({
   const [weekdays, setWeekdays] = useState<number[]>([]);
   const [action, setAction] = useState<"open" | "close">("close");
 
+  useEffect(() => {
+    if (action === "open") {
+      const safeFrom = formatDateKey(addDays(minDate, PUBLIC_MIN_LEAD_DAYS));
+      if (from === formatDateKey(minDate) || parseDateKey(from) < parseDateKey(safeFrom)) {
+        // Jangan paksa kalau admin sudah pilih manual lebih jauh
+        // tapi geser minimal ke H+3 untuk cegah accident H/H+1/H+2
+        if (from < safeFrom) setFrom(safeFrom);
+      }
+    }
+  }, [action, minDate, from]);
+
   const dayLabels = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
   const dayOrder = DAY_ORDER;
 
@@ -1310,6 +1440,9 @@ export function ScheduleRangeModal({
     let days = 0;
     let bookingsInRange = 0;
     let holidaysInRange = 0;
+    let earlyInRange = 0;
+    const todayDate = startOfDay(new Date());
+    const earlyMax = addDays(todayDate, PUBLIC_EARLY_MAX_DAYS);
     for (const day of schedules) {
       const d = parseDateKey(day.date);
       if (d < fromDate || d > toDate) continue;
@@ -1317,8 +1450,9 @@ export function ScheduleRangeModal({
       days += 1;
       bookingsInRange += activeBookingsByDate.get(day.date) ?? 0;
       if (day.holiday) holidaysInRange += 1;
+      if (d >= todayDate && d <= earlyMax) earlyInRange += 1;
     }
-    return { days, bookingsInRange, holidaysInRange };
+    return { days, bookingsInRange, holidaysInRange, earlyInRange };
   })();
 
   const toggleWeekday = (value: number) => {
@@ -1440,23 +1574,30 @@ export function ScheduleRangeModal({
 
         <div className="admin-modal-preview">
           {weekdays.length === 0 ? null : preview ? (
-            <p>
-              Akan {action === "close" ? "menutup" : "membuka"} <strong>{preview.days}</strong>{" "}
-              hari.
-              {preview.bookingsInRange > 0 && action === "close" && (
-                <>
-                  {" "}
-                  <strong>{preview.bookingsInRange}</strong> booking aktif tetap aman.
-                </>
+            <div>
+              <p>
+                Akan {action === "close" ? "menutup" : "membuka"} <strong>{preview.days}</strong>{" "}
+                hari.
+                {preview.bookingsInRange > 0 && action === "close" && (
+                  <>
+                    {" "}
+                    <strong>{preview.bookingsInRange}</strong> booking aktif tetap aman.
+                  </>
+                )}
+                {action === "open" && preview.holidaysInRange > 0 && (
+                  <>
+                    {" "}
+                    <strong>{preview.holidaysInRange}</strong> tanggal merah nasional dilewati
+                    (tetap tutup).
+                  </>
+                )}
+              </p>
+              {action === "open" && preview.earlyInRange > 0 && (
+                <p className="admin-modal-preview-error" style={{ marginTop: 6 }}>
+                  ⚠️ Termasuk <strong>{preview.earlyInRange}</strong> hari H/H+1/H+2 (sampai {formatDateKey(addDays(startOfDay(new Date()), PUBLIC_EARLY_MAX_DAYS))}) yang akan langsung bisa dibooking publik (minimal H+{PUBLIC_MIN_LEAD_DAYS}). Pastikan ini disengaja.
+                </p>
               )}
-              {action === "open" && preview.holidaysInRange > 0 && (
-                <>
-                  {" "}
-                  <strong>{preview.holidaysInRange}</strong> tanggal merah nasional dilewati
-                  (tetap tutup).
-                </>
-              )}
-            </p>
+            </div>
           ) : (
             <p className="admin-modal-preview-error">Rentang tanggal belum valid.</p>
           )}

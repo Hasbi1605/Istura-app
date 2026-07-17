@@ -1,0 +1,39 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "router9": {
+      "models": {
+        "ma/muse-spark-1.1": {
+          "name": "Meta Muse Spark 1.1",
+          "reasoning": false,
+          "variants": {
+            "minimal": { "reasoningEffort": "minimal" },
+            "low": { "reasoningEffort": "low" },
+            "medium": { "reasoningEffort": "medium" },
+            "high": { "reasoningEffort": "high" },
+            "xhigh": { "reasoningEffort": "xhigh" },
+            "none": { "disabled": true },
+            "max": { "disabled": true }
+          }
+        }
+      }
+    },
+    "meta": {
+      "models": {
+        "muse-spark-1.1": {
+          "name": "Meta Muse Spark 1.1",
+          "reasoning": true,
+          "variants": {
+            "minimal": { "reasoningEffort": "minimal" },
+            "low": { "reasoningEffort": "low" },
+            "medium": { "reasoningEffort": "medium" },
+            "high": { "reasoningEffort": "high" },
+            "xhigh": { "reasoningEffort": "xhigh" },
+            "none": { "disabled": true },
+            "max": { "disabled": true }
+          }
+        }
+      }
+    }
+  }
+}

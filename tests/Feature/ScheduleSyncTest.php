@@ -51,7 +51,7 @@ class ScheduleSyncTest extends TestCase
     {
         parent::setUp();
 
-        Carbon::setTestNow(Carbon::parse('2026-05-30 09:00:00', 'Asia/Jakarta'));
+        Carbon::setTestNow(Carbon::parse('2026-05-29 09:00:00', 'Asia/Jakarta'));
     }
 
     protected function tearDown(): void
@@ -470,7 +470,7 @@ class ScheduleSyncTest extends TestCase
 
     public function test_public_schedule_reflects_admin_override_and_active_booking(): void
     {
-        $date = '2026-06-01';
+        $date = '2026-06-04';
 
         ScheduleOverride::create([
             'date' => $date,
@@ -1207,14 +1207,14 @@ class ScheduleSyncTest extends TestCase
             ->assertJsonValidationErrors('status');
 
         $this->postJson('/api/admin/schedule/slot', [
-            'date' => '2026-05-29',
+            'date' => '2026-05-28',
             'time' => '08.00',
             'status' => 'Available',
         ])->assertStatus(422)
             ->assertJsonValidationErrors('date');
 
         $this->postJson('/api/admin/schedule/range', [
-            'from' => '2026-05-29',
+            'from' => '2026-05-28',
             'to' => '2026-06-01',
             'status' => 'Closed',
         ])->assertStatus(422)
@@ -1447,7 +1447,7 @@ class ScheduleSyncTest extends TestCase
             'time' => '08.00',
         ]), ['Accept' => 'application/json'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('time');
+            ->assertJsonValidationErrors('date');
 
         $this->assertDatabaseCount('bookings', 0);
     }
@@ -2393,11 +2393,11 @@ class ScheduleSyncTest extends TestCase
             'time' => '08.00',
         ]), ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.leadTimeDays', 2)
+            ->assertJsonPath('data.leadTimeDays', 3)
             ->assertJsonPath('data.isShortNotice', true);
 
         $this->post('/api/public/bookings', $this->publicBookingPayload([
-            'date' => '2026-06-03',
+            'date' => '2026-06-02',
             'time' => '09.00',
         ]), ['Accept' => 'application/json'])
             ->assertCreated()

@@ -7588,6 +7588,17 @@ a {
   border-color: rgba(255, 255, 255, 0.32);
 }
 
+.admin-schedule-slot-tag.is-public {
+  background: #10182f;
+  color: #f6c343;
+  border-color: #f6c343;
+  top: 8px;
+  right: 10px;
+}
+.admin-schedule-slot-tag.is-public + .admin-schedule-slot-tag {
+  top: 28px;
+}
+
 .admin-schedule-slot.is-processing .admin-schedule-slot-tag {
   background: rgba(255, 255, 255, 0.85);
   border-color: rgba(31, 107, 103, 0.4);

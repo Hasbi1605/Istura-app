@@ -236,7 +236,7 @@ class ScheduleController extends Controller
             return null;
         }
 
-        return $startsAt->toDateString() <= $today->copy()->addDay()->toDateString()
+        return $startsAt->toDateString() <= $today->copy()->addDays(ScheduleService::PUBLIC_EARLY_MAX_DAYS)->toDateString()
             ? ($timestamp ?? now())
             : null;
     }

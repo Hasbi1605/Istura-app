@@ -10,6 +10,7 @@ export type ApiVisitDay = {
   slots: {
     time: string;
     status: string;
+    publicStatus?: string;
     custom: boolean;
     bookingCount?: number;
     overbooked?: boolean;

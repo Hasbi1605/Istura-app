@@ -47,6 +47,7 @@ export type NationalHolidayInfo = ClosureReason & {
 export type Slot = {
   time: string;
   status: VisitStatus;
+  publicStatus?: VisitStatus;
   custom?: boolean;
   bookingCount?: number;
   overbooked?: boolean;

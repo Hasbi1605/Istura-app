@@ -27,6 +27,7 @@ import {
   hasConsecutiveAvailableSlots,
   previewSegmentsForSelection,
   PUBLIC_MAX_BOOKING_GROUP_SIZE,
+  PUBLIC_MIN_LEAD_DAYS,
   requiredSlotCount,
   SLOT_CAPACITY,
   splitGroupSizes,
@@ -271,7 +272,7 @@ export function BookingWizard({
   // menampilkan nama file.
   const documentFileRef = useRef<File | null>(null);
   const [today] = useState(jakartaToday);
-  const normalMinBookingDate = addDays(today, 2);
+  const normalMinBookingDate = addDays(today, PUBLIC_MIN_LEAD_DAYS);
   const normalMinBookingDateKey = formatDateKey(normalMinBookingDate);
   const earlyBookingDateKey = schedules.find((day) =>
     day.date < normalMinBookingDateKey && day.slots.some((slot) => slot.status === "Available"),

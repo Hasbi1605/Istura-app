@@ -68,9 +68,10 @@ class PublicBootstrapTest extends TestCase
 
         $dates = collect($response->json('data.schedule'))->pluck('date');
 
-        $this->assertSame('2026-06-03', $dates->first());
+        $this->assertSame('2026-06-04', $dates->first());
         $this->assertFalse($dates->contains('2026-06-01'));
         $this->assertFalse($dates->contains('2026-06-02'));
+        $this->assertFalse($dates->contains('2026-06-03'));
     }
 
     public function test_public_bootstrap_backfills_large_group_copy_for_existing_site_content(): void
@@ -106,11 +107,18 @@ class PublicBootstrapTest extends TestCase
             'custom' => true,
             'public_early_opened_at' => now(),
         ]);
+        ScheduleOverride::create([
+            'date' => '2026-06-03',
+            'time' => '10.00',
+            'status' => 'Available',
+            'custom' => true,
+            'public_early_opened_at' => now(),
+        ]);
 
-        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-03')
+        $response = $this->getJson('/api/public/schedule?from=2026-06-01&to=2026-06-04')
             ->assertOk();
 
-        $this->assertSame(['2026-06-01', '2026-06-02', '2026-06-03'], collect($response->json('data'))->pluck('date')->all());
+        $this->assertSame(['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04'], collect($response->json('data'))->pluck('date')->all());
         $this->assertSame('Available', collect($response->json('data.0.slots'))->firstWhere('time', '10.00')['status']);
         $this->assertArrayNotHasKey('shortNotice', collect($response->json('data.0.slots'))->firstWhere('time', '10.00'));
     }

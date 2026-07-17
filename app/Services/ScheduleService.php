@@ -27,6 +27,10 @@ use Throwable;
 class ScheduleService
 {
     public const TIME_SLOTS = ['08.00', '09.00', '10.00', '11.00', '13.00', '14.00'];
+    /** Minimal booking publik H+3. */
+    public const PUBLIC_MIN_LEAD_DAYS = 3;
+    /** Window early open H, H+1, H+2 (<= today+2). */
+    public const PUBLIC_EARLY_MAX_DAYS = 2;
 
     public function __construct(
         private readonly NationalHolidaySyncService $holidaySync,
@@ -543,15 +547,15 @@ class ScheduleService
 
     /**
      * Validate the exact participant allocation used by a public booking.
-     * H/H+1 only pass when every segment has an explicit early public opening.
-     * H+2 and later keep the normal single-booking slot rule.
+     * H..H+2 only pass when every segment has an explicit early public opening.
+     * H+3 and later keep the normal single-booking slot rule.
      *
      * @param  array<int, array{date:string,time:string,group_size:int}>  $segments
      */
     public function publicSegmentsAreAvailable(array $segments, bool $lockBookings = false): bool
     {
         $today = Carbon::today('Asia/Jakarta');
-        $normalBookingFrom = $today->copy()->addDays(2);
+        $normalBookingFrom = $today->copy()->addDays(self::PUBLIC_MIN_LEAD_DAYS);
 
         foreach ($segments as $segment) {
             $date = Carbon::createFromFormat('Y-m-d', $segment['date'], 'Asia/Jakarta')->startOfDay();
@@ -747,7 +751,7 @@ class ScheduleService
         bool $isturaOpenBlocked,
     ): string {
         $date = Carbon::createFromFormat('Y-m-d', $dateKey, 'Asia/Jakarta')->startOfDay();
-        if ($date->gte(Carbon::today('Asia/Jakarta')->addDays(2))) {
+        if ($date->gte(Carbon::today('Asia/Jakarta')->addDays(self::PUBLIC_MIN_LEAD_DAYS))) {
             return $status;
         }
 

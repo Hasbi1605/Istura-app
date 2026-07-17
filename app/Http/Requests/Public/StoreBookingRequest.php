@@ -4,6 +4,7 @@ namespace App\Http\Requests\Public;
 
 use App\Models\ScheduleOverride;
 use App\Rules\VisitTime;
+use App\Services\ScheduleService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -48,7 +49,7 @@ class StoreBookingRequest extends FormRequest
                 }
 
                 $date = Carbon::createFromFormat('Y-m-d', $this->input('date'), 'Asia/Jakarta')->startOfDay();
-                if ($date->gte(Carbon::today('Asia/Jakarta')->addDays(2))) {
+                if ($date->gte(Carbon::today('Asia/Jakarta')->addDays(ScheduleService::PUBLIC_MIN_LEAD_DAYS))) {
                     return;
                 }
 
@@ -57,8 +58,10 @@ class StoreBookingRequest extends FormRequest
                     ->where('time', $this->input('time'))
                     ->first();
 
-                if ($startsAt->lte(now('Asia/Jakarta')) || $override?->status !== 'Available' || ! $override->custom) {
-                    $validator->errors()->add('date', 'Booking H/H+1 hanya tersedia pada slot yang dibuka admin.');
+                $isEarlyOpen = $override?->status === 'Available' && $override?->public_early_opened_at !== null;
+
+                if ($startsAt->lte(now('Asia/Jakarta')) || ! $isEarlyOpen) {
+                    $validator->errors()->add('date', 'Booking H/H+1/H+2 hanya tersedia pada slot yang dibuka admin.');
                 }
             },
         ];

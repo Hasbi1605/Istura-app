@@ -55,6 +55,7 @@ export function apiVisitDayToLocal(day: ApiVisitDay): VisitDay {
     slots: day.slots.map((slot) => ({
       time: slot.time,
       status: slot.status as VisitStatus,
+      publicStatus: (slot.publicStatus as VisitStatus | undefined) ?? undefined,
       custom: slot.custom,
       bookingCount: slot.bookingCount,
       overbooked: slot.overbooked,

@@ -37,9 +37,9 @@ memakai WhatsApp sebagai kanal komunikasi operasional.
 
 ## Aturan Bisnis Kunci
 
-- Booking publik normal paling cepat H+2 dan paling lambat 2 bulan ke depan.
-- H/H+1 tertutup untuk publik kecuali admin membuka slot saat tanggal tersebut sudah berada
-  di H/H+1 dan jam belum lewat.
+- Booking publik normal paling cepat H+3 dan paling lambat 2 bulan ke depan.
+- H/H+1/H+2 tertutup untuk publik kecuali admin membuka slot saat tanggal tersebut sudah berada
+  di H..H+2 dan jam belum lewat.
 - Kapasitas standar 80 orang per slot; rombongan besar dipecah menjadi kloter.
 - Maksimal rombongan 480 orang per hari kunjungan.
 - Operasional reguler produk Senin-Jumat; Sabtu, Minggu, dan tanggal merah default tertutup.

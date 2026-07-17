@@ -135,8 +135,8 @@ return [
             [
                 'heading' => 'Batas Waktu Booking Online (Deadline)',
                 'body' => [
-                    'Pendaftaran kunjungan reguler secara normal dilakukan paling cepat H+2 (2 hari sebelum tanggal kunjungan) hingga maksimal 2 bulan ke depan.',
-                    'Pendaftaran pada hari H atau H+1 (esok hari) hanya dimungkinkan jika admin secara khusus membuka slot tersebut selama jam kunjungan belum lewat dan slot masih tersedia.',
+                    'Pendaftaran kunjungan reguler secara normal dilakukan paling cepat H+3 (3 hari sebelum tanggal kunjungan) hingga maksimal 2 bulan ke depan.',
+                    'Pendaftaran pada hari H, H+1, atau H+2 hanya dimungkinkan jika admin secara khusus membuka slot tersebut selama jam kunjungan belum lewat dan slot masih tersedia.',
                 ],
                 'items' => [],
             ],

@@ -198,10 +198,10 @@ class ContentController extends Controller
     private function scheduleRange(ScheduleRangeRequest $request): array
     {
         $today = Carbon::today('Asia/Jakarta');
-        $normalEarliestBookableDate = $today->copy()->addDays(2)->startOfDay();
+        $normalEarliestBookableDate = $today->copy()->addDays(ScheduleService::PUBLIC_MIN_LEAD_DAYS)->startOfDay();
         $hasEarlyAdminOpening = ScheduleOverride::query()
             ->whereDate('date', '>=', $today->toDateString())
-            ->whereDate('date', '<=', $today->copy()->addDay()->toDateString())
+            ->whereDate('date', '<=', $today->copy()->addDays(ScheduleService::PUBLIC_EARLY_MAX_DAYS)->toDateString())
             ->where('status', 'Available')
             ->whereNotNull('public_early_opened_at')
             ->where(function ($query) use ($today) {

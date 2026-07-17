@@ -37,7 +37,7 @@ khusus modul Istura Open ada di [IsturaOpen.md](IsturaOpen.md).
   feedback pasca-kunjungan, dan modul Istura Open saat event aktif.
 - Admin mengelola booking, jadwal, feedback, CMS, template WhatsApp, laporan,
   poster mingguan, audit log, user admin, dan Istura Open.
-- Booking publik normal H+2 sampai 2 bulan. H/H+1 default tertutup dan hanya tampil
+- Booking publik normal H+3 sampai 2 bulan. H/H+1/H+2 default tertutup dan hanya tampil
   jika admin membuka slot dengan marker eksplisit.
 - Pending booking tidak punya TTL umur pengajuan; status Expired hanya saat jam kunjungan
   sudah terlewat.

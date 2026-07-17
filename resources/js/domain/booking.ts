@@ -5,6 +5,8 @@ import type { Booking, BookingDateRange, BookingSegment, BookingSort, BookingSta
 export const SLOT_CAPACITY = 80;
 export const PUBLIC_MAX_BOOKING_GROUP_SIZE = 480;
 export const ADMIN_MAX_BOOKING_GROUP_SIZE = 560;
+export const PUBLIC_MIN_LEAD_DAYS = 3;
+export const PUBLIC_EARLY_MAX_DAYS = 2;
 
 export const BOOKING_STATUS_CHIPS: { value: BookingStatus; label: string }[] = [
   { value: "Pending", label: "Menunggu" },
