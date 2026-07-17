@@ -1077,10 +1077,10 @@ function SchedulePicker({
             selectedDay.slots.some((s) => s.status !== "Closed") && (
               <p className="time-card-note time-card-note--info">
                 {selectedDay.slots.every((s) => s.status === "Booked" || s.status === "Closed")
-                  ? "Semua slot di tanggal ini sudah terisi. Silakan pilih tanggal lain."
+                  ? "Penuh, pilih tanggal lain."
                   : selectedDay.slots.some((s) => s.status === "Held" || s.status === "Reschedule Hold")
-                    ? "Tanggal ini sedang diproses booking lain. Silakan pilih tanggal lain yang masih tersedia."
-                    : "Tidak ada slot yang bisa dibooking untuk jumlah rombongan ini di tanggal ini."}
+                    ? "Diproses, pilih tanggal lain."
+                    : "Slot tidak cukup untuk rombongan ini."}
               </p>
             )}
           <div className="time-list time-list--hourly">
