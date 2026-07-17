@@ -114,7 +114,7 @@ export function AdminScheduleManager({
   const earlyMaxKey = formatDateKey(earlyMaxDate);
   const todayKeyEarly = formatDateKey(today);
   const isEarlyDateKey = (dateKey: string) => dateKey >= todayKeyEarly && dateKey <= earlyMaxKey;
-  const earlyLabel = PUBLIC_EARLY_MAX_DAYS === 2 ? "H/H+1/H+2" : `H..H+${PUBLIC_EARLY_MAX_DAYS}`;
+  const earlyLabel = "jadwal dekat";
   const [visibleMonth, setVisibleMonth] = useState(() => minMonth);
 
   // Map booking by `${date}|${time}` agar lookup detail booking di slot
@@ -308,9 +308,9 @@ export function AdminScheduleManager({
     if (nextStatus === "Available" && isEarlyDateKey(dayDate)) {
       const dayLabel = day?.label ?? dayDate;
       setConfirmDialog({
-        title: `Buka slot ${earlyLabel} untuk publik?`,
-        body: `Slot ${dayLabel} jam ${time} termasuk ${earlyLabel} (minimal publik sekarang H+${PUBLIC_MIN_LEAD_DAYS}). Jika dibuka, pengunjung bisa langsung booking jam ini. Lanjutkan?`,
-        confirmLabel: "Ya, buka untuk publik",
+        title: "Buka jadwal dekat untuk publik?",
+        body: `Slot ${dayLabel} jam ${time} adalah jadwal dekat (kurang dari 3 hari). Jika dibuka, pengunjung bisa langsung memesan. Lanjutkan?`,
+        confirmLabel: "Buka untuk publik",
         onConfirm: () => {
           const next = schedules.map((d) =>
             d.date === dayDate
@@ -405,9 +405,9 @@ export function AdminScheduleManager({
       ).length;
       if (willOpen > 0) {
         setConfirmDialog({
-          title: `Buka ${earlyLabel} untuk publik?`,
-          body: `Anda akan membuka ${willOpen} slot pada ${day.label} yang termasuk ${earlyLabel}. Slot ini akan langsung bisa dibooking publik (minimal normal H+${PUBLIC_MIN_LEAD_DAYS}). Lanjutkan?`,
-          confirmLabel: "Ya, buka untuk publik",
+          title: "Buka jadwal dekat?",
+          body: `${willOpen} slot pada ${day.label} adalah jadwal dekat (kurang dari 3 hari). Jika dibuka, akan langsung bisa dipesan publik. Lanjutkan?`,
+          confirmLabel: "Buka untuk publik",
           onConfirm: () => performSetDayAll(dayDate, "open"),
         });
         return;
@@ -453,9 +453,9 @@ export function AdminScheduleManager({
     if (isEarlyDateKey(dayDate)) {
       const day = scheduleByDate.get(dayDate);
       setConfirmDialog({
-        title: `Buka jam khusus ${earlyLabel} untuk publik?`,
-        body: `Jam khusus ${normalized} pada ${day?.label ?? dayDate} termasuk ${earlyLabel} dan akan langsung bisa dibooking publik. Lanjutkan?`,
-        confirmLabel: "Ya, buka untuk publik",
+        title: "Buka jam khusus untuk publik?",
+        body: `Jam ${normalized} pada ${day?.label ?? dayDate} adalah jadwal dekat (kurang dari 3 hari) dan akan langsung bisa dipesan. Lanjutkan?`,
+        confirmLabel: "Buka untuk publik",
         onConfirm: () => {
           setCustomError(null);
           setCustomDraft("");
@@ -551,9 +551,9 @@ export function AdminScheduleManager({
         }
         if (earlyCount > 0) {
           setConfirmDialog({
-            title: `Buka rentang termasuk ${earlyLabel} untuk publik?`,
-            body: `Rentang ${params.from} s/d ${params.to} mencakup ${earlyLabel} (${earlyCount} slot potensial). Slot ${earlyLabel} yang dibuka akan langsung bisa dibooking publik (minimal H+${PUBLIC_MIN_LEAD_DAYS}). Lanjutkan?`,
-            confirmLabel: "Ya, buka termasuk H/H+1/H+2",
+            title: "Buka jadwal dekat untuk publik?",
+            body: `Rentang ini mencakup ${earlyCount} slot jadwal dekat (kurang dari 3 hari) yang akan langsung terbuka untuk publik. Lanjutkan?`,
+            confirmLabel: "Buka untuk publik",
             onConfirm: () => {
               doApplyRange();
             },
@@ -1594,7 +1594,7 @@ export function ScheduleRangeModal({
               </p>
               {action === "open" && preview.earlyInRange > 0 && (
                 <p className="admin-modal-preview-error" style={{ marginTop: 6 }}>
-                  ⚠️ Termasuk <strong>{preview.earlyInRange}</strong> hari H/H+1/H+2 (sampai {formatDateKey(addDays(startOfDay(new Date()), PUBLIC_EARLY_MAX_DAYS))}) yang akan langsung bisa dibooking publik (minimal H+{PUBLIC_MIN_LEAD_DAYS}). Pastikan ini disengaja.
+                  ⚠️ Termasuk <strong>{preview.earlyInRange}</strong> hari jadwal dekat (kurang dari 3 hari) yang akan langsung terbuka untuk publik.
                 </p>
               )}
             </div>
