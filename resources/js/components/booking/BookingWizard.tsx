@@ -1042,7 +1042,7 @@ function SchedulePicker({
               const dayData = scheduleByKey.get(day.key);
               const dayClosureLabel = closureReasonLabel(dayData);
               const dayClosureBadge = closureReasonBadge(dayData);
-              const isClickable = day.status === "available" || (day.status === "closed" && Boolean(dayClosureLabel));
+              const isClickable = day.status !== "outside";
               const ariaLabel = dayData
                 ? `${dayData.label}, ${day.status === "available" ? publicStatusMeta.available.label : dayClosureLabel ?? publicStatusMeta[day.status].label}`
                 : publicStatusMeta[day.status].label;
@@ -1051,7 +1051,7 @@ function SchedulePicker({
                   className={`calendar-day is-${day.status}${selectedDate === day.key ? " is-selected" : ""}`}
                   type="button"
                   key={day.key}
-                  disabled={day.status === "outside" || !isClickable}
+                  disabled={!isClickable}
                   onClick={() => {
                     onDateChange(day.key);
                     onTimeChange("");
@@ -1072,6 +1072,17 @@ function SchedulePicker({
           <h3>{content.timeTitle}</h3>
           <p>{selectedDay?.label ?? content.emptyDateLabel}</p>
           {selectedClosureLabel && <p className="time-card-note">{selectedClosureLabel}</p>}
+          {selectedDay &&
+            !selectedDay.slots.some((s) => canFitConsecutiveSlots(selectedDay, s.time, requiredSlots, segmentSizes)) &&
+            selectedDay.slots.some((s) => s.status !== "Closed") && (
+              <p className="time-card-note time-card-note--info">
+                {selectedDay.slots.every((s) => s.status === "Booked" || s.status === "Closed")
+                  ? "Semua slot di tanggal ini sudah terisi. Silakan pilih tanggal lain."
+                  : selectedDay.slots.some((s) => s.status === "Held" || s.status === "Reschedule Hold")
+                    ? "Tanggal ini sedang diproses booking lain. Silakan pilih tanggal lain yang masih tersedia."
+                    : "Tidak ada slot yang bisa dibooking untuk jumlah rombongan ini di tanggal ini."}
+              </p>
+            )}
           <div className="time-list time-list--hourly">
             {selectedDay ? (
               selectedDay.slots.map((slot) => {
