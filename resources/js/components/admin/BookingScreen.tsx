@@ -264,7 +264,10 @@ export function AdminScreen({
   const pageSize = viewMode === "table" ? PAGE_SIZE_BOOKING_TABLE : PAGE_SIZE_BOOKING_SPLIT;
   const totalPages = Math.max(1, Math.ceil(visibleBookings.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const useVirtual = visibleBookings.length > VIRTUALIZE_THRESHOLD;
+  // Split view keeps paginated rows + month dividers. Virtualization only for
+  // the full-width table (fixed row height; no month grouping).
+  const useVirtual =
+    viewMode === "table" && visibleBookings.length > VIRTUALIZE_THRESHOLD;
   const pagedBookings = useVirtual
     ? visibleBookings
     : visibleBookings.slice((safePage - 1) * pageSize, safePage * pageSize);

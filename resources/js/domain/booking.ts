@@ -272,4 +272,5 @@ export function parseProposedSlot(
 export const PAGE_SIZE_BOOKING_SPLIT = 10;
 export const PAGE_SIZE_BOOKING_TABLE = 20;
 export const PAGE_SIZE_FEEDBACK = 8;
-export const VIRTUALIZE_THRESHOLD = 80;
+/** Table view only: above this many visible rows, switch to windowed list. */
+export const VIRTUALIZE_THRESHOLD = 1000;
