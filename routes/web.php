@@ -4,8 +4,11 @@ use App\Models\SiteSetting;
 use App\Support\PublicCache;
 use App\Support\SeoMeta;
 use App\Support\SiteContentDefaults;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 Route::get('/robots.txt', function () {
     return response(SeoMeta::robotsTxt(), 200, [
@@ -62,8 +65,22 @@ Route::get('/info/{any}', function () {
     abort(404);
 })->where('any', '.*');
 
-// SPA shell — semua rute non-API diserahkan ke React (state-based router).
-Route::get('/{any?}', function (Request $request) {
+// Homepage publik tidak butuh sesi atau token CSRF: mutasi SPA menyiapkan
+// cookie Sanctum hanya setelah visitor melakukan aksi. HTML cache aman dibagi.
+Route::get('/', function (Request $request) {
+    if ($redirect = SeoMeta::canonicalRedirect($request)) {
+        return $redirect;
+    }
+
+    return response(
+        PublicCache::rememberHomeHtml(fn (): string => view('app', SeoMeta::homePageViewData())->render()),
+        200,
+        PublicCache::homeHtmlHeaders(),
+    );
+})->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class]);
+
+// SPA shell — semua rute non-API selain homepage diserahkan ke React.
+Route::get('/{any}', function (Request $request) {
     if ($redirect = SeoMeta::canonicalRedirect($request)) {
         return $redirect;
     }

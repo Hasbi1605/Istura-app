@@ -199,6 +199,8 @@ sudo -u "$DEPLOY_OWNER" -H php artisan migrate --force
 sudo -u "$DEPLOY_OWNER" -H php artisan holidays:sync-id
 sudo -u "$DEPLOY_OWNER" -H php artisan storage:link || true
 sudo -u "$DEPLOY_OWNER" -H php artisan optimize:clear
+# Rendered homepage references Vite content hashes; never retain prior deploy HTML.
+sudo -u "$DEPLOY_OWNER" -H php artisan cache:forget public:html:home
 sudo -u "$DEPLOY_OWNER" -H php artisan config:cache
 sudo -u "$DEPLOY_OWNER" -H php artisan route:cache
 sudo -u "$DEPLOY_OWNER" -H php artisan view:cache
@@ -274,6 +276,14 @@ configure_nginx_security_headers() {
 # Managed by ISTURA deploy. Do not edit by hand.
 # HSTS must also cover static assets that bypass Laravel middleware.
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+# Vite names every production asset under this directory with a content hash.
+# Long caching is safe because changed bytes receive a new URL on the next build.
+location ^~ /build/assets/ {
+    try_files $uri =404;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+}
 NGINX
     chmod 0644 "$snippet_file"
 

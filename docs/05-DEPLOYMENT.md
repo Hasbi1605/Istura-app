@@ -46,7 +46,9 @@ Script deploy saat ini ada di `deploy/aws/deploy.sh` dan mengasumsikan host Linu
 - `php artisan migrate --force`.
 - `php artisan holidays:sync-id`.
 - `php artisan storage:link`.
+- Clear cache HTML homepage sebelum cache config/route/view/event agar markup tidak pernah menunjuk hash Vite deploy sebelumnya.
 - Cache config, route, view, event.
+- Pasang cache `public, max-age=31536000, immutable` khusus `/build/assets/` Vite; nama file content-hashed sehingga byte baru selalu URL baru.
 - Install config Supervisor untuk queue, Reverb, scheduler.
 - Restart proses Supervisor.
 - Set upload limit PHP-FPM 8M/10M.

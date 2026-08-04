@@ -45,7 +45,6 @@ import { Footer } from "../layout/Footer";
 import { InlineSpinner, SectionSkeleton } from "../ui/LoadingStates";
 
 const hasAvailableSlot = (day: VisitDay) => day.slots.some((slot) => slot.status === "Available");
-const warmedImages = new Set<string>();
 
 function closureReasonLabel(day?: VisitDay): string | null {
   return day?.closureReason?.label ?? day?.holiday?.label ?? null;
@@ -66,14 +65,6 @@ function slotClosureLabel(slot: Slot, day?: VisitDay): string | null {
   if (type === "collective_leave") return "Cuti Bersama";
   if (type === "operational_closed") return "Kunjungan tutup";
   return slot.closureReason?.label ?? closureReasonLabel(day);
-}
-
-function warmImage(src?: string) {
-  if (!src || warmedImages.has(src) || typeof window === "undefined") return;
-  warmedImages.add(src);
-  const img = new Image();
-  img.decoding = "async";
-  img.src = src;
 }
 
 function renderHeroSpeechText(typed: string, fullText: string, highlight?: string) {
@@ -128,6 +119,67 @@ const videoEmbedUrl = (url: string) => {
   }
   return url;
 };
+
+function VideoFacade({ title, url }: { title: string; url: string }) {
+  const [playing, setPlaying] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
+  const embedUrl = videoEmbedUrl(url);
+
+  if (playing) {
+    return (
+      <>
+        <iframe
+          src={`${embedUrl}${embedUrl.includes("?") ? "&" : "?"}autoplay=1`}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+          style={{ opacity: iframeReady ? 1 : 0, pointerEvents: iframeReady ? "auto" : "none", transition: "opacity 200ms ease" }}
+          onLoad={() => setIframeReady(true)}
+        />
+        {!iframeReady && (
+          <div className="video-facade video-facade-loading" aria-hidden="true">
+            <span className="video-facade-play" aria-hidden="true">▶</span>
+            <span>Memuat video...</span>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <button
+      className="video-facade"
+      type="button"
+      aria-label={`Putar ${title}`}
+      onClick={() => setPlaying(true)}
+    >
+      <span className="video-facade-play" aria-hidden="true">▶</span>
+      <span>Putar video virtual</span>
+    </button>
+  );
+}
+
+function heroSrcSet(src: string) {
+  return `${src.replace(/\.webp$/, "-640.webp")} 640w, ${src} 1024w`;
+}
+
+const warmedHeroPoses = new Map<string, HTMLImageElement>();
+
+function warmHeroPose(src: string) {
+  if (warmedHeroPoses.has(src) || typeof window === "undefined") return;
+
+  const image = new Image();
+  warmedHeroPoses.clear();
+  warmedHeroPoses.set(src, image);
+  image.decoding = "async";
+  image.fetchPriority = "low";
+  image.srcset = heroSrcSet(src);
+  image.sizes = "(max-width: 640px) 82vw, 500px";
+  image.src = src;
+  void image.decode().catch(() => undefined);
+}
 
 const isInsideScheduleWindow = (dateKey: string, minDate: Date, maxDate: Date) => {
   const date = parseDateKey(dateKey);
@@ -246,21 +298,6 @@ export function HomeScreen({
     setVisibleMonth(startOfMonth(parseDateKey(nextDateKey)));
   }, [maxScheduleDate, minPublicDate, scheduleSignature, schedules, selectedDateKey, selectedDay, visibleMonth]);
 
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      const urls = new Set<string>([
-        ...HERO_MESSAGES.map((item) => item.image),
-        ...HERO_MESSAGES_MOBILE.map((item) => item.image),
-        letter.image || ASSETS.letterExample,
-        siteContent.cta.backgroundImage,
-        ...siteContent.activities.items.map((item) => item.image),
-      ]);
-      urls.forEach(warmImage);
-    }, 1200);
-
-    return () => window.clearTimeout(id);
-  }, [letter.image, siteContent.activities.items, siteContent.cta.backgroundImage]);
-
   const handleMonthChange = (amount: number) => {
     const nextMonth = startOfMonth(addMonths(visibleMonth, amount));
     if (nextMonth < minMonth || nextMonth > maxMonth) {
@@ -282,7 +319,7 @@ export function HomeScreen({
         <div className="ambient ambient-two" />
         <div className="hero-copy">
           <span className="hero-logo-wrap">
-            <img className="hero-logo" src={ASSETS.logoGold} alt="Gedung Agung Yogyakarta" />
+            <img className="hero-logo" src={ASSETS.logoGold} alt="Gedung Agung Yogyakarta" width={1800} height={676} />
             <span className="hero-logo-shine" aria-hidden="true" />
           </span>
           <h1>{hero.headline}</h1>
@@ -441,15 +478,7 @@ export function HomeScreen({
 
       <section className="chapter video-chapter" aria-label={siteContent.video.title}>
         <div className="video-shell scale-fade">
-          <iframe
-            src={videoEmbedUrl(siteContent.video.url)}
-            title={siteContent.video.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-          />
+          <VideoFacade title={siteContent.video.title} url={siteContent.video.url} />
         </div>
       </section>
 
@@ -599,7 +628,7 @@ function HorizontalAccordion({ content }: { content: SiteContent["activities"] }
               className="zoom-media"
               src={item.image}
               alt=""
-              loading={index === 0 ? "eager" : "lazy"}
+              loading="lazy"
               decoding="async"
               fetchPriority="low"
             />
@@ -753,13 +782,36 @@ function HeroStage() {
   const isMobile = useMediaQuery("(max-width: 640px)");
   const messages = isMobile ? HERO_MESSAGES_MOBILE : HERO_MESSAGES;
   const [index, setIndex] = useState(0);
+  const [initialImageReady, setInitialImageReady] = useState(false);
+  const [loadedPose, setLoadedPose] = useState<string | null>(null);
+  const initialImageRef = useRef<HTMLImageElement | null>(null);
   const safeIndex = index % messages.length;
+  const activeMessage = messages[safeIndex];
+
+  useEffect(() => {
+    const image = initialImageRef.current;
+    if (image?.complete && image.naturalWidth > 0) {
+      setInitialImageReady(true);
+      setLoadedPose(messages[0].image);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (loadedPose !== activeMessage.image) return;
+    warmHeroPose(messages[(safeIndex + 1) % messages.length].image);
+  }, [activeMessage.image, loadedPose, messages, safeIndex]);
+
+  const handlePoseLoad = () => {
+    setLoadedPose(activeMessage.image);
+    if (safeIndex === 0) setInitialImageReady(true);
+  };
 
   const cycle = () => setIndex((current) => (current + 1) % messages.length);
 
   return (
     <div
       className="miky-stage miky-stage-greeting"
+      data-initial-image-ready={initialImageReady}
       role="button"
       tabIndex={0}
       aria-label="Tap MIKY untuk pesan dan pose berikutnya"
@@ -777,24 +829,23 @@ function HeroStage() {
         <span className="miky-wave-line" />
       </div>
       <div className="miky-hero-stack">
-        {messages.map((item, idx) => {
-          const isActive = idx === safeIndex;
-
-          return (
-            <img
-              key={item.image}
-              className={`miky-hero-img${isActive ? " is-active" : ""}`}
-              src={item.image}
-              alt={isActive ? "MIKY, pemandu booking ISTURA" : ""}
-              aria-hidden={isActive ? undefined : "true"}
-              data-reduced={reduced ? "true" : undefined}
-              decoding="async"
-              fetchPriority={isActive ? "high" : "low"}
-            />
-          );
-        })}
+        <img
+          ref={index === 0 ? initialImageRef : undefined}
+          key={activeMessage.image}
+          className="miky-hero-img is-active"
+          src={activeMessage.image}
+          srcSet={heroSrcSet(activeMessage.image)}
+          sizes="(max-width: 640px) 82vw, 500px"
+          width={1024}
+          height={1536}
+          alt="MIKY, pemandu booking ISTURA"
+          data-reduced={reduced ? "true" : undefined}
+          decoding={index === 0 ? "sync" : "async"}
+          fetchPriority={safeIndex === 0 ? "high" : "auto"}
+          onLoad={handlePoseLoad}
+        />
       </div>
-      <HeroMikySpeech index={index} onCycle={cycle} />
+      <HeroMikySpeech index={index} onCycle={cycle} initialImageReady={initialImageReady} />
     </div>
   );
 }
@@ -802,9 +853,11 @@ function HeroStage() {
 function HeroMikySpeech({
   index,
   onCycle,
+  initialImageReady,
 }: {
   index: number;
   onCycle: () => void;
+  initialImageReady: boolean;
 }) {
   const reduced = useReducedMotion();
   const isMobile = useMediaQuery("(max-width: 640px)");
@@ -825,6 +878,10 @@ function HeroMikySpeech({
   useEffect(() => {
     if (index !== 0 || reduced) {
       setReady(true);
+      return;
+    }
+    if (!initialImageReady) {
+      setReady(false);
       return;
     }
     setReady(false);
@@ -849,7 +906,7 @@ function HeroMikySpeech({
       window.cancelAnimationFrame(rafId);
       window.clearTimeout(fallbackId);
     };
-  }, [index, reduced]);
+  }, [index, initialImageReady, reduced]);
 
   const typed = useTypewriter(messageText, 22, !reduced, ready);
   const isTyping = !reduced && ready && typed.length < messageText.length;

@@ -18,7 +18,13 @@ class PublicCache
 
     public const BOOTSTRAP_BROWSER_TTL = 0;
 
+    public const HOME_HTML_TTL = 300;
+
+    public const HOME_HTML_BROWSER_TTL = 0;
+
     public const STALE_WHILE_REVALIDATE = 300;
+
+    private const HOME_HTML_KEY = 'public:html:home';
 
     /**
      * Public API payloads do not contain visitor-specific data. Let browsers
@@ -42,6 +48,28 @@ class PublicCache
         ];
     }
 
+    public static function rememberHomeHtml(callable $resolver): string
+    {
+        return Cache::remember(self::HOME_HTML_KEY, self::HOME_HTML_TTL, $resolver);
+    }
+
+    public static function homeHtmlHeaders(): array
+    {
+        return [
+            // Existing deploy removes prior Vite hashes. Browser and edge must
+            // revalidate HTML so a stale page never points to a removed asset.
+            'Cache-Control' => sprintf(
+                'public, max-age=%d, s-maxage=0, must-revalidate',
+                self::HOME_HTML_BROWSER_TTL,
+            ),
+        ];
+    }
+
+    public static function forgetHomeHtml(): void
+    {
+        Cache::forget(self::HOME_HTML_KEY);
+    }
+
     public static function rememberCms(string $key, callable $resolver): mixed
     {
         return Cache::remember("public:cms:{$key}", self::CMS_TTL, $resolver);
@@ -52,6 +80,8 @@ class PublicCache
         foreach ($keys as $key) {
             Cache::forget("public:cms:{$key}");
         }
+
+        self::forgetHomeHtml();
     }
 
     public static function rememberSchedule(string $from, string $to, callable $resolver): mixed

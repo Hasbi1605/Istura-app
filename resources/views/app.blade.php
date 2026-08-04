@@ -12,7 +12,6 @@
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{{ $seo['title'] }}</title>
     <meta name="description" content="{{ $seo['description'] }}" />
     <link rel="canonical" href="{{ $seo['canonicalUrl'] }}" />
@@ -34,9 +33,7 @@
     <meta name="twitter:image" content="{{ $seo['image'] }}" />
     <link rel="icon" type="image/webp" href="/assets/gedung-agung-gold.webp" />
     <link rel="preload" as="image" href="/assets/hero-istana.webp" fetchpriority="high" />
-    <link rel="preload" as="image" href="/assets/miky-greeting.webp" fetchpriority="high" />
-    <link rel="prefetch" as="image" href="/assets/miky-step-4.webp" />
-    <link rel="prefetch" as="image" href="/assets/miky-hero-3.webp" />
+    <link rel="preload" as="image" href="/assets/miky-step-1-640.webp" imagesrcset="/assets/miky-step-1-640.webp 640w, /assets/miky-step-1.webp 1024w" imagesizes="(max-width: 640px) 82vw, 500px" fetchpriority="high" />
     <script type="application/ld+json">{!! $structuredDataJson !!}</script>
     @viteReactRefresh
     @vite(['resources/js/main.tsx'])
