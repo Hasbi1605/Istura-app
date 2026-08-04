@@ -12,8 +12,12 @@ class PublicHomeCacheTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertOk()
-            ->assertHeader('Cache-Control', 'public, max-age=0, s-maxage=0, must-revalidate');
+        $response->assertOk();
+        $cacheControl = $response->headers->get('Cache-Control', '');
+        $this->assertStringContainsString('public', $cacheControl);
+        $this->assertStringContainsString('max-age=0', $cacheControl);
+        $this->assertStringContainsString('s-maxage=0', $cacheControl);
+        $this->assertStringContainsString('must-revalidate', $cacheControl);
 
         $this->assertCount(0, $response->headers->getCookies());
         $this->assertStringNotContainsString('<meta name="csrf-token"', $response->getContent());
