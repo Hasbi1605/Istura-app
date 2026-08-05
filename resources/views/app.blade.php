@@ -32,7 +32,11 @@
     <meta name="twitter:description" content="{{ $seo['description'] }}" />
     <meta name="twitter:image" content="{{ $seo['image'] }}" />
     <link rel="icon" type="image/webp" href="/assets/gedung-agung-gold.webp" />
-    <link rel="preload" as="image" href="/assets/hero-istana.webp" fetchpriority="high" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" />
+    <link rel="preload" as="image" href="/assets/hero-istana-1280.webp" media="(max-width: 640px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="/assets/hero-istana-1600.webp" media="(min-width: 641px)" fetchpriority="high" />
     <link rel="preload" as="image" href="/assets/miky-step-1-640.webp" imagesrcset="/assets/miky-step-1-640.webp 640w, /assets/miky-step-1.webp 1024w" imagesizes="(max-width: 640px) 82vw, 500px" fetchpriority="high" />
     <script type="application/ld+json">{!! $structuredDataJson !!}</script>
     @viteReactRefresh

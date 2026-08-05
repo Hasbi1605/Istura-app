@@ -42,3 +42,13 @@ test("deployment gives only Vite hashed assets one-year immutable caching", asyn
   assert.match(deploy, /Strict-Transport-Security "max-age=31536000; includeSubDomains" always/);
   assert.match(deploy, /php artisan cache:forget public:html:home/);
 });
+
+test("production CI runs frontend performance contracts before deploy", async () => {
+  const workflow = await read(".github/workflows/deploy.yml");
+
+  assert.match(workflow, /node --test tests\/frontend\/\*\.test\.mjs/);
+  assert.ok(
+    workflow.indexOf("node --test tests/frontend/*.test.mjs") < workflow.indexOf("npm run build"),
+    "frontend contracts must run before the production build",
+  );
+});

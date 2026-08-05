@@ -21,6 +21,8 @@ export function Navigation({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const items = content.items.length ? content.items : [{ label: "Beranda", target: "home" }];
+  const logoSrc = content.logoSrc || ASSETS.logoGold;
+  const isDefaultLogo = logoSrc === ASSETS.logoGold;
   const menuId = "mobile-navigation-menu";
 
   useEffect(() => {
@@ -92,7 +94,12 @@ export function Navigation({
     <header className="nav-wrap">
       <nav className="nav-shell" aria-label="Navigasi utama">
         <button className="brand-lockup" type="button" disabled={navigationLocked} onClick={() => handleNavigate("home")}>
-          <img src={content.logoSrc || ASSETS.logoGold} alt={content.logoAlt || "Logo Gedung Agung"} />
+          <img
+            src={logoSrc}
+            srcSet={isDefaultLogo ? "/assets/gedung-agung-gold-900.webp 900w, /assets/gedung-agung-gold.webp 1800w" : undefined}
+            sizes={isDefaultLogo ? "(max-width: 640px) 76px, 92px" : undefined}
+            alt={content.logoAlt || "Logo Gedung Agung"}
+          />
           <span>{content.brandText}</span>
         </button>
         <div className="nav-links">

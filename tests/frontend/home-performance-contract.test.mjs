@@ -1,7 +1,7 @@
 // Fase 1 guardrails. Node built-in test because this repo has no frontend test runner.
 // These inspect public initial-render contracts that Lighthouse cannot reliably assert in unit tests.
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../..", import.meta.url);
@@ -70,4 +70,39 @@ test("hero logo keeps its intrinsic aspect ratio despite explicit HTML dimension
   const heroLogo = styles.slice(styles.indexOf(".hero-logo {"), styles.indexOf(".hero-logo-wrap .hero-logo"));
 
   assert.match(heroLogo, /height:\s*auto;/);
+});
+
+test("Fase 3 serves responsive hero and logo sources without CSS font imports", async () => {
+  const [home, styles, view, navigation] = await Promise.all([
+    read("resources/js/components/home/HomeScreen.tsx"),
+    read("resources/js/styles.css"),
+    read("resources/views/app.blade.php"),
+    read("resources/js/components/layout/Navigation.tsx"),
+  ]);
+
+  assert.match(home, /srcSet="\/assets\/gedung-agung-gold-900\.webp 900w, \/assets\/gedung-agung-gold\.webp 1800w"/);
+  assert.match(home, /sizes="\(max-width: 640px\) 226px, 310px"/);
+  assert.match(home, /const useDefaultCtaBackground = \["\/assets\/hero-istana\.webp", "\/assets\/hero-istana-1600\.webp"\]\.includes/);
+  assert.match(home, /style=\{useDefaultCtaBackground \? undefined/);
+  assert.match(navigation, /srcSet=\{isDefaultLogo \? "\/assets\/gedung-agung-gold-900\.webp 900w, \/assets\/gedung-agung-gold\.webp 1800w" : undefined\}/);
+  assert.match(navigation, /sizes=\{isDefaultLogo \? "\(max-width: 640px\) 76px, 92px" : undefined\}/);
+  assert.match(styles, /\.hero-section\s*\{[\s\S]*?url\("\/assets\/hero-istana-1600\.webp"\)/);
+  assert.match(styles, /\.video-facade\s*\{[\s\S]*?url\("\/assets\/hero-istana-1600\.webp"\)/);
+  assert.match(styles, /@media \(max-width: 640px\)\s*\{[\s\S]*?\.hero-section\s*\{[\s\S]*?url\("\/assets\/hero-istana-1280\.webp"\)/);
+  assert.match(styles, /@media \(max-width: 640px\)\s*\{[\s\S]*?\.video-facade\s*\{[\s\S]*?url\("\/assets\/hero-istana-1280\.webp"\)/);
+  assert.doesNotMatch(styles, /url\("\/assets\/hero-istana\.webp"\)/);
+  assert.doesNotMatch(styles, /fonts\.googleapis\.com/);
+  assert.match(view, /rel="preconnect" href="https:\/\/fonts\.googleapis\.com"/);
+  assert.match(view, /rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin/);
+  assert.match(view, /rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2\?family=Outfit/);
+  assert.match(view, /rel="preload" as="image" href="\/assets\/hero-istana-1280\.webp" media="\(max-width: 640px\)"/);
+  assert.match(view, /rel="preload" as="image" href="\/assets\/hero-istana-1600\.webp" media="\(min-width: 641px\)"/);
+
+  for (const asset of [
+    "public/assets/hero-istana-1280.webp",
+    "public/assets/hero-istana-1600.webp",
+    "public/assets/gedung-agung-gold-900.webp",
+  ]) {
+    assert.ok((await stat(new URL(asset, root))).size > 0, `${asset} must exist`);
+  }
 });

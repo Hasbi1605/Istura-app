@@ -56,6 +56,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --ignore-scripts
 
+      - name: Run frontend contract tests
+        run: node --test tests/frontend/*.test.mjs
+
       - name: Build frontend
         run: npm run build
 

@@ -279,6 +279,7 @@ export function HomeScreen({
   const selectedClosureLabel = closureReasonLabel(selectedDay);
   const canGoPrev = visibleMonth > minMonth;
   const canGoNext = visibleMonth < maxMonth;
+  const useDefaultCtaBackground = ["/assets/hero-istana.webp", "/assets/hero-istana-1600.webp"].includes(siteContent.cta.backgroundImage);
 
   useEffect(() => {
     if (schedules.length === 0 || lastScheduleSyncRef.current === scheduleSignature) return;
@@ -319,7 +320,15 @@ export function HomeScreen({
         <div className="ambient ambient-two" />
         <div className="hero-copy">
           <span className="hero-logo-wrap">
-            <img className="hero-logo" src={ASSETS.logoGold} alt="Gedung Agung Yogyakarta" width={1800} height={676} />
+            <img
+              className="hero-logo"
+              src={ASSETS.logoGold}
+              srcSet="/assets/gedung-agung-gold-900.webp 900w, /assets/gedung-agung-gold.webp 1800w"
+              sizes="(max-width: 640px) 226px, 310px"
+              alt="Gedung Agung Yogyakarta"
+              width={1800}
+              height={676}
+            />
             <span className="hero-logo-shine" aria-hidden="true" />
           </span>
           <h1>{hero.headline}</h1>
@@ -514,7 +523,7 @@ export function HomeScreen({
 
       <section
         className="action-panel"
-        style={{
+        style={useDefaultCtaBackground ? undefined : {
           backgroundImage: `linear-gradient(135deg, rgba(16, 24, 47, 0.95), rgba(16, 24, 47, 0.7)), url("${siteContent.cta.backgroundImage}")`,
         }}
       >

@@ -142,7 +142,7 @@ class SiteContentDefaults
                 'title' => 'Siap mengajukan kunjungan ISTURA?',
                 'body' => 'Mulai dari jadwal yang tersedia, unggah surat permohonan, lalu tunggu konfirmasi admin maksimal 1x24 jam melalui WhatsApp.',
                 'buttonLabel' => 'Mulai Booking Sekarang',
-                'backgroundImage' => '/assets/hero-istana.webp',
+                'backgroundImage' => '/assets/hero-istana-1600.webp',
             ],
             'footer' => [
                 'logoSrc' => '/assets/gedung-agung-gold.webp',
