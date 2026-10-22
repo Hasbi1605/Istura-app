@@ -24,7 +24,9 @@ di file workflow agar repo aman dipublikasikan dan mudah dipindah hosting/domain
 
 Script deploy saat ini ada di `deploy/aws/deploy.sh` dan mengasumsikan host Linux dengan:
 
-- PHP-FPM 8.4.
+- PHP-FPM 8.4 **≥ 8.4.27** (patch CVE-2026-109618 / CVE-2026-109619
+  "PHP2Shell"; script deploy menolak versi di bawahnya — lihat
+  `docs/08-SECURITY-PRIVACY.md`). Distro dengan backport boleh, verifikasi changelog paket.
 - Composer.
 - Node/npm.
 - MySQL reachable dari app.
@@ -51,7 +53,10 @@ Script deploy saat ini ada di `deploy/aws/deploy.sh` dan mengasumsikan host Linu
 - Pasang cache `public, max-age=31536000, immutable` khusus `/build/assets/` Vite; nama file content-hashed sehingga byte baru selalu URL baru.
 - Install config Supervisor untuk queue, Reverb, scheduler.
 - Restart proses Supervisor.
-- Set upload limit PHP-FPM 8M/10M.
+- Cek versi PHP ≥ 8.4.27 sebelum maintenance mode (`require_patched_php_version`,
+  gate PHP2Shell) dan pastikan `php8.4-fpm` active sesudah restart.
+- Set upload limit PHP-FPM 8M/10M + `session.upload_progress.enabled=0`
+  (defense-in-depth CVE-2026-109619).
 - Pasang include HSTS Nginx pada server block ISTURA yang melayani HTTPS atau root
   aplikasi agar static asset yang tidak melewati middleware Laravel tetap mengirim
   `Strict-Transport-Security`.

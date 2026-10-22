@@ -50,6 +50,51 @@ Limiter yang terlihat:
 - CMS image diproses oleh `CmsImageService` dan dikonversi ke WebP.
 - Batas aplikasi 5 MB; server PHP perlu limit sedikit lebih tinggi.
 
+## Runtime PHP — PHP2Shell (CVE-2026-109618 / CVE-2026-109619, 21 Okt 2026)
+
+Sumber resmi: php.net — *Security advisory: Critical remote code execution
+vulnerabilities, update now* (21 Okt 2026,
+https://www.php.net/archive/2026.php#2026-10-21-5), advisory
+GHSA-w8hw-w9fx-j79w & GHSA-6wmf-4rv5-p3rp, rilis tetap 8.5.12 / 8.4.27 /
+8.3.36 / 8.2.35. CVSS v4.0 9.2, **RCE tanpa autentikasi**, semua SAPI web
+(PHP-FPM, mod_php, php-cgi, FrankenPHP, LiteSpeed). Ini bug di C-core PHP
+(OOM `longjmp()` meninggalkan state parsial; stale global state/use-after-free
+lintas request dalam satu worker) — **tidak bisa diperbaiki dari kode Laravel**;
+hanya update runtime PHP yang menutupnya secara penuh.
+
+Kondisi Istura saat advisory terbit: **rentan**. Tidak ada pin versi di repo —
+CI hanya meminta `8.4`, `composer.json` hanya `^8.3`, deploy mengasumsikan
+"PHP-FPM 8.4" tanpa cek patch level, dan PHP lokal 8.4.11 < 8.4.27. Istura
+memang memproses multipart upload (surat booking publik, poster/CMS admin) dan
+session — persis permukaan yang disebut advisory, tapi exploitability PHP-FPM
+tetap bergantung keadaan worker; jangan menganggap FPM "aman".
+
+Perbaikan yang diterapkan di repo:
+
+- `composer.json`: `php` kini `^8.3.36 || ^8.4.27 || ^8.5.12` — runtime di
+  bawah patch level tersebut gagal `composer install`/platform check.
+- CI (`.github/workflows/deploy.yml`): pin `8.4.27` + langkah verifikasi
+  `PHP_VERSION_ID >= 80427`.
+- `deploy/aws/deploy.sh`: gate `require_patched_php_version` menolak deploy
+  (sebelum maintenance mode / rsync) bila `php` server < 8.4.27; sesudah
+  restart, `php8.4-fpm` wajib berstatus active. Override darurat hanya lewat
+  env `ISTURA_MIN_PHP_VERSION` (jangan turunkan tanpa backport vendor terverifikasi).
+- Defense-in-depth (bukan pengganti patch): FPM conf.d kini juga menetapkan
+  `session.upload_progress.enabled = 0` untuk memutus jalur session upload
+  progress yang terkonfirmasi pada CVE-2026-109619. Istura tidak memakai
+  fitur itu. `memory_limit=-1` ala advisory **sengaja tidak diterapkan**:
+  advisnya menyatakan itu bukan mitigasi lengkap, dan menghilangkan batas
+  memori per-request membuka risiko DoS yang lebih nyata untuk app ini.
+  Batas unggahan yang sudah konservatif tetap dipertahankan (app 5 MB,
+  PHP 8M/10M) selaras anjuran `post_max_size` rendah untuk app ber-upload.
+
+Yang masih harus dilakukan di **server production** (tidak bisa dari repo):
+update paket PHP host ke 8.4.27+ (atau build distro dengan backport — nomor
+versi distro bisa tetap lama; verifikasi lewat changelog paket vendor, bukan
+hanya `php -v`), lalu restart PHP-FPM. Deploy berikutnya akan gagal di gate
+versi bila belum diperbarui — itu disengaja. Saldo versi yang didukung PHP
+untuk cabang lain bila pindah cabang: 8.3 ≥ 8.3.36, 8.5 ≥ 8.5.12, 8.2 ≥ 8.2.35.
+
 ## Security Headers
 
 `AddSecurityHeaders` mengatur:

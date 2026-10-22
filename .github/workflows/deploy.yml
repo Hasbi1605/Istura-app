@@ -32,12 +32,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      # Pinned to the first 8.4 patch fixing CVE-2026-109618 / CVE-2026-109619
+      # ("PHP2Shell", php.net 21 Oct 2026). Do not lower below 8.4.27.
+      # See docs/08-SECURITY-PRIVACY.md.
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.4.27'
           extensions: bcmath, curl, dom, fileinfo, gd, mbstring, pdo_sqlite, xml
           coverage: none
+
+      - name: Verify PHP is not vulnerable to PHP2Shell
+        run: |
+          php -r 'printf("PHP %s (id %d)\n", PHP_VERSION, PHP_VERSION_ID); exit(PHP_VERSION_ID >= 80427 ? 0 : 1);'
 
       - name: Set up Node.js
         uses: actions/setup-node@v6

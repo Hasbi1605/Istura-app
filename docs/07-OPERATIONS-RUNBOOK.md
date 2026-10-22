@@ -73,6 +73,12 @@ Lokasi umum:
 - Rebuild frontend jika `VITE_REVERB_*` berubah.
 - Aplikasi tetap bisa dipakai dengan reload/refetch manual.
 
+### PHP di bawah 8.4.27 / deploy ditolak gate versi
+
+- Deploy menolak PHP < 8.4.27 (CVE-2026-109618 / CVE-2026-109619, PHP2Shell, php.net 21 Okt 2026). Ini celah RCE di runtime PHP, bukan di kode aplikasi — jangan turunkan gate.
+- Di server: update paket PHP ke 8.4.27+ (`php -v` dan `systemctl status php8.4-fpm`), restart `php8.4-fpm`, lalu ulangi deploy. Untuk paket distro ber-backport, cek changelog vendor; override hanya lewat `ISTURA_MIN_PHP_VERSION` bila backport terverifikasi.
+- Detail & mitigasi sementara: `docs/08-SECURITY-PRIVACY.md` bagian PHP2Shell.
+
 ### Upload gagal
 
 - Aplikasi membatasi file 5 MB.

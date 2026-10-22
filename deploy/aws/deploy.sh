@@ -24,6 +24,35 @@ if ! id "$SUPERVISOR_USER" >/dev/null 2>&1; then
     exit 1
 fi
 
+# Minimum safe PHP 8.4 patch level. Fixes CVE-2026-109618 / CVE-2026-109619
+# ("PHP2Shell", php.net 21 Oct 2026) — unauthenticated RCE via OOM corruption
+# and stale global state. No complete config mitigation exists; the runtime
+# itself must be patched. See docs/08-SECURITY-PRIVACY.md.
+: "${ISTURA_MIN_PHP_VERSION:=80427}"
+
+require_patched_php_version() {
+    actual_id="$(php -r 'echo PHP_VERSION_ID;' 2>/dev/null || true)"
+    case "$actual_id" in
+        ''|*[!0-9]*)
+            echo "Could not determine PHP version (PHP_VERSION_ID='${actual_id}'); refusing to deploy an unverified PHP runtime." >&2
+            exit 1
+            ;;
+    esac
+
+    if [ "$actual_id" -lt "$ISTURA_MIN_PHP_VERSION" ]; then
+        actual_version="$(php -r 'echo PHP_VERSION;' 2>/dev/null || echo "?")"
+        echo "PHP ${actual_version} (id ${actual_id}) is vulnerable to CVE-2026-109618 / CVE-2026-109619 (PHP2Shell, CVSS 9.2)." >&2
+        echo "Upgrade the server to PHP 8.4.27+ (or fixed 8.5.12 / 8.3.36 / 8.2.35) before deploying; see https://www.php.net/archive/2026.php#2026-10-21-5" >&2
+        exit 1
+    fi
+
+    echo "PHP version check passed: $(php -r 'echo PHP_VERSION;') (>= minimum id ${ISTURA_MIN_PHP_VERSION})."
+}
+
+# Fail before maintenance mode / any mutation so a vulnerable host stays live
+# (and patchable) instead of being left down by a refused deploy.
+require_patched_php_version
+
 mkdir -p "$DEPLOY_PATH"
 
 restore_application() {
@@ -249,10 +278,15 @@ configure_php_upload_limits() {
 
     # Keep PHP upload limits comfortably above the 5 MB app-level cap so poster /
     # letter uploads are not silently rejected at the PHP layer ("failed to upload").
+    # session.upload_progress.enabled=0 is defense-in-depth for CVE-2026-109619
+    # (stale global state): it blocks the confirmed session-upload-progress
+    # producer/consumer path before request init. ISTURA never reads
+    # PHP_SESSION_UPLOAD_PROGRESS. This does NOT replace updating PHP itself.
     cat > "$target_conf_dir/99-istura-upload.ini" <<'PHPINI'
 ; Managed by ISTURA deploy. Do not edit by hand.
 upload_max_filesize = 8M
 post_max_size = 10M
+session.upload_progress.enabled = 0
 PHPINI
     chmod 0644 "$target_conf_dir/99-istura-upload.ini"
     echo "Configured PHP upload limits in $target_conf_dir/99-istura-upload.ini"
@@ -405,6 +439,16 @@ configure_php_upload_limits
 configure_nginx_security_headers
 
 systemctl try-reload-or-restart php8.4-fpm
+
+# The CLI SAPI alone does not prove the FPM worker was patched or restarted;
+# ask FPM itself (via the CLI reading the same FPM conf.d) is not possible, so
+# verify the service is actually running after the restart.
+if ! systemctl is-active --quiet php8.4-fpm; then
+    echo "php8.4-fpm is not active after restart; refusing to bring the app up on an unverified runtime." >&2
+    systemctl status php8.4-fpm --no-pager >&2 || true
+    exit 1
+fi
+
 systemctl reload nginx
 sudo -u "$DEPLOY_OWNER" -H php artisan up
 
